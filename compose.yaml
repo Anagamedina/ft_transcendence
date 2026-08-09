@@ -1,0 +1,4 @@
+# COMPOSE — orquestación local/entrega
+# Servicios: database | backend | simulator | gateway
+# Solo gateway publica 80/443. Red interna aquaguard. Volumen pgdata.
+# Comando entrega: docker compose up --build

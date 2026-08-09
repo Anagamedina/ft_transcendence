@@ -1,0 +1,2 @@
+# DEPENDENCIAS BACKEND (añadir versiones al implementar)
+# fastapi, uvicorn, sqlalchemy, alembic, psycopg, pydantic, argon2/passlib, pytest

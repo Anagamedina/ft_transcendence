@@ -1,0 +1,1 @@
+<!-- COMPONENT — estado vacío obligatorio. -->

@@ -1,0 +1,1 @@
+<!-- REGISTER — alta de usuario → sesión → dashboard. -->
