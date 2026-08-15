@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO="${REPO:-Anagamedina/ft_transcendence}"
-ASSIGNEE=""
+ASSIGNEE="lylfergu"
 
 ensure_label() {
   local name="$1"
@@ -38,7 +38,7 @@ create_issue \
 Crear la capa de estado global del frontend.
 
 ## Responsable
-User04
+Lylia
 
 ## Tareas
 - Instalar/configurar Pinia.
@@ -73,7 +73,7 @@ create_issue \
 Crear una única capa de comunicación entre Vue y FastAPI.
 
 ## Responsable
-User04
+Lylia
 
 ## Tareas
 - Instalar/configurar Axios.
@@ -109,7 +109,7 @@ create_issue \
 Permitir que Frontend avance aunque algunos endpoints Backend todavía no estén disponibles.
 
 ## Responsable
-User04
+Lylia
 
 ## Tareas
 - Crear MockAdapter.
@@ -144,7 +144,7 @@ create_issue \
 Conectar el frontend con los endpoints básicos de sensores y lecturas.
 
 ## Responsable
-User04
+Lylia
 
 ## Tareas
 - Crear services para sensors.
@@ -182,7 +182,7 @@ create_issue \
 Implementar el flujo de autenticación del frontend.
 
 ## Responsable
-User04
+Lylia
 
 ## Tareas
 - Crear formulario Login.
@@ -226,7 +226,7 @@ create_issue \
 Proteger las rutas según autenticación y rol.
 
 ## Responsable
-User04
+Lylia
 
 ## Tareas
 - Crear guards de Vue Router.
@@ -238,7 +238,7 @@ User04
 ## No incluye
 - Diseño visual Admin/Client.
 
-Estas tareas pertenecen a Florinda y User04 según sus respectivas áreas.
+Estas tareas pertenecen a Florinda y Lylia según sus respectivas áreas.
 
 ## Dependencias
 Depende de:
@@ -260,7 +260,7 @@ create_issue \
 Crear estados comunes para datos asíncronos y evitar que cada vista resuelva los errores de forma distinta.
 
 ## Responsable
-User04
+Lylia
 
 ## Tareas
 - Crear LoadingState.
@@ -290,7 +290,7 @@ create_issue \
 Añadir funcionalidad de datos a las vistas Admin creadas por Florinda.
 
 ## Responsable
-User04
+Lylia
 
 ## Tareas
 - Integrar listado de sensores.
@@ -332,7 +332,7 @@ create_issue \
 Construir el área privada del cliente autenticado.
 
 ## Responsable
-User04
+Lylia
 
 ## Tareas
 - Crear vista principal Client Dashboard.
@@ -369,7 +369,7 @@ create_issue \
 Permitir que Admin/Client consulten el histórico básico de un sensor dentro del MVP.
 
 ## Responsable
-User04
+Lylia
 
 ## Tareas
 - Consumir endpoint de readings por sensor.
@@ -405,7 +405,7 @@ create_issue \
 Cubrir los flujos frontend más críticos del Mandatory.
 
 ## Responsable
-User04
+Lylia
 
 ## Tareas
 - Configurar Playwright si todavía no existe.
