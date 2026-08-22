@@ -2,3 +2,34 @@
 # Servicios: database | backend | simulator | gateway
 # Solo gateway publica 80/443. Red interna aquaguard. Volumen pgdata.
 # Comando entrega: docker compose up --build
+
+services:
+  # postgres oficial + volume + healthcheck
+  postgres-db:
+    container_name: postgres-db
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432" #only loca, from alembic to the host
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+#  backend:    # build Dockerfile + env + depends_on database
+#  simulator:  # build + llama a http://backend:8000
+#  gateway:    # build + ports 80/443 + proxy /api /ws
+
+volumes:
+  postgres_data:
+
+#networks:
+#  app-network:
+
