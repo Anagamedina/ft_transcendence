@@ -6,13 +6,14 @@
 services:
   # postgres oficial + volume + healthcheck
   postgres-db:
-    container_name: postgres-db
+    container_name: postgres
     image: postgres:16-alpine
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
