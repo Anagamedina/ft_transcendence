@@ -19,7 +19,6 @@ Conceptualmente:
 
 ```text
 PostgreSQL
-    │
     ├── users
     ├── sites
     ├── sensors
@@ -27,7 +26,7 @@ PostgreSQL
     └── alerts
 ```
 
-En vuestro proyecto PostgreSQL estará dentro del contenedor `database` y sus datos estarán en un **volumen persistente de Docker**.
+PostgreSQL estará dentro del contenedor `database` y sus datos estarán en un **volumen persistente de Docker**.
 
 ---
 
@@ -35,7 +34,7 @@ En vuestro proyecto PostgreSQL estará dentro del contenedor `database` y sus da
 
 Es la **librería que permite que Python se comunique realmente con PostgreSQL**.
 
-SQLAlchemy por sí solo no habla directamente el protocolo de PostgreSQL. Necesita un driver.
+SQLAlchemy por sí solo no habla directamente el protocolo de PostgreSQL, y necesita un driver.
 
 Por ejemplo:
 
@@ -47,7 +46,7 @@ PostgreSQL driver
 PostgreSQL
 ```
 
-Dependiendo de si trabajáis de forma síncrona o asíncrona podríais encontrar drivers como:
+Dependiendo de si se elije utilizar la forma síncrona o asíncrona:
 
 ```text
 psycopg
@@ -102,8 +101,6 @@ Además, SQLAlchemy gestiona conexiones, sesiones, transacciones, modelos y rela
 
 ---
 
-
-
 ### 4. Diferencia entre `Engine` y `Session`
 
 Esta diferencia es **muy importante**.
@@ -152,11 +149,10 @@ PostgreSQL
 Regla mental:
 
 > **Engine = cómo puedo conectarme a PostgreSQL.**
+ 
 > **Session = conversación/unidad de trabajo que estoy realizando con PostgreSQL.**
 
 ---
-
-
 
 ### 5. ¿Qué significa `commit`?
 
