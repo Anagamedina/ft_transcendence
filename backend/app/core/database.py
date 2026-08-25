@@ -1,9 +1,9 @@
-# DATABASE — engine SQLAlchemy, SessionLocal, Base y get_db().
 # Flujo: request → dependencia get_db → service/repository → commit/rollback.
 from sqlalchemy import create_engine, text
-from app.core.config import settings
+from sqlalchemy.orm import Session, sessionmaker
+from contextlib import contextmanager
 
-from backend.app.core.config import Settings
+from app.core.config import settings
 
 # ---------------------------------------------------------
 # ENGINE
@@ -24,7 +24,7 @@ from backend.app.core.config import Settings
 
 engine = create_engine(
     settings.DATABASE_URL,
-    pool_pre_ping=true,
+    pool_pre_ping=True,
 )
 
 # ---------------------------------------------------------
@@ -44,7 +44,7 @@ engine = create_engine(
 
 SessionLocal = sessionmaker(
     bind=engine,
-    autoflush=false,
+    autoflush=False,
     expire_on_commit=False,
 )
 
@@ -77,3 +77,45 @@ def get_db():
         yield db
     finally:
         db.close()
+
+"""
+    - operacion correcta    --> commit()
+    - error --> rollback()
+    - se cierra inmediatamente --> get_db()
+"""
+@contextmanager
+def transaction(db: Session):
+    try:
+        yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

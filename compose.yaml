@@ -5,7 +5,7 @@
 
 services:
   # postgres oficial + volume + healthcheck
-  postgres-db:
+  database:
     container_name: postgres
     image: postgres:16-alpine
     restart: always
@@ -13,16 +13,31 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_HOST: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432" #only loca, from alembic to the host
+      - "5432:5432" #only local, from alembic to the host
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
       interval: 5s
       timeout: 5s
       retries: 10
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: database
+      POSTGRES_PORT: ${POSTGRES_PORT}
+    depends_on:
+      database:
+        condition: service_healthy
+    expose:
+      - "8000:8000"
+
 
 #  backend:    # build Dockerfile + env + depends_on database
 #  simulator:  # build + llama a http://backend:8000
