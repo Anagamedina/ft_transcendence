@@ -35,7 +35,7 @@ services:
     depends_on:
       database:
         condition: service_healthy
-    expose:
+    ports:
       - "8000:8000"
 
 
