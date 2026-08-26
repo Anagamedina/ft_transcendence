@@ -26,3 +26,24 @@ No todas las excepciones deben convertirse en `200`: un error desconocido debe c
 - Crear una session global en `main.py`.
 - Poner queries en endpoints.
 - Capturar `Exception` y ocultar el error.
+
+## Conceptos en conjunto
+
+### Composición frente a ejecución
+
+`main.py` define cómo se conectan las piezas; un router define qué endpoint existe; un service define qué debe ocurrir. Separar estas decisiones permite cambiar infraestructura sin cambiar el contrato HTTP.
+
+### Dependencias y ciclo de vida
+
+FastAPI resuelve dependencies por request. Una dependency puede entregar configuración, usuario o session, pero debe liberar recursos y tener un alcance claro. No debe convertirse en un contenedor global de estado mutable.
+
+### Error técnico frente a error de dominio
+
+“Sensor no encontrado” es un resultado conocido; una caída de DB es un error técnico. Ambos necesitan respuestas seguras, pero distinto logging y tratamiento.
+
+## Qué debes poder demostrar
+
+- Registrar un router sin añadir lógica a `main.py`.
+- Sustituir una dependency en un test.
+- Explicar dónde se transforma una excepción en HTTP.
+- Seguir una request desde entrada hasta la capa de negocio.

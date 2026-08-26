@@ -20,3 +20,15 @@ El mecanismo elegido debe coincidir con frontend, gateway y decisión documentad
 ## Errores frecuentes
 
 Guardar passwords, comparar hashes manualmente, devolver “email no existe”, usar cookies sin flags o aceptar un token expirado.
+
+## Conceptos en conjunto
+
+Register transforma una password en hash y persiste un usuario; login verifica y crea una credencial temporal; `current_user` valida esa credencial en cada request; logout la elimina o revoca.
+
+La cookie/token es una credencial, no el usuario completo. `/api/me` debe consultar o reconstruir una identidad segura y devolver solo campos públicos.
+
+## Qué debes poder demostrar
+
+- Explicar el recorrido completo sin revelar secretos.
+- Distinguir hash, sesión, expiración y logout.
+- Identificar qué casos devuelven 401 y cuáles 409/422.

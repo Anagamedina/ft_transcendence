@@ -17,3 +17,14 @@ Un valor por encima del umbral puede persistir durante muchas lecturas. La regla
 
 Los endpoints cambian estado; no deben permitir transiciones arbitrarias ni saltarse permisos.
 
+## Conceptos en conjunto
+
+La evaluación transforma una reading en una decisión; la deduplicación evita ruido; el estado conserva el ciclo de vida; los endpoints permiten intervención humana. Si cada reading crea una alerta, el sistema deja de ser útil.
+
+La histeresis/cooldown debe adaptarse al dominio. No se debe “suavizar” tanto que se oculte un evento real. Los valores y tiempos deben ser configurables o estar claramente fijados.
+
+## Qué debes poder demostrar
+
+- Explicar por qué se crea una alerta nueva o se actualiza una existente.
+- Probar una transición y su rechazo.
+- Diferenciar condición normal de ausencia de datos.

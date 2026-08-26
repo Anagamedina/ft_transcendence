@@ -24,3 +24,7 @@
 ## Errores frecuentes
 
 Devolver todo el histórico, confiar en el frontend para filtrar, usar 200 para inexistentes o serializar accidentalmente relaciones sensibles.
+
+## Criterio de entrega
+
+Documentar los parámetros, orden y límites para que User04 pueda consumir la API y para que los tests puedan verificar respuestas deterministas.

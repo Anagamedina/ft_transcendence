@@ -32,3 +32,22 @@ Es la entrada del vertical slice y del simulador. Una lectura válida se persist
 - [ ] Delega persistencia al repository.
 - [ ] No contiene queries SQLAlchemy.
 - [ ] Simulator puede utilizarlo por HTTP.
+
+## 7. Decisiones técnicas
+
+- El status y la respuesta quedan fijados en OpenAPI.
+- Backend es autoridad sobre sensor, organización y unidades.
+- Errores de validación, dominio y persistencia se distinguen.
+- Debe existir política para reintentos e idempotencia.
+
+## 8. Casos límite
+
+- Sensor inexistente o de otra organización.
+- Valor justo fuera del rango.
+- Timestamp futuro o zona horaria inválida.
+- Payload repetido por reintento.
+- Repository no disponible.
+
+## 9. Resultado para el proyecto
+
+El simulator obtiene una entrada estable al sistema y cada lectura pasa por las mismas reglas antes de llegar a PostgreSQL.

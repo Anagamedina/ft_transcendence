@@ -37,3 +37,15 @@ El proyecto obtiene una identidad verificable para proteger recursos. Passwords 
 - [ ] `/api/me` devuelve usuario autenticado.
 - [ ] Credenciales inválidas tienen respuesta segura.
 - [ ] Hash/password nunca aparece en respuestas ni logs.
+
+## 8. Casos límite
+
+- Email ya registrado.
+- Password incorrecta o demasiado débil.
+- Sesión ausente, expirada o revocada.
+- Cookie/token manipulado.
+- Usuario eliminado o desactivado.
+
+## 9. Resultado para el proyecto
+
+Esta issue entrega la identidad que utilizarán permisos, dashboards y endpoints privados. Su contrato debe ser estable para frontend y gateway.

@@ -27,3 +27,22 @@ El frontend puede implementar contra Swagger sin adivinar campos. Los schemas se
 - [ ] Request y response no se mezclan indebidamente.
 - [ ] El error común tiene estructura estable.
 - [ ] El contrato está coordinado con Frontend.
+
+## 7. Decisiones técnicas
+
+- Separar schemas de creación, actualización y lectura.
+- No exponer entidades ORM ni campos internos.
+- Definir si campos desconocidos se ignoran o rechazan.
+- Documentar cualquier cambio incompatible con clientes existentes.
+
+## 8. Casos límite
+
+- Campo omitido frente a `null` explícito.
+- Fecha/hora sin zona o con formato inválido.
+- Enum desconocido.
+- Error con varios campos inválidos.
+- Cambio de nombre que rompe MockAdapter.
+
+## 9. Resultado para el equipo
+
+Frontend, simulator y backend pueden desarrollar en paralelo contra un contrato común y detectar incompatibilidades antes de integrar.

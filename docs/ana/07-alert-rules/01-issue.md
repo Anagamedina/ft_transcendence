@@ -27,3 +27,23 @@ Convierte datos en información accionable para el dashboard. Las alertas se gen
 - [ ] Alertas respetan estados y severidad.
 - [ ] GET filtra por organización/estado según contrato.
 - [ ] Acknowledge/resolve son seguros e idempotentes.
+
+## 6. Decisiones técnicas
+
+- Umbrales y unidades deben estar centralizados y documentados.
+- Debe definirse qué ocurre en el valor exacto del umbral.
+- Alertas repetidas necesitan deduplicación/cooldown.
+- OFFLINE depende del tiempo desde la última lectura.
+- ACK y RESOLVE son transiciones distintas.
+
+## 7. Casos límite
+
+- Lectura exactamente igual al umbral.
+- Ruido que alterna alrededor del límite.
+- Muchas readings durante una alerta abierta.
+- Sensor que deja de enviar y vuelve.
+- Usuario intentando resolver una alerta ajena.
+
+## 8. Resultado para el proyecto
+
+El sistema deja de mostrar solo valores y puede comunicar situaciones accionables con historial y estado controlado.

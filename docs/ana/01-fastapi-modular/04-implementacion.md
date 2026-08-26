@@ -24,3 +24,6 @@
 
 No registrar routers manualmente por todos los módulos, no mezclar DB en `main.py`, no devolver errores internos completos y no crear dependencias globales mutables.
 
+## Criterio de entrega
+
+Añadir una guía breve de cómo registrar un módulo nuevo y qué responsabilidad tiene cada archivo. Una segunda persona debe poder crear un router sin copiar lógica de otro módulo.

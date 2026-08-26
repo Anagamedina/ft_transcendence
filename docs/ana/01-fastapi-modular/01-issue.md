@@ -35,3 +35,22 @@ Es el punto de entrada estable para todas las issues posteriores. Debe arrancar,
 - [ ] Existe estructura `modules/` y separación router/service/repository.
 - [ ] `/api/health` responde correctamente.
 - [ ] Existe manejo global coherente de errores.
+
+## 8. Decisiones técnicas
+
+- `main.py` compone la aplicación; no implementa casos de uso.
+- Cada módulo registra su propio `APIRouter`.
+- Dependencies entregan contexto y recursos con un alcance claro.
+- Exception handlers traducen errores conocidos de forma centralizada.
+
+## 9. Casos límite
+
+- Router no registrado o prefijo incorrecto.
+- Error de validación frente a error interno.
+- Dependencia que falla durante una request.
+- Import circular entre módulos.
+- App arrancando sin servicios opcionales.
+
+## 10. Resultado para el equipo
+
+Las issues posteriores pueden añadir rutas sin reescribir el arranque. Daruny puede conectar persistencia mediante una dependency sin introducir SQLAlchemy en `main.py`.

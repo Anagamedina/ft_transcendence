@@ -20,3 +20,14 @@ Un payload bien formado puede ser inválido para el dominio: sensor inexistente,
 
 Reintentar una request puede duplicar una reading. Si el contrato necesita idempotencia, debe existir una clave/event ID y una garantía en repository/DB; no se resuelve solo con un `try` en el router.
 
+## Conceptos en conjunto
+
+Una request válida sintácticamente no garantiza un evento válido. El service combina identidad del sensor, tenant, rango y política temporal; el repository ejecuta persistencia; el router traduce el resultado.
+
+El status HTTP debe distinguir datos inválidos de una indisponibilidad temporal. El cliente necesita saber si corregir el payload o reintentar.
+
+## Qué debes poder demostrar
+
+- Seguir una lectura desde JSON hasta repository.
+- Explicar dónde se comprueba cada regla.
+- Probar un reintento sin ocultar duplicados.

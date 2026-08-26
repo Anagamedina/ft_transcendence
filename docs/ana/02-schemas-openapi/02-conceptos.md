@@ -26,3 +26,23 @@ Un `UserResponse` no debe reutilizar automáticamente `UserCreate`: la entrada p
 - Hacer todos los campos opcionales para evitar errores.
 - Cambiar nombres sin coordinar frontend.
 - Devolver un formato distinto para cada excepción.
+
+## Conceptos en conjunto
+
+### Tres validaciones distintas
+
+Pydantic valida forma y tipos; el service valida reglas de negocio; PostgreSQL valida integridad. Un email con formato correcto puede estar duplicado y un ID correcto puede no pertenecer al usuario.
+
+### Entrada frente a salida
+
+Un schema de entrada expresa lo que aceptamos; uno de salida expresa lo que garantizamos. Esta separación evita devolver passwords, relaciones innecesarias o campos internos.
+
+### Contrato y evolución
+
+Cambiar un campo obligatorio es potencialmente incompatible. Antes de renombrar o eliminar, revisar frontend, simulator, OpenAPI y clientes existentes.
+
+## Qué debes poder demostrar
+
+- Explicar qué capa rechaza cada tipo de error.
+- Encontrar el schema que produce un campo en `/openapi.json`.
+- Añadir un campo opcional sin romper clientes.

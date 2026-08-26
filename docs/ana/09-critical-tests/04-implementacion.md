@@ -25,3 +25,6 @@
 
 Tests que comparten DB, mocks que no representan el contrato, solo probar 200, ocultar excepciones y usar sleeps.
 
+## Criterio de entrega
+
+Documentar el comando de ejecución, dependencias de entorno y separación entre tests unitarios e integración. Un test no está terminado hasta que falla cuando se rompe el comportamiento que pretende proteger.

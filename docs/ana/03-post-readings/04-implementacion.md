@@ -26,3 +26,6 @@
 
 Hacer commit desde el router, devolver la excepción SQL, aceptar cualquier sensor por ID o devolver siempre `200`.
 
+## Criterio de entrega
+
+Documentar payload, status, errores y política de reintento para que el simulador pueda integrarse sin adivinar el comportamiento.

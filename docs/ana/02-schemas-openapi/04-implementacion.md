@@ -24,3 +24,6 @@
 
 No copiar todos los campos del ORM, no usar `Any` como solución general, no ocultar errores de validación y no modificar un contrato consumido sin avisar.
 
+## Criterio de entrega
+
+Registrar ejemplos de request/response y una nota de compatibilidad para User04. El contrato queda listo cuando puede consumirse desde Swagger sin leer la implementación interna.

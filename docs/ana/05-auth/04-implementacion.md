@@ -24,3 +24,6 @@
 
 No invalidar sesión, almacenar tokens sin expiración, confundir 401/403, revelar usuarios existentes o depender solo de guards del frontend.
 
+## Criterio de entrega
+
+Documentar el mecanismo elegido, flags, expiración y comportamiento de logout para que User04 pueda integrarlo sin implementar una segunda estrategia en frontend.

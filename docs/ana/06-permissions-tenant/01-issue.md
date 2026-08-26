@@ -32,3 +32,22 @@ Es una barrera de seguridad transversal para sensores, readings, alerts y sites.
 - [ ] ADMIN y CLIENT tienen reglas explícitas.
 - [ ] Toda consulta usa organización del usuario autenticado.
 - [ ] La protección existe en backend, no solo frontend.
+
+## 7. Decisiones técnicas
+
+- `current_user` identifica; una policy/guard comprueba rol.
+- El tenant se obtiene de la identidad, no de un body confiable.
+- La comprobación debe acompañar al recurso y a la acción.
+- 404 frente a 403 se elige según riesgo de enumeración.
+
+## 8. Casos límite
+
+- Usuario anónimo.
+- CLIENT intentando acción ADMIN.
+- ID válido de otra organización.
+- Usuario cuyo rol cambió durante una sesión.
+- Endpoint nuevo sin guard de permisos.
+
+## 9. Resultado para el proyecto
+
+Esta issue convierte autenticación en protección real de datos. Sensors, readings, alerts y sites podrán reutilizar la misma política sin confiar en la UI.

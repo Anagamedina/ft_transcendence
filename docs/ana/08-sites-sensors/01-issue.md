@@ -28,3 +28,22 @@ El administrador puede navegar sites/sensors y configurar un sensor válido sin 
 - [ ] Inputs se validan con Pydantic.
 - [ ] Ownership y rol se comprueban en backend.
 - [ ] 404/409/422 tienen formato común.
+
+## 6. Decisiones técnicas
+
+- La jerarquía de ownership es organización → site → sensor.
+- Admin crea/edita; Client consulta solo lo permitido.
+- `PATCH` modifica únicamente campos enviados.
+- Los conflictos de unicidad se muestran como error de dominio, no como traceback.
+
+## 7. Casos límite
+
+- Site inexistente o de otra organización.
+- Sensor duplicado o sin coordenadas válidas.
+- PATCH vacío, nulo o con campo no editable.
+- Usuario CLIENT intentando mutar.
+- Recurso eliminado entre listado y detalle.
+
+## 8. Resultado para el proyecto
+
+El Admin puede configurar la topología que usarán mapa, SensorCard, readings y alertas, con ownership protegido por backend.

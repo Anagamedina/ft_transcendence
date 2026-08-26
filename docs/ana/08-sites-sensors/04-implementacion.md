@@ -22,3 +22,6 @@
 4. Payload incompleto, inválido y conflicto de unicidad.
 5. PATCH parcial sin sobreescribir campos omitidos.
 
+## Criterio de entrega
+
+Entregar la matriz de acciones y el contrato de navegación a User04. Probar siempre el mismo ID dentro y fuera de la organización para demostrar el aislamiento.

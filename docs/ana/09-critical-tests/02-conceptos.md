@@ -17,3 +17,14 @@ Un test de router puede usar repositories fake para aislar HTTP; un test de inte
 
 Los tests de permisos deben intentar acceder a recursos ajenos; probar solo el caso feliz no demuestra seguridad.
 
+## Conceptos en conjunto
+
+Arrange prepara contexto; Act ejecuta request/caso de uso; Assert comprueba status, body y efectos. Una buena fixture reduce repetición sin esconder qué identidad o tenant está probando el caso.
+
+La cobertura numérica no garantiza calidad: un test que solo afirma `200` puede dejar sin verificar persistencia, campos sensibles o aislamiento.
+
+## Qué debes poder demostrar
+
+- Saber qué capa prueba cada archivo.
+- Crear un test negativo legible.
+- Ejecutar un test aislado y toda la suite.

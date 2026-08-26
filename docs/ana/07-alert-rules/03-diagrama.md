@@ -14,3 +14,15 @@ flowchart TD
 
 Antes: solo se veía el valor bruto. Después: el service transforma lecturas en un ciclo de vida consultable.
 
+## Separación entre regla y persistencia
+
+```mermaid
+flowchart LR
+ A[Reading] --> B[Alert evaluator]
+ B --> C{Condición}
+ C -->|normal| D[No action]
+ C -->|anómala| E[Dedup/cooldown]
+ E --> F[AlertRepository]
+ F --> G[(Alert history)]
+ H[Admin PATCH] --> F
+```

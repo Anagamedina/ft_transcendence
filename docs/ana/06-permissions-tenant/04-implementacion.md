@@ -21,3 +21,6 @@
 4. IDs manipulados y datos cruzados.
 5. Comprobar que ocultar botones no es la única protección.
 
+## Criterio de entrega
+
+Documentar la matriz de permisos y aplicarla en los endpoints actuales. Añadir una prueba negativa por cada recurso crítico, no solo una prueba del caso Admin permitido.

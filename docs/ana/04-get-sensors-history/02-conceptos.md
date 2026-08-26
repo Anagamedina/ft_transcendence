@@ -16,3 +16,14 @@ Que un sensor exista no implica que el usuario pueda verlo. El service debe pasa
 
 Un histórico ilimitado puede degradar API y DB. Aunque el MVP empiece con un límite fijo, el contrato debe dejar claro orden, máximo y comportamiento de parámetros.
 
+## Conceptos en conjunto
+
+La URL identifica un recurso, el service aplica contexto y el repository consulta de forma acotada. La serialización convierte el resultado en un contrato sin hacer pública la estructura interna de la base.
+
+Un 404 puede significar que no existe o que no es visible; la elección debe ser coherente con la política de seguridad y no permitir enumerar recursos ajenos.
+
+## Qué debes poder demostrar
+
+- Explicar dónde se aplica el tenant.
+- Obtener una página estable del histórico.
+- Diferenciar colección vacía, error y recurso inexistente.

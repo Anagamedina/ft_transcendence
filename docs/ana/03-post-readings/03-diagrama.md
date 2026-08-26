@@ -15,3 +15,15 @@ flowchart TD
 
 Antes: cliente podría escribir directamente en DB. Después: toda lectura atraviesa contrato, reglas y persistencia controlada.
 
+## Errores posibles
+
+```mermaid
+flowchart LR
+ A[Request] --> B{Schema}
+ B -- falla --> C[422]
+ B -- ok --> D{Dominio/ownership}
+ D -- falla --> E[404/403/422]
+ D -- ok --> F{Persistencia}
+ F -- falla --> G[500 controlado + log]
+ F -- ok --> H[201/200]
+```

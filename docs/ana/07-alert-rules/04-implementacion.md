@@ -20,3 +20,6 @@
 3. Probar repetición, offline, alertas de otra organización y transiciones inválidas.
 4. Confirmar respuestas OpenAPI y permisos.
 
+## Criterio de entrega
+
+Registrar una tabla de umbrales, transiciones y ejemplos de entrada/salida. El resultado debe poder explicarse a frontend y probarse sin depender del reloj real o de datos manuales.

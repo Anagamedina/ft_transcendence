@@ -27,3 +27,22 @@ Antes de mergear se puede comprobar que rutas críticas y errores principales si
 - [ ] Readings, sensors/history y alerts cubiertos.
 - [ ] Permisos y errores negativos cubiertos.
 - [ ] Se ejecutan con un comando documentado.
+
+## 6. Decisiones técnicas
+
+- Cada test debe tener una razón y un comportamiento observable.
+- Unitarios aíslan una unidad; integración verifica colaboración real.
+- Fixtures crean datos mínimos y limpian al terminar.
+- Los casos negativos son obligatorios para seguridad.
+
+## 7. Casos límite
+
+- Test dependiente del orden de ejecución.
+- Datos residuales de otro test.
+- Error de auth ocultado por fixture demasiado permisiva.
+- Test que pasa por mock pero falla con contrato real.
+- Flakiness por reloj, red o sleeps.
+
+## 8. Resultado para el proyecto
+
+El equipo obtiene una señal repetible antes del merge y una especificación ejecutable de los flujos críticos.

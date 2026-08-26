@@ -16,3 +16,14 @@ Un sensor puede tener un ID válido pero no pertenecer al site solicitado. La se
 
 La validación del schema protege la entrada; las FK/constraints de Daruny protegen la integridad final.
 
+## Conceptos en conjunto
+
+La URL y el body expresan intención, pero el service debe verificar la jerarquía real. Un sensor no pertenece al usuario solo porque el cliente mande su ID. La UI facilita la acción; backend autoriza y persiste.
+
+`PATCH` requiere distinguir campo omitido de `null`: el primero conserva el valor; el segundo puede limpiarlo solo si el contrato lo permite.
+
+## Qué debes poder demostrar
+
+- Seguir una creación desde formulario hasta repository.
+- Explicar dónde se valida rol, tenant y formato.
+- Rechazar un recurso válido pero ajeno.

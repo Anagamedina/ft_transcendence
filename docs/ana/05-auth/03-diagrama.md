@@ -19,3 +19,15 @@ sequenceDiagram
 
 Antes: endpoints sin identidad verificable. Después: credencial segura y dependencia reutilizable.
 
+## Estados de autenticación
+
+```mermaid
+stateDiagram-v2
+ [*] --> Anonymous
+ Anonymous --> Authenticated: login válido
+ Authenticated --> Anonymous: logout
+ Authenticated --> Expired: timeout
+ Authenticated --> Revoked: logout/revocación
+ Expired --> Anonymous
+ Revoked --> Anonymous
+```

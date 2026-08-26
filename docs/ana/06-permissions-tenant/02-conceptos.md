@@ -17,6 +17,18 @@ Validar `current_user` no basta: un endpoint que recibe `sensor_id` debe comprob
 
 RBAC define “qué rol”; tenant scope define “sobre qué datos”. Se necesitan ambas dimensiones.
 
+## Conceptos en conjunto
+
+Una autorización completa evalúa identidad, rol, organización, recurso y acción. Quitar una dimensión permite errores: un Admin de Organization A no debe administrar Organization B.
+
+La policy debe ser reutilizable y testeable. Si cada endpoint implementa `if user.role == ...` de forma distinta, la aplicación acumula excepciones y huecos de seguridad.
+
+## Qué debes poder demostrar
+
+- Construir una matriz rol × recurso × acción.
+- Explicar la diferencia entre ocultar un botón y negar una request.
+- Detectar un IDOR en una ruta con path parameter.
+
 ## Errores frecuentes
 
 Confiar en `organization_id` del body, autorizar por ID sin ownership, dar permisos por defecto, usar 404/403 sin una política clara o proteger solo las rutas visibles.

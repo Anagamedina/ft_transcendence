@@ -12,3 +12,11 @@ flowchart TD
 
 Antes: revisión manual y regresiones silenciosas. Después: comportamiento documentado como tests ejecutables.
 
+## Pirámide mínima
+
+```mermaid
+flowchart TD
+ A[Muchos unitarios rápidos] --> B[Menos integración]
+ B --> C[Pocos flujos completos]
+ C --> D[Feedback antes del merge]
+```
