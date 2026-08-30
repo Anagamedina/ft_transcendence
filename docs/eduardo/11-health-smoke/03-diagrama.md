@@ -29,5 +29,5 @@ flowchart TD
 flowchart LR
  A[Liveness] --> B[Proceso activo]
  C[Readiness] --> D[Dependencias listas]
- E[Smoke test] --> F[Flujo simulator→API→DB]
+ E[Smoke test] --> F["Flujo simulator→API→DB"]
 ```
