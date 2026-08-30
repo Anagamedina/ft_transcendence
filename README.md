@@ -70,6 +70,9 @@ check. Stop the stack with:
 docker compose down
 ```
 
+For backend-specific local setup, Alembic checks, and API verification, see
+[`backend/README.md`](backend/README.md).
+
 The frontend, simulator, gateway, TLS certificates, and the final one-command
 deployment flow are still being integrated into Compose.
 
@@ -121,6 +124,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the detailed design.
 ```text
 .
 ├── backend/       FastAPI application, database configuration, and migrations
+│   └── README.md  Backend development and verification guide
 ├── frontend/      Vue application and client-side services
 ├── gateway/       Nginx and TLS configuration
 ├── simulator/     Deterministic sensor-data simulator
@@ -176,22 +180,62 @@ data types, and relationships once the schema is implemented.
 Every pull request that adds a feature should update this table with its status,
 contributors, and a reproducible verification method.
 
-## 42 modules and point tracking
+## Modules and point tracking
 
-The project must reach at least 14 validated points. Only fully implemented and
-demonstrable modules should be counted.
+The project must reach at least 14 validated points. The following selection is
+the team's current AquaGuard plan, based on the product architecture document.
 
-| Category           | Module                         | Type        | Points | Status      | Contributors |
-|--------------------|--------------------------------|-------------|-------:|-------------|--------------|
-| Web                | Frontend framework             | Major/Minor |    TBD | Planned     | TBD          |
-| Web                | Backend framework              | Minor       |    TBD | Planned     | TBD          |
-| Web                | ORM                            | Minor       |    TBD | Planned     | TBD          |
-| Devops             | Health check and status system | Minor       |    TBD | In progress | TBD          |
-| Data and Analytics | Analytics dashboard            | Major       |    TBD | Planned     | TBD          |
+| Category           | Module                                          | Type  | Points | Status                          | Contributors                          |
+|--------------------|-------------------------------------------------|-------|-------:|---------------------------------|---------------------------------------|
+| Web                | Frontend and backend frameworks (Vue + FastAPI) | Major |      2 | In progress - not yet countable | Ana, Florinda, Lylia, Daruny, Eduardo |
+| Web                | ORM (SQLAlchemy)                                | Minor |      1 | In progress - not yet countable | Daruny                                |
+| Web                | Real-time features (WebSockets)                 | Major |      2 | Planned                         | Ana, Lylia, Daruny, Eduardo           |
+| User Management    | Advanced permissions                            | Major |      2 | Planned                         | Ana, Daruny, Lylia                    |
+| User Management    | Organization system                             | Major |      2 | Planned                         | Ana, Daruny                           |
+| Data and Analytics | Advanced analytics dashboard                    | Major |      2 | Planned                         | Ana, Daruny, Florinda, Lylia          |
+| Web                | Advanced search                                 | Minor |      1 | Planned                         | Ana, Daruny, Florinda, Lylia          |
+| Data and Analytics | Data export and import                          | Minor |      1 | Planned                         | Ana, Daruny, Florinda, Lylia          |
+| Web                | Notification system                             | Minor |      1 | Planned                         | Ana, Daruny, Florinda, Lylia          |
+|                    | **Planned total**                               |       | **14** |                                 |                                       |
 
-The team will add the final selected modules, implementation evidence, point
-calculation, dependencies, and justification here. Major modules are worth 2
-points and minor modules are worth 1 point.
+### Module implementation plan
+
+- **Frontend and backend frameworks:** Vue 3/Vite and FastAPI/Pydantic provide
+  the SPA and modular backend foundations.
+- **ORM:** SQLAlchemy maps the domain models to PostgreSQL and isolates database
+  access behind repositories.
+- **Real-time features:** WebSockets will broadcast new readings and alerts and
+  handle connection and disconnection events. This depends on the REST flow
+  being stable first.
+- **Advanced permissions:** Users will have roles and different CRUD actions or
+  views according to their permissions.
+- **Organization system:** Organizations will own members, sites, and related
+  actions with tenant isolation.
+- **Advanced analytics dashboard:** The Admin area will provide interactive
+  charts, KPIs, date ranges, filters, real-time updates, and export support.
+- **Advanced search:** Search will include filters, sorting, and pagination for
+  sites, sensors, alerts, and related data.
+- **Data export and import:** The project will provide validated CSV/JSON export
+  and import flows, including simple bulk operations where applicable.
+- **Notification system:** Relevant creation, update, and deletion events will
+  generate user-facing notifications.
+
+### Dependencies and validation evidence
+
+- The vertical slice must work first: simulator -> API -> PostgreSQL -> API ->
+  Vue.
+- Authentication, roles, and organization isolation are prerequisites for the
+  permissions and organization modules.
+- Readings and alerts must be persisted before real-time broadcasting and
+  analytics can be demonstrated.
+- Advanced search and export/import depend on stable domain endpoints and
+  validated data contracts.
+- Every claimed module must include tests, a reproducible demo path, and the
+  responsible contributors in this section.
+
+The DevOps health/status system is a separate 1-point candidate and should be
+tracked as a bonus or additional module after the planned 14 points are
+complete. Major modules are worth 2 points and minor modules are worth 1 point.
 
 ## Team information
 
