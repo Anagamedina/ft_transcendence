@@ -27,6 +27,7 @@
 ## Pruebas realizadas
 
 <!-- Comandos ejecutados y resultado. Si no aplica, explica por qué. -->
+### Comandos ejecutados para probar que funciona correctamente:
 
 ```text
 Comando:
@@ -45,7 +46,9 @@ Resultado:
 - [ ] El PR está vinculado a su issue.
 - [ ] Los criterios de aceptación están comprobados.
 - [ ] He añadido o actualizado las pruebas necesarias.
-- [ ] No he incluido secretos, credenciales ni archivos locales.
-- [ ] La documentación está actualizada si el cambio lo requiere.
+- [ ] No he incluido secrets, credenciales ni archivos locales.
+- [ ] Actualizar el `README.md` .
 - [ ] He revisado los cambios antes de solicitar review.
+- [ ] Actualizar **Individual contributions** con info de la PR e issue
 
+---
