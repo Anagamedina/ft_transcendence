@@ -1,9 +1,13 @@
 # Flujo: request → dependencia get_db → service/repository → commit/rollback.
-from sqlalchemy import create_engine, text
+from collections.abc import Generator
+
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from contextlib import contextmanager
 
 from app.core.config import settings
+
+from sqlalchemy.orm import DeclarativeBase
 
 # ---------------------------------------------------------
 # ENGINE
@@ -70,7 +74,7 @@ El bloque finally garantiza que la sesión se cierre
 incluso si ocurre un error.
 """
 
-def get_db():
+def get_db() -> Generator[Session, None, None]:
     db = SessionLocal()
 
     try:
@@ -81,7 +85,7 @@ def get_db():
 """
     - operacion correcta    --> commit()
     - error --> rollback()
-    - se cierra inmediatamente --> get_db()
+    - close in immediateness --> get_db()
 """
 @contextmanager
 def transaction(db: Session):
@@ -92,8 +96,14 @@ def transaction(db: Session):
         db.rollback()
         raise
 
-
-
+# ---------------------------------------------------------
+#   SETUP ALEMBIC
+# ---------------------------------------------------------
+"""
+    The models must inherit from that class, when implemented in models/
+"""
+class Base(DeclarativeBase):
+    pass
 
 
 
