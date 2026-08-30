@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Resolve paths from the repository root, regardless of the current directory.
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+ENV_EXAMPLE="$PROJECT_ROOT/.env.example"
+ENV_FILE="$PROJECT_ROOT/.env"
+VENV_DIR="$PROJECT_ROOT/.venv"
+
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "Error: python3 is required to create the virtual environment." >&2
+    exit 1
+fi
+
+if [[ -d "$VENV_DIR" ]]; then
+    echo "A virtual environment already exists at $VENV_DIR"
+else
+    python3 -m venv "$VENV_DIR"
+    echo "Created virtual environment at $VENV_DIR"
+fi
+
+if [[ ! -f "$ENV_EXAMPLE" ]]; then
+    echo "Error: .env.example was not found at $ENV_EXAMPLE" >&2
+    exit 1
+fi
+
+if [[ -e "$ENV_FILE" ]]; then
+    echo "A .env file already exists at $ENV_FILE"
+else
+    cp -- "$ENV_EXAMPLE" "$ENV_FILE"
+    echo "Created $ENV_FILE from .env.example"
+fi
+
+echo "Activate the virtual environment with: source .venv/bin/activate"
+echo "Install backend dependencies: pip install -r backend/requirements.txt  --index-url https://pypi.org/simple --isolated"

@@ -14,7 +14,7 @@ Compose describe servicios y sus relaciones declarativamente. Un servicio tiene 
 | Volumen | Persistencia fuera del ciclo del contenedor | 20 min |
 | Puerto publicado | Acceso desde host; distinto del puerto interno | 20 min |
 | Red | Segmentación y comunicación entre servicios | 20 min |
-| `.env` | Configuración externa y secretos locales | 15 min |
+| `../../../.env` | Configuración externa y secretos locales | 15 min |
 
 ## Conceptos relacionados
 

@@ -9,6 +9,10 @@ psycopg[binary]>=3.0,<4.0
 # Configuration
 pydantic-settings>=2.0,<3.0
 
+#Alembic
+alembic==1.19.1
+SQLAlchemy>=1.4.0
+
 #how install requiremenst:
 #cd backend
 #python3 -m venv .venv

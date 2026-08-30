@@ -1,4 +1,12 @@
+from pathlib import Path
+from urllib.parse import quote
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+# Resolve the project root independently of the current working directory.
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+ENV_FILE = PROJECT_ROOT / ".env"
 
 """
 Configuración central del backend
@@ -40,19 +48,20 @@ class Settings(BaseSettings):
 # Puerto interno estándar de PostgreSQL.
     POSTGRES_PORT: int
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=ENV_FILE,
         env_file_encoding="utf-8",
     )
 
+    # Quote credentials so special chars not break the URL
     @property
     def DATABASE_URL(self) -> str:
         return (
             f"postgresql+psycopg://"
-            f"{self.POSTGRES_USER}:"
-            f"{self.POSTGRES_PASSWORD}@"
+            f"{quote(self.POSTGRES_USER, safe='')}:"
+            f"{quote(self.POSTGRES_PASSWORD, safe='')}@"
             f"{self.POSTGRES_HOST}:"
             f"{self.POSTGRES_PORT}/"
-            f"{self.POSTGRES_DB}"
+            f"{quote(self.POSTGRES_DB, safe='')}"
         )
 
 settings = Settings()
