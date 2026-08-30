@@ -24,7 +24,7 @@ Servicios, builds, variables, dependencias, red y volumen; arranque desde cero. 
 - `depends_on` condicionado a health, sin asumir que “started” significa “ready”.
 - Volumen persistente para PostgreSQL.
 - Solo gateway publica puertos en entrega.
-- Variables externas y valores seguros en `.env.example`.
+- Variables externas y valores seguros en `../../../.env.example`.
 
 ## 5. Dependencias
 

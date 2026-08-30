@@ -4,7 +4,7 @@
 
 1. Revisar los cuatro Dockerfiles, puertos y variables requeridas.
 2. Identificar qué servicios existen ya y qué parte depende de otros PR.
-3. Separar valores de `.env` y `.env.example`.
+3. Separar valores de `../../../.env` y `../../../.env.example`.
 
 ## Fase 2 — Compose
 

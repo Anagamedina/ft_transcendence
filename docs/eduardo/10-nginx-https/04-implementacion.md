@@ -2,7 +2,7 @@
 
 ## Fase 1 — Preparar artefactos
 
-1. Revisar `gateway/Dockerfile`, `gateway/nginx.conf` y el build del frontend.
+1. Revisar `../../../gateway/Dockerfile`, `../../../gateway/nginx.conf` y el build del frontend.
 2. Confirmar rutas de archivos estáticos, upstream backend y certificados.
 3. Mantener certificados reales fuera de Git.
 
