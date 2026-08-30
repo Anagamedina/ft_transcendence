@@ -50,6 +50,12 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,
         env_file_encoding="utf-8",
+        # El .env es compartido y trae también variables de la aplicación
+        # (SECRET_KEY, CORS_ORIGINS) y del simulador. Sin "ignore",
+        # pydantic-settings las trataría como campos desconocidos y esta
+        # clase no dejaría arrancar el backend.
+        # Las de aplicación las lee app/core/app_config.py.
+        extra="ignore",
     )
 
     # Quote credentials so special chars not break the URL
