@@ -1,0 +1,133 @@
+"""create domain models
+
+Revision ID: 8f3c2a1b4d6e
+Revises: 55dd704fd19b
+Create Date: 2026-08-30
+"""
+
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+
+
+revision: str = "8f3c2a1b4d6e"
+down_revision: Union[str, Sequence[str], None] = "55dd704fd19b"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    op.create_table(
+        "organizations",
+        sa.Column("id", sa.BigInteger(), sa.Identity(), nullable=False),
+        sa.Column("name", sa.String(length=150), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+    )
+
+    op.create_table(
+        "users",
+        sa.Column("id", sa.BigInteger(), sa.Identity(), nullable=False),
+        sa.Column("organization_id", sa.BigInteger(), nullable=False),
+        sa.Column("email", sa.String(length=320), nullable=False),
+        sa.Column("password_hash", sa.String(length=255), nullable=False),
+        sa.Column("role", sa.String(length=20), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.CheckConstraint("role IN ('ADMIN', 'CLIENT')", name="ck_users_role"),
+        sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"], ondelete="RESTRICT"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("email"),
+    )
+    op.create_index("ix_users_organization_id", "users", ["organization_id"])
+
+    op.create_table(
+        "sites",
+        sa.Column("id", sa.BigInteger(), sa.Identity(), nullable=False),
+        sa.Column("organization_id", sa.BigInteger(), nullable=False),
+        sa.Column("name", sa.String(length=150), nullable=False),
+        sa.Column("address", sa.Text(), nullable=True),
+        sa.Column("latitude", sa.Numeric(precision=9, scale=6), nullable=True),
+        sa.Column("longitude", sa.Numeric(precision=9, scale=6), nullable=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.CheckConstraint("latitude IS NULL OR latitude BETWEEN -90 AND 90", name="ck_sites_latitude"),
+        sa.CheckConstraint("longitude IS NULL OR longitude BETWEEN -180 AND 180", name="ck_sites_longitude"),
+        sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"], ondelete="RESTRICT"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("organization_id", "name", name="uq_sites_organization_name"),
+    )
+
+    op.create_table(
+        "sensors",
+        sa.Column("id", sa.BigInteger(), sa.Identity(), nullable=False),
+        sa.Column("site_id", sa.BigInteger(), nullable=False),
+        sa.Column("external_id", sa.String(length=100), nullable=False),
+        sa.Column("name", sa.String(length=150), nullable=False),
+        sa.Column("unit", sa.String(length=20), nullable=False),
+        sa.Column("low_threshold", sa.Numeric(precision=10, scale=3), nullable=True),
+        sa.Column("high_threshold", sa.Numeric(precision=10, scale=3), nullable=True),
+        sa.Column("is_active", sa.Boolean(), server_default=sa.text("true"), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.CheckConstraint(
+            "low_threshold IS NULL OR high_threshold IS NULL OR low_threshold < high_threshold",
+            name="ck_sensors_threshold_order",
+        ),
+        sa.ForeignKeyConstraint(["site_id"], ["sites.id"], ondelete="RESTRICT"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("site_id", "external_id", name="uq_sensors_site_external_id"),
+    )
+
+    op.create_table(
+        "readings",
+        sa.Column("id", sa.BigInteger(), sa.Identity(), nullable=False),
+        sa.Column("sensor_id", sa.BigInteger(), nullable=False),
+        sa.Column("value", sa.Numeric(precision=10, scale=3), nullable=False),
+        sa.Column("unit", sa.String(length=20), nullable=False),
+        sa.Column("recorded_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.ForeignKeyConstraint(["sensor_id"], ["sensors.id"], ondelete="RESTRICT"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(
+        "ix_readings_sensor_recorded_at", "readings", ["sensor_id", "recorded_at"]
+    )
+
+    op.create_table(
+        "alerts",
+        sa.Column("id", sa.BigInteger(), sa.Identity(), nullable=False),
+        sa.Column("sensor_id", sa.BigInteger(), nullable=False),
+        sa.Column("alert_type", sa.String(length=20), nullable=False),
+        sa.Column("status", sa.String(length=20), nullable=False),
+        sa.Column("severity", sa.String(length=20), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column("acknowledged_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("resolved_at", sa.DateTime(timezone=True), nullable=True),
+        sa.CheckConstraint("alert_type IN ('LOW', 'HIGH', 'OFFLINE')", name="ck_alerts_type"),
+        sa.CheckConstraint(
+            "status IN ('OPEN', 'ACKNOWLEDGED', 'RESOLVED')", name="ck_alerts_status"
+        ),
+        sa.CheckConstraint(
+            "severity IN ('INFO', 'WARNING', 'CRITICAL')", name="ck_alerts_severity"
+        ),
+        sa.ForeignKeyConstraint(["sensor_id"], ["sensors.id"], ondelete="RESTRICT"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("ix_alerts_sensor_created_at", "alerts", ["sensor_id", "created_at"])
+    op.create_index("ix_alerts_status_created_at", "alerts", ["status", "created_at"])
+
+
+def downgrade() -> None:
+    op.drop_index("ix_alerts_status_created_at", table_name="alerts")
+    op.drop_index("ix_alerts_sensor_created_at", table_name="alerts")
+    op.drop_table("alerts")
+    op.drop_index("ix_readings_sensor_recorded_at", table_name="readings")
+    op.drop_table("readings")
+    op.drop_table("sensors")
+    op.drop_table("sites")
+    op.drop_index("ix_users_organization_id", table_name="users")
+    op.drop_table("users")
+    op.drop_table("organizations")
