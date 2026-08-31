@@ -1,5 +1,5 @@
 # MODEL — organizations
-# Entidad/es SQLAlchemy de este dominio.
+# SQLAlchemy model for organizations table
 from datetime import datetime
 
 from sqlalchemy import DateTime, BigInteger, Identify, String, func
