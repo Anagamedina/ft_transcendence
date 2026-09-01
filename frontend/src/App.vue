@@ -1,8 +1,12 @@
 <template>
   <div id="app">
     <h1>✅ AquaGuard Frontend funcionando</h1>
-    <p>this is a test to check the user is: {{ authStore.isAdmin}} and his role is {{ authStore.role }}</p>
-    <router-view />
+    <p>this is a test to check the user is: {{ authStore.user}} and his role is {{ sensorsStore.sensorCount }}</p>
+        <p>
+      Alertes :
+      {{ alertsStore.alerts }}
+      {{ sensorssStore.alerts }}
+    </p>
   </div>
 </template>
 
@@ -12,9 +16,8 @@ import { useSensorsStore } from './stores/sensors'
 import { useAlertsStore } from './stores/alerts'
 
 const authStore = useAuthStore()
-const sensorStore = useSensorsStore()
+const sensorsStore = useSensorsStore()
 const alertsStore = useAlertsStore()
-
 
 </script>
 
