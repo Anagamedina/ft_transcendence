@@ -13,6 +13,17 @@ export const useAlertsStore = defineStore("alerts", () =>{
     //ACTIONS
     /*
         TBC
+        async function fetchAlerts() {
+        // TODO: API
+        }
+
+        async function ackAlert(id) {
+        // TODO: API
+        }
+
+        async function resolveAlert(id) {
+        // TODO: API
+        }
     */
    
     return {
