@@ -43,12 +43,4 @@ Resultado:
 
 ## Checklist
 
-- [ ] El PR está vinculado a su issue.
-- [ ] Los criterios de aceptación están comprobados.
-- [ ] He añadido o actualizado las pruebas necesarias.
-- [ ] No he incluido secrets, credenciales ni archivos locales.
-- [ ] Actualizar el `README.md` .
-- [ ] He revisado los cambios antes de solicitar review.
-- [ ] Actualizar **Individual contributions** con info de la PR e issue
-
 ---
