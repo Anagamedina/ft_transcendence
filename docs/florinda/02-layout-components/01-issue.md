@@ -22,11 +22,11 @@ Public, Admin y Client deben compartir el lenguaje visual sin estar acoplados a 
 
 ## 6. Criterios de aceptación
 
-- [ ] Layout, Header, Sidebar y Footer son reutilizables.
-- [ ] Card y Modal aceptan contenido configurable.
-- [ ] Componentes no hacen llamadas HTTP.
-- [ ] Footer incluye puntos de Privacy/Terms.
-- [ ] Responsive y navegación básica funcionan.
+- [x] Layout, Header, Sidebar y Footer son reutilizables.
+- [x] Card y Modal aceptan contenido configurable.
+- [x] Componentes no hacen llamadas HTTP.
+- [x] Footer incluye puntos de Privacy/Terms.
+- [x] Responsive y navegación básica funcionan.
 
 ## 6. Decisiones técnicas
 

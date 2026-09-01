@@ -1,1 +1,6 @@
-// POSTCSS — pipeline tailwindcss + autoprefixer.
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
