@@ -6,6 +6,14 @@ const routes = [
     component: () => import('../views/public/LandingView.vue')
   },
   {
+    path: '/privacy',
+    component: () => import('../views/public/PrivacyView.vue')
+  },
+  {
+    path: '/terms',
+    component: () => import('../views/public/TermsView.vue')
+  },
+  {
   path: '/test',
   component: () => import('../views/public/TestView.vue')
 }

@@ -1,9 +1,9 @@
 <template>
-  <div class="card bg-base-100 shadow-xl p-4">
-    <h3 class="text-lg font-bold">{{ title }}</h3>
-    <p class="text-gray-600">{{ description }}</p>
+  <div class="bg-white border-2 border-aqua-200 rounded-xl shadow-2xl shadow-aqua-500/40 hover:shadow-aqua-500/60 p-6 transition max-w-sm">
+    <h3 class="text-lg font-bold text-gray-900 mb-2">{{ title }}</h3>
+    <p class="text-gray-600 text-sm mb-4">{{ description }}</p>
     <button 
-      class="btn btn-primary mt-4"
+      class="w-full bg-gradient-to-r from-blue-600 to-cyan-500 text-white py-2 rounded font-semibold hover:shadow-md transition"
       @click="$emit('click')"
     >
       {{ buttonText }}
@@ -15,7 +15,7 @@
 defineProps({
   title: String,
   description: String,
-  buttonText: String
+  buttonText: { type: String, default: 'Ver detalles' }
 })
 
 defineEmits(['click'])
