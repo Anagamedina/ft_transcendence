@@ -15,6 +15,18 @@ export const useAuthStore = defineStore("auth", () =>{
     const isAdmin = computed(() => role.value === 'admin'); 
    
     //ACTIONS
+
+   /*  TBC
+   
+      async function login(credentials) {
+      // appel API login
+    }
+
+    async function register(data) {
+      // appel API register
+    }
+    */ 
+   
     const logout = () => {
      user.value = null;
      role.value = null;
