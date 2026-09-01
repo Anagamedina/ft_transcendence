@@ -1,4 +1,4 @@
-# MODEL — sites
+# MODEL - sites
 # SQLAlchemy model for the sites table
 from __future__ import annotations
 
@@ -20,9 +20,9 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
+
 # Represents a physical site owned by an organization
 class Site(Base):
-    # PostgreSQL table name.
     __tablename__ = "sites"
 
     # Table-level constraints and validation rules.
@@ -106,15 +106,8 @@ class Site(Base):
         back_populates="sites",
     )
 
-
-
-
-
-
-
-
-
-
-
-
-
+    # Relationship with the sensors installed in this site.
+    sensors: Mapped[list["Sensor"]] = relationship(
+        "Sensor",
+        back_populates="site",
+    )
