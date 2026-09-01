@@ -23,7 +23,7 @@ B --> F[Footer]
 sequenceDiagram
  participant P as Vista padre
  participant M as Modal
- P->>M: open=true + contenido
+ P->>M: show=true + contenido
  M-->>P: emit close / confirm
- P->>M: open=false
+ P->>M: show=false
 ```
