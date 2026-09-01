@@ -5,17 +5,26 @@ import {ref, computed} from "vue";
 
 export const useSensorsStore = defineStore("sensors", () =>{
 
-    /*const id =ref();
-    const site_id =ref();
-    const name =ref();
-    const location =ref();
-    const sensor_type
-    const min_pressure =ref();
-    const max_pressure =
-    const status =
-    const last_seen_at
-    const created_at =
-*/
+    //STATE
+    const sensors = ref([]);
+    const status = ref("idle");
+    const error = ref(null);
 
-return{};
-})
+    // GETTERS
+    const sensorCount = computed(() => sensors.value.length);
+
+    // ACTIONS
+    const clearSensors = () => {
+        sensors.value = [];
+        status.value = "idle";
+        error.value = null;
+    };
+
+    return {   
+        sensors,
+        status,
+        error,
+        sensorCount,
+        clearSensors,
+    };
+});

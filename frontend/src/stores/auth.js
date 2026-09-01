@@ -4,17 +4,31 @@ import { ref, computed } from 'vue'; //retrieves Vue functions -> ref et compute
 export const useAuthStore = defineStore("auth", () =>{
 
     //STATE
-    const login =ref(null); //ref() is used to create reactive data
+    const user =ref(null); //ref() is used to create reactive data
     const role =ref(null);
-    const isAuthenticate =ref();
+
+    const status = ref("idle");
+    const error = ref(null);
 
     //GETTERS
-    const isAdmin = computed(() => role.value === 'admin'); //computed() is used to create a computed value based on other reactive data
-
+    const isAuthenticated = computed(() => user.value !== null); //computed() is used to create a computed value based on other reactive data
+    const isAdmin = computed(() => role.value === 'admin'); 
+   
     //ACTIONS
-   // function logout(){
-   // doit reset les infos };
+    const logout = () => {
+     user.value = null;
+     role.value = null;
+     status.value = "idle";
+     error.value = null;
+    };
 
-
-    return{login, role, isAuthenticate, isAdmin};
-})
+  return {
+    user,
+    role,
+    status,
+    error,
+    isAdmin,
+    isAuthenticated,
+    logout,
+  };
+});
