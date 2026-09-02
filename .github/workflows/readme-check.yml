@@ -1,0 +1,35 @@
+name: README check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  check-readme:
+    name: Require README update when project behavior changes
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check README update
+        shell: bash
+        run: |
+          changed_files="$(git diff --name-only \
+            "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}")"
+
+          if echo "$changed_files" | grep -Eq \
+            '^(backend/|frontend/|gateway/|simulator/|compose\.yaml$|Makefile$|\.env\.example$)'
+          then
+            if ! echo "$changed_files" | grep -qx "README.md"; then
+              echo "::error::This PR changes project code or infrastructure but does not update README.md."
+              echo "Update the README with the relevant instructions, feature, architecture, module, or contribution details."
+              exit 1
+            fi
+          fi
