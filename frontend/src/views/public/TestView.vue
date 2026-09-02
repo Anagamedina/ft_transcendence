@@ -1,5 +1,11 @@
 <template>
 	<MainLayout header-title="AquaGuard Fronted issue #4 ​" sidebar-app-name="AquaGuard Test">
+		<div class="p-4 mb-4 bg-gray-100 rounded-lg text-sm">
+  			<p>Usuario: {{ authStore.user }}</p>
+  			<p>Sensores en el store: {{ sensorsStore.sensorCount }}</p>
+  			<p>Alertas: {{ alertsStore.alerts }}</p>
+		</div>
+		
 		<Card 
 			title="Mi Sensor"
 			description="Presión: 3.5 bar"
@@ -7,10 +13,16 @@
 			@click="handleClick"
 		/>
 		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-			<SensorCard name="Sensor Cocina" location="Planta baja" statusKey="normal" :value="2.3" unit="bar" class="mt-4" />
-			<SensorCard name="Sensor Baño 2" location="Planta 1" statusKey="warning" :value="4.8" unit="bar" class="mt-4" />
-			<SensorCard name="Sensor Terraza" location="Ático" statusKey="critical" :value="0.4" unit="bar" class="mt-4" />
-			<SensorCard name="Sensor Sótano" location="Planta -1" statusKey="offline" class="mt-4" />
+		<SensorCard
+			v-for="sensor in sensorsStore.sensors"
+			:key="sensor.id"
+			:name="sensor.name"
+			:location="sensor.location"
+			:statusKey="sensor.statusKey"
+			:value="sensor.value"
+			:unit="sensor.unit"
+			class="mt-4"
+		/>
 		</div>
 
 		<button
@@ -47,6 +59,20 @@ import MainLayout from '../../layouts/MainLayout.vue'
 import Card from '../../components/Card.vue'
 import Modal from '../../components/Modal.vue'
 import SensorCard from '../../components/SensorCard.vue'
+import { useAuthStore } from '../../stores/auth'
+import { useSensorsStore } from '../../stores/sensors'
+import { useAlertsStore } from '../../stores/alerts'
+
+const authStore = useAuthStore()
+const sensorsStore = useSensorsStore()
+sensorsStore.sensors = [
+  { id: 1, name: 'Sensor Cocina', location: 'Planta baja', statusKey: 'normal', value: 2.3, unit: 'bar' },
+  { id: 2, name: 'Sensor Baño 2', location: 'Planta 1', statusKey: 'warning', value: 4.8, unit: 'bar' },
+  { id: 3, name: 'Sensor Terraza', location: 'Ático', statusKey: 'critical', value: 0.4, unit: 'bar' },
+  { id: 4, name: 'Sensor Sótano', location: 'Planta -1', statusKey: 'offline' }
+]
+
+const alertsStore = useAlertsStore()
 
 const modalAbierto = ref(false)
 
