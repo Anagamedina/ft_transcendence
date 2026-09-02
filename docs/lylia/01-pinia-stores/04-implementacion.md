@@ -19,7 +19,7 @@
 2. Probar loading, éxito, error y retry.
 3. Comprobar logout y refresh según estrategia de auth.
 4. Verificar que getters no producen requests.
-
+ 
 ## Errores frecuentes
 
 Store global para todo, acciones con markup, estado mutable desde cualquier componente, requests duplicadas y datos de usuario que sobreviven incorrectamente al logout.
