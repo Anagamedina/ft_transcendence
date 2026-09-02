@@ -5,7 +5,7 @@
         <p>
       Alertes :
       {{ alertsStore.alerts }}
-      {{ sensorssStore.alerts }}
+      {{ sensorsStore.alerts }}
     </p>
   </div>
 </template>
