@@ -91,6 +91,15 @@ docker compose down
 
 Do not use `make up`, `make env`, or `make certs` yet: these targets are planned
 but are not currently defined.
+### Run the frontend (temporary script)
+Until the root `Makefile` target is implemented, the frontend dev server can be
+launched with:
+```bash
+./scripts/launch-frontend.sh
+```
+This script detects the `frontend/` directory, loads the correct Node.js
+version via nvm, installs dependencies if needed, and starts the Vite dev
+server, opening it automatically in the browser.
 
 ### Database migrations
 
