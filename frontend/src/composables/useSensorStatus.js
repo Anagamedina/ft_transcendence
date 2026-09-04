@@ -6,35 +6,35 @@
 
 const STATUS_MAP = {
   normal: {
-    label: 'Normal',
-    icon: '✅',
-    textClass: 'text-success',
-    bgClass: 'bg-success/10',
-    borderClass: 'border-success'
+    label: "Normal",
+    icon: "✅",
+    textClass: "text-success",
+    bgClass: "bg-success/10",
+    borderClass: "border-success",
   },
   warning: {
-    label: 'Alerta',
-    icon: '⚠️',
-    textClass: 'text-warning',
-    bgClass: 'bg-warning/10',
-    borderClass: 'border-warning'
+    label: "Alerta",
+    icon: "⚠️",
+    textClass: "text-warning",
+    bgClass: "bg-warning/10",
+    borderClass: "border-warning",
   },
   critical: {
-    label: 'Crítico',
-    icon: '🚨',
-    textClass: 'text-danger',
-    bgClass: 'bg-danger/10',
-    borderClass: 'border-danger'
+    label: "Crítico",
+    icon: "🚨",
+    textClass: "text-danger",
+    bgClass: "bg-danger/10",
+    borderClass: "border-danger",
   },
   offline: {
-    label: 'Sin conexión',
-    icon: '📡',
-    textClass: 'text-gray-500',
-    bgClass: 'bg-gray-100',
-    borderClass: 'border-gray-300'
-  }
-}
+    label: "Sin conexión",
+    icon: "📡",
+    textClass: "text-gray-500",
+    bgClass: "bg-gray-100",
+    borderClass: "border-gray-300",
+  },
+};
 
 export function useSensorStatus(status) {
-  return STATUS_MAP[status] || STATUS_MAP.offline
+  return STATUS_MAP[status] || STATUS_MAP.offline;
 }
