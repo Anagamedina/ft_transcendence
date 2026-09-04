@@ -1,49 +1,20 @@
 // API FACADE — punto único de llamadas HTTP.
 // Flujo: View/Store → api.js → MockAdapter | HttpAdapter (mismo shape OpenAPI).
 
-our te documenter, je te conseille cet ordre :
+import axios from 'axios'
 
-HTTP / REST → comprendre comment Vue communique avec FastAPI.
-Axios → comprendre ce qu’il apporte par rapport à fetch.
-Service / couche de service → comprendre pourquoi on ne met pas les appels API dans les composants.
-Adapter Pattern → comprendre pourquoi vous avez HttpAdapter et MockAdapter.
-Interceptors Axios → comprendre les headers, erreurs, authentification, 401, etc.
-Gestion centralisée des erreurs.
-Mock → comprendre pourquoi on veut pouvoir remplacer le vrai backend.
+const api = axios.create({ //creamos nuestro propio cliente HTTP Axios
+  baseURL: import.meta.env.VITE_API_URL, //Usa como URL base de la API el valor que está guardado en la variable de entorno VITE_API_URL
+  timeout: 10000,//si servidor no responde, en 10 segundos, Axios considera que la solicitud ha fallado
+})
 
-Et surtout, ne cherche pas à tout apprendre en profondeur avant de commencer. Pour ton issue, il suffit d'abord de comprendre le rôle de chaque concept.
+export default api
 
-Le schéma mental à retenir
-
-Imagine :
-
-LoginView.vue
-     │
-     │ "connecte cet utilisateur"
-     ↓
-authService
-     │
-     │ POST /login
-     ↓
-HttpAdapter
-     │
-     ↓
-Axios
-     │
-     ↓
-FastAPI
-
-Le composant Vue ne devrait pas savoir comment la requête est envoyée.
-
-Et plus tard, pour les tests :
-
-authService
-     │
-     ↓
-HttpAdapter
-     │
-     ├──── Axios → FastAPI
-     │
-     └──── Mock  → fausses données
-
-C'est essentiellement ça que ton issue cherche à construire.
+/*
+export class AppError {
+  constructor(message, status = null, code = null) {
+    this.message = message; // Message lisible pour l'utilisateur
+    this.status = status;   // HTTP code (ex: 404, 500)
+    this.code = code;       // Code d'erreur métier propre à votre API (ex: 'PASSWORD_TOO_WEAK')
+  }
+}*/
