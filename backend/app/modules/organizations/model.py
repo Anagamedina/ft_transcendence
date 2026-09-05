@@ -2,9 +2,10 @@
 # SQLAlchemy model for organizations table
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, BigInteger, Identity, String, func
+from sqlalchemy import DateTime, String, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -13,10 +14,11 @@ from app.core.database import Base
 class Organization(Base):
     __tablename__ = "organizations"
 
-    id: Mapped[int] = mapped_column(
-        BigInteger,
-        Identity(),
-        primary_key=True
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        server_default=func.gen_random_uuid(),
     )
     name: Mapped[str] = mapped_column(
         String(50),

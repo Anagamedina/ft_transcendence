@@ -2,19 +2,19 @@
 # SQLAlchemy model for the sites table
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import (
-    BigInteger,
     CheckConstraint,
     DateTime,
     ForeignKey,
-    Identity,
     Numeric,
     String,
     Text,
     UniqueConstraint,
+    Uuid,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -45,15 +45,16 @@ class Site(Base):
     )
 
     # Auto-generated primary key.
-    id: Mapped[int] = mapped_column(
-        BigInteger,
-        Identity(),
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
         primary_key=True,
+        default=uuid.uuid4,
+        server_default=func.gen_random_uuid(),
     )
 
     # Required organization that owns this site.
-    organization_id: Mapped[int] = mapped_column(
-        BigInteger,
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
         ForeignKey(
             "organizations.id",
             ondelete="RESTRICT",
