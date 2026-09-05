@@ -1,9 +1,5 @@
-# REPOSITORY — readings
-# Acceso a datos (SQLAlchemy queries). Filtrar siempre por organización.
-"""
-Implements reading persistence and paginated sensor history, enforcing
-organization-level isolation and deterministic chronological ordering.
-"""
+"""Organization-scoped persistence queries for readings and history."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -20,7 +16,7 @@ from app.modules.sites.model import Site
 
 class ReadingRepository:
     def __init__(self, db: Session) -> None:
-        self._db = db
+        self.db = db
 
     def create(
         self,
@@ -35,13 +31,11 @@ class ReadingRepository:
             unit=unit,
             recorded_at=recorded_at,
         )
-
-        self._db.add(reading)
-
+        self.db.add(reading)
         try:
-            self._db.flush()
+            self.db.flush()
         except SQLAlchemyError:
-            self._db.rollback()
+            self.db.rollback()
             raise
 
         return reading
@@ -54,27 +48,26 @@ class ReadingRepository:
         limit: int = 100,
     ) -> tuple[list[Reading], int]:
         if offset < 0 or limit <= 0:
-            raise ValueError("Paginación inválida")
+            raise ValueError("Invalid pagination")
 
         query = (
             select(Reading)
             .join(Sensor, Reading.sensor_id == Sensor.id)
             .join(Site, Sensor.site_id == Site.id)
             .where(
-                    Reading.sensor_id == sensor_id,
+                Reading.sensor_id == sensor_id,
                 Site.organization_id == organization_id,
             )
         )
-
-        total = self._db.scalar(
+        total = self.db.scalar(
             select(func.count()).select_from(query.subquery())
         )
 
         items = list(
-            self._db.scalars(
+            self.db.scalars(
                 query.order_by(Reading.recorded_at, Reading.id)
                 .offset(offset)
-                    .limit(limit)
+                .limit(limit)
             ).all()
         )
 

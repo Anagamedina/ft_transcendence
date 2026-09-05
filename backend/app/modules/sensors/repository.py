@@ -1,9 +1,4 @@
-# REPOSITORY — sensors
-# Acceso a datos (SQLAlchemy queries). Filtrar siempre por organización.
-"""
-Implements organization-scoped sensor queries, including sensor listing,
-pagination, and secure lookup by sensor ID.
-"""
+"""Organization-scoped persistence queries for sensors."""
 
 from __future__ import annotations
 
@@ -18,7 +13,7 @@ from app.modules.sites.model import Site
 
 class SensorRepository:
     def __init__(self, db: Session) -> None:
-        self._db = db
+        self.db = db
 
     def list_by_organization(
         self,
@@ -27,7 +22,7 @@ class SensorRepository:
         limit: int = 100,
     ) -> tuple[list[Sensor], int]:
         if offset < 0 or limit <= 0:
-            raise ValueError("Paginación inválida")
+            raise ValueError("Invalid pagination")
 
         query = select(Sensor).join(Site).where(
             Site.organization_id == organization_id
@@ -38,10 +33,8 @@ class SensorRepository:
         )
 
         items = list(
-            self._db.scalars(
-                query.order_by(Sensor.id)
-                .offset(offset)
-                .limit(limit)
+            self.db.scalars(
+                query.order_by(Sensor.id).offset(offset).limit(limit)
             ).all()
         )
 
@@ -60,4 +53,4 @@ class SensorRepository:
                 Site.organization_id == organization_id,
             )
         )
-        return self._db.scalar(query)
+        return self.db.scalar(query)
