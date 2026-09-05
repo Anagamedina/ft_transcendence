@@ -185,6 +185,7 @@ data types, and relationships once the schema is implemented.
 | Sensor readings                             | Planned     | TBD          | Add test or endpoint link               |
 | Alerts                                      | Planned     | TBD          | Add test or endpoint link               |
 | Frontend dashboard                          | Planned     | TBD          | Add browser flow or screenshot          |
+| Sensor visual components (`SensorCard`, detail view) | Implemented | Florinda | Run `./scripts/launch-frontend.sh`, visit `/test`, click a sensor card -> `/sensors/:id` |
 
 Every pull request that adds a feature should update this table with its status,
 contributors, and a reproducible verification method.
