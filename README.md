@@ -1,4 +1,3 @@
-So what are the names for the names modifications vale, entonces you vale entonces no sharemashia nos dice to ensure love in documents, sigue renombrado long I squemal losing most elites y blocation, lacalization a direct mast check in press floor mistyle de rols entivos añade Daytime Status fire external ID quitar smart John quitar descens se deduce par ensigue en Greens is active guitar entonces location sensor ten se refiere longes encamitial no push no gracia tuya tuyones at pool el senhor el gits to getlo en b soils en sus ritmes ya lo ha hecho lo de camaras tocan sorpromodel y la misma mira, si a fusionar conflict, no dice que no, si acaba ser un curs y races a rama, en esta puesto comitiado con develometerama taywment tu rama te agregado, y a dice plat ai chulcomificado models traolianos, la acepto yo lo guardiamos y después yo merced mi parte cancelare agregas hecho en general tu tablas el rama y los cambios, Istars, lo sensors
 *This project has been created as part of the 42 curriculum by anamedin, dasalaza, flperez-, lylfergu, egalindo.*
 
 # AquaGuard
@@ -309,7 +308,7 @@ feature, module, relevant pull request, technical challenge, and solution.
 
 | Daruny (`dasalaza`) | Features/modules | Pull requests | Challenges and solutions |
 |---------------------|------------------|---------------|--------------------------|
-|                     | TBD              | TBD           | TBD                      |
+| Repositories de sensors/readings, modelos UUID y tests SQLAlchemy | PR de la rama `daruny-04` (en curso) | Aislamiento por organización, paginación y orden estable; `flush/rollback` transaccional. Pendiente alinear services y protocols. |
 
 | Florinda (`flperez-`) | Features/modules | Pull requests | Challenges and solutions |
 |-----------------------|------------------|---------------|--------------------------|
