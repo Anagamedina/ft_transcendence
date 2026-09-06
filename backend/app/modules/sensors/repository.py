@@ -28,7 +28,7 @@ class SensorRepository:
             Site.organization_id == organization_id
         )
 
-        total = self._db.scalar(
+        total = self.db.scalar(
             select(func.count()).select_from(query.subquery())
         )
 

@@ -127,7 +127,7 @@ class Sensor(Base):
         back_populates="sensor",
     )
 
-    readings: Mapped[list["Reading"]] = relationship(
-        "Reading",
+    alerts: Mapped[list["Alert"]] = relationship(
+        "Alert",
         back_populates="sensor",
     )

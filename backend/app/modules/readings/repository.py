@@ -65,7 +65,7 @@ class ReadingRepository:
 
         items = list(
             self.db.scalars(
-                query.order_by(Reading.recorded_at, Reading.id)
+                query.order_by(Reading.recorded_at, Reading.created_at)
                 .offset(offset)
                 .limit(limit)
             ).all()
