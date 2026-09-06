@@ -314,9 +314,12 @@ feature, module, relevant pull request, technical challenge, and solution.
 |-----------------------|------------------|---------------|--------------------------|
 |                       | TBD              | TBD           | TBD                      |
 
+
 | Lylia (`lylfergu`) | Features/modules | Pull requests | Challenges and solutions |
 |--------------------|------------------|---------------|--------------------------|
-|                    | TBD              | TBD           | TBD                      |
+| Pinia stores | [PR number] | Created centralized stores to manage frontend application state |
+| Axios API services and error handling | #57 | Created a centralized API layer with|
+|services, adapters, and common error handling |
 
 | Eduardo (`egalindo`) | Features/modules | Pull requests | Challenges and solutions |
 |----------------------|------------------|---------------|--------------------------|
