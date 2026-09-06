@@ -14,7 +14,7 @@ const authService = { //creamos un objeto que agrupará todas las operaciones de
   },
 
   me() {
-    return adapter.get('/api/me')
+    return adapter.get('/api/me') //gets the currently authenticated user using the active session cookie
   },
 }
 

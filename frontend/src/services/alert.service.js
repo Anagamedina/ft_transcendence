@@ -2,15 +2,15 @@ import adapter from './adapter.js'
 
 const alertService = {
   getAlerts() {
-    return httpAdapter.get('/api/alerts')
+    return adapter.get('/api/alerts')
   },
 
   acknowledgeAlert(id) { //Indicar al sistema que se ha tomado conocimiento de la alerta.
-    return httpAdapter.patch(`/api/alerts/${id}/acknowledge`)
+    return adapter.patch(`/api/alerts/${id}/acknowledge`)
   },
 
   resolveAlert(id) {
-    return httpAdapter.patch(`/api/alerts/${id}/resolve`)
+    return adapter.patch(`/api/alerts/${id}/resolve`)
   },
 }
 

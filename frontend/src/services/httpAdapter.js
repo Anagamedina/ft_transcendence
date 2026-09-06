@@ -38,7 +38,7 @@ function normalizeError(error) { //'error' is the error object received from Axi
     if (backendError) {
       code = backendError.code || code
       message = backendError.message || message
-      details = backendError.details || details
+      details = backendError.details
     }
 
     return {
