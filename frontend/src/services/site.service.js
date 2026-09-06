@@ -1,16 +1,16 @@
-import httpAdapter from './httpAdapter.js'
+import adapter from './adapter.js'
 
 const siteService = {
   getSites() {
-    return httpAdapter.get('/api/sites')
+    return adapter.get('/api/sites')
   },
 
   getSite(id) {
-    return httpAdapter.get(`/api/sites/${id}`)
+    return adapter.get(`/api/sites/${id}`)
   },
 
   getSiteSensors(id) {
-    return httpAdapter.get(`/api/sites/${id}/sensors`)
+    return adapter.get(`/api/sites/${id}/sensors`)
   },
 }
 

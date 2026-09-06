@@ -25,11 +25,11 @@ import api from './api.js'
 
 // Normalize API errors into a common format
 
-function normalizeError(error) { //'error' is received by axios
+function normalizeError(error) { //'error' is the error object received from Axios
   // Backend responded with an HTTP error
   if (error.response) {
     const status = error.response.status
-    const backendError = error.response.data?.error
+    const backendError = error.response.data?.error //if data exists, access data.error, otherwise return undefined instead of throwing an error
 
     let code = 'UNKNOWN_ERROR'
     let message = 'An error occurred.'
@@ -72,9 +72,9 @@ function normalizeError(error) { //'error' is received by axios
 //*** Here we create the HTTP adapter ***
 
 const httpAdapter = {
-  async get(url, config = {}) {
+  async get(url, config = {}) { //async = function will likely have to wait for something that takes time
     try {
-      return await api.get(url, config)
+      return await api.get(url, config) //await = Wait for this request to complete before continuing
     } catch (error) {
       throw normalizeError(error)
     }

@@ -1,0 +1,1 @@
+import adapter from './adapter.js'

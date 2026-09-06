@@ -1,20 +1,20 @@
-import httpAdapter from './httpAdapter.js'
+import adapter from './adapter.js'
 
 const sensorService = {
   getSensors() {
-    return httpAdapter.get('/api/sensors')
+    return adapter.get('/api/sensors')
   },
 
   createSensor(data) {
-    return httpAdapter.post('/api/sensors', data)
+    return adapter.post('/api/sensors', data)
   },
 
   getSensor(id) {
-    return httpAdapter.get(`/api/sensors/${id}`)
+    return adapter.get(`/api/sensors/${id}`)
   },
 
   updateSensor(id, data) {
-    return httpAdapter.patch(`/api/sensors/${id}`, data)
+    return adapter.patch(`/api/sensors/${id}`, data)
   },
 }
 

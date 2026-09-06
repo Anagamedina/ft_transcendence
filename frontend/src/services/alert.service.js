@@ -1,4 +1,4 @@
-import httpAdapter from './httpAdapter.js'
+import adapter from './adapter.js'
 
 const alertService = {
   getAlerts() {

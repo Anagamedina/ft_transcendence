@@ -1,10 +1,17 @@
 // MOCK ADAPTER — respuestas con el mismo contrato OpenAPI (paralelo semana 1).
 
+
+/* We create an object that 
+has the same methods as httpAdapter.
+It returns a promise
+that is already resolved, with the data we want,
+to replicate the behavior of the real adapter*/
+
 const mockAdapter = {
   get(url, config = {}) {
     console.log('[MOCK GET]', url, config)
 
-    return Promise.resolve({
+    return Promise.resolve({ // = "Create a Promise (that is already resolved) with the value below"
       data: {},
       status: 200,
     })
