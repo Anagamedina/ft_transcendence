@@ -2,25 +2,29 @@
 # SQLAlchemy model for the sensors table
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import (
-    BigInteger,
     Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
-    Identity,
     Numeric,
     String,
     Text,
     UniqueConstraint,
+    Uuid,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
+"""
+Defines the Sensor ORM entity, its database constraints, and its relationships
+with sites and readings.
+"""
 
 # Represents a sensor installed in a site
 class Sensor(Base):
@@ -43,15 +47,16 @@ class Sensor(Base):
     )
 
     # Auto-generated primary key
-    id: Mapped[int] = mapped_column(
-        BigInteger,
-        Identity(),
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
         primary_key=True,
+        default=uuid.uuid4,
+        server_default=func.gen_random_uuid(),
     )
 
     # Required site where the sensor is installed
-    site_id: Mapped[int] = mapped_column(
-        BigInteger,
+    site_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
         ForeignKey(
             "sites.id",
             ondelete="RESTRICT",
@@ -115,4 +120,14 @@ class Sensor(Base):
     site: Mapped["Site"] = relationship(
         "Site",
         back_populates="sensors",
+    )
+
+    readings: Mapped[list["Reading"]] = relationship(
+        "Reading",
+        back_populates="sensor",
+    )
+
+    alerts: Mapped[list["Alert"]] = relationship(
+        "Alert",
+        back_populates="sensor",
     )

@@ -2,17 +2,17 @@
 # Entidad/es SQLAlchemy de este dominio.
 from __future__ import annotations
 
-from datetime import datetime
+import uuid
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy import (
-    BigInteger,
     DateTime,
     ForeignKey,
-    Identity,
     Index,
     Numeric,
     String,
+    Uuid,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -31,14 +31,15 @@ class Reading(Base):
         ),
     )
 
-    id: Mapped[int] = mapped_column(
-        BigInteger,
-        Identity(),
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
         primary_key=True,
+        default=uuid.uuid4,
+        server_default=func.gen_random_uuid(),
     )
 
-    sensor_id: Mapped[int] = mapped_column(
-        BigInteger,
+    sensor_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
         ForeignKey(
             "sensors.id",
             ondelete="RESTRICT",
@@ -63,6 +64,7 @@ class Reading(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
         server_default=func.now(),
         nullable=False,
     )

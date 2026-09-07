@@ -1,4 +1,3 @@
-
 *This project has been created as part of the 42 curriculum by anamedin, dasalaza, flperez-, lylfergu, egalindo.*
 
 # AquaGuard
@@ -7,7 +6,7 @@
 
 ## Description
 
-AquaGuard is a **web platform** for monitoring water-related data from sensors. The
+AquaGuard is a **web platform** for monitoring water-related data from sensors. The en el paquete.
 planned application provides authenticated users with access to organizations,
 sites, sensors, readings, alerts, and analytics.
 
@@ -44,31 +43,43 @@ Copy the example environment file and review its values:
 cp .env.example .env
 ```
 
-`.env` is local configuration and must never be committed. The Docker Compose
-backend connects to PostgreSQL through the service name `database`. When a
-backend command runs directly on the host, use `POSTGRES_HOST=localhost`.
+`.env` is local configuration and must never be committed. `.env.example` ships
+with `POSTGRES_HOST=localhost` so that Alembic or uvicorn work when run directly
+on the host. Inside Docker that value is not used: `compose.yaml` overrides it
+with the `database` service name for the backend service.
+
+`SECRET_KEY` ships as `dev-only-change-me`. That exact literal is what
+`backend/app/core/app_config.py` checks to refuse startup when `ENV=production`,
+so do not replace it with another placeholder.
 
 Frontend-only configuration is documented in
 [`frontend/.env.example`](frontend/.env.example).
 
 ### Run the current backend stack
 
-The currently configured Compose stack contains PostgreSQL and the FastAPI
-backend:
+The Compose stack declares four services on the `aquaguard` network. `database`
+and `backend` start by default; `simulator` and `gateway` sit behind Compose
+profiles until their images are complete, so a plain start never fails on them.
 
 ```bash
-docker compose up --build -d database backend
-docker compose ps
+make up
 curl --fail http://localhost:8000/api/health
-docker compose logs -f backend
+curl --fail http://localhost:8000/api/health/db
+make logs
 ```
 
-The health endpoint should return a successful response containing the database
-check. Stop the stack with:
+There are two health endpoints. `/api/health` is liveness and does not touch
+PostgreSQL, which is why a database outage cannot restart the backend in a loop.
+`/api/health/db` is readiness and runs `SELECT 1`, returning 503 when the
+database is unreachable:
 
-```bash
-docker compose down
+```text
+{"status":"ok","service":"AquaGuard API","version":"0.1.0"}
+{"status":"ok","database":"connected","checked_at":"2026-09-02T21:52:53.859027Z"}
 ```
+
+Both host ports are bound to `127.0.0.1`, so nothing is reachable from the
+network. Stop the stack with `make down`, which keeps the PostgreSQL volume.
 
 For backend-specific local setup, Alembic checks, and API verification, see
 [`backend/README.md`](backend/README.md).
@@ -78,25 +89,36 @@ deployment flow are still being integrated into Compose.
 
 ### Useful commands
 
-Until the root `Makefile` targets are implemented, use the Compose commands
-directly:
+The root `Makefile` wraps the Compose commands:
 
-```bash
-docker compose config --quiet
-docker compose up --build -d
-docker compose ps
-docker compose logs -f <service>
-docker compose down
-```
+| Target | Effect |
+|--------|--------|
+| `make` / `make up` | Copies `.env` if missing, then `docker compose up --build -d` and `docker compose ps` |
+| `make env` | Creates `.env` from `.env.example` only when it does not exist |
+| `make build` | Builds the images without starting them |
+| `make down` | Stops the containers and keeps the PostgreSQL volume |
+| `make logs` | Follows the logs of every running service |
+| `make ps` | Shows service status |
+| `make clean` | `down --remove-orphans` |
+| `make fclean` | `down -v --remove-orphans`, which deletes the PostgreSQL volume |
+| `make re` | `fclean` followed by `up`, a start from scratch |
 
-Do not use `make up`, `make env`, or `make certs` yet: these targets are planned
-but are not currently defined.
+`make fclean` destroys the database volume. PostgreSQL only creates its user on
+the first initialisation of that volume, so this is also the command to run
+after the credentials in `.env` change.
+
+`make certs` is not defined yet; TLS certificate generation arrives with the
+gateway.
+
 ### Run the frontend (temporary script)
-Until the root `Makefile` target is implemented, the frontend dev server can be
+
+There is no `Makefile` target for the frontend yet. The dev server can be
 launched with:
+
 ```bash
 ./scripts/launch-frontend.sh
 ```
+
 This script detects the `frontend/` directory, loads the correct Node.js
 version via nvm, installs dependencies if needed, and starts the Vite dev
 server, opening it automatically in the browser.
@@ -140,7 +162,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the detailed design.
 ├── docs/          Architecture, API, decisions, and implementation notes
 ├── scripts/       Project-management and automation scripts
 ├── compose.yaml   Local service orchestration
-└── Makefile       Common command interface (being implemented)
+└── Makefile       Common command interface
 ```
 
 ## Technical stack
@@ -186,6 +208,15 @@ data types, and relationships once the schema is implemented.
 | Alerts                                      | Planned     | TBD          | Add test or endpoint link               |
 | Frontend dashboard                          | Planned     | TBD          | Add browser flow or screenshot          |
 | Sensor visual components (`SensorCard`, detail view) | Implemented | Florinda | Run `./scripts/launch-frontend.sh`, visit `/test`, click a sensor card -> `/sensors/:id` |
+| Feature                                            | Status      | Contributors | Verification                                                                                                  |
+|----------------------------------------------------|-------------|--------------|---------------------------------------------------------------------------------------------------------------|
+| Backend liveness endpoint (`GET /api/health`)      | Implemented | TBD          | `curl http://localhost:8000/api/health`                                                                       |
+| Database readiness endpoint (`GET /api/health/db`) | Implemented | TBD          | `curl http://localhost:8000/api/health/db`                                                                    |
+| Compose orchestration (network, volume, profiles)  | Implemented | Eduardo      | `make up` then `make ps`                                                                                      |
+| Authentication                                     | Planned     | TBD          | Add test or endpoint link                                                                                     |
+| Sensor readings                                    | In progress | Daruny       | `backend/tests/unit/test_sensor_reading_repositories.py` (repositories implemented; services/routers pending) |
+| Alerts                                             | Planned     | TBD          | Add test or endpoint link                                                                                     |
+| Frontend dashboard                                 | Planned     | TBD          | Add browser flow or screenshot                                                                                |
 
 Every pull request that adds a feature should update this table with its status,
 contributors, and a reproducible verification method.
@@ -280,21 +311,27 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 This section is updated continuously. Each contribution should identify the
 feature, module, relevant pull request, technical challenge, and solution.
 
-| Ana (`anamedin`) | Features/modules | Pull requests | Challenges and solutions |
-|------------------|------------------|---------------|--------------------------|
-|                  | TBD              | TBD           | TBD                      |
+| Ana (`anamedin`)                | Features/modules | Pull requests | Challenges and solutions                                             |
+|---------------------------------|------------------|---------------|----------------------------------------------------------------------|
+| fix-sensors-atributs-daruny-ana | sensors          | daru          | se ha modificado los atributos con nombres correctos de los sensores |
 
-| Daruny (`dasalaza`) | Features/modules | Pull requests | Challenges and solutions |
-|---------------------|------------------|---------------|--------------------------|
-|                     | TBD              | TBD           | TBD                      |
+| Daruny (`dasalaza`)                                                                                                                                                                        | Features/modules                                               | Pull requests                                                                                                                                                                                                                                                                                            | Challenges and solutions |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------|
+| Issue 01 — PostgreSQL + SQLAlchemy: shared `Engine`, per-request `Session` via `get_db()`, env-based config | [#43](https://github.com/Anagamedina/ft_transcendence/pull/43) | Isolating each request's transaction without leaking connections; solved with `commit`/`rollback` at the transaction boundary and `close()` in `finally`. |
+| Issue 02 — Alembic: configured `alembic.ini`/`env.py` against the app's `Settings` and metadata, first revision | [#44](https://github.com/Anagamedina/ft_transcendence/pull/44) | Making the schema reproducible across machines instead of relying on `create_all()`; solved by wiring `env.py` to the real SQLAlchemy metadata and verifying `upgrade`/`downgrade`. |
+| Issue 03 — Domain models: `Organization`, `User`, `Site`, `Sensor`, `Reading`, `Alert` with FKs, constraints and indexes | [#48](https://github.com/Anagamedina/ft_transcendence/pull/48) | Enforcing multi-tenant isolation and referential integrity at the DB level; solved with `organization_id`-based relationships, unique/NOT NULL constraints, and a matching Alembic migration. |
+| Issue 04 — data-access layer: `SensorRepository` and `ReadingRepository`,  queries, stable pagination, <br/>`flush`/`rollback` transaction handling, plus fixes to sensor model attributes | [#55](https://github.com/Anagamedina/ft_transcendence/pull/55) | Preventing cross-tenant data leaks and keeping SQLAlchemy out of routers/services; solved with `Site.organization_id` filters on every query and unit tests (`test_sensor_reading_repositories.py`) covering isolation, pagination, and invalid input. Pending: wire repositories into services/routers. |
 
 | Florinda (`flperez-`) | Features/modules | Pull requests | Challenges and solutions |
 |-----------------------|------------------|---------------|--------------------------|
 |                       | TBD              | TBD           | TBD                      |
 
+
 | Lylia (`lylfergu`) | Features/modules | Pull requests | Challenges and solutions |
 |--------------------|------------------|---------------|--------------------------|
-|                    | TBD              | TBD           | TBD                      |
+| Pinia stores | [PR number] | Created centralized stores to manage frontend application state |
+| Axios API services and error handling | #57 | Created a centralized API layer with|
+|services, adapters, and common error handling |
 
 | Eduardo (`egalindo`) | Features/modules | Pull requests | Challenges and solutions |
 |----------------------|------------------|---------------|--------------------------|
@@ -338,9 +375,12 @@ label planned work separately from implemented work.
 
 ## Known limitations
 
-- The root Makefile targets are not implemented yet.
-- Compose currently contains only the database and backend services.
-- The gateway and frontend production image are not wired into Compose yet.
+- Compose starts only the database and backend services by default. The
+  `simulator` and `gateway` services are declared but gated behind the `sim` and
+  `gateway` profiles, because their Dockerfiles are still scaffolding.
+- The gateway, TLS, and the frontend production image are not wired in yet.
+- `.env` generation exists twice, as `make env` and as `scripts/create_env`.
+  The team must settle on one.
 - Simulator code and dependencies are still scaffolding.
 - Database models and migration bodies are not implemented yet.
 - The README placeholders must be completed by the team.
