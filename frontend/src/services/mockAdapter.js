@@ -1,5 +1,6 @@
 // MOCK ADAPTER — respuestas con el mismo contrato OpenAPI (paralelo semana 1).
 
+import { sites } from './fixtures/sites.js'
 
 /* We create an object that 
 has the same methods as httpAdapter.
@@ -8,8 +9,22 @@ that is already resolved, with the data we want,
 to replicate the behavior of the real adapter*/
 
 const mockAdapter = {
+
   get(url, config = {}) {
     console.log('[MOCK GET]', url, config)
+
+    if (url === '/api/sites') { 
+    return Promise.resolve({ 
+      data: { // Paginated response: current page, number of items, and total pages
+        items: sites,
+        total: sites.length,
+        page: 1,
+        page_size: sites.length,
+        pages: 1,
+      },
+      status: 200,
+    })
+  }
 
     return Promise.resolve({ // = "Create a Promise (that is already resolved) with the value below"
       data: {},
