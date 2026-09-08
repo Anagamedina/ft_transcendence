@@ -46,3 +46,23 @@ const mockAdapter = {
 }
 
 export default mockAdapter
+
+/*Voici exactement ce que les services nous disent que le MockAdapter doit supporter :
+
+Domaine	Méthode	Endpoint
+Auth	POST	/api/auth/register
+Auth	POST	/api/auth/login
+Auth	POST	/api/auth/logout
+Auth	GET	/api/me
+Sites	GET	/api/sites
+Sites	GET	/api/sites/{id}
+Sites	GET	/api/sites/{id}/sensors
+Sensors	GET	/api/sensors
+Sensors	GET	/api/sensors/{id}
+Sensors	POST	/api/sensors
+Sensors	PATCH	/api/sensors/{id}
+Readings	POST	/api/readings
+Readings	GET	/api/sensors/{id}/readings
+Alerts	GET	/api/alerts
+Alerts	PATCH	/api/alerts/{id}/acknowledge
+Alerts	PATCH	/api/alerts/{id}/resolve*/
