@@ -199,6 +199,15 @@ data types, and relationships once the schema is implemented.
 
 ## Implemented features
 
+| Feature                                     | Status      | Contributors | Verification                            |
+|---------------------------------------------|-------------|--------------|-----------------------------------------|
+| Backend health endpoint (`GET /api/health`) | Implemented | TBD          | `curl http://localhost:8000/api/health` |
+| PostgreSQL connection check                 | Implemented | TBD          | Returned by health endpoint             |
+| Authentication                              | Planned     | TBD          | Add test or endpoint link               |
+| Sensor readings                             | Planned     | TBD          | Add test or endpoint link               |
+| Alerts                                      | Planned     | TBD          | Add test or endpoint link               |
+| Frontend dashboard                          | Planned     | TBD          | Add browser flow or screenshot          |
+| Sensor visual components (`SensorCard`, detail view) | Implemented | Florinda | Run `./scripts/launch-frontend.sh`, visit `/test`, click a sensor card -> `/sensors/:id` |
 | Feature                                            | Status      | Contributors | Verification                                                                                                  |
 |----------------------------------------------------|-------------|--------------|---------------------------------------------------------------------------------------------------------------|
 | Backend liveness endpoint (`GET /api/health`)      | Implemented | TBD          | `curl http://localhost:8000/api/health`                                                                       |
