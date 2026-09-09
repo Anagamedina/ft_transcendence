@@ -55,18 +55,28 @@ so do not replace it with another placeholder.
 Frontend-only configuration is documented in
 [`frontend/.env.example`](frontend/.env.example).
 
-### Run the current backend stack
+### Run the stack
 
-The Compose stack declares four services on the `aquaguard` network. `database`
-and `backend` start by default; `simulator` and `gateway` sit behind Compose
-profiles until their images are complete, so a plain start never fails on them.
+The Compose stack declares four services on the `aquaguard` network. `database`,
+`backend` and `gateway` start by default; `simulator` sits behind the `sim`
+Compose profile until its image is complete, so a plain start never fails on it.
+
+`gateway` is the only service published to the host. It terminates TLS on 443,
+redirects 80 to 443, serves the compiled Vue SPA, and proxies `/api/` and `/ws/`
+to `backend:8000` over the internal network. `backend` and `database` are not
+reachable from the host at all.
 
 ```bash
 make up
-curl --fail http://localhost:8000/api/health
-curl --fail http://localhost:8000/api/health/db
+curl --fail -k https://localhost/api/health
+curl --fail -k https://localhost/api/health/db
+curl --fail -k https://localhost/
 make logs
 ```
+
+`-k` is required because `make certs` generates a self-signed certificate for
+`localhost`. A browser shows a warning on first visit, which is expected in
+development and for evaluation.
 
 There are two health endpoints. `/api/health` is liveness and does not touch
 PostgreSQL, which is why a database outage cannot restart the backend in a loop.
@@ -78,14 +88,17 @@ database is unreachable:
 {"status":"ok","database":"connected","checked_at":"2026-09-02T21:52:53.859027Z"}
 ```
 
-Both host ports are bound to `127.0.0.1`, so nothing is reachable from the
-network. Stop the stack with `make down`, which keeps the PostgreSQL volume.
+Stop the stack with `make down`, which keeps the PostgreSQL volume.
+
+Alembic runs from the host and therefore needs the PostgreSQL port, which the
+delivery topology does not publish. `make dev` starts the same stack plus
+[`compose.dev.yaml`](compose.dev.yaml), which binds PostgreSQL to
+`127.0.0.1:5432` for that purpose only.
 
 For backend-specific local setup, Alembic checks, and API verification, see
 [`backend/README.md`](backend/README.md).
 
-The frontend, simulator, gateway, TLS certificates, and the final one-command
-deployment flow are still being integrated into Compose.
+The simulator is still being integrated into Compose.
 
 ### Useful commands
 
@@ -93,8 +106,10 @@ The root `Makefile` wraps the Compose commands:
 
 | Target | Effect |
 |--------|--------|
-| `make` / `make up` | Copies `.env` if missing, then `docker compose up --build -d` and `docker compose ps` |
+| `make` / `make up` | Copies `.env` and generates certificates if missing, then `docker compose up --build -d` and `docker compose ps` |
+| `make dev` | Same as `make up` plus `compose.dev.yaml`, which publishes PostgreSQL on `127.0.0.1:5432` for Alembic |
 | `make env` | Creates `.env` from `.env.example` only when it does not exist |
+| `make certs` | Generates a self-signed TLS certificate in `gateway/certs/` only when it does not exist |
 | `make build` | Builds the images without starting them |
 | `make down` | Stops the containers and keeps the PostgreSQL volume |
 | `make logs` | Follows the logs of every running service |
@@ -107,8 +122,9 @@ The root `Makefile` wraps the Compose commands:
 the first initialisation of that volume, so this is also the command to run
 after the credentials in `.env` change.
 
-`make certs` is not defined yet; TLS certificate generation arrives with the
-gateway.
+Certificates live in `gateway/certs/` and are git-ignored. They are mounted
+read-only into the gateway instead of being baked into the image, so a private
+key never reaches a built artefact.
 
 ### Run the frontend (temporary script)
 
@@ -201,7 +217,7 @@ data types, and relationships once the schema is implemented.
 
 | Feature                                     | Status      | Contributors | Verification                            |
 |---------------------------------------------|-------------|--------------|-----------------------------------------|
-| Backend health endpoint (`GET /api/health`) | Implemented | TBD          | `curl http://localhost:8000/api/health` |
+| Backend health endpoint (`GET /api/health`) | Implemented | TBD          | `curl -k https://localhost/api/health` |
 | PostgreSQL connection check                 | Implemented | TBD          | Returned by health endpoint             |
 | Authentication                              | Planned     | TBD          | Add test or endpoint link               |
 | Sensor readings                             | Planned     | TBD          | Add test or endpoint link               |
@@ -210,9 +226,10 @@ data types, and relationships once the schema is implemented.
 | Sensor visual components (`SensorCard`, detail view) | Implemented | Florinda | Run `./scripts/launch-frontend.sh`, visit `/test`, click a sensor card -> `/sensors/:id` |
 | Feature                                            | Status      | Contributors | Verification                                                                                                  |
 |----------------------------------------------------|-------------|--------------|---------------------------------------------------------------------------------------------------------------|
-| Backend liveness endpoint (`GET /api/health`)      | Implemented | TBD          | `curl http://localhost:8000/api/health`                                                                       |
-| Database readiness endpoint (`GET /api/health/db`) | Implemented | TBD          | `curl http://localhost:8000/api/health/db`                                                                    |
+| Backend liveness endpoint (`GET /api/health`)      | Implemented | TBD          | `curl -k https://localhost/api/health`                                                                       |
+| Database readiness endpoint (`GET /api/health/db`) | Implemented | TBD          | `curl -k https://localhost/api/health/db`                                                                    |
 | Compose orchestration (network, volume, profiles)  | Implemented | Eduardo      | `make up` then `make ps`                                                                                      |
+| Nginx gateway: HTTPS, HTTP redirect, SPA, `/api` and `/ws` proxy | Implemented | Eduardo      | `curl -I http://localhost` returns 301, `curl -k https://localhost/api/health` returns 200                     |
 | Authentication                                     | Planned     | TBD          | Add test or endpoint link                                                                                     |
 | Sensor readings                                    | In progress | Daruny       | `backend/tests/unit/test_sensor_reading_repositories.py` (repositories implemented; services/routers pending) |
 | Alerts                                             | Planned     | TBD          | Add test or endpoint link                                                                                     |
@@ -375,10 +392,12 @@ label planned work separately from implemented work.
 
 ## Known limitations
 
-- Compose starts only the database and backend services by default. The
-  `simulator` and `gateway` services are declared but gated behind the `sim` and
-  `gateway` profiles, because their Dockerfiles are still scaffolding.
-- The gateway, TLS, and the frontend production image are not wired in yet.
+- The `simulator` service is declared but gated behind the `sim` profile,
+  because its Dockerfile is still scaffolding.
+- TLS certificates are self-signed, so browsers warn on first visit. A
+  publicly trusted certificate is out of scope for this project.
+- The gateway serves a production build of the SPA. Frontend development still
+  uses the Vite dev server through `./scripts/launch-frontend.sh`.
 - `.env` generation exists twice, as `make env` and as `scripts/create_env`.
   The team must settle on one.
 - Simulator code and dependencies are still scaffolding.

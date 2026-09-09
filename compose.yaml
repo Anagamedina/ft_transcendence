@@ -5,8 +5,6 @@ services:
     env_file: .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "127.0.0.1:5432:5432"
     networks: [aquaguard]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
@@ -22,8 +20,8 @@ services:
     env_file: .env
     environment:
       POSTGRES_HOST: database
-    ports:
-      - "127.0.0.1:8000:8000"
+    expose:
+      - "8000"
     depends_on:
       database:
         condition: service_healthy
@@ -44,11 +42,12 @@ services:
     networks: [aquaguard]
 
   gateway:
-    profiles: ["gateway"]
     build:
       context: .
       dockerfile: gateway/Dockerfile
     restart: unless-stopped
+    volumes:
+      - ./gateway/certs:/etc/nginx/certs:ro
     ports:
       - "80:80"
       - "443:443"
