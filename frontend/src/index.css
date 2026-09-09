@@ -2,8 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
-html,
-body {
-  overflow-x: hidden;
-  max-width: 100vw;
+/* Commented out (Issue #4): this rule blocked global horizontal scroll,
+	 which hid the min-w-[320px] safeguard added in MainLayout.vue for
+	 viewports narrower than any real device. Originally added in Issue #3
+	 (shared layout components) as a quick fix for an overflow issue — if
+	 that issue reappears, fix the specific overflowing element instead of
+	 re-enabling this globally.
+html, body {
+	overflow-x: hidden;
 }
+*/

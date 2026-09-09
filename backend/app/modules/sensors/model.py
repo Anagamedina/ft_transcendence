@@ -21,6 +21,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
+"""
+Defines the Sensor ORM entity, its database constraints, and its relationships
+with sites and readings.
+"""
 
 # Represents a sensor installed in a site
 class Sensor(Base):
@@ -116,4 +120,14 @@ class Sensor(Base):
     site: Mapped["Site"] = relationship(
         "Site",
         back_populates="sensors",
+    )
+
+    readings: Mapped[list["Reading"]] = relationship(
+        "Reading",
+        back_populates="sensor",
+    )
+
+    alerts: Mapped[list["Alert"]] = relationship(
+        "Alert",
+        back_populates="sensor",
     )

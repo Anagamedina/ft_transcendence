@@ -22,11 +22,11 @@ Es el punto de entrada de todo el frontend y fija la convención de carpetas, im
 
 ## 6. Criterios de aceptación
 
-- [ ] La aplicación arranca sin errores.
-- [ ] Router navega entre Public, Admin y Client.
-- [ ] Tailwind y DaisyUI generan estilos utilizables.
-- [ ] Vistas y layouts base existen.
-- [ ] No hay errores/warnings relevantes de consola.
+- [x] La aplicación arranca sin errores.
+- [ ] Router navega entre Public, Admin y Client. *(en el merge original solo existía la Zona Pública; Admin/Client llegan con vistas posteriores)*
+- [ ] Tailwind y DaisyUI generan estilos utilizables. *(no funcionó nunca en el proyecto real: `postcss.config.js` era el placeholder de Daruny desde el commit original; la captura que parecía demostrar lo contrario era de un HTML aparte con Tailwind vía CDN, no de la app real — corregido de forma definitiva en el Issue 02/#3)*
+- [ ] Vistas y layouts base existen. *(solo `LandingView.vue`; los layouts reales — `MainLayout`/`PublicLayout` — se construyeron en el Issue 02/#3)*
+- [ ] No hay errores/warnings relevantes de consola. *(no verificado formalmente en su momento; sin Tailwind funcional tampoco se habría detectado a simple vista)*
 
 ## 6. Decisiones técnicas
 

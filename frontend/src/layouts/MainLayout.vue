@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen flex flex-col">
+  <div class="min-h-screen min-w-[320px] flex flex-col">
     <Header :title="headerTitle" />
 
     <div class="flex flex-1 overflow-hidden">
@@ -15,12 +15,12 @@
 </template>
 
 <script setup>
-import Header from '../components/Header.vue'
-import Sidebar from '../components/Sidebar.vue'
-import Footer from '../components/Footer.vue'
+import Header from "../components/Header.vue";
+import Sidebar from "../components/Sidebar.vue";
+import Footer from "../components/Footer.vue";
 
 defineProps({
-  headerTitle: { type: String, default: 'AquaGuard' },
-  sidebarAppName: { type: String, default: 'AquaGuard' }
-})
+  headerTitle: { type: String, default: "AquaGuard" },
+  sidebarAppName: { type: String, default: "AquaGuard" },
+});
 </script>

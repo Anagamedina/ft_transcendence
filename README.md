@@ -201,13 +201,22 @@ data types, and relationships once the schema is implemented.
 
 | Feature                                     | Status      | Contributors | Verification                            |
 |---------------------------------------------|-------------|--------------|-----------------------------------------|
-| Backend liveness endpoint (`GET /api/health`) | Implemented | TBD | `curl http://localhost:8000/api/health` |
-| Database readiness endpoint (`GET /api/health/db`) | Implemented | TBD | `curl http://localhost:8000/api/health/db` |
-| Compose orchestration (network, volume, profiles) | Implemented | Eduardo | `make up` then `make ps` |
+| Backend health endpoint (`GET /api/health`) | Implemented | TBD          | `curl http://localhost:8000/api/health` |
+| PostgreSQL connection check                 | Implemented | TBD          | Returned by health endpoint             |
 | Authentication                              | Planned     | TBD          | Add test or endpoint link               |
 | Sensor readings                             | Planned     | TBD          | Add test or endpoint link               |
 | Alerts                                      | Planned     | TBD          | Add test or endpoint link               |
 | Frontend dashboard                          | Planned     | TBD          | Add browser flow or screenshot          |
+| Sensor visual components (`SensorCard`, detail view) | Implemented | Florinda | Run `./scripts/launch-frontend.sh`, visit `/test`, click a sensor card -> `/sensors/:id` |
+| Feature                                            | Status      | Contributors | Verification                                                                                                  |
+|----------------------------------------------------|-------------|--------------|---------------------------------------------------------------------------------------------------------------|
+| Backend liveness endpoint (`GET /api/health`)      | Implemented | TBD          | `curl http://localhost:8000/api/health`                                                                       |
+| Database readiness endpoint (`GET /api/health/db`) | Implemented | TBD          | `curl http://localhost:8000/api/health/db`                                                                    |
+| Compose orchestration (network, volume, profiles)  | Implemented | Eduardo      | `make up` then `make ps`                                                                                      |
+| Authentication                                     | Planned     | TBD          | Add test or endpoint link                                                                                     |
+| Sensor readings                                    | In progress | Daruny       | `backend/tests/unit/test_sensor_reading_repositories.py` (repositories implemented; services/routers pending) |
+| Alerts                                             | Planned     | TBD          | Add test or endpoint link                                                                                     |
+| Frontend dashboard                                 | Planned     | TBD          | Add browser flow or screenshot                                                                                |
 
 Every pull request that adds a feature should update this table with its status,
 contributors, and a reproducible verification method.
@@ -302,13 +311,16 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 This section is updated continuously. Each contribution should identify the
 feature, module, relevant pull request, technical challenge, and solution.
 
-| Ana (`anamedin`) | Features/modules | Pull requests | Challenges and solutions |
-|------------------|------------------|---------------|--------------------------|
-|       fix-sensors-atributs-daruny-ana           |     sensors        |       daru   | se ha modificado los atributos con nombres correctos de los sensores                    |
+| Ana (`anamedin`)                | Features/modules | Pull requests | Challenges and solutions                                             |
+|---------------------------------|------------------|---------------|----------------------------------------------------------------------|
+| fix-sensors-atributs-daruny-ana | sensors          | daru          | se ha modificado los atributos con nombres correctos de los sensores |
 
-| Daruny (`dasalaza`) | Features/modules | Pull requests | Challenges and solutions |
-|---------------------|------------------|---------------|--------------------------|
-| Repositories de sensors/readings, modelos UUID y tests SQLAlchemy | PR de la rama `daruny-04` (en curso) | Aislamiento por organización, paginación y orden estable; `flush/rollback` transaccional. Pendiente alinear services y protocols. |
+| Daruny (`dasalaza`)                                                                                                                                                                        | Features/modules                                               | Pull requests                                                                                                                                                                                                                                                                                            | Challenges and solutions |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------|
+| Issue 01 — PostgreSQL + SQLAlchemy: shared `Engine`, per-request `Session` via `get_db()`, env-based config | [#43](https://github.com/Anagamedina/ft_transcendence/pull/43) | Isolating each request's transaction without leaking connections; solved with `commit`/`rollback` at the transaction boundary and `close()` in `finally`. |
+| Issue 02 — Alembic: configured `alembic.ini`/`env.py` against the app's `Settings` and metadata, first revision | [#44](https://github.com/Anagamedina/ft_transcendence/pull/44) | Making the schema reproducible across machines instead of relying on `create_all()`; solved by wiring `env.py` to the real SQLAlchemy metadata and verifying `upgrade`/`downgrade`. |
+| Issue 03 — Domain models: `Organization`, `User`, `Site`, `Sensor`, `Reading`, `Alert` with FKs, constraints and indexes | [#48](https://github.com/Anagamedina/ft_transcendence/pull/48) | Enforcing multi-tenant isolation and referential integrity at the DB level; solved with `organization_id`-based relationships, unique/NOT NULL constraints, and a matching Alembic migration. |
+| Issue 04 — data-access layer: `SensorRepository` and `ReadingRepository`,  queries, stable pagination, <br/>`flush`/`rollback` transaction handling, plus fixes to sensor model attributes | [#55](https://github.com/Anagamedina/ft_transcendence/pull/55) | Preventing cross-tenant data leaks and keeping SQLAlchemy out of routers/services; solved with `Site.organization_id` filters on every query and unit tests (`test_sensor_reading_repositories.py`) covering isolation, pagination, and invalid input. Pending: wire repositories into services/routers. |
 
 | Florinda (`flperez-`) | Features/modules | Pull requests | Challenges and solutions |
 |-----------------------|------------------|---------------|--------------------------|
