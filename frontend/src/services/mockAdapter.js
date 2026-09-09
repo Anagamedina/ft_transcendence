@@ -1,5 +1,8 @@
 // MOCK ADAPTER — respuestas con el mismo contrato OpenAPI (paralelo semana 1).
 
+import { alerts } from './fixtures/alerts.js'
+import { readings } from './fixtures/readings.js'
+import { sensors } from './fixtures/sensors.js'
 import { sites } from './fixtures/sites.js'
 
 /* We create an object that 
@@ -23,8 +26,52 @@ const mockAdapter = {
         pages: 1,
       },
       status: 200,
-    })
-  }
+        })
+    }
+    /*GET /api/sites
+       ↓
+liste des sites
+
+GET /api/sites/{id}
+       ↓
+un site précis
+
+GET autre chose
+       ↓
+fallback actuel*/
+
+    if (url === '/api/sensors') {
+    return Promise.resolve({
+        data: {
+        items: sensors,
+        total: sensors.length,
+        page: 1,
+        page_size: sensors.length,
+        pages: 1,
+        },
+        status: 200,
+        })
+    }
+
+    if (url.startsWith('/api/sites/')) {
+    const id = url.split('/')[3]
+
+    const site = sites.find((site) => site.id === id)
+
+    if (!site) {
+        return Promise.reject({
+        status: 404,
+        code: 'SITE_NOT_FOUND',
+        message: 'Site not found',
+        details: null,
+        })
+    }
+
+    return Promise.resolve({
+        data: site,
+        status: 200,
+        })
+    }
 
     return Promise.resolve({ // = "Create a Promise (that is already resolved) with the value below"
       data: {},
