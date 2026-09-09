@@ -259,6 +259,21 @@ const mockAdapter = {
         })
       }
 
+      if (data.pressure < 0 || data.pressure > 25) {
+        return Promise.reject({
+            status: 422,
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid request.',
+            details: [
+            {
+                field: 'pressure',
+                message: 'Pressure must be between 0 and 25 bar.',
+                type: 'value_error',
+            },
+            ],
+        })
+      }
+
       const reading = {
         id: crypto.randomUUID(),
         sensor_id: data.sensor_id,
@@ -293,6 +308,27 @@ const mockAdapter = {
         })
       }
 
+      if (
+        data.min_pressure < 0 ||
+        data.min_pressure > 25 ||
+        data.max_pressure < 0 ||
+        data.max_pressure > 25 ||
+        data.min_pressure >= data.max_pressure
+        ) {
+        return Promise.reject({
+            status: 422,
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid request.',
+            details: [
+            {
+                field: 'min_pressure',
+                message: 'min_pressure must be lower than max_pressure.',
+                type: 'value_error',
+            },
+            ],
+        })
+      }
+
       const sensor = {
         id: crypto.randomUUID(),
         site_id: data.site_id,
@@ -314,10 +350,12 @@ const mockAdapter = {
       })
     }
 
-    // Unknown endpoint
-    return Promise.resolve({
-      data: {},
-      status: 200,
+   // Unknown endpoint
+     return Promise.reject({
+        status: 404,
+        code: 'UNKNOWN_ENDPOINT',
+        message: 'Mock endpoint not found.',
+        details: null,
     })
   },
 
@@ -391,6 +429,41 @@ const mockAdapter = {
         })
       }
 
+      if (
+        (data.min_pressure !== undefined &&
+            (data.min_pressure < 0 || data.min_pressure > 25)) ||
+        (data.max_pressure !== undefined &&
+            (data.max_pressure < 0 || data.max_pressure > 25)) ||
+        (
+            data.min_pressure !== undefined &&
+            data.max_pressure !== undefined &&
+            data.min_pressure >= data.max_pressure
+        ) ||
+        (
+            data.min_pressure !== undefined &&
+            data.max_pressure === undefined &&
+            data.min_pressure >= sensor.max_pressure
+        ) ||
+        (
+            data.max_pressure !== undefined &&
+            data.min_pressure === undefined &&
+            data.max_pressure <= sensor.min_pressure
+        )
+        ) {
+        return Promise.reject({
+            status: 422,
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid request.',
+            details: [
+            {
+                field: 'min_pressure',
+                message: 'min_pressure must be lower than max_pressure.',
+                type: 'value_error',
+            },
+          ],
+        })
+      }
+
       Object.assign(sensor, {
         ...(data.name !== undefined && {
           name: data.name,
@@ -413,18 +486,22 @@ const mockAdapter = {
     }
 
     // Unknown endpoint
-    return Promise.resolve({
-      data: {},
-      status: 200,
+    return Promise.reject({
+      status: 404,
+      code: 'UNKNOWN_ENDPOINT',
+      message: 'Mock endpoint not found',
+      details: null,
     })
   },
 
   delete(url, config = {}) {
     console.log('[MOCK DELETE]', url, config)
 
-    return Promise.resolve({
-      data: {},
-      status: 200,
+    return Promise.reject({
+      status: 404,
+      code: 'UNKNOWN_ENDPOINT',
+      message: 'Mock endpoint not found.',
+      details: null,
     })
   },
 }
