@@ -332,6 +332,10 @@ feature, module, relevant pull request, technical challenge, and solution.
 | Pinia stores | [PR number] | Created centralized stores to manage frontend application state |
 | Axios API services and error handling | #57 | Created a centralized API layer with|
 |services, adapters, and common error handling |
+|MockAdapter | #61 | Frontend API mocking and development fixtures                   |
+|Enabled frontend development without a running backend by implementing a mock adapter|
+|with the same interface and response shapes as the real API, including fixtures,    |
+|pagination, validation errors, authentication states, and CRUD-like operations. |
 
 | Eduardo (`egalindo`) | Features/modules | Pull requests | Challenges and solutions |
 |----------------------|------------------|---------------|--------------------------|
