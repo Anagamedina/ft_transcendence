@@ -208,6 +208,7 @@ data types, and relationships once the schema is implemented.
 | Alerts                                      | Planned     | TBD          | Add test or endpoint link               |
 | Frontend dashboard                          | Planned     | TBD          | Add browser flow or screenshot          |
 | Sensor visual components (`SensorCard`, detail view) | Implemented | Florinda | Run `./scripts/launch-frontend.sh`, visit `/test`, click a sensor card -> `/sensors/:id` |
+| Public Landing Page (Hero, value proposition, navigation to Login/Registro) | Implemented | Florinda | Run `./scripts/launch-frontend.sh`, visit `/` |
 | Feature                                            | Status      | Contributors | Verification                                                                                                  |
 |----------------------------------------------------|-------------|--------------|---------------------------------------------------------------------------------------------------------------|
 | Backend liveness endpoint (`GET /api/health`)      | Implemented | TBD          | `curl http://localhost:8000/api/health`                                                                       |
@@ -324,7 +325,7 @@ feature, module, relevant pull request, technical challenge, and solution.
 
 | Florinda (`flperez-`) | Features/modules | Pull requests | Challenges and solutions |
 |-----------------------|------------------|---------------|--------------------------|
-|                       | TBD              | TBD           | TBD                      |
+| Public Landing Page: Hero, value proposition, navigation to Login/Registro; extended `Header`/`Footer`/`Card` with optional props and slots | [#5](https://github.com/Anagamedina/ft_transcendence/pull/5) | The first version of the Hero copy did not communicate the product's real function to a user unfamiliar with the project (found via an external comprehension test); the text was iterated, and in the process a click bug was found (a decorative SVG blocking the "Comenzar ahora" CTA), fixed with `pointer-events-none`. |
 
 
 | Lylia (`lylfergu`) | Features/modules | Pull requests | Challenges and solutions |
