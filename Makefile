@@ -10,7 +10,8 @@ env:
 	@test -f .env || cp .env.example .env
 
 certs:
-	@test -f $(CERTS_DIR)/aquaguard.crt || \
+	@mkdir -p $(CERTS_DIR)
+	@test -f $(CERTS_DIR)/aquaguard.crt && test -f $(CERTS_DIR)/aquaguard.key || \
 		openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
 			-keyout $(CERTS_DIR)/aquaguard.key \
 			-out $(CERTS_DIR)/aquaguard.crt \
