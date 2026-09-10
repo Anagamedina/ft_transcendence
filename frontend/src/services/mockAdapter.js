@@ -6,7 +6,7 @@ import { sensors } from './fixtures/sensors.js'
 import { sites } from './fixtures/sites.js'
 
 
-const mockUser = {
+const mockUser = { //fictitious user, used when the frontend requests "GET /api/me"
   id: '99999999-9999-4999-8999-999999999999',
   email: 'mock@example.com',
   name: 'Mock User',
@@ -30,7 +30,7 @@ const mockAdapter = {
     console.log('[MOCK GET]', url, config)
 
     // Get all sites
-    if (url === '/api/sites') {
+    if (url === '/api/sites') { //= endpoint
       return Promise.resolve({ // = "Create a Promise (that is already resolved) with the value below"
         data: {
           // Paginated response: current page, number of items, and total pages
@@ -62,7 +62,7 @@ const mockAdapter = {
     if (url.startsWith('/api/sites/') && url.endsWith('/sensors')) {
       const siteId = url.split('/')[3]
 
-      const site = sites.find((site) => site.id === siteId)
+      const site = sites.find((site) => site.id === siteId) //searching the site in the array
 
       if (!site) {
         return Promise.reject({
@@ -73,8 +73,8 @@ const mockAdapter = {
         })
       }
 
-      const siteSensors = sensors.filter(
-        (sensor) => sensor.site_id === siteId
+      const siteSensors = sensors.filter( //Keeps only the elements that meet this condition
+        (sensor) => sensor.site_id === siteId 
       )
 
       return Promise.resolve({
@@ -146,7 +146,7 @@ const mockAdapter = {
 
     // Get a specific sensor
     if (url.startsWith('/api/sensors/')) {
-      const id = url.split('/')[3]
+      const id = url.split('/')[3] // splits the url string at every "/", retrieves the 4th element, and stores it in the variable
 
       const sensor = sensors.find((sensor) => sensor.id === id)
 
@@ -179,7 +179,7 @@ const mockAdapter = {
       })
     }
 
-        // Get the currently authenticated user
+    // Get the currently authenticated user
     if (url === '/api/me') {
       if (!isAuthenticated) {
         return Promise.reject({
@@ -210,7 +210,7 @@ const mockAdapter = {
   post(url, data = {}, config = {}) {
     console.log('[MOCK POST]', url, data, config)
 
-        // Register
+    // Register
     if (url === '/api/auth/register') {
       return Promise.resolve({
         data: {
@@ -279,17 +279,15 @@ const mockAdapter = {
         sensor_id: data.sensor_id,
         pressure: data.pressure,
         measured_at:
-          data.measured_at ?? new Date().toISOString(),
+          data.measured_at ?? new Date().toISOString(), // = If value on the left is null or undefined, then use the one on the right
         created_at: new Date().toISOString(),
       }
 
-      // Store the new reading in the mock data
-      // so subsequent GET requests can retrieve it.
-      readings.push(reading)
+      readings.push(reading) //= Add `reading` to the end of the `readings` array
       
       return Promise.resolve({
         data: reading,
-        status: 201,
+        status: 201, // = created with succes
       })
     }
 
@@ -508,7 +506,7 @@ const mockAdapter = {
 
 export default mockAdapter
 
-/*Voici exactement ce que les services nous disent que le MockAdapter doit supporter :
+/*Here is exactly what the services tell us the MockAdapter must support: :
 
 Domaine	Méthode	Endpoint
 Auth	POST	/api/auth/register
@@ -526,17 +524,20 @@ Readings	POST	/api/readings
 Readings	GET	/api/sensors/{id}/readings
 Alerts	GET	/api/alerts
 Alerts	PATCH	/api/alerts/{id}/acknowledge
-Alerts	PATCH	/api/alerts/{id}/resolve*/
+Alerts	PATCH	/api/alerts/{id}/resolve
+*/
 
 
-/*GET /api/sites
-       ↓
-liste des sites
+/*
+All endpoints work the same way; GET request essentially does this:
 
-GET /api/sites/{id}
-       ↓
-un site précis
-
-GET autre chose
-       ↓
-fallback actuel*/
+Which URL is being requested?
+        ↓
+Check the corresponding `if` statement
+        ↓
+Fetch the data
+        ↓
+Verify that it exists
+        ↓
+Return a Promise
+*/
