@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen flex flex-col overflow-x-hidden">
+  <div class="min-h-screen flex flex-col">
     <Header :title="headerTitle">
       <template #actions>
         <div class="flex flex-wrap gap-2">

@@ -5,7 +5,7 @@
     <div
       class="relative z-10 flex flex-col sm:flex-row sm:justify-between sm:items-center p-4 gap-3"
     >
-      <div class="flex items-center gap-3">
+      <router-link to="/" class="flex items-center gap-3 hover:opacity-90 transition">
         <div
           class="w-10 h-10 shrink-0 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-xl"
         >
@@ -16,7 +16,7 @@
         >
           {{ title }}
         </h1>
-      </div>
+      </router-link>
       <slot name="actions">
         <button
           class="bg-white text-aqua-600 px-4 py-2 md:px-6 rounded-lg font-semibold hover:bg-gray-100 transition shrink-0"

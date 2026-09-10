@@ -92,7 +92,7 @@
       <aside class="hidden lg:block">
         <nav class="sticky top-24 text-sm">
           <p class="font-semibold text-aqua-900 mb-3">En este documento</p>
-          <ul class="space-y-2 text-gray-500">
+          <ul class="space-y-2 text-gray-500 mb-4">
             <li><a href="#datos-recogidos" class="hover:text-aqua-700">1. Qué datos recogemos</a></li>
             <li><a href="#como-usamos" class="hover:text-aqua-700">2. Cómo usamos los datos</a></li>
             <li><a href="#con-quien-compartimos" class="hover:text-aqua-700">3. Con quién compartimos</a></li>
@@ -103,9 +103,11 @@
             <li><a href="#cambios" class="hover:text-aqua-700">8. Cambios</a></li>
             <li><a href="#contacto" class="hover:text-aqua-700">9. Contacto</a></li>
           </ul>
+          <router-link to="/" class="block text-aqua-900 font-bold underline hover:text-aqua-700">
+            ← Volver al inicio
+          </router-link>
         </nav>
       </aside>
-
     </div>
   </PublicLayout>
 </template>
