@@ -1,0 +1,17 @@
+.git
+.github
+.gitignore
+.env
+.venv
+*.md
+docs
+local_docs
+scripts
+backend
+simulator
+frontend/node_modules
+frontend/dist
+frontend/tests
+frontend/package.json.bak
+gateway/certs
+**/__pycache__

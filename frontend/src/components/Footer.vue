@@ -1,10 +1,19 @@
 <template>
-  <footer class="bg-aqua-900 text-gray-300 mt-auto">
-    <div class="max-w-7xl mx-auto px-6 py-6 flex flex-col sm:flex-row justify-between items-center gap-3 text-sm">
+  <footer
+    :class="dark ? 'bg-[#0F172A]' : 'bg-aqua-900'"
+    class="text-gray-300 mt-auto"
+  >
+    <div
+      class="w-full px-4 py-6 flex flex-col sm:flex-row justify-between items-center gap-3 text-sm"
+    >
       <p>© {{ year }} {{ appName }}. Todos los derechos reservados.</p>
       <nav class="flex gap-6">
-        <router-link to="/privacy" class="hover:text-aqua-200 transition">Privacy Policy</router-link>
-        <router-link to="/terms" class="hover:text-aqua-200 transition">Terms of Service</router-link>
+        <router-link to="/privacy" class="hover:text-aqua-200 transition"
+          >Política de Privacidad</router-link
+        >
+        <router-link to="/terms" class="hover:text-aqua-200 transition"
+          >Términos de Servicio</router-link
+        >
       </nav>
     </div>
   </footer>
@@ -12,8 +21,9 @@
 
 <script setup>
 defineProps({
-  appName: { type: String, default: 'AquaGuard' }
-})
+  appName: { type: String, default: "AquaGuard" },
+  dark: { type: Boolean, default: false },
+});
 
-const year = new Date().getFullYear()
+const year = new Date().getFullYear();
 </script>
