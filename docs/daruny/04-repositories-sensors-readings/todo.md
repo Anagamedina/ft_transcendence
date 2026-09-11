@@ -10,24 +10,32 @@
 
 ## Pendiente para cerrar la issue
 
-### 1. Alinear el contrato
+### 1. Alinear el contrato — reportado a Ana, no tocar aquí
 
-Modificar `backend/app/shared/protocols.py`:
-
-- usar `UUID` en todos los IDs;
-- cambiar `ReadingRepository.add()` por `create()`;
-- añadir `organization_id` a `list_by_sensor()`;
-- cambiar `SensorRepository.get()` por `get_by_id()`;
-- mantener `list_by_organization()` con `offset` y `limit`.
-
-El protocolo debe coincidir exactamente con:
+`backend/app/shared/protocols.py` es el contrato que ella define (issues
+#22/#23). Hoy no coincide con los nombres/firmas reales del repository:
 
 ```text
-ReadingRepository.create(sensor_id, value, unit, recorded_at)
-ReadingRepository.list_by_sensor(sensor_id, organization_id, offset, limit)
-SensorRepository.list_by_organization(organization_id, offset, limit)
-SensorRepository.get_by_id(sensor_id, organization_id)
+Protocolo actual          → Implementación real
+add(sensor_id,               create(sensor_id, value, unit,
+    pressure, measured_at)       recorded_at)
+list_by_sensor(sensor_id,    list_by_sensor(sensor_id, organization_id,
+    offset, limit)                offset, limit)
+get(sensor_id)                get_by_id(sensor_id, organization_id)
+—                             list_by_organization(organization_id,
+                                  offset, limit)
 ```
+
+Ojo: `pressure`/`measured_at` en el protocolo probablemente sea
+intencional (ver punto 4 — el service traduce `value/recorded_at` del
+modelo a ese vocabulario de schema), así que esto no es solo "actualizar
+nombres", puede haber una capa de traducción de por medio que solo Ana
+sabe cómo quiere resolver. No editar `protocols.py` sin que ella lo
+decida — es su frontera del contrato, no la de Daruny.
+
+`touch_last_seen()` tampoco lo satisface nadie: depende de
+`Sensor.last_seen_at`, que no existe en el modelo. Probablemente llegue
+con la columna y la lógica de SENSOR_OFFLINE en la issue #28.
 
 ### 2. Integrar los repositories
 

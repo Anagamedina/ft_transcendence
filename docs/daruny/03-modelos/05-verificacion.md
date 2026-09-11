@@ -125,7 +125,7 @@ PY
 
 Desde `backend/`:
 
-```bash
+``` bash
 alembic current
 alembic heads
 alembic history
