@@ -6,7 +6,7 @@
 
 ## Description
 
-AquaGuard is a **web platform** for monitoring water-related data from sensors. The en el paquete.
+AquaGuard is a **web platform** for monitoring water-related data from sensors. The
 planned application provides authenticated users with access to organizations,
 sites, sensors, readings, alerts, and analytics.
 
@@ -215,26 +215,26 @@ data types, and relationships once the schema is implemented.
 
 ## Implemented features
 
-| Feature                                     | Status      | Contributors | Verification                            |
-|---------------------------------------------|-------------|--------------|-----------------------------------------|
-| Backend health endpoint (`GET /api/health`) | Implemented | TBD          | `curl -k https://localhost/api/health` |
-| PostgreSQL connection check                 | Implemented | TBD          | Returned by health endpoint             |
-| Authentication                              | Planned     | TBD          | Add test or endpoint link               |
-| Sensor readings                             | Planned     | TBD          | Add test or endpoint link               |
-| Alerts                                      | Planned     | TBD          | Add test or endpoint link               |
-| Frontend dashboard                          | Planned     | TBD          | Add browser flow or screenshot          |
-| Sensor visual components (`SensorCard`, detail view) | Implemented | Florinda | Run `./scripts/launch-frontend.sh`, visit `/test`, click a sensor card -> `/sensors/:id` |
-| Public Landing Page (Hero, value proposition, navigation to Login/Registro) | Implemented | Florinda | Run `./scripts/launch-frontend.sh`, visit `/` |
-| Feature                                            | Status      | Contributors | Verification                                                                                                  |
-|----------------------------------------------------|-------------|--------------|---------------------------------------------------------------------------------------------------------------|
-| Backend liveness endpoint (`GET /api/health`)      | Implemented | TBD          | `curl -k https://localhost/api/health`                                                                       |
-| Database readiness endpoint (`GET /api/health/db`) | Implemented | TBD          | `curl -k https://localhost/api/health/db`                                                                    |
-| Compose orchestration (network, volume, profiles)  | Implemented | Eduardo      | `make up` then `make ps`                                                                                      |
-| Nginx gateway: HTTPS, HTTP redirect, SPA, `/api` and `/ws` proxy | Implemented | Eduardo      | `curl -I http://localhost` returns 301, `curl -k https://localhost/api/health` returns 200                     |
-| Authentication                                     | Planned     | TBD          | Add test or endpoint link                                                                                     |
-| Sensor readings                                    | In progress | Daruny       | `backend/tests/unit/test_sensor_reading_repositories.py` (repositories implemented; services/routers pending) |
-| Alerts                                             | Planned     | TBD          | Add test or endpoint link                                                                                     |
-| Frontend dashboard                                 | Planned     | TBD          | Add browser flow or screenshot                                                                                |
+| Feature                                                          | Status      | Contributors         | Verification                                                                          |
+|------------------------------------------------------------------|-------------|----------------------|---------------------------------------------------------------------------------------|
+| Backend modular API and health checks                            | Implemented | Ana                  | `/api/health`, `/api/health/db` and `/api/docs`                                       |
+| OpenAPI schemas and unified API errors                           | Implemented | Ana                  | 32 schemas available in Swagger                                                       |
+| Compose orchestration (network, volume, profiles)                | Implemented | Eduardo              | `make up` then `make ps`                                                              |
+| Nginx gateway: HTTPS, HTTP redirect, SPA, `/api` and `/ws` proxy | Implemented | Eduardo              | HTTP redirects to HTTPS; API returns 200                                              |
+| Pinia stores, Axios services and MockAdapter                     | Implemented | Lylia                | Frontend services and mock API configured                                             |
+| Shared layouts and visual components                             | Implemented | Florinda             | Public/main layouts, header, footer, sidebar and modal                                |
+| Sensor visual components (`SensorCard`, detail view)             | Implemented | Florinda             | Visit `/test` and open a sensor card                                                  |
+| Public landing and legal pages                                   | Implemented | Florinda             | Visit `/`, `/privacy` or `/terms`                                                     |
+| Sensor and reading repositories                                  | In progress | Daruny               | `backend/tests/unit/test_sensor_reading_repositories.py`                              |
+| User and organization repositories                               | Implemented | Daruny               | `cd backend && ../.venv/bin/pytest tests/unit/test_user_organization_repositories.py` |
+| Authentication                                                   | Planned     | TBD                  | Add test or endpoint link                                                             |
+| Sensor readings API integration                                  | In progress | Ana / Daruny / Lylia | Repository, service and frontend integration pending                                  |
+| Alerts                                                           | Planned     | TBD                  | Add test or endpoint link                                                             |
+| Frontend dashboard                                               | Planned     | TBD                  | Add browser flow or screenshot                                                        |
+
+The user and organization repositories use SQLAlchemy to normalize email
+lookups, enforce organization scoping, retrieve organizations by ID, and keep
+duplicate-email errors visible. Authentication is not included yet.
 
 Every pull request that adds a feature should update this table with its status,
 contributors, and a reproducible verification method.
@@ -326,38 +326,51 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 
 ## Individual contributions
 
-This section is updated continuously. Each contribution should identify the
-feature, module, relevant pull request, technical challenge, and solution.
+### Ana (`anamedin`)
 
-| Ana (`anamedin`)                | Features/modules | Pull requests | Challenges and solutions                                             |
-|---------------------------------|------------------|---------------|----------------------------------------------------------------------|
-| fix-sensors-atributs-daruny-ana | sensors          | daru          | se ha modificado los atributos con nombres correctos de los sensores |
+| Issue | Contribution | Status |
+|-------|--------------|--------|
+| 01 | FastAPI modular architecture and health checks | Implemented |
+| 02 | Pydantic schemas and OpenAPI contract | Implemented |
+| 03 | `POST /api/readings` contract and service structure | In progress |
 
-| Daruny (`dasalaza`)                                                                                                                                                                        | Features/modules                                               | Pull requests                                                                                                                                                                                                                                                                                            | Challenges and solutions |
-|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------|
-| Issue 01 — PostgreSQL + SQLAlchemy: shared `Engine`, per-request `Session` via `get_db()`, env-based config | [#43](https://github.com/Anagamedina/ft_transcendence/pull/43) | Isolating each request's transaction without leaking connections; solved with `commit`/`rollback` at the transaction boundary and `close()` in `finally`. |
-| Issue 02 — Alembic: configured `alembic.ini`/`env.py` against the app's `Settings` and metadata, first revision | [#44](https://github.com/Anagamedina/ft_transcendence/pull/44) | Making the schema reproducible across machines instead of relying on `create_all()`; solved by wiring `env.py` to the real SQLAlchemy metadata and verifying `upgrade`/`downgrade`. |
-| Issue 03 — Domain models: `Organization`, `User`, `Site`, `Sensor`, `Reading`, `Alert` with FKs, constraints and indexes | [#48](https://github.com/Anagamedina/ft_transcendence/pull/48) | Enforcing multi-tenant isolation and referential integrity at the DB level; solved with `organization_id`-based relationships, unique/NOT NULL constraints, and a matching Alembic migration. |
-| Issue 04 — data-access layer: `SensorRepository` and `ReadingRepository`,  queries, stable pagination, <br/>`flush`/`rollback` transaction handling, plus fixes to sensor model attributes | [#55](https://github.com/Anagamedina/ft_transcendence/pull/55) | Preventing cross-tenant data leaks and keeping SQLAlchemy out of routers/services; solved with `Site.organization_id` filters on every query and unit tests (`test_sensor_reading_repositories.py`) covering isolation, pagination, and invalid input. Pending: wire repositories into services/routers. |
+### Daruny (`dasalaza`)
 
-| Florinda (`flperez-`) | Features/modules | Pull requests | Challenges and solutions |
-|-----------------------|------------------|---------------|--------------------------|
-| Public Landing Page: Hero, value proposition, navigation to Login/Registro; extended `Header`/`Footer`/`Card` with optional props and slots | [#5](https://github.com/Anagamedina/ft_transcendence/pull/5) | The first version of the Hero copy did not communicate the product's real function to a user unfamiliar with the project (found via an external comprehension test); the text was iterated, and in the process a click bug was found (a decorative SVG blocking the "Comenzar ahora" CTA), fixed with `pointer-events-none`. |
+| Issue | Contribution | Status |
+|-------|--------------|--------|
+| 01 | PostgreSQL and SQLAlchemy setup | Implemented |
+| 02 | Alembic migrations | Implemented |
+| 03 | Domain models and relationships | Implemented |
+| 04 | Sensor and reading repositories | In progress |
+| 05 | Development seed | Implemented |
+| 07 | User and organization repositories | Implemented |
 
+### Florinda (`flperez-`)
 
-| Lylia (`lylfergu`) | Features/modules | Pull requests | Challenges and solutions |
-|--------------------|------------------|---------------|--------------------------|
-| Pinia stores | [PR number] | Created centralized stores to manage frontend application state |
-| Axios API services and error handling | #57 | Created a centralized API layer with|
-|services, adapters, and common error handling |
-|MockAdapter | #61 | Frontend API mocking and development fixtures                   |
-|Enabled frontend development without a running backend by implementing a mock adapter|
-|with the same interface and response shapes as the real API, including fixtures,    |
-|pagination, validation errors, authentication states, and CRUD-like operations. |
+| Issue | Contribution | Status |
+|-------|--------------|--------|
+| 01 | Vue/Vite frontend setup | Implemented |
+| 02 | Shared layouts and visual components | Implemented |
+| 03 | `SensorCard` and sensor detail view | Implemented |
+| 04 | Public landing page | Implemented |
+| 05 | Privacy Policy and Terms of Service | Implemented |
 
-| Eduardo (`egalindo`) | Features/modules | Pull requests | Challenges and solutions |
-|----------------------|------------------|---------------|--------------------------|
-|                      | TBD              | TBD           | TBD                      |
+### Lylia (`lylfergu`)
+
+| Issue | Contribution | Status |
+|-------|--------------|--------|
+| 01 | Pinia stores | Implemented |
+| 02 | Axios services and common API errors | Implemented |
+| 03 | MockAdapter compatible with the API | Implemented |
+| 04 | Sensors and readings integration | In progress |
+
+### Eduardo (`egalindo`)
+
+| Issue | Contribution | Status |
+|-------|--------------|--------|
+| 09 | Docker Compose stack | Implemented |
+| 10 | Nginx gateway and HTTPS | Implemented |
+| 11 | Health checks and smoke test | Implemented |
 
 ## Resources
 
