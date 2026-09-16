@@ -23,7 +23,7 @@
     </div>
 
     <div v-else-if="readingsStore.status === 'error'">
-      An error occurred while loading thereadings
+      An error occurred while loading the readings
     </div>
 
     <SensorDetail

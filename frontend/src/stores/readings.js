@@ -2,10 +2,10 @@
 
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import readingService from "../services/readingService";
+import readingService from "../services/reading.service";
 
 export const useReadingsStore = defineStore("readings", () => {
-  
+
   // STATE
   const readings = ref([]);
   const currentSensorId = ref(null);

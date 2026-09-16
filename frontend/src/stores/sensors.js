@@ -2,7 +2,7 @@
 
 import { defineStore } from "pinia";
 import {ref, computed} from "vue";
-import sensorService from "../services/sensorService";
+import sensorService from "../services/sensor.service";
 
 export const useSensorsStore = defineStore("sensors", () =>{
 
