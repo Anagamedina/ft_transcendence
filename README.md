@@ -354,6 +354,7 @@ feature, module, relevant pull request, technical challenge, and solution.
 |Enabled frontend development without a running backend by implementing a mock adapter|
 |with the same interface and response shapes as the real API, including fixtures,    |
 |pagination, validation errors, authentication states, and CRUD-like operations. |
+| Sensors and readings integration | #34 | Connected `/api/sensors` and `/api/sensors/{id}/readings` through services and Pinia stores, with loading/error handling and data mapping for visual components |
 
 | Eduardo (`egalindo`) | Features/modules | Pull requests | Challenges and solutions |
 |----------------------|------------------|---------------|--------------------------|
