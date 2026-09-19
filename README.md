@@ -336,6 +336,7 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 | 04 | Sensor and reading repositories | In progress |
 | 05 | Development seed | Implemented |
 | 07 | User and organization repositories | Implemented |
+| 08 | Update Alert model and repositories | Implemented |
 
 ### Florinda (`flperez-`)
 
