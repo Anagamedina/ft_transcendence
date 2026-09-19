@@ -25,15 +25,15 @@ class Alert(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "alert_type IN ('LOW', 'HIGH', 'OFFLINE')",
+            "alert_type IN ('LOW_PRESSURE', 'HIGH_PRESSURE', 'SENSOR_OFFLINE')",
             name="ck_alerts_type",
         ),
         CheckConstraint(
-            "status IN ('OPEN', 'ACKNOWLEDGED', 'RESOLVED')",
+            "status IN ('ACTIVE', 'RESOLVED')",
             name="ck_alerts_status",
         ),
         CheckConstraint(
-            "severity IN ('INFO', 'WARNING', 'CRITICAL')",
+            "severity IN ('WARNING', 'CRITICAL')",
             name="ck_alerts_severity",
         ),
         Index(
@@ -76,6 +76,10 @@ class Alert(Base):
 
     severity: Mapped[str] = mapped_column(
         String(20),
+        nullable=False,
+    )
+    message: Mapped[str] = mapped_column(
+        String(255),
         nullable=False,
     )
 
