@@ -215,26 +215,18 @@ data types, and relationships once the schema is implemented.
 
 ## Implemented features
 
-| Feature                                                          | Status      | Contributors         | Verification                                                                          |
-|------------------------------------------------------------------|-------------|----------------------|---------------------------------------------------------------------------------------|
-| Backend modular API and health checks                            | Implemented | Ana                  | `/api/health`, `/api/health/db` and `/api/docs`                                       |
-| OpenAPI schemas and unified API errors                           | Implemented | Ana                  | 32 schemas available in Swagger                                                       |
-| Compose orchestration (network, volume, profiles)                | Implemented | Eduardo              | `make up` then `make ps`                                                              |
-| Nginx gateway: HTTPS, HTTP redirect, SPA, `/api` and `/ws` proxy | Implemented | Eduardo              | HTTP redirects to HTTPS; API returns 200                                              |
-| Pinia stores, Axios services and MockAdapter                     | Implemented | Lylia                | Frontend services and mock API configured                                             |
-| Shared layouts and visual components                             | Implemented | Florinda             | Public/main layouts, header, footer, sidebar and modal                                |
-| Sensor visual components (`SensorCard`, detail view)             | Implemented | Florinda             | Visit `/test` and open a sensor card                                                  |
-| Public landing and legal pages                                   | Implemented | Florinda             | Visit `/`, `/privacy` or `/terms`                                                     |
-| Sensor and reading repositories                                  | In progress | Daruny               | `backend/tests/unit/test_sensor_reading_repositories.py`                              |
-| User and organization repositories                               | Implemented | Daruny               | `cd backend && ../.venv/bin/pytest tests/unit/test_user_organization_repositories.py` |
-| Authentication                                                   | Planned     | TBD                  | Add test or endpoint link                                                             |
-| Sensor readings API integration                                  | In progress | Ana / Daruny / Lylia | Repository, service and frontend integration pending                                  |
-| Alerts                                                           | Planned     | TBD                  | Add test or endpoint link                                                             |
-| Frontend dashboard                                               | Planned     | TBD                  | Add browser flow or screenshot                                                        |
-
-The user and organization repositories use SQLAlchemy to normalize email
-lookups, enforce organization scoping, retrieve organizations by ID, and keep
-duplicate-email errors visible. Authentication is not included yet.
+| Feature                                                                     | Status        | Contributors   | Verification                                                                                                    |
+|-----------------------------------------------------------------------------|---------------|----------------|-----------------------------------------------------------------------------------------------------------------|
+| Sensor visual components (`SensorCard`, detail view)                        | Implemented   | Florinda       | Run `./scripts/launch-frontend.sh`, visit `/test`, click a sensor card -> `/sensors/:id`                        |
+| Public Landing Page (Hero, value proposition, navigation to Login/Registro) | Implemented   | Florinda       | Run `./scripts/launch-frontend.sh`, visit `/`                                                                   |
+| Backend liveness endpoint (`GET /api/health`)                               | Implemented   | TBD            | `curl -k https://localhost/api/health`                                                                          |
+| Database readiness endpoint (`GET /api/health/db`)                          | Implemented   | TBD            | `curl -k https://localhost/api/health/db`                                                                       |
+| Compose orchestration (network, volume, profiles)                           | Implemented   | Eduardo        | `make up` then `make ps`                                                                                        |
+| Nginx gateway: HTTPS, HTTP redirect, SPA, `/api` and `/ws` proxy            | Implemented   | Eduardo        | `curl -I http://localhost` returns 301, `curl -k https://localhost/api/health` returns 200                      |
+| Authentication                                                              | Planned       | TBD            | Add test or endpoint link                                                                                       |
+| Sensor readings                                                             | In progress   | Daruny         | `backend/tests/unit/test_sensor_reading_repositories.py` (repositories implemented; services/routers pending)   |
+| Alerts                                                                      | Planned       | TBD            | Add test or endpoint link                                                                                       |
+| Frontend dashboard                                                          | Planned       | TBD            | Add browser flow or screenshot                                                                                  |
 
 Every pull request that adds a feature should update this table with its status,
 contributors, and a reproducible verification method.
