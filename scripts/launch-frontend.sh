@@ -28,6 +28,17 @@ fi
 
 cd "$FRONTEND_DIR"
 
+# --- Crear .env si falta, a partir de .env.example --------------------------
+if [ ! -f ".env" ]; then
+  if [ -f ".env.example" ]; then
+    echo "⚠️  No se encontró frontend/.env — copiando desde .env.example..."
+    cp .env.example .env
+  else
+    echo "❌ No se encuentra .env ni .env.example en $FRONTEND_DIR"
+    exit 1
+  fi
+fi
+
 # --- Cargar nvm y usar la versión de Node correcta --------------------------
 if [ -s "$HOME/.nvm/nvm.sh" ]; then
   # shellcheck disable=SC1091
