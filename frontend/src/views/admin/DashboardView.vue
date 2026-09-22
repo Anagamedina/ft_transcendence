@@ -8,3 +8,7 @@ import { useAlertsStore } from '../../stores/alerts'
 const sensorStore = useSensorsStore()
 const alertsStore = useAlertsStore()
 </script>
+
+<template>
+  <h1>Dashboard Admin</h1>
+</template>

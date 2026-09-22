@@ -21,6 +21,10 @@ const routes = [
     path: "/sensors/:id",
     component: () => import("../views/public/SensorDetailView.vue"),
   },
+  {
+    path: "/admin",
+    component: () => import("../views/admin/DashboardView.vue"),
+  },
 ];
 
 const router = createRouter({
