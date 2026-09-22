@@ -26,6 +26,11 @@ services:
       database:
         condition: service_healthy
     networks: [aquaguard]
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   simulator:
     profiles: ["sim"]
@@ -53,8 +58,13 @@ services:
       - "443:443"
     depends_on:
       backend:
-        condition: service_started
+        condition: service_healthy
     networks: [aquaguard]
+    healthcheck:
+      test: ["CMD", "wget", "--no-check-certificate", "-qO-", "https://localhost/api/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 volumes:
   postgres_data:

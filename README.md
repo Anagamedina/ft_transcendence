@@ -6,7 +6,7 @@
 
 ## Description
 
-AquaGuard is a **web platform** for monitoring water-related data from sensors. The en el paquete.
+AquaGuard is a **web platform** for monitoring water-related data from sensors. The
 planned application provides authenticated users with access to organizations,
 sites, sensors, readings, alerts, and analytics.
 
@@ -104,19 +104,19 @@ The simulator is still being integrated into Compose.
 
 The root `Makefile` wraps the Compose commands:
 
-| Target | Effect |
-|--------|--------|
+| Target             | Effect                                                                                                           |
+|--------------------|------------------------------------------------------------------------------------------------------------------|
 | `make` / `make up` | Copies `.env` and generates certificates if missing, then `docker compose up --build -d` and `docker compose ps` |
-| `make dev` | Same as `make up` plus `compose.dev.yaml`, which publishes PostgreSQL on `127.0.0.1:5432` for Alembic |
-| `make env` | Creates `.env` from `.env.example` only when it does not exist |
-| `make certs` | Generates a self-signed TLS certificate in `gateway/certs/` only when it does not exist |
-| `make build` | Builds the images without starting them |
-| `make down` | Stops the containers and keeps the PostgreSQL volume |
-| `make logs` | Follows the logs of every running service |
-| `make ps` | Shows service status |
-| `make clean` | `down --remove-orphans` |
-| `make fclean` | `down -v --remove-orphans`, which deletes the PostgreSQL volume |
-| `make re` | `fclean` followed by `up`, a start from scratch |
+| `make dev`         | Same as `make up` plus `compose.dev.yaml`, which publishes PostgreSQL on `127.0.0.1:5432` for Alembic            |
+| `make env`         | Creates `.env` from `.env.example` only when it does not exist                                                   |
+| `make certs`       | Generates a self-signed TLS certificate in `gateway/certs/` only when it does not exist                          |
+| `make build`       | Builds the images without starting them                                                                          |
+| `make down`        | Stops the containers and keeps the PostgreSQL volume                                                             |
+| `make logs`        | Follows the logs of every running service                                                                        |
+| `make ps`          | Shows service status                                                                                             |
+| `make clean`       | `down --remove-orphans`                                                                                          |
+| `make fclean`      | `down -v --remove-orphans`, which deletes the PostgreSQL volume                                                  |
+| `make re`          | `fclean` followed by `up`, a start from scratch                                                                  |
 
 `make fclean` destroys the database volume. PostgreSQL only creates its user on
 the first initialisation of that volume, so this is also the command to run
@@ -318,12 +318,15 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 
 ## Individual contributions
 
-This section is updated continuously. Each contribution should identify the
-feature, module, relevant pull request, technical challenge, and solution.
+### Ana (`anamedin`)
 
-| Ana (`anamedin`)                | Features/modules | Pull requests | Challenges and solutions                                             |
-|---------------------------------|------------------|---------------|----------------------------------------------------------------------|
-| fix-sensors-atributs-daruny-ana | sensors          | daru          | se ha modificado los atributos con nombres correctos de los sensores |
+| Issue | Contribution                                        | Status      |
+|-------|-----------------------------------------------------|-------------|
+| 01    | FastAPI modular architecture and health checks      | Implemented |
+| 02    | Pydantic schemas and OpenAPI contract               | Implemented |
+| 03    | `POST /api/readings` contract and service structure | In progress |
+
+### Daruny (`dasalaza`)
 
 | Daruny (`dasalaza`)                                                                                                                                                                        | Features/modules                                               | Pull requests                                                                                                                                                                                                                                                                                                                                                                                           | Challenges and solutions |
 |--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------|
@@ -332,24 +335,34 @@ feature, module, relevant pull request, technical challenge, and solution.
 | Issue 03 — Domain models: `Organization`, `User`, `Site`, `Sensor`, `Reading`, `Alert` with FKs, constraints and indexes                                                                   | [#48](https://github.com/Anagamedina/ft_transcendence/pull/48) | Enforcing multi-tenant isolation and referential integrity at the DB level; solved with `organization_id`-based relationships, unique/NOT NULL constraints, and a matching Alembic migration.                                                                                                                                                                                                           |
 | Issue 04 — data-access layer: `SensorRepository` and `ReadingRepository`,  queries, stable pagination, <br/>`flush`/`rollback` transaction handling, plus fixes to sensor model attributes | [#55](https://github.com/Anagamedina/ft_transcendence/pull/55) | Preventing cross-tenant data leaks and keeping SQLAlchemy out of routers/services; solved with `Site.organization_id` filters on every query and unit tests (`test_sensor_reading_repositories.py`) covering isolation, pagination, and invalid input. Pending: wire repositories into services/routers.                                                                                                |
 | Issue 05 — development seed (`backend/seeds/seed_demo.py`): 1 organization, Admin + Client users, 2 sites, 3 sensors                                                                       | [#59](https://github.com/Anagamedina/ft_transcendence/pull/59) | Keeping it idempotent without a real password hasher yet (issue #26 pending); solved by looking up each row by its natural key before inserting, running the whole script in one transaction, and using a clearly-labelled placeholder password hash to be replaced once Ana's hasher lands. Verified by running it twice against a real PostgreSQL instance and confirming row counts stay at 1/2/2/3. |
+| 07                                                                                                                                                                                         | User and organization repositories                             | Implemented                                                                                                                                                                                                                                                                                                                                                                                             |
+| 08                                                                                                                                                                                         | Update Alert model and repositories                            | Implemented                                                                                                                                                                                                                                                                                                                                                                                             |
 
-| Florinda (`flperez-`) | Features/modules | Pull requests | Challenges and solutions |
-|-----------------------|------------------|---------------|--------------------------|
-| Public Landing Page: Hero, value proposition, navigation to Login/Registro; extended `Header`/`Footer`/`Card` with optional props and slots | [#5](https://github.com/Anagamedina/ft_transcendence/pull/5) | The first version of the Hero copy did not communicate the product's real function to a user unfamiliar with the project (found via an external comprehension test); the text was iterated, and in the process a click bug was found (a decorative SVG blocking the "Comenzar ahora" CTA), fixed with `pointer-events-none`. |
+| Florinda (`flperez-`) | Features/modules                                                                                                                            | Pull requests                                                | Challenges and solutions                                                                                                                                                                                                                                                                                                     |
+|-----------------------|---------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 00                    | Public Landing Page: Hero, value proposition, navigation to Login/Registro; extended `Header`/`Footer`/`Card` with optional props and slots | [#5](https://github.com/Anagamedina/ft_transcendence/pull/5) | The first version of the Hero copy did not communicate the product's real function to a user unfamiliar with the project (found via an external comprehension test); the text was iterated, and in the process a click bug was found (a decorative SVG blocking the "Comenzar ahora" CTA), fixed with `pointer-events-none`. |
+| 01                    | Vue/Vite frontend setup                                                                                                                     | Implemented                                                  |
+| 02                    | Shared layouts and visual components                                                                                                        | Implemented                                                  |
+| 03                    | `SensorCard` and sensor detail view                                                                                                         | Implemented                                                  |
+| 04                    | Public landing page                                                                                                                         | Implemented                                                  |
+| 05                    | Privacy Policy and Terms of Service                                                                                                         | Implemented                                                  |
 
-
-| Lylia (`lylfergu`)                                                                    | Features/modules                                                                 | Pull requests                                                   | Challenges and solutions |
-|---------------------------------------------------------------------------------------|----------------------------------------------------------------------------------|-----------------------------------------------------------------|--------------------------|
-| Pinia stores                                                                          | [PR number]                                                                      | Created centralized stores to manage frontend application state |
-| Axios API services and error handling                                                 | #57                                                                              | Created a centralized API layer with                            |
+| Lylia (`lylfergu`)                                                                    | Features/modules | Pull requests                                                                                                                                                   | Challenges and solutions |
+|---------------------------------------------------------------------------------------|------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------|
+| Pinia stores                                                                          | [PR number]      | Created centralized stores to manage frontend application state                                                                                                 |
+| Axios API services and error handling                                                 | #57              | Created a centralized API layer with                                                                                                                            |
 | services, adapters, and common error handling                                         |
-| MockAdapter                                                                           | #61                                                                              | Frontend API mocking and development fixtures                   |
-| Enabled frontend development without a running backend by implementing a mock adapter | with the same interface and response shapes as the real API, including fixtures, |
+| MockAdapter                                                                           | #61              | Frontend API mocking and development fixtures                                                                                                                   |
+| Enabled frontend development without a running backend by implementing a mock adapter |
+| with the same interface and response shapes as the real API, including fixtures,      |
 | pagination, validation errors, authentication states, and CRUD-like operations.       |
+| Sensors and readings integration                                                      | #34              | Connected `/api/sensors` and `/api/sensors/{id}/readings` through services and Pinia stores, with loading/error handling and data mapping for visual components |
 
-| Eduardo (`egalindo`) | Features/modules | Pull requests | Challenges and solutions |
-|----------------------|------------------|---------------|--------------------------|
-|                      | TBD              | TBD           | TBD                      |
+| Eduardo (`egalindo`) | Features/modules             | Pull requests | Challenges and solutions |
+|----------------------|------------------------------|---------------|--------------------------|
+| 09                   | Docker Compose stack         | Implemented   |
+| 10                   | Nginx gateway and HTTPS      | Implemented   |
+| 11                   | Health checks and smoke test | Implemented   |
 
 ## Resources
 
