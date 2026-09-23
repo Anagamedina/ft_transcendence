@@ -1,4 +1,8 @@
-<!-- ADMIN LAYOUT — sidebar admin; KPIs, mapa, sitios, sensores, alertas. -->
+<!--
+  ADMIN LAYOUT
+  Shared structure for admin pages: Header, Sidebar, Footer and a slot for page content.
+-->
+  
 <template>
   <div class="min-h-screen min-w-[320px] flex flex-col">
     <Header title="AquaGuard · Admin">
