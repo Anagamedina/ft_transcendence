@@ -18,4 +18,4 @@ const sensorService = {
   },
 }
 
-export default sensorService
+export default sensorsService

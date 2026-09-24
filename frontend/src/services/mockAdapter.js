@@ -208,10 +208,17 @@ const mockAdapter = {
   },
 
   post(url, data = {}, config = {}) {
-    console.log('[MOCK POST]', url, data, config)
+    if (url.startsWith('/api/auth/')) {
+      console.log('[MOCK POST]', url)
+    } else {
+      console.log('[MOCK POST]', url, data, config)
+    }
 
         // Register
     if (url === '/api/auth/register') {
+      
+      isAuthenticated = true
+
       return Promise.resolve({
         data: {
           user: mockUser,
