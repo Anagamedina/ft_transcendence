@@ -22,12 +22,20 @@ modelo `Reading` (issue #13) y su repository (issue #14).
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import NotImplementedYetError
+from app.core.database import transaction
+from app.core.exceptions import NotFoundError, NotImplementedYetError
+from app.modules.readings.repository import (
+    ReadingRepository as SqlReadingRepository,
+)
 from app.modules.readings.schemas import ReadingCreate, ReadingResponse
+from app.modules.sensors.repository import (
+    SensorRepository as SqlSensorRepository,
+)
 from app.shared.dependencies import DbSession
 from app.shared.protocols import ReadingRepository, SensorRepository
 from app.shared.schemas import Page
@@ -69,24 +77,66 @@ class ReadingService:
         """
         Registra una lectura enviada por el simulador.
 
-        Orden previsto para la issue #24:
-
         1. Comprobar que `payload.sensor_id` existe. Si no,
            `NotFoundError(code="SENSOR_NOT_FOUND")` — con código
            específico, porque el interceptor del frontend ramifica por él.
         2. Resolver `measured_at`: el que venga, o el momento actual.
-        3. Guardar mediante `self.readings.add(...)`.
-        4. Actualizar `last_seen_at` del sensor. Sin este paso no se puede
-           detectar después un sensor mudo.
-        5. Evaluar los umbrales y generar alerta si procede (issue #28;
-           hasta entonces ese paso no existe).
+        3. Guardar mediante `self.readings.create(...)`.
+        4. ~~Actualizar `last_seen_at` del sensor.~~ **Fuera de alcance:**
+           esa columna no existe en `sensors/model.py`. Mientras no la
+           añada la issue #13, no hay dónde escribirla.
+        5. Evaluar los umbrales y generar alerta si procede — issue #28.
         6. Devolver la fila convertida al schema de salida.
 
         El paso 1 no es opcional: sin él, una `sensor_id` inventada crearía
-        lecturas huérfanas que no aparecen en ningún histórico.
+        lecturas huérfanas que no aparecen en ningún histórico. Se busca
+        con `get()` y no con `get_by_id()` porque quien llama aquí es el
+        simulador, que no tiene sesión y no puede aportar una organización.
+
+        Nótese que aquí se cruza la frontera de vocabulario: entra un
+        `ReadingCreate` que habla de `pressure` y `measured_at`, y se
+        guarda un `value` con su `unit` y un `recorded_at`. Ese cambio de
+        nombres es deliberado y pertenece a esta capa: el contrato HTTP
+        (issue #23) y el esquema de la tabla (issue #13) se acordaron por
+        separado, y el service es quien conoce los dos.
         """
         self._require_repositories()
-        raise NotImplementedYetError("#24")
+
+        sensor = self.sensors.get(payload.sensor_id)
+        if sensor is None:
+            raise NotFoundError(
+                "El sensor indicado no existe.",
+                code="SENSOR_NOT_FOUND",
+            )
+
+        measured_at = self._resolve_measured_at(payload.measured_at)
+
+        # `transaction` confirma al salir y deshace si algo revienta. Hace
+        # falta ponerlo aquí: `get_db` (core/database.py) solo cierra la
+        # sesión, y el repository solo hace `flush`. Sin este bloque la
+        # fila se escribiría, se devolvería un 201 con su id, y al cerrar
+        # la petición se perdería — el 201 mentiroso que esta issue evita
+        # a propósito.
+        #
+        # El límite de la transacción lo marca el caso de uso, y el caso
+        # de uso vive aquí. Por eso no se resuelve haciendo que `get_db`
+        # confirme siempre: eso confirmaría también peticiones que acaban
+        # en error a medias.
+        with transaction(self.db):
+            # `unit` sale del sensor, no de una constante "bar". El sensor
+            # ya declara la suya, y copiarla evita que una lectura acabe
+            # diciendo una unidad distinta de la del aparato que la emitió.
+            reading = self.readings.create(
+                sensor_id=sensor.id,
+                value=payload.pressure,
+                unit=sensor.unit,
+                recorded_at=measured_at,
+            )
+
+        # Se lee después del commit a propósito: `SessionLocal` se crea con
+        # `expire_on_commit=False` (core/database.py), así que los
+        # atributos siguen cargados y no hace falta un SELECT extra.
+        return self._to_response(reading)
 
     def list_by_sensor(
         self, sensor_id: UUID, offset: int, limit: int
@@ -100,6 +150,28 @@ class ReadingService:
         """
         self._require_repositories()
         raise NotImplementedYetError("#25")
+
+    @staticmethod
+    def _to_response(reading: Any) -> ReadingResponse:
+        """
+        Convierte la fila guardada al schema de salida.
+
+        No sirve `ReadingResponse.model_validate(reading)` pese a que
+        `ApiModel` lleva `from_attributes=True`: eso copia campos que se
+        llaman igual, y aquí dos no coinciden (`value`→`pressure`,
+        `recorded_at`→`measured_at`). Se construye a mano para que el
+        desajuste quede a la vista en vez de fallar en tiempo de ejecución.
+
+        `value` llega como `Decimal` porque la columna es `Numeric(10,3)`;
+        el contrato lo publica como número JSON, así que se convierte aquí.
+        """
+        return ReadingResponse(
+            id=reading.id,
+            sensor_id=reading.sensor_id,
+            pressure=float(reading.value),
+            measured_at=reading.recorded_at,
+            created_at=reading.created_at,
+        )
 
     @staticmethod
     def _resolve_measured_at(value: datetime | None) -> datetime:
@@ -122,16 +194,23 @@ def get_reading_service(db: DbSession) -> ReadingService:
     """
     Proveedor del service para `Depends`.
 
-    Aquí es donde se enchufará el repository real cuando exista:
-
-        return ReadingService(db, SqlAlchemyReadingRepository(db), ...)
-
     Que sea un único punto de construcción es lo que permite sustituirlo
     en los tests con `app.dependency_overrides[get_reading_service]`.
+
+    Los repositories concretos de Daruny se llaman igual que los
+    protocolos de `shared/protocols.py` (`ReadingRepository`,
+    `SensorRepository`). Se importan con alias `Sql*` para que en este
+    archivo se distinga de un vistazo el contrato de la implementación:
+    la anotación de tipo sigue siendo el protocolo, y lo que se construye
+    es la clase de SQLAlchemy.
 
     Nota sobre la frontera: esta función sí conoce FastAPI, porque
     `DbSession` lleva un `Depends` dentro. Es *wiring*, no negocio — la
     clase `ReadingService` de arriba sigue sin importar nada de FastAPI, y
     es la que se prueba de forma aislada.
     """
-    return ReadingService(db)
+    return ReadingService(
+        db,
+        readings=SqlReadingRepository(db),
+        sensors=SqlSensorRepository(db),
+    )
