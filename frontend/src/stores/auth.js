@@ -10,6 +10,7 @@ export const useAuthStore = defineStore("auth", () =>{
 
     const status = ref("idle");
     const error = ref(null);
+    const initialized = ref(false);
 
     //GETTERS
     const isAuthenticated = computed(() => user.value !== null); //computed() is used to create a computed value based on other reactive data
@@ -17,7 +18,7 @@ export const useAuthStore = defineStore("auth", () =>{
    
     //ACTIONS
 
-  async function fetchMe() {
+  async function fetchMe() { //Who is currently logged in?
     status.value = "loading";
     error.value = null;
 
@@ -46,6 +47,17 @@ export const useAuthStore = defineStore("auth", () =>{
       return null;
     }
   }
+
+  async function initializeAuth() {
+    if (initialized.value) return;
+
+    try {
+      await fetchMe();
+    } finally {
+      initialized.value = true;
+    }
+  }
+
 
   async function login(credentials) {
     status.value = "loading";
@@ -122,6 +134,9 @@ export const useAuthStore = defineStore("auth", () =>{
       user.value = null;
       role.value = null;
 
+      // Allow the next navigation to check the session again
+      initialized.value = false;
+      
       status.value = "idle";
     }
   }
@@ -134,10 +149,12 @@ export const useAuthStore = defineStore("auth", () =>{
 
     isAdmin,
     isAuthenticated,
+    initialized,
 
     login,
     register,
     fetchMe,
+    initializeAuth,
     logout,
   };
 

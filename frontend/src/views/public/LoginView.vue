@@ -132,7 +132,7 @@ async function handleSubmit() {
 
     await authStore.fetchMe();
 
-    router.push("/");
+    router.push("/dashboard");
   } catch (error) {
     // L'erreur est déjà gérée par le Auth Store.
   }

@@ -15,7 +15,7 @@ const mockUser = {
   created_at: '2026-08-01T08:00:00Z',
 }
 
-let isAuthenticated = true
+let isAuthenticated = false
 
 /*
 We create an object that

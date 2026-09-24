@@ -44,11 +44,15 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const authStore = useAuthStore();
 
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) { //if we try /dashboard, router checks if authentication is required and if user is authenticated
-    return "/login";
+  if (to.meta.requiresAuth) {  //if we try a direct access router checks if authentication is required (protected page), then if user is authenticated
+    await authStore.initializeAuth();
+
+    if (!authStore.isAuthenticated) {
+      return "/login";
+    }
   }
 });
 
