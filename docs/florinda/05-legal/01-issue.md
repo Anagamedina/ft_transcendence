@@ -18,11 +18,11 @@ El contenido debe revisarse con el equipo; implementar una vista no equivale a v
 
 ## 5. Aceptación
 
-- [ ] Ambas vistas son accesibles sin iniciar sesión.
-- [ ] Footer enlaza las dos rutas.
-- [ ] Contenido legible y estructurado con headings.
-- [ ] Funciona en móvil y escritorio.
-- [ ] No hay enlaces rotos ni errores de consola.
+- [x] Ambas vistas son accesibles sin iniciar sesión.
+- [x] Footer enlaza las dos rutas.
+- [x] Contenido legible y estructurado con headings.
+- [x] Funciona en móvil y escritorio.
+- [x] No hay enlaces rotos ni errores de consola.
 
 ## 6. Decisiones técnicas
 
