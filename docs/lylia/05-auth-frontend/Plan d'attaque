@@ -1,0 +1,751 @@
+Oui. Avec ces infos, on peut transformer l’issue en **plan de travail concret**, dans l’ordre où je te conseille de la faire. Le plus important est de **ne pas commencer par les formulaires** : commence par comprendre le contrat backend et la façon dont le projet gère la session.
+
+# Plan step-by-step — Issue 05
+
+## Étape 0 — Comprendre ce qui existe déjà
+
+Avant de coder, regarde le projet et identifie :
+
+1. **Le Auth Store**
+
+   * Où est-il ?
+   * Est-ce déjà un store Pinia ?
+   * Quelles propriétés existent ?
+   * Est-ce qu'il y a déjà `user`, `isAuthenticated`, `loading`, etc. ?
+
+2. **Les services**
+
+   * Où sont les services API ?
+   * Comment les autres appels backend sont-ils faits ?
+   * Est-ce qu'il existe déjà un `api.ts`, `axios`, `fetch`, etc. ?
+
+3. **Le Router**
+
+   * Où sont les routes ?
+   * Y a-t-il déjà des guards ?
+   * Comment le projet distingue-t-il public / privé ?
+
+4. **Les composants/pages**
+
+   * Où doivent aller `Login` et `Register` ?
+   * Comment les autres formulaires sont-ils construits ?
+
+5. **Le layout de Florinda**
+
+   * Tu ne le construis pas.
+   * Tu dois simplement savoir **comment tes pages vont s'intégrer dedans**.
+
+👉 À ce stade, **tu ne modifies presque rien**. Tu comprends l'architecture.
+
+---
+
+# Étape 1 — Vérifier le contrat avec le backend d'Ana
+
+C'est une étape importante car ton frontend doit correspondre exactement au backend.
+
+Pour chacun des endpoints, tu dois connaître :
+
+### Register
+
+```text
+POST /api/auth/register
+```
+
+Questions à vérifier :
+
+* Quels champs envoyer ?
+* `email` ?
+* `password` ?
+* `name` ?
+* autres champs ?
+* Quel format de réponse ?
+* Est-ce que l'utilisateur est automatiquement connecté après inscription ?
+* Quels codes HTTP sont utilisés en cas d'erreur ?
+
+### Login
+
+```text
+POST /api/auth/login
+```
+
+À vérifier :
+
+* payload exact ;
+* réponse ;
+* comment la session est créée ;
+* cookie ou token ;
+* utilisateur retourné ou non.
+
+### Logout
+
+```text
+POST /api/auth/logout
+```
+
+À vérifier :
+
+* réponse ;
+* invalidation de la session côté backend.
+
+### Me
+
+```text
+GET /api/me
+```
+
+À vérifier :
+
+* structure de `user` ;
+* réponse lorsqu'on est connecté ;
+* réponse lorsqu'on ne l'est pas.
+
+---
+
+# Étape 2 — Comprendre la stratégie cookie/token
+
+C'est un des points importants de l'issue.
+
+Tu dois savoir si le projet utilise :
+
+```text
+Frontend
+   ↓
+login
+   ↓
+Backend
+   ↓
+cookie de session
+```
+
+ou :
+
+```text
+Frontend
+   ↓
+login
+   ↓
+Backend
+   ↓
+token
+   ↓
+Frontend le transmet ensuite
+```
+
+**Tu ne dois pas inventer cette stratégie.**
+
+L'issue dit clairement :
+
+> "La UI no debe inventar una segunda estrategia."
+
+Donc si Ana/backend a prévu une session par cookie, ton frontend utilise cette stratégie.
+
+Et surtout :
+
+❌ ne pas stocker le password
+❌ ne pas mettre le password dans Pinia
+❌ ne pas logger le password
+❌ ne pas créer une deuxième copie inutile du token
+
+---
+
+# Étape 3 — Définir le modèle du Auth Store
+
+Avant les formulaires, assure-toi que ton store peut représenter correctement ces états :
+
+```text
+Utilisateur non initialisé
+        ↓
+    vérification
+        ↓
+ ┌──────────────┐
+ │ connecté     │
+ │ ou non        │
+ └──────────────┘
+```
+
+Par exemple conceptuellement :
+
+```ts
+user
+isAuthenticated
+isLoading
+error
+```
+
+Et surtout les actions :
+
+```ts
+register()
+login()
+logout()
+fetchMe()
+reset()
+```
+
+Le nom exact dépend évidemment du projet.
+
+### Pourquoi `reset()` est important ?
+
+L'issue dit :
+
+> "Auth Store debe tener un reset único para logout/expiración."
+
+Donc tu veux éviter d'avoir :
+
+```ts
+logout() {
+  user = null
+  isAuthenticated = false
+  ...
+}
+```
+
+et ailleurs :
+
+```ts
+sessionExpired() {
+  user = null
+  ...
+}
+```
+
+avec deux comportements différents.
+
+Tu veux avoir **une manière centrale de nettoyer l'état privé**.
+
+---
+
+# Étape 4 — Créer le Auth Service
+
+Ensuite, crée ou complète le service responsable de parler au backend.
+
+Conceptuellement :
+
+```text
+authService
+ ├── register()
+ ├── login()
+ ├── logout()
+ └── me()
+```
+
+Son rôle est uniquement de communiquer avec l'API.
+
+Par exemple :
+
+```text
+Login Form
+    ↓
+authService.login()
+    ↓
+POST /api/auth/login
+    ↓
+Backend
+```
+
+Le composant Login ne devrait pas connaître les détails HTTP.
+
+Évite donc de faire directement dans ton composant :
+
+```ts
+axios.post('/api/auth/login', ...)
+```
+
+si l'architecture du projet prévoit des services.
+
+---
+
+# Étape 5 — Créer la page Register
+
+Maintenant seulement, tu construis le formulaire.
+
+Le flux doit être :
+
+```text
+Utilisateur remplit le formulaire
+             ↓
+validation frontend
+             ↓
+submit
+             ↓
+authService.register()
+             ↓
+backend
+             ↓
+succès / erreur
+```
+
+Tu dois gérer au minimum :
+
+### État normal
+
+```text
+Email
+Password
+[Créer mon compte]
+```
+
+### Pendant l'envoi
+
+Le bouton doit être bloqué :
+
+```text
+[Création en cours...]
+```
+
+ou équivalent.
+
+Cela évite le **double submit**.
+
+### Erreur
+
+Par exemple :
+
+```text
+Cette adresse email est déjà utilisée.
+```
+
+et pas :
+
+```text
+AxiosError: Request failed with status code 409
+```
+
+---
+
+# Étape 6 — Validation frontend
+
+La validation frontend sert principalement à améliorer l'expérience utilisateur.
+
+Par exemple :
+
+```text
+email vide
+   ↓
+"Veuillez saisir votre email."
+```
+
+ou :
+
+```text
+email invalide
+   ↓
+"Veuillez saisir une adresse email valide."
+```
+
+Pour le password, tu peux vérifier les règles définies par le projet.
+
+Mais attention :
+
+> **Une validation frontend ne remplace jamais la validation backend.**
+
+Même si ton formulaire considère le formulaire valide :
+
+```text
+Frontend : ✅
+```
+
+le backend reste l'autorité :
+
+```text
+Backend : ❌
+```
+
+et tu dois afficher correctement cette erreur.
+
+---
+
+# Étape 7 — Créer la page Login
+
+Même logique :
+
+```text
+Email
+Password
+    ↓
+validation
+    ↓
+authService.login()
+    ↓
+backend
+    ↓
+Auth Store
+    ↓
+Router
+```
+
+Le point particulièrement important ici :
+
+### Ne redirige pas trop tôt.
+
+Mauvais flux :
+
+```text
+login()
+↓
+router.push('/dashboard')
+↓
+on met à jour le store
+```
+
+Bon flux :
+
+```text
+login()
+↓
+backend confirme
+↓
+Auth Store = utilisateur connecté
+↓
+router.push('/dashboard')
+```
+
+L'issue dit explicitement :
+
+> "La redirección ocurre después de confirmar la sesión."
+
+---
+
+# Étape 8 — Connecter Login au Auth Store
+
+Après un login réussi :
+
+```text
+Backend
+   ↓
+session confirmée
+   ↓
+Auth Store
+   ↓
+user = ...
+isAuthenticated = true
+   ↓
+UI
+```
+
+L'intérêt est que les autres parties de l'application n'aient pas besoin de savoir comment le login fonctionne.
+
+Elles peuvent simplement demander :
+
+```text
+Qui est l'utilisateur ?
+```
+
+au Auth Store.
+
+---
+
+# Étape 9 — Implémenter `/api/me`
+
+C'est le **bootstrap de session**.
+
+Imagine :
+
+1. L'utilisateur se connecte.
+2. Il ferme son navigateur.
+3. Il revient plus tard.
+4. Le frontend redémarre.
+
+Tu dois pouvoir faire :
+
+```text
+Application démarre
+       ↓
+Auth Store initialise
+       ↓
+GET /api/me
+       ↓
+Backend vérifie la session
+       ↓
+Utilisateur trouvé
+       ↓
+Auth Store rempli
+```
+
+ou :
+
+```text
+GET /api/me
+       ↓
+pas de session
+       ↓
+user = null
+```
+
+C'est ce qui permet à ton frontend de savoir **qui est connecté au démarrage**.
+
+---
+
+# Étape 10 — Gérer le refresh
+
+C'est un cas de test important.
+
+### Avant refresh
+
+```text
+user = Alice
+isAuthenticated = true
+```
+
+Tu fais :
+
+```text
+F5
+```
+
+Le store Pinia est potentiellement recréé.
+
+Ton application doit donc faire :
+
+```text
+App démarre
+   ↓
+GET /api/me
+   ↓
+Alice
+   ↓
+Auth Store = Alice
+```
+
+Sinon ton frontend pourrait croire à tort que l'utilisateur est déconnecté.
+
+---
+
+# Étape 11 — Implémenter Logout
+
+Le flux attendu :
+
+```text
+Utilisateur clique "Logout"
+        ↓
+authService.logout()
+        ↓
+POST /api/auth/logout
+        ↓
+Backend invalide la session
+        ↓
+Auth Store.reset()
+        ↓
+Router / UI
+```
+
+L'ordre est important.
+
+Tu dois également t'assurer qu'après logout :
+
+* `user` n'est plus disponible ;
+* l'état authentifié est supprimé ;
+* les données privées du store sont nettoyées ;
+* l'utilisateur ne voit plus la zone privée.
+
+---
+
+# Étape 12 — Gestion des erreurs
+
+Tu dois prévoir les cas indiqués dans l'issue.
+
+### Email déjà utilisé
+
+```text
+"Cette adresse email est déjà utilisée."
+```
+
+### Mauvais identifiants
+
+```text
+"Email ou mot de passe incorrect."
+```
+
+Évite de révéler inutilement des informations sensibles.
+
+Par exemple, selon le comportement backend, il vaut mieux éviter des messages du type :
+
+```text
+"Cet email existe mais le mot de passe est incorrect."
+```
+
+### Timeout / erreur réseau
+
+```text
+"Impossible de contacter le serveur. Veuillez réessayer."
+```
+
+### Session expirée
+
+```text
+"Votre session a expiré. Veuillez vous reconnecter."
+```
+
+Et ensuite :
+
+```text
+AuthStore.reset()
+```
+
+---
+
+# Étape 13 — Tester le double submit
+
+Cas :
+
+```text
+Utilisateur clique 5 fois
+```
+
+Tu ne veux pas :
+
+```text
+POST
+POST
+POST
+POST
+POST
+```
+
+Tu veux :
+
+```text
+Premier clic
+    ↓
+loading = true
+    ↓
+bouton désactivé
+    ↓
+un seul POST
+```
+
+Puis :
+
+```text
+réponse
+ ↓
+loading = false
+```
+
+---
+
+# Étape 14 — Vérifier la sécurité
+
+Avant de considérer l'issue terminée, cherche dans ton code :
+
+### Password
+
+Il ne doit jamais être :
+
+```text
+dans Pinia
+dans localStorage
+dans sessionStorage
+dans une persistence de store
+dans un console.log
+```
+
+### Token
+
+Si le projet utilise un cookie HttpOnly, tu ne dois pas essayer de récupérer le token depuis JavaScript pour le stocker ailleurs.
+
+Encore une fois : **suis la stratégie décidée par le backend**.
+
+---
+
+# Étape 15 — Tester les 8 scénarios
+
+Je te conseille de faire une vraie checklist :
+
+| Test                        | Résultat attendu              |
+| --------------------------- | ----------------------------- |
+| Register valide             | Compte créé                   |
+| Register email déjà utilisé | Erreur claire                 |
+| Login valide                | Session + Auth Store          |
+| Mauvais identifiants        | Erreur claire                 |
+| Refresh connecté            | `/api/me` restaure la session |
+| Refresh déconnecté          | utilisateur non authentifié   |
+| Logout                      | session + store nettoyés      |
+| Double clic Login           | une seule requête             |
+
+Et ajoute :
+
+```text
+Timeout réseau
+Session expirée
+```
+
+si tu peux les simuler.
+
+---
+
+# Étape 16 — Vérifier l'intégration Router
+
+À la fin, ton système doit permettre au Router Guard de faire quelque chose comme :
+
+```text
+Route privée
+     ↓
+Auth Store
+     ↓
+Utilisateur authentifié ?
+   ↙          ↘
+ oui           non
+ ↓              ↓
+dashboard      login
+```
+
+Mais attention : **tu n'as pas forcément à développer le Router Guard toi-même** si ce n'est pas dans ton périmètre.
+
+Ton travail est surtout de fournir un **Auth Store fiable** sur lequel le guard pourra s'appuyer.
+
+---
+
+# L'ordre exact que je te recommande
+
+Si tu veux travailler efficacement, fais vraiment dans cet ordre :
+
+```text
+1. Explorer le projet
+       ↓
+2. Vérifier les endpoints d'Ana
+       ↓
+3. Comprendre cookie/token
+       ↓
+4. Vérifier le Auth Store
+       ↓
+5. Définir/compléter Auth Store
+       ↓
+6. Créer authService
+       ↓
+7. Implémenter /me
+       ↓
+8. Implémenter register
+       ↓
+9. Implémenter login
+       ↓
+10. Connecter les formulaires
+       ↓
+11. Implémenter logout
+       ↓
+12. Gérer loading/errors
+       ↓
+13. Vérifier refresh/session
+       ↓
+14. Vérifier sécurité
+       ↓
+15. Tests
+       ↓
+16. Vérification Router/UI
+```
+
+## Ce que tu peux considérer comme "fini"
+
+Ton issue est terminée lorsque tu peux démontrer :
+
+> **Register → Login → session dans Pinia → refresh → `/api/me` restaure la session → accès à la zone privée → Logout → état privé nettoyé.**
+
+Et parallèlement :
+
+> **aucun password n'est persisté, aucun double submit, et les erreurs backend sont transformées en messages compréhensibles.**
+
+### Ton objectif technique en une phrase
+
+**Tu dois construire le pont entre les formulaires et le backend, en faisant du Auth Store le point central qui représente l'identité/session de l'utilisateur.**
+
+Je peux aussi te faire ensuite un **plan de fichiers très concret** (`Login.vue`, `Register.vue`, `auth.service.ts`, `auth.store.ts`, router, etc.) adapté à ton projet si tu me montres son arborescence.

@@ -1,9 +1,25 @@
 import { createRouter, createWebHistory } from "vue-router";
+import { useAuthStore } from "../stores/auth";
 
 const routes = [
   {
     path: "/",
     component: () => import("../views/public/LandingView.vue"),
+  },
+  {
+    path: "/login",
+    component: () => import("../views/public/LoginView.vue"),
+  },
+  {
+    path: "/register",
+    component: () => import("../views/public/RegisterView.vue"),
+  },
+  {
+    path: "/dashboard",
+    component: () => import("../views/client/DashboardView.vue"),
+    meta: {
+      requiresAuth: true, //tells the router: "this route requires authentication" so we can not access directly 
+    },
   },
   {
     path: "/privacy",
@@ -26,6 +42,14 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+});
+
+router.beforeEach((to) => {
+  const authStore = useAuthStore();
+
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) { //if we try /dashboard, router checks if authentication is required and if user is authenticated
+    return "/login";
+  }
 });
 
 export default router;

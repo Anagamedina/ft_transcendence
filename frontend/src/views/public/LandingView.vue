@@ -25,7 +25,7 @@
           </p>
 
           <RouterLink
-            to="/registro"
+            to="/register"
             class="inline-block mt-8 bg-white text-[#0369A1] font-semibold px-8 py-3 rounded-lg hover:bg-gray-100 transition"
           >
             Comenzar ahora

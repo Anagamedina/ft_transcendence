@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed } from 'vue'; //retrieves Vue functions -> ref et computed
+import authService from "../services/auth.service.js"; //so auth.store can communicate with backend but without making HTTP requests directly
 
 export const useAuthStore = defineStore("auth", () =>{
 
@@ -12,35 +13,132 @@ export const useAuthStore = defineStore("auth", () =>{
 
     //GETTERS
     const isAuthenticated = computed(() => user.value !== null); //computed() is used to create a computed value based on other reactive data
-    const isAdmin = computed(() => role.value === 'admin'); 
+    const isAdmin = computed(() => role.value === "admin"); 
    
     //ACTIONS
 
-   /*  TBC
-   
-      async function login(credentials) {
-      // appel API login
-    }
+  async function fetchMe() {
+    status.value = "loading";
+    error.value = null;
 
-    async function register(data) {
-      // appel API register
+    try {
+      const response = await authService.me();
+
+      user.value = response.data.user;
+      role.value = response.data.user.role;
+
+      status.value = "success";
+
+      return user.value;
+
+    } catch (err) {
+      user.value = null;
+      role.value = null;
+
+      error.value = {
+        code: err.code,
+        message: err.message,
+        details: err.details,
+      };
+
+      status.value = "error";
+
+      return null;
     }
-    */ 
-   
-    const logout = () => {
-     user.value = null;
-     role.value = null;
-     status.value = "idle";
-     error.value = null;
-    };
+  }
+
+  async function login(credentials) {
+    status.value = "loading";
+    error.value = null;
+
+    try {
+      const response = await authService.login(credentials);
+
+      user.value = response.data.user;
+      role.value = response.data.user.role;
+
+      status.value = "success";
+
+      return user.value;
+
+    } catch (err) {
+      error.value = {
+        code: err.code,
+        message: err.message,
+        details: err.details,
+      };
+
+      status.value = "error";
+
+      throw err;
+    }
+  }
+
+
+  async function register(data) {
+    status.value = "loading";
+    error.value = null;
+
+    try {
+      const response = await authService.register(data);
+
+      user.value = response.data.user;
+      role.value = response.data.user.role;
+
+      status.value = "success";
+
+      return user.value;
+
+    } catch (err) {
+      error.value = {
+        code: err.code,
+        message: err.message,
+        details: err.details,
+      };
+
+      status.value = "error";
+
+      throw err;
+    }
+  }
+
+  
+  async function logout() {
+    status.value = "loading";
+    error.value = null;
+
+    try {
+      await authService.logout();
+
+    } catch (err) {
+      error.value = {
+        code: err.code,
+        message: err.message,
+        details: err.details,
+      };
+
+    } finally {
+      // cleaning local state
+      user.value = null;
+      role.value = null;
+
+      status.value = "idle";
+    }
+  }
 
   return {
     user,
     role,
     status,
     error,
+
     isAdmin,
     isAuthenticated,
+
+    login,
+    register,
+    fetchMe,
     logout,
   };
+
 });
