@@ -21,15 +21,25 @@
   >
     <h2 class="text-xl font-bold mb-6 text-aqua-200">{{ appName }}</h2>
     <nav class="space-y-1 flex-1">
-      <a href="#" class="block px-4 py-3 hover:bg-aqua-800 rounded-lg transition">📊 Dashboard</a>
-      <a href="#" class="block px-4 py-3 hover:bg-aqua-800 rounded-lg transition">💧 Sensores</a>
-      <a href="#" class="block px-4 py-3 hover:bg-aqua-800 rounded-lg transition">⚠️ Alertas</a>
+      <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-aqua-800 rounded-lg transition">
+        <span class="w-5 h-5 shrink-0"><AppIcon name="bar-chart" /></span>
+        Dashboard
+      </a>
+      <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-aqua-800 rounded-lg transition">
+        <span class="w-5 h-5 shrink-0"><AppIcon name="droplet" /></span>
+        Sensores
+      </a>
+      <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-aqua-800 rounded-lg transition">
+        <span class="w-5 h-5 shrink-0"><AppIcon name="alert" /></span>
+        Alertas
+      </a>
     </nav>
   </aside>
 </template>
 
 <script setup>
 import { ref } from 'vue'
+import AppIcon from './AppIcon.vue'
 
 defineProps({
   appName: { type: String, default: 'AquaGuard' }
