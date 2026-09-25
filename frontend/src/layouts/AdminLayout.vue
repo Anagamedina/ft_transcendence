@@ -18,7 +18,7 @@
     <div class="flex flex-1 overflow-hidden">
       <Sidebar appName="Admin" />
 
-      <main class="flex-1 overflow-y-auto bg-slate-50 p-6">
+      <main class="flex-1 overflow-y-auto bg-slate-100 p-6">
         <slot />
       </main>
     </div>

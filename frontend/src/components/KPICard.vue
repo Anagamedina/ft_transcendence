@@ -4,7 +4,7 @@
 -->
 
 <template>
-  <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex items-center gap-4">
+  <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-md flex items-center gap-4">
     <div class="w-12 h-12 shrink-0 rounded-full bg-aqua-50 text-aqua-600 flex items-center justify-center p-3">
       <slot name="icon" />
     </div>

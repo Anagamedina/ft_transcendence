@@ -5,15 +5,23 @@
 -->
 
 <script setup>
+import { computed } from 'vue'
 import AdminLayout from '../../layouts/AdminLayout.vue'
 import KPICard from '../../components/KPICard.vue'
 import AppIcon from '../../components/AppIcon.vue'
 import { useSensorsStore } from '../../stores/sensors'
 import { useAlertsStore } from '../../stores/alerts'
 
-
 const sensorStore = useSensorsStore()
 const alertsStore = useAlertsStore()
+
+const totalSensors = computed(() => sensorStore.sensorCount)
+const onlineSensors = computed(
+  () => sensorStore.sensors.filter((s) => s.status === 'ONLINE').length
+)
+const activeAlerts = computed(
+  () => alertsStore.alerts.filter((a) => a.status === 'ACTIVE').length
+)
 </script>
 
 <template>
@@ -21,19 +29,19 @@ const alertsStore = useAlertsStore()
     <h1 class="text-2xl font-bold text-gray-800 mb-6">Dashboard Admin</h1>
 
     <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-      <KPICard label="Sites" :value="3">
+      <KPICard label="Sites">
         <template #icon><AppIcon name="building" /></template>
       </KPICard>
 
-      <KPICard label="Sensores totales" :value="12">
+      <KPICard label="Sensores totales" :value="totalSensors">
         <template #icon><AppIcon name="droplet" /></template>
       </KPICard>
 
-      <KPICard label="Sensores online" :value="10">
+      <KPICard label="Sensores online" :value="onlineSensors">
         <template #icon><AppIcon name="wifi" /></template>
       </KPICard>
 
-      <KPICard label="Alertas activas" :value="2">
+      <KPICard label="Alertas activas" :value="activeAlerts">
         <template #icon><AppIcon name="alert" /></template>
       </KPICard>
     </section>
