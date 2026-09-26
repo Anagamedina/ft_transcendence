@@ -32,6 +32,22 @@ class UserRepository:
             )
         )
 
+    def get(self, user_id: UUID) -> User | None:
+        """
+        Busca un usuario solo por su id, SIN filtrar por organización.
+
+        Es la excepción de este módulo y conviene saber por qué existe. La
+        usa la resolución de sesión (`get_current_user`, issue #26): la
+        cookie solo lleva el id, y la organización del usuario es
+        precisamente el dato que se quiere averiguar — no se puede exigir
+        como filtro lo que todavía no se sabe.
+
+        No sustituye a `get_by_id`: para lo que pida un usuario con sesión
+        sobre OTRO usuario se sigue usando aquel, que sí aísla por
+        organización.
+        """
+        return self.db.scalar(select(User).where(User.id == user_id))
+
     def create(
         self,
         organization_id: UUID | None,
