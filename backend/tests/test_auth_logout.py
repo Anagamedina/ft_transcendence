@@ -41,8 +41,9 @@ def usuario(engine):
         user = User(
             organization_id=organization.id,
             email="ana@aquaguard.dev",
+            name="Ana Medina",
             password_hash="da-igual-aqui",
-            role="ADMIN",
+            role="admin",
         )
         session.add(user)
         session.commit()

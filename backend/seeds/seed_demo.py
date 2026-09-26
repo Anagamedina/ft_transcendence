@@ -71,17 +71,21 @@ def _get_or_create_organization(db: Session, name: str) -> Organization:
 def _get_or_create_user(
     db: Session,
     *,
-    organization_id: UUID,
+    organization_id: UUID | None,
     email: str,
+    name: str,
     password: str,
     role: str,
 ) -> User:
     user = db.query(User).filter_by(email=email).one_or_none()
     if user is not None:
+        if user.name == "Migrated User":
+            user.name = name
         return user
     user = User(
         organization_id=organization_id,
         email=email,
+        name=name,
         password_hash=_placeholder_password_hash(password),
         role=role,
     )
@@ -158,15 +162,17 @@ def seed() -> None:
                 db,
                 organization_id=organization.id,
                 email="admin@aquaguard.dev",
+                name="Demo Admin",
                 password="dev-admin-only",
-                role="ADMIN",
+                role="admin",
             )
             _get_or_create_user(
                 db,
                 organization_id=organization.id,
                 email="client@aquaguard.dev",
+                name="Demo Client",
                 password="dev-client-only",
-                role="CLIENT",
+                role="client",
             )
 
             site_hotel = _get_or_create_site(
