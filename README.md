@@ -235,7 +235,7 @@ data types, and relationships once the schema is implemented.
 | Nginx gateway: HTTPS, HTTP redirect, SPA, `/api` and `/ws` proxy            | Implemented   | Eduardo        | `curl -I http://localhost` returns 301, `curl -k https://localhost/api/health` returns 200                      |
 | Authentication: password hashing, session cookie, logout                    | In progress   | Ana            | `cd backend && python3 -m pytest -q`. Login, `/api/me` and register pending on #74                               |
 | Sensor readings: store a reading (`POST /api/readings`)                     | Implemented   | Daruny, Ana    | `cd backend && python3 -m pytest -q` (31 tests). History `GET /api/sensors/{id}/readings` still pending (#25)    |
-| Alerts                                                                      | Planned       | TBD            | Add test or endpoint link                                                                                       |
+| Alerts: list, acknowledge and resolve                                       | In progress   | Daruny, Ana    | `cd backend && python3 -m pytest -q` (73 tests). Endpoints done; the rules that raise alerts are pending (#28)   |
 | Frontend dashboard                                                          | Planned       | TBD            | Add browser flow or screenshot                                                                                  |
 
 Every pull request that adds a feature should update this table with its status,
