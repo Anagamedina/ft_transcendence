@@ -31,12 +31,14 @@ contra el schema, y se delega. Es el criterio de aceptación de la issue
 from __future__ import annotations
 
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 
 from app.modules.readings.schemas import ReadingCreate, ReadingResponse
 from app.modules.readings.service import ReadingService, get_reading_service
-from app.shared.schemas import error_response
+from app.shared.dependencies import CurrentUser, Pagination
+from app.shared.schemas import Page, error_response
 
 router = APIRouter(tags=["Readings"])
 
@@ -78,3 +80,44 @@ def create_reading(payload: ReadingCreate, service: ReadingSvc) -> ReadingRespon
     # `payload` llega ya validado: si el JSON no encajaba con ReadingCreate,
     # FastAPI cortó antes y el handler de validación devolvió el 422.
     return service.create(payload)
+
+
+@router.get(
+    "/sensors/{sensor_id}/readings",
+    response_model=Page[ReadingResponse],
+    summary="Histórico de lecturas de un sensor",
+    description=(
+        "Devuelve las lecturas de un sensor, paginadas y ordenadas por "
+        "fecha de medida. Lo consume la vista de detalle de sensor "
+        "(issue #40).\n\n"
+        "Solo devuelve sensores de **tu propia organización**: un "
+        "`sensor_id` de otro cliente responde 404, igual que uno que no "
+        "existe. Que respondan lo mismo es deliberado — distinguirlos "
+        "diría si ese identificador existe en alguna parte."
+    ),
+    responses={
+        **error_response(
+            status.HTTP_401_UNAUTHORIZED,
+            "No hay sesión (`UNAUTHORIZED`).",
+        ),
+        **error_response(
+            status.HTTP_404_NOT_FOUND,
+            "El sensor no existe o no es de tu organización "
+            "(`SENSOR_NOT_FOUND`).",
+        ),
+    },
+)
+def list_sensor_readings(
+    sensor_id: UUID,
+    service: ReadingSvc,
+    user: CurrentUser,
+    pagination: Pagination,
+) -> Page[ReadingResponse]:
+    # La organización sale de la sesión, nunca de lo que envíe el cliente:
+    # si viniera en la query, cualquiera podría pedir la de otro.
+    return service.list_by_sensor(
+        sensor_id=sensor_id,
+        organization_id=user.organization_id,
+        offset=pagination.offset,
+        limit=pagination.limit,
+    )
