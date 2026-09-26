@@ -32,6 +32,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import api_router
 from app.core import health
+
+# Se importa por su efecto, no por lo que exporta: registra los modelos ORM
+# en SQLAlchemy. Sin esta línea, las relaciones que se declaran por nombre
+# (`Mapped[list["Alert"]]`) no se pueden resolver y CUALQUIER consulta de la
+# aplicación falla con un 500. Los tests no lo detectan porque cada uno
+# importa los modelos que necesita.
+from app.core import models  # noqa: F401
 from app.core.app_config import APP_NAME, APP_VERSION, app_settings
 from app.core.exceptions import register_exception_handlers
 from app.openapi import register_contract_schemas

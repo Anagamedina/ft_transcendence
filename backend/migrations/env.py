@@ -7,15 +7,11 @@ from sqlalchemy import engine_from_config, pool
 from app.core.config import settings
 from app.core.database import Base
 
-# These imports register all tables in Base.metadata
-# without them, autogenerate could create an empty migration.
-from app.modules.auth import model as auth_model
-from app.modules.organizations import model as organizations_model
-from app.modules.users import model as users_model
-from app.modules.sites import model as sites_model
-from app.modules.sensors import model as sensors_model
-from app.modules.readings import model as readings_model
-from app.modules.alerts import model as alerts_model
+# Registers all tables in Base.metadata; without them, autogenerate could
+# create an empty migration. The list used to live here; it now lives in
+# app/core/models.py so the application and Alembic share one source. Add a
+# new model there and both pick it up.
+from app.core import models  # noqa: F401
 
 # Config read from backend/alembic.ini.
 config = context.config
