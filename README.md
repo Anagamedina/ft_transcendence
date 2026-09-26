@@ -164,6 +164,16 @@ Simulator -> readings API -> FastAPI backend
 The backend follows a modular structure. Each domain is organized into routers,
 schemas, services, repositories, and models where applicable.
 
+**Every ORM model must be listed in `backend/app/core/models.py`.** SQLAlchemy
+resolves relationships declared by name (`Mapped[list["Alert"]]`) against the
+classes that have been imported, so a model missing from that module breaks
+*every* database query in the application, not just queries on its own table.
+The application (`app/main.py`) and Alembic (`migrations/env.py`) both import
+that single module, so adding a model there covers both.
+
+Note that tests do not catch a missing model: each test file imports the models
+it needs, which builds the registry by hand. Only running the stack does.
+
 See [`docs/architecture.md`](docs/architecture.md) for the detailed design.
 
 ## Project structure
