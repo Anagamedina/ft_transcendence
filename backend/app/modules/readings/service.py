@@ -139,17 +139,53 @@ class ReadingService:
         return self._to_response(reading)
 
     def list_by_sensor(
-        self, sensor_id: UUID, offset: int, limit: int
+        self,
+        sensor_id: UUID,
+        organization_id: UUID,
+        offset: int,
+        limit: int,
     ) -> Page[ReadingResponse]:
         """
-        Histórico de un sensor, paginado y ordenado por `measured_at`.
+        Histórico de un sensor, paginado y ordenado por fecha de medida.
 
-        Se implementa en la issue #25. La consulta la aporta el repository
-        de Daruny, que es quien mantiene el índice `(sensor_id,
-        measured_at)` que evita recorrer la tabla entera.
+        `organization_id` no es opcional y no se puede omitir «porque ya
+        conocemos el sensor»: sin él, cualquiera que acierte el id de un
+        sensor ajeno se lee el histórico de otro cliente. Sale de la
+        sesión, no de lo que mande quien llama.
+
+        **Se comprueba primero que el sensor exista y sea suyo.** Sin esa
+        comprobación, pedir un sensor inventado —o de otra organización—
+        devolvería una página vacía, y el frontend no podría distinguir
+        «este sensor aún no tiene lecturas» de «este sensor no es tuyo».
+        Son dos cosas que se pintan distinto.
+
+        La consulta la aporta el repository, que mantiene el índice
+        `(sensor_id, recorded_at)` que evita recorrer la tabla entera.
         """
         self._require_repositories()
-        raise NotImplementedYetError("#25")
+
+        if self.sensors.get_by_id(sensor_id, organization_id) is None:
+            raise NotFoundError(
+                "El sensor indicado no existe.",
+                code="SENSOR_NOT_FOUND",
+            )
+
+        filas, total = self.readings.list_by_sensor(
+            sensor_id=sensor_id,
+            organization_id=organization_id,
+            offset=offset,
+            limit=limit,
+        )
+
+        # `Page` se expresa en páginas y el repository en filas saltadas.
+        # La conversión vive aquí porque el sobre de paginación es parte de
+        # la respuesta, y la respuesta la compone el service.
+        return Page[ReadingResponse](
+            items=[self._to_response(f) for f in filas],
+            total=total,
+            page=offset // limit + 1,
+            page_size=limit,
+        )
 
     @staticmethod
     def _to_response(reading: Any) -> ReadingResponse:
