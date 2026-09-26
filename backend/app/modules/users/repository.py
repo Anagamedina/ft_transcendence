@@ -24,7 +24,7 @@ class UserRepository:
             select(User).where(User.email == normalize_email(email))
         )
 
-    def get_by_id(self, user_id: UUID, organization_id: UUID) -> User | None:
+    def get_by_id(self, user_id: UUID, organization_id: UUID | None) -> User | None:
         return self.db.scalar(
             select(User).where(
                 User.id == user_id,
@@ -50,14 +50,16 @@ class UserRepository:
 
     def create(
         self,
-        organization_id: UUID,
+        organization_id: UUID | None,
         email: str,
+        name: str,
         password_hash: str,
         role: str,
     ) -> User:
         user = User(
             organization_id=organization_id,
             email=normalize_email(email),
+            name=name,
             password_hash=password_hash,
             role=role,
         )

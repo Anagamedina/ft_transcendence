@@ -57,16 +57,12 @@ def usuario(engine):
         session.add(organization)
         session.flush()
 
-        # OJO: el rol va en MAYÚSCULAS porque la tabla tiene
-        # CheckConstraint("role IN ('ADMIN', 'CLIENT')"), y sqlite también
-        # lo aplica. El contrato de la API los declara en minúsculas
-        # ("admin"), así que este desajuste sigue pendiente de acordar con
-        # Daruny. Aquí no molesta: get_current_user no toca el rol.
         user = User(
             organization_id=organization.id,
             email="ana@aquaguard.dev",
+            name="Ana Medina",
             password_hash="da-igual-aqui",
-            role="ADMIN",
+            role="admin",
         )
         session.add(user)
         session.commit()
