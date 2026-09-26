@@ -55,14 +55,12 @@ def _montar_cliente(session, nombre, lecturas=0):
     )
     session.add(sensor)
 
-    # El rol va en mayúsculas porque lo exige el CheckConstraint de la
-    # tabla. El contrato los declara en minúsculas: es el desajuste de la
-    # issue #74, que aquí no molesta.
     user = User(
         organization_id=organization.id,
         email=f"{nombre}@aquaguard.dev".lower(),
+        name=f"Usuario de {nombre}",
         password_hash="da-igual-aqui",
-        role="CLIENT",
+        role="client",
     )
     session.add(user)
     session.flush()
