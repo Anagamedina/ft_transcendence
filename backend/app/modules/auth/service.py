@@ -13,19 +13,36 @@ fáciles de hacer mal y difíciles de detectar después.
 
 from __future__ import annotations
 
+from uuid import UUID
+
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import NotImplementedYetError
+from app.core.database import transaction
+from app.core.exceptions import ConflictError, UnauthorizedError
+from app.core.security import hash_password, needs_rehash, verify_password
 from app.modules.auth.schemas import LoginRequest, RegisterRequest
+from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import UserResponse
 from app.shared.dependencies import DbSession
 
 
-class AuthService:
-    def __init__(self, db: Session) -> None:
-        self.db = db
+# Huella de una contraseña que no es de nadie. Se calcula una vez al cargar
+# el módulo y sirve para gastar el mismo tiempo cuando el email no existe
+# que cuando existe: ver `login`.
+_HUELLA_SENUELO = hash_password("una-contrasena-que-no-usa-nadie")
 
-    def register(self, payload: RegisterRequest) -> UserResponse:
+
+class AuthService:
+    def __init__(self, db: Session, users: UserRepository | None = None) -> None:
+        self.db = db
+        self.users = users or UserRepository(db)
+
+    def register(
+        self,
+        payload: RegisterRequest,
+        organization_id: UUID | None,
+        role: str,
+    ) -> UserResponse:
         """
         Alta de cuenta.
 
@@ -40,8 +57,31 @@ class AuthService:
         exige contraseñas guardadas de forma segura, y un hash rápido como
         SHA-256 no vale, porque está pensado para ser veloz y eso es
         exactamente lo que ayuda a quien prueba millones de combinaciones.
+
+        Sobre la organización: el equipo acordó el 26-09-2026 que **no hay
+        registro público**. Las cuentas de cliente las da de alta un admin,
+        y el admin global no pertenece a ninguna organización. Por eso este
+        método recibe la organización de quien llama en vez de deducirla
+        del payload, y por eso la ruta exige sesión de admin.
         """
-        raise NotImplementedYetError("#26")
+        if self.users.get_by_email(payload.email) is not None:
+            # Mismo código que usa el frontend para pintar el error junto al
+            # campo del email.
+            raise ConflictError(
+                "Ese email ya está dado de alta.",
+                code="EMAIL_ALREADY_EXISTS",
+            )
+
+        with transaction(self.db):
+            usuario = self.users.create(
+                organization_id=organization_id,
+                email=payload.email,
+                name=payload.name,
+                password_hash=hash_password(payload.password),
+                role=role,
+            )
+
+        return UserResponse.model_validate(usuario)
 
     def login(self, payload: LoginRequest) -> UserResponse:
         """
@@ -58,7 +98,30 @@ class AuthService:
 
         La cookie de sesión la pone el router — es HTTP, no negocio.
         """
-        raise NotImplementedYetError("#26")
+        usuario = self.users.get_by_email(payload.email)
+
+        if usuario is None:
+            # Se verifica igualmente contra una huella señuelo. Comprobar
+            # una contraseña con Argon2 tarda a propósito, así que si aquí
+            # respondiéramos directamente, un email inexistente contestaría
+            # mucho antes que uno real con la contraseña mal. Cronometrando
+            # respuestas se averiguaría qué cuentas existen.
+            verify_password(payload.password, _HUELLA_SENUELO)
+            raise UnauthorizedError("Email o contraseña incorrectos.")
+
+        if not verify_password(payload.password, usuario.password_hash):
+            # Mismo mensaje que arriba, y a propósito: «ese email no
+            # existe» le regala a quien lo intenta media respuesta.
+            raise UnauthorizedError("Email o contraseña incorrectos.")
+
+        # Único momento en que tenemos la contraseña en claro, y por tanto
+        # el único en que se puede rehacer la huella si los parámetros de
+        # Argon2 se han quedado flojos.
+        if needs_rehash(usuario.password_hash):
+            with transaction(self.db):
+                usuario.password_hash = hash_password(payload.password)
+
+        return UserResponse.model_validate(usuario)
 
     def logout(self) -> None:
         """
