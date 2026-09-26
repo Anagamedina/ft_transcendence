@@ -224,7 +224,7 @@ data types, and relationships once the schema is implemented.
 | Compose orchestration (network, volume, profiles)                           | Implemented   | Eduardo        | `make up` then `make ps`                                                                                        |
 | Nginx gateway: HTTPS, HTTP redirect, SPA, `/api` and `/ws` proxy            | Implemented   | Eduardo        | `curl -I http://localhost` returns 301, `curl -k https://localhost/api/health` returns 200                      |
 | Authentication                                                              | Planned       | TBD            | Add test or endpoint link                                                                                       |
-| Sensor readings                                                             | In progress   | Daruny         | `backend/tests/unit/test_sensor_reading_repositories.py` (repositories implemented; services/routers pending)   |
+| Sensor readings: store a reading (`POST /api/readings`)                     | Implemented   | Daruny, Ana    | `cd backend && python3 -m pytest -q` (31 tests). History `GET /api/sensors/{id}/readings` still pending (#25)    |
 | Alerts                                                                      | Planned       | TBD            | Add test or endpoint link                                                                                       |
 | Frontend dashboard                                                          | Planned       | TBD            | Add browser flow or screenshot                                                                                  |
 
