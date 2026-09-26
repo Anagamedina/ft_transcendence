@@ -27,7 +27,6 @@ def upgrade() -> None:
         "users",
         "role IN ('admin', 'client')",
     )
-    pass
 
 
 def downgrade() -> None:
@@ -40,4 +39,3 @@ def downgrade() -> None:
         "users",
         "role IN ('ADMIN', 'CLIENT')",
     )
-    pass
