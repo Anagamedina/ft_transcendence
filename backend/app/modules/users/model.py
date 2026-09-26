@@ -24,7 +24,7 @@ class User(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "role IN ('ADMIN', 'CLIENT')",
+            "role IN ('admin', 'client')",
             name="ck_users_role",
         ),
     )
@@ -36,19 +36,24 @@ class User(Base):
         server_default=func.gen_random_uuid(),
     )
 
-    organization_id: Mapped[uuid.UUID] = mapped_column(
+    organization_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True),
         ForeignKey(
             "organizations.id",
             ondelete="RESTRICT",
         ),
-        nullable=False,
+        nullable=True,
     )
 
     email: Mapped[str] = mapped_column(
         String(320),
         nullable=False,
         unique=True,
+    )
+
+    name: Mapped[str] = mapped_column(
+        String(120),
+        nullable=False,
     )
 
     password_hash: Mapped[str] = mapped_column(
@@ -74,7 +79,7 @@ class User(Base):
         nullable=False,
     )
 
-    organization: Mapped["Organization"] = relationship(
+    organization: Mapped["Organization | None"] = relationship(
         "Organization",
         back_populates="users",
     )
