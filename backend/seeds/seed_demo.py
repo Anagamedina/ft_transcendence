@@ -159,14 +159,14 @@ def seed() -> None:
                 organization_id=organization.id,
                 email="admin@aquaguard.dev",
                 password="dev-admin-only",
-                role="ADMIN",
+                role="admin",
             )
             _get_or_create_user(
                 db,
                 organization_id=organization.id,
                 email="client@aquaguard.dev",
                 password="dev-client-only",
-                role="CLIENT",
+                role="client",
             )
 
             site_hotel = _get_or_create_site(
