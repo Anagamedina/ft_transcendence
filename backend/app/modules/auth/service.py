@@ -62,14 +62,30 @@ class AuthService:
 
     def logout(self) -> None:
         """
-        Invalida la sesión en el servidor.
+        Cierra la sesión del lado del servidor. Hoy no hay nada que hacer.
 
-        Borrar la cookie en el navegador es cosa del router. Este método
-        existe para lo otro: marcar la sesión como no válida del lado del
-        servidor, de modo que una cookie copiada antes del logout deje de
-        servir.
+        Este método se escribió esperando poder marcar la sesión como no
+        válida, de modo que una cookie copiada antes del logout dejara de
+        servir. **Con la sesión que se ha implementado, eso no es posible**,
+        y conviene que quede dicho en vez de aparentar lo contrario.
+
+        La sesión es una cookie firmada sin estado (ADR 0001): el servidor
+        no guarda ninguna lista de sesiones abiertas, solo comprueba la
+        firma y la fecha. No hay nada que tachar. Quien haya copiado una
+        cookie válida la puede seguir usando hasta que caduque, que es como
+        mucho `SESSION_MAX_AGE_SECONDS` (8 horas).
+
+        Revocar de verdad exigiría guardar las sesiones —una tabla, o una
+        lista de tokens anulados— y consultarla en cada petición. Es la
+        contrapartida de no tener estado, y para el MVP se asume a
+        sabiendas.
+
+        El método se mantiene, en lugar de borrarlo y que el router no
+        llame a nada, porque es el sitio donde entraría esa revocación el
+        día que haga falta. Cambiaría esta función y ni el router ni el
+        contrato se enterarían.
         """
-        raise NotImplementedYetError("#26")
+        return None
 
 
 def get_auth_service(db: DbSession) -> AuthService:

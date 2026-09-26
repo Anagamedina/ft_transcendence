@@ -13,6 +13,14 @@ pydantic-settings>=2.0,<3.0
 alembic==1.19.1
 SQLAlchemy>=1.4.0
 
+# Auth (issue #26)
+# argon2-cffi: hash de contrasenas. Argon2 es la recomendacion actual
+#   (ganador del Password Hashing Competition). Se usa directo en vez de
+#   passlib, que esta practicamente sin mantenimiento.
+# itsdangerous: firma el contenido de la cookie de sesion (ADR 0001).
+argon2-cffi>=23.1,<26.0
+itsdangerous>=2.1,<3.0
+
 # Testing
 pytest>=8.0
 
