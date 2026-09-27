@@ -29,6 +29,103 @@ lecturas, nunca el cliente (apartado 1.3).
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from typing import Annotated
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, Query, status
+
+from app.modules.alerts.schemas import AlertResponse, AlertStatus
+from app.modules.alerts.service import AlertService, get_alert_service
+from app.shared.dependencies import CurrentUser, Pagination
+from app.shared.schemas import Page, error_response
 
 router = APIRouter(prefix="/alerts", tags=["Alerts"])
+
+AlertSvc = Annotated[AlertService, Depends(get_alert_service)]
+
+_NO_AUTORIZADO = error_response(
+    status.HTTP_401_UNAUTHORIZED, "No hay sesión (`UNAUTHORIZED`)."
+)
+_NO_ENCONTRADA = error_response(
+    status.HTTP_404_NOT_FOUND,
+    "La alerta no existe, o no es de tu organización (`ALERT_NOT_FOUND`).",
+)
+
+
+@router.get(
+    "",
+    response_model=Page[AlertResponse],
+    summary="Listar alertas",
+    description=(
+        "Alertas de tu organización, paginadas.\n\n"
+        "Los dos filtros son los que usa el panel: `status` para ver solo "
+        "las activas, que es la vista por defecto de quien atiende, y "
+        "`sensor_id` para entrar desde el detalle de un sensor."
+    ),
+    responses={**_NO_AUTORIZADO},
+)
+def list_alerts(
+    service: AlertSvc,
+    user: CurrentUser,
+    pagination: Pagination,
+    status_filtro: Annotated[
+        AlertStatus | None,
+        Query(alias="status", description="Deja solo las alertas en ese estado."),
+    ] = None,
+    sensor_id: Annotated[
+        UUID | None,
+        Query(description="Deja solo las alertas de ese sensor."),
+    ] = None,
+) -> Page[AlertResponse]:
+    # La organización sale de la sesión, nunca de la query: si viniera de
+    # fuera, cualquiera pediría las alertas de otro cliente.
+    return service.list(
+        organization_id=user.organization_id,
+        offset=pagination.offset,
+        limit=pagination.limit,
+        status=status_filtro.value if status_filtro else None,
+        sensor_id=sensor_id,
+    )
+
+
+@router.patch(
+    "/{alert_id}/acknowledge",
+    response_model=AlertResponse,
+    summary="Marcar una alerta como vista",
+    description=(
+        "Deja constancia de que alguien está al tanto de la alerta.\n\n"
+        "**No la cierra:** la alerta sigue activa. Y es idempotente — si "
+        "dos operadores pulsan a la vez, la segunda llamada no falla ni "
+        "pisa la hora de la primera, que es la que interesa conservar."
+    ),
+    responses={**_NO_AUTORIZADO, **_NO_ENCONTRADA},
+)
+def acknowledge_alert(
+    alert_id: UUID, service: AlertSvc, user: CurrentUser
+) -> AlertResponse:
+    return service.acknowledge(alert_id, organization_id=user.organization_id)
+
+
+@router.patch(
+    "/{alert_id}/resolve",
+    response_model=AlertResponse,
+    summary="Cerrar una alerta",
+    description=(
+        "Da la alerta por atendida.\n\n"
+        "Resolver una ya resuelta responde **409**, no un éxito "
+        "silencioso: volvería a escribir la fecha de cierre y se perdería "
+        "cuándo se atendió de verdad."
+    ),
+    responses={
+        **_NO_AUTORIZADO,
+        **_NO_ENCONTRADA,
+        **error_response(
+            status.HTTP_409_CONFLICT,
+            "La alerta ya estaba resuelta (`ALERT_ALREADY_RESOLVED`).",
+        ),
+    },
+)
+def resolve_alert(
+    alert_id: UUID, service: AlertSvc, user: CurrentUser
+) -> AlertResponse:
+    return service.resolve(alert_id, organization_id=user.organization_id)
