@@ -124,6 +124,16 @@ class SensorRepository(Protocol):
         """
         ...
 
+    def get_by_id(self, sensor_id: UUID, organization_id: UUID) -> Any | None:
+        """
+        El sensor, solo si pertenece a esa organización.
+
+        Es la versión que se usa cuando quien pregunta tiene sesión, y la
+        que evita que alguien lea los sensores de otro cliente acertando un
+        id. `get()` existe aparte para el simulador, que no tiene sesión.
+        """
+        ...
+
     def touch_last_seen(self, sensor_id: UUID, seen_at: datetime) -> None:
         """
         Actualiza `last_seen_at` tras recibir una lectura.
