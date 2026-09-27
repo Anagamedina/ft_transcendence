@@ -1,6 +1,6 @@
 import adapter from './adapter.js'
 
-const sensorService = {
+const sensorsService = {
   getSensors() {
     return adapter.get('/api/sensors')
   },

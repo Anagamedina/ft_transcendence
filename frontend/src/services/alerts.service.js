@@ -5,7 +5,7 @@ const alertService = {
     return adapter.get('/api/alerts')
   },
 
-  acknowledgeAlert(id) { //Indicar al sistema que se ha tomado conocimiento de la alerta.
+  acknowledgeAlert(id) { //Indicates to the system that the alert has been acknowledged
     return adapter.patch(`/api/alerts/${id}/acknowledge`)
   },
 
