@@ -72,7 +72,7 @@
         v-for="alert in alertsStore.alerts"
         :key="alert.id"
         class="bg-white rounded-xl shadow p-4">
-        
+
         <h3 class="font-semibold text-gray-900">
           {{ alert.message }}
         </h3>
@@ -89,7 +89,7 @@
             @click="alertsStore.acknowledgeAlert(alert.id)"
             class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600"
           >
-            Acquitter
+            Acknowledge
           </button>
 
           <button
@@ -98,7 +98,7 @@
             @click="alertsStore.resolveAlert(alert.id)"
             class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
           >
-            Résoudre
+            Resolve
           </button>
 
         </div>

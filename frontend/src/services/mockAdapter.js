@@ -229,6 +229,18 @@ const mockAdapter = {
 
     // Login
     if (url === '/api/auth/login') {
+      if (
+        data.email !== 'test@example.com' ||
+        data.password !== '123'
+      ) {
+        return Promise.reject({
+          status: 401,
+          code: 'INVALID_CREDENTIALS',
+          message: 'Invalid email or password.',
+          details: null,
+        })
+      }
+
       isAuthenticated = true
 
       return Promise.resolve({
