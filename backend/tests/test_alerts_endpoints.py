@@ -1,12 +1,14 @@
 """
-Endpoints de alertas (issue #28, primera parte).
+Endpoints de alertas (issue #28).
 
-Cubre los tres de lectura y gestión. Las reglas que generan alertas al
-recibir una lectura van aparte: tocan `ReadingService.create()`, que está
-en otra rama sin mergear.
+Cubre los tres de lectura y gestión, y al final el recorrido completo de
+una regla: una lectura fuera de rango por `POST /api/readings` que aparece
+en `GET /api/alerts`. Los casos de cada regla están en
+`tests/unit/test_alert_rules.py` y `tests/unit/test_reading_service.py`.
 """
 
 from datetime import datetime, timezone
+from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
@@ -255,3 +257,34 @@ def test_una_alerta_que_no_existe_da_404(client, datos):
     _entrar(client, datos["a"]["user"])
 
     assert client.patch(f"/api/alerts/{uuid4()}/resolve").status_code == 404
+
+
+# ---------------------------------------------------------
+# Reglas: de la lectura a la alerta, por HTTP
+# ---------------------------------------------------------
+def test_una_lectura_fuera_de_rango_aparece_en_mis_alertas(client, datos, engine):
+    """
+    El simulador manda una lectura baja, sin sesión, y el cliente dueño del
+    sensor la ve como alerta en su lista. Es el recorrido que va a pintar el
+    frontend.
+    """
+    sensor_id = datos["a"]["sensor"].id
+    with Session(engine) as session:
+        sensor = session.get(Sensor, sensor_id)
+        sensor.low_threshold = Decimal("1.500")
+        sensor.high_threshold = Decimal("10.000")
+        session.commit()
+
+    respuesta = client.post(
+        "/api/readings", json={"sensor_id": str(sensor_id), "pressure": 0.8}
+    )
+    assert respuesta.status_code == 201
+
+    _entrar(client, datos["a"]["user"])
+    cuerpo = client.get(
+        "/api/alerts", params={"sensor_id": str(sensor_id), "status": "ACTIVE"}
+    ).json()
+
+    nuevas = [a for a in cuerpo["items"] if a["type"] == "LOW_PRESSURE" and "0.8 bar" in a["message"]]
+    assert len(nuevas) == 1
+    assert nuevas[0]["severity"] == "CRITICAL"
