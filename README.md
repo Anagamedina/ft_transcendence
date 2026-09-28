@@ -338,14 +338,19 @@ feature, module, relevant pull request, technical challenge, and solution.
 | Public Landing Page: Hero, value proposition, navigation to Login/Registro; extended `Header`/`Footer`/`Card` with optional props and slots | [#5](https://github.com/Anagamedina/ft_transcendence/pull/5) | The first version of the Hero copy did not communicate the product's real function to a user unfamiliar with the project (found via an external comprehension test); the text was iterated, and in the process a click bug was found (a decorative SVG blocking the "Comenzar ahora" CTA), fixed with `pointer-events-none`. |
 
 
-| Lylia (`lylfergu`)                                                                    | Features/modules                                                                 | Pull requests                                                   | Challenges and solutions |
-|---------------------------------------------------------------------------------------|----------------------------------------------------------------------------------|-----------------------------------------------------------------|--------------------------|
-| Pinia stores                                                                          | [PR number]                                                                      | Created centralized stores to manage frontend application state |
-| Axios API services and error handling                                                 | #57                                                                              | Created a centralized API layer with                            |
-| services, adapters, and common error handling                                         |
-| MockAdapter                                                                           | #61                                                                              | Frontend API mocking and development fixtures                   |
-| Enabled frontend development without a running backend by implementing a mock adapter | with the same interface and response shapes as the real API, including fixtures, |
-| pagination, validation errors, authentication states, and CRUD-like operations.       |
+| Lylia (`lylfergu`) | Features/modules   | Pull requests | Challenges and solutions |
+|---------------------------------------------------------------------------------------|
+| Pinia stores | Created centralized stores to manage frontend application state        |
+| Axios API services and error handling | #57 | Created a centralized API layer with
+  services, adapters, and common error handling                                         |
+| MockAdapter | #61 | Frontend API mocking and development fixtures | Enabled frontend  
+  development without a running backend by implementing a mock adapter with the same 
+  interface and response shapes as the real API, including fixtures, pagination, 
+  validation errors, authentication states, and CRUD-like operations.                   |
+| Login, Register and Logout frontend | # 99| Implemented the complete frontend 
+  authentication flow using Auth services, Auth Store, handled loading/error 
+  states and prevented double submission. Authentication was tested with the MockAdapter 
+  while the backend was not yet available.                                              |
 
 | Eduardo (`egalindo`) | Features/modules | Pull requests | Challenges and solutions |
 |----------------------|------------------|---------------|--------------------------|
