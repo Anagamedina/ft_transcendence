@@ -13,6 +13,7 @@ import { useSensorsStore } from '../../stores/sensors'
 import { useAlertsStore } from '../../stores/alerts'
 import SitesSummary from '../../components/SitesSummary.vue'
 import SensorsSummary from '../../components/SensorsSummary.vue'
+import AlertsSummary from '../../components/AlertsSummary.vue'
 
 const sensorStore = useSensorsStore()
 const alertsStore = useAlertsStore()
@@ -21,9 +22,10 @@ const totalSensors = computed(() => sensorStore.sensorCount)
 const onlineSensors = computed(
   () => sensorStore.sensors.filter((s) => s.status === 'ONLINE').length
 )
-const activeAlerts = computed(
-  () => alertsStore.alerts.filter((a) => a.status === 'ACTIVE').length
+const activeAlertList = computed(
+  () => alertsStore.alerts.filter((a) => a.status === 'ACTIVE')
 )
+const activeAlerts = computed(() => activeAlertList.value.length)
 </script>
 
 <template>
@@ -47,9 +49,12 @@ const activeAlerts = computed(
         <template #icon><AppIcon name="alert" /></template>
       </KPICard>
     </section>
+
     <section class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
       <SitesSummary />
       <SensorsSummary :sensors="sensorStore.sensors" />
     </section>
+
+    <AlertsSummary :alerts="activeAlertList" />
   </AdminLayout>
 </template>
