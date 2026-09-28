@@ -22,20 +22,24 @@ Lo que hay implementado y lo que no:
 - `get_db`             → implementado (reexportado de `core.database`, de Daruny).
 - `PaginationParams`   → implementado.
 - `get_current_user`   → implementado en la issue #26.
-- `require_role`       → implementado en la issue #27.
-- `get_org_scope`      → implementado en la issue #27.
+- `require_role`       → pertenece a la issue #27; declarado y lanzando 501.
+
+`require_role` existe ya, aunque no funcione, para que los routers puedan
+declarar hoy qué endpoints van protegidos. Eso hace que OpenAPI muestre el
+contrato completo y que la issue #27 solo tenga que rellenar el cuerpo de
+una función, sin tocar 20 firmas. Con `get_current_user` funcionó
+exactamente así: se rellenó su cuerpo y ningún router cambió.
 """
 
 from __future__ import annotations
 
 from typing import Annotated
-from uuid import UUID
 
 from fastapi import Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.exceptions import ForbiddenError, UnauthorizedError
+from app.core.exceptions import NotImplementedYetError, UnauthorizedError
 from app.core.security import SESSION_COOKIE, read_session_token
 from app.modules.users.model import User
 from app.modules.users.repository import UserRepository
@@ -48,8 +52,6 @@ __all__ = [
     "get_current_user",
     "CurrentUser",
     "require_role",
-    "get_org_scope",
-    "OrgScope",
 ]
 
 
@@ -168,42 +170,14 @@ def require_role(*roles: str):
     forma de parametrizar una dependency en FastAPI (una dependency no
     acepta argumentos propios en el momento de declararla).
 
-    Sin sesión responde 401, porque depende de `get_current_user`; con
-    sesión y otro rol, 403. El rol no basta para decidir qué datos ve
-    alguien: eso lo hace `get_org_scope`.
+    Pendiente de la issue #27, junto con el aislamiento por organización:
+    no basta con el rol, cada consulta debe filtrar además por la
+    organización del usuario.
     """
 
-    def dependency(user: CurrentUser) -> User:
-        if user.role not in roles:
-            raise ForbiddenError("No tienes permiso para esta operación.")
-        return user
+    def dependency() -> None:
+        raise NotImplementedYetError(
+            "#27", f"Control de acceso por rol ({', '.join(roles)}): issue #27."
+        )
 
     return dependency
-
-
-def get_org_scope(user: CurrentUser) -> UUID | None:
-    """
-    Qué organizaciones puede ver quien pregunta. Issue #27, decidido por
-    Ana el 28-09-2026:
-
-        admin (con o sin organización)  → None = TODAS
-        cliente con organización        → su organization_id
-        cliente sin organización        → 403
-
-    **`None` significa «todas», no «ninguna».** Los repositories solo
-    filtran por organización si reciben un id. Por eso ningún router debe
-    pasar `user.organization_id` directamente a una consulta: con un
-    cliente sin organización, ese `None` le enseñaría los datos de todos.
-    El alcance se calcula solo aquí, y aquí se corta ese caso.
-
-    El admin ve todo aunque tenga organización: gestiona las
-    organizaciones de todos los clientes, no la suya.
-    """
-    if user.role == "admin":
-        return None
-    if user.organization_id is None:
-        raise ForbiddenError("Esta cuenta no pertenece a ninguna organización.")
-    return user.organization_id
-
-
-OrgScope = Annotated[UUID | None, Depends(get_org_scope)]
