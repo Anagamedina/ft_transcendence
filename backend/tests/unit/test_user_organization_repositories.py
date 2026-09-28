@@ -12,6 +12,7 @@ from app.modules.sensors.model import Sensor  # noqa: F401 - registers the ORM m
 from app.modules.sites.model import Site  # noqa: F401 - registers the ORM model
 from app.modules.users.model import User
 from app.modules.users.repository import UserRepository
+from app.modules.users.schemas import UserResponse, UserRole
 
 
 @pytest.fixture()
@@ -36,12 +37,14 @@ def test_create_user_and_get_by_email(db: Session, organization: Organization):
     user = repository.create(
         organization_id=organization.id,
         email="  Someone@Example.COM ",
+        name="Someone Example",
         password_hash="hashed",
-        role="CLIENT",
+        role="client",
     )
     db.commit()
 
     assert user.email == "someone@example.com"
+    assert user.name == "Someone Example"
     found = repository.get_by_email("someone@example.com")
     assert found is not None
     assert found.id == user.id
@@ -66,8 +69,9 @@ def test_get_by_id_is_scoped_to_organization(db: Session, organization: Organiza
     user = repository.create(
         organization_id=organization.id,
         email="scoped@example.com",
+        name="Scoped User",
         password_hash="hashed",
-        role="CLIENT",
+        role="client",
     )
     db.commit()
 
@@ -82,8 +86,9 @@ def test_duplicate_email_raises_integrity_error_and_rolls_back(
     repository.create(
         organization_id=organization.id,
         email="dup@example.com",
+        name="Duplicate User",
         password_hash="hashed",
-        role="CLIENT",
+        role="client",
     )
     db.commit()
 
@@ -91,14 +96,39 @@ def test_duplicate_email_raises_integrity_error_and_rolls_back(
         repository.create(
             organization_id=organization.id,
             email="dup@example.com",
+            name="Duplicate User 2",
             password_hash="hashed",
-            role="CLIENT",
+            role="client",
         )
 
     # La transacción quedó revertida: no hay una fila fantasma pendiente.
     db.rollback()
     found = repository.get_by_email("dup@example.com")
     assert found is not None
+
+
+def test_create_global_user_without_organization(db: Session):
+    repository = UserRepository(db)
+
+    user = repository.create(
+        organization_id=None,
+        email="global-admin@example.com",
+        name="Global Admin",
+        password_hash="hashed",
+        role="admin",
+    )
+    db.commit()
+
+    assert user.organization_id is None
+    found = repository.get_by_email("global-admin@example.com")
+    assert found is not None
+    assert found.name == "Global Admin"
+    assert repository.get_by_id(user.id, None) is user
+
+    response = UserResponse.model_validate(user)
+    assert response.name == "Global Admin"
+    assert response.organization_id is None
+    assert response.role is UserRole.ADMIN
 
 
 def test_organization_repository_get_by_id(db: Session, organization: Organization):

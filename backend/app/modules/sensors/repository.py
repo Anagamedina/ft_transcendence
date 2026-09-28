@@ -54,3 +54,18 @@ class SensorRepository:
             )
         )
         return self.db.scalar(query)
+
+    def get(self, sensor_id: UUID) -> Sensor | None:
+        """
+        Busca un sensor solo por su id, SIN filtrar por organización.
+
+        Es la excepción de este módulo y conviene saber por qué existe. La
+        usa `POST /api/readings` (issue #24): quien llama ahí es el
+        simulador, que no tiene sesión y por tanto no puede aportar una
+        organización. La organización se deduce después *del sensor
+        encontrado*, no de quien envía.
+
+        No sustituye a `get_by_id`: para todo lo que pida un usuario con
+        sesión se sigue usando aquel, que sí aísla por organización.
+        """
+        return self.db.scalar(select(Sensor).where(Sensor.id == sensor_id))

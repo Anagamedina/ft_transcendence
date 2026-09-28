@@ -21,24 +21,28 @@ Lo que hay implementado y lo que no:
 
 - `get_db`             → implementado (reexportado de `core.database`, de Daruny).
 - `PaginationParams`   → implementado.
-- `get_current_user`   → pertenece a la issue #26; declarado y lanzando 501.
+- `get_current_user`   → implementado en la issue #26.
 - `require_role`       → pertenece a la issue #27; declarado y lanzando 501.
 
-Los dos últimos existen ya, aunque no funcionen, para que los routers
-puedan declarar hoy qué endpoints van protegidos. Eso hace que OpenAPI
-muestre el contrato completo y que la issue #26 solo tenga que rellenar
-el cuerpo de una función, sin tocar 20 firmas.
+`require_role` existe ya, aunque no funcione, para que los routers puedan
+declarar hoy qué endpoints van protegidos. Eso hace que OpenAPI muestre el
+contrato completo y que la issue #27 solo tenga que rellenar el cuerpo de
+una función, sin tocar 20 firmas. Con `get_current_user` funcionó
+exactamente así: se rellenó su cuerpo y ningún router cambió.
 """
 
 from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends, Query
+from fastapi import Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.exceptions import NotImplementedYetError
+from app.core.exceptions import NotImplementedYetError, UnauthorizedError
+from app.core.security import SESSION_COOKIE, read_session_token
+from app.modules.users.model import User
+from app.modules.users.repository import UserRepository
 
 __all__ = [
     "get_db",
@@ -107,22 +111,50 @@ Pagination = Annotated[PaginationParams, Depends(PaginationParams)]
 # ---------------------------------------------------------
 # AUTENTICACIÓN — issue #26
 # ---------------------------------------------------------
-def get_current_user() -> "object":
+def get_current_user(request: Request, db: DbSession) -> User:
     """
     Usuario de la sesión actual, leído de la cookie httpOnly (ADR 0001).
 
-    Pendiente de la issue #26. Cuando se implemente, esta función leerá la
-    cookie de sesión, la validará y devolverá el usuario; si no hay sesión
-    válida lanzará `UnauthorizedError`.
+    Tres pasos, y cada uno puede cortar con un 401:
 
-    Se deja lanzando 501 en lugar de devolver un usuario falso: un usuario
-    de mentira aquí haría que los endpoints protegidos parecieran
-    funcionar y escondería la falta de autenticación hasta la integración.
+    1. Sacar la cookie de la petición.
+    2. Comprobar su firma y que no haya caducado, que devuelve el id.
+    3. Buscar ese usuario en la base de datos.
+
+    **El paso 3 no sobra.** Sería más rápido fiarse de lo que trae la
+    cookie, pero entonces el rol y la organización se quedarían congelados
+    en el momento de entrar: cambiarle el rol a alguien, o darlo de baja,
+    no tendría efecto hasta que volviera a iniciar sesión. Leyendo el
+    usuario en cada petición, el cambio se aplica en la siguiente.
+
+    Es el precio que se paga por meter solo el id en la cookie
+    (`core/security.py`), y se paga a gusto: una consulta por clave
+    primaria.
+
+    Sobre los mensajes de error: se distingue «no hay cookie» de «la
+    cookie no vale», porque el cliente ya sabe si la ha enviado. Lo que NO
+    se distingue es por qué no vale — firma incorrecta, caducada, o
+    usuario que ya no existe. Las tres responden igual: decirle a alguien
+    cuál de las tres es le está diciendo hasta dónde ha llegado su intento.
     """
-    raise NotImplementedYetError("#26", "La autenticación se implementa en la issue #26.")
+    token = request.cookies.get(SESSION_COOKIE)
+    if token is None:
+        raise UnauthorizedError("No hay sesión iniciada.")
+
+    user_id = read_session_token(token)
+    if user_id is None:
+        raise UnauthorizedError("La sesión no es válida.")
+
+    # Se busca por id a secas, sin filtrar por organización: la cookie solo
+    # lleva el id, y la organización es justo lo que se quiere averiguar.
+    user = UserRepository(db).get(user_id)
+    if user is None:
+        raise UnauthorizedError("La sesión no es válida.")
+
+    return user
 
 
-CurrentUser = Annotated[object, Depends(get_current_user)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 # ---------------------------------------------------------
