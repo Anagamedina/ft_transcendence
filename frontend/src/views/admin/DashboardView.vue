@@ -11,6 +11,7 @@ import KPICard from '../../components/KPICard.vue'
 import AppIcon from '../../components/AppIcon.vue'
 import { useSensorsStore } from '../../stores/sensors'
 import { useAlertsStore } from '../../stores/alerts'
+import SitesSummary from '../../components/SitesSummary.vue'
 
 const sensorStore = useSensorsStore()
 const alertsStore = useAlertsStore()
@@ -45,5 +46,6 @@ const activeAlerts = computed(
         <template #icon><AppIcon name="alert" /></template>
       </KPICard>
     </section>
+      <SitesSummary />
   </AdminLayout>
 </template>
