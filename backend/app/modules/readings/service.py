@@ -141,17 +141,17 @@ class ReadingService:
     def list_by_sensor(
         self,
         sensor_id: UUID,
-        organization_id: UUID,
+        organization_id: UUID | None,
         offset: int,
         limit: int,
     ) -> Page[ReadingResponse]:
         """
         Histórico de un sensor, paginado y ordenado por fecha de medida.
 
-        `organization_id` no es opcional y no se puede omitir «porque ya
-        conocemos el sensor»: sin él, cualquiera que acierte el id de un
-        sensor ajeno se lee el histórico de otro cliente. Sale de la
-        sesión, no de lo que mande quien llama.
+        `organization_id` sale siempre de `get_org_scope`, nunca de lo que
+        mande quien llama: sin él, cualquiera que acierte el id de un sensor
+        ajeno se leería el histórico de otro cliente. `None` significa
+        «todas las organizaciones», y solo se da para un admin (issue #27).
 
         **Se comprueba primero que el sensor exista y sea suyo.** Sin esa
         comprobación, pedir un sensor inventado —o de otra organización—

@@ -13,14 +13,13 @@ fáciles de hacer mal y difíciles de detectar después.
 
 from __future__ import annotations
 
-from uuid import UUID
-
 from sqlalchemy.orm import Session
 
 from app.core.database import transaction
-from app.core.exceptions import ConflictError, UnauthorizedError
+from app.core.exceptions import ConflictError, NotFoundError, UnauthorizedError
 from app.core.security import hash_password, needs_rehash, verify_password
 from app.modules.auth.schemas import LoginRequest, RegisterRequest
+from app.modules.organizations.repository import OrganizationRepository
 from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import UserResponse
 from app.shared.dependencies import DbSession
@@ -33,16 +32,17 @@ _HUELLA_SENUELO = hash_password("una-contrasena-que-no-usa-nadie")
 
 
 class AuthService:
-    def __init__(self, db: Session, users: UserRepository | None = None) -> None:
+    def __init__(
+        self,
+        db: Session,
+        users: UserRepository | None = None,
+        organizations: OrganizationRepository | None = None,
+    ) -> None:
         self.db = db
         self.users = users or UserRepository(db)
+        self.organizations = organizations or OrganizationRepository(db)
 
-    def register(
-        self,
-        payload: RegisterRequest,
-        organization_id: UUID | None,
-        role: str,
-    ) -> UserResponse:
+    def register(self, payload: RegisterRequest, role: str) -> UserResponse:
         """
         Alta de cuenta.
 
@@ -60,10 +60,17 @@ class AuthService:
 
         Sobre la organización: el equipo acordó el 26-09-2026 que **no hay
         registro público**. Las cuentas de cliente las da de alta un admin,
-        y el admin global no pertenece a ninguna organización. Por eso este
-        método recibe la organización de quien llama en vez de deducirla
-        del payload, y por eso la ruta exige sesión de admin.
+        y el admin global no pertenece a ninguna organización. Por eso la
+        ruta exige sesión de admin, y desde la issue #27 el admin indica en
+        el payload a qué organización va el cliente. Antes heredaba la del
+        admin, y un admin global creaba clientes sin organización.
         """
+        if self.organizations.get_by_id(payload.organization_id) is None:
+            raise NotFoundError(
+                "La organización indicada no existe.",
+                code="ORGANIZATION_NOT_FOUND",
+            )
+
         if self.users.get_by_email(payload.email) is not None:
             # Mismo código que usa el frontend para pintar el error junto al
             # campo del email.
@@ -74,7 +81,7 @@ class AuthService:
 
         with transaction(self.db):
             usuario = self.users.create(
-                organization_id=organization_id,
+                organization_id=payload.organization_id,
                 email=payload.email,
                 name=payload.name,
                 password_hash=hash_password(payload.password),

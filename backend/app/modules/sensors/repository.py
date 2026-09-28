@@ -17,16 +17,18 @@ class SensorRepository:
 
     def list_by_organization(
         self,
-        organization_id: UUID,
+        organization_id: UUID | None,
         offset: int = 0,
         limit: int = 100,
     ) -> tuple[list[Sensor], int]:
         if offset < 0 or limit <= 0:
             raise ValueError("Invalid pagination")
 
-        query = select(Sensor).join(Site).where(
-            Site.organization_id == organization_id
-        )
+        # #27 (Ana): organization_id=None significa TODAS las organizaciones
+        # (admin). Lo decide `get_org_scope` en shared/dependencies.py.
+        query = select(Sensor).join(Site)
+        if organization_id is not None:
+            query = query.where(Site.organization_id == organization_id)
 
         total = self.db.scalar(
             select(func.count()).select_from(query.subquery())
@@ -43,16 +45,13 @@ class SensorRepository:
     def get_by_id(
         self,
         sensor_id: UUID,
-        organization_id: UUID,
+        organization_id: UUID | None,
     ) -> Sensor | None:
-        query = (
-            select(Sensor)
-            .join(Site)
-            .where(
-                Sensor.id == sensor_id,
-                Site.organization_id == organization_id,
-            )
-        )
+        # #27 (Ana): organization_id=None significa TODAS las organizaciones
+        # (admin). Lo decide `get_org_scope` en shared/dependencies.py.
+        query = select(Sensor).join(Site).where(Sensor.id == sensor_id)
+        if organization_id is not None:
+            query = query.where(Site.organization_id == organization_id)
         return self.db.scalar(query)
 
     def get(self, sensor_id: UUID) -> Sensor | None:
