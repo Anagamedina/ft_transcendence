@@ -57,8 +57,11 @@ ReadingSvc = Annotated[ReadingService, Depends(get_reading_service)]
         "(issue #16). Devuelve **201** con la lectura registrada.\n\n"
         "`measured_at` es opcional: si no se envía, el servidor usa el "
         "momento de recepción.\n\n"
-        "_La persistencia depende del repository de Daruny (issue #14). "
-        "Mientras no exista, una petición válida responde 501 indicándolo._"
+        "Si la presión se sale de los umbrales del sensor, se abre una "
+        "alerta `LOW_PRESSURE` o `HIGH_PRESSURE` (visible en "
+        "`GET /api/alerts`). Mientras siga abierta, las lecturas "
+        "siguientes no crean otra; solo pueden subirla de `WARNING` a "
+        "`CRITICAL`."
     ),
     responses={
         **error_response(
@@ -69,10 +72,6 @@ ReadingSvc = Annotated[ReadingService, Depends(get_reading_service)]
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             "Presión fuera del rango 0–25 bar, campo desconocido o cuerpo "
             "mal formado.",
-        ),
-        **error_response(
-            status.HTTP_501_NOT_IMPLEMENTED,
-            "Falta el repository de readings (issue #14, Daruny).",
         ),
     },
 )

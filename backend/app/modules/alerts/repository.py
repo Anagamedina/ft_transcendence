@@ -87,3 +87,28 @@ class AlertRepository:
         alert.status = "RESOLVED"
         alert.resolved_at = when
         return alert
+
+    # Añadidos por Ana para las reglas de la #28. Sin filtro por
+    # organización a propósito: los llama `ReadingService.create()`, que
+    # recibe lecturas del simulador, sin sesión, y ya ha comprobado que el
+    # sensor existe.
+    def get_active(self, sensor_id: UUID, alert_type: str) -> Alert | None:
+        # La más reciente, por si ya hubiera dos abiertas: nada en la
+        # tabla lo impide todavía.
+        query = (
+            select(Alert)
+            .where(
+                Alert.sensor_id == sensor_id,
+                Alert.alert_type == alert_type,
+                Alert.status == "ACTIVE",
+            )
+            .order_by(Alert.created_at.desc())
+            .limit(1)
+        )
+        return self.db.scalar(query)
+
+    def escalate(self, alert: Alert, severity: str, message: str) -> Alert:
+        alert.severity = severity
+        alert.message = message
+        self.db.flush()
+        return alert
