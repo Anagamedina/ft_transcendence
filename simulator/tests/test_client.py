@@ -1,8 +1,11 @@
+import json
 import threading
+import uuid
 
 import httpx
 
 from app.client import ReadingsClient
+from app.main import build_reading
 
 READING = {"sensor_id": "6f1c8a2e-6b3d-4f9a-9c21-0b7e5d3a9d4b", "pressure": 3.42, "measured_at": "2026-09-16T10:00:00Z"}
 
@@ -54,6 +57,28 @@ def test_network_error_recovers_on_retry():
     client, calls = _client(handler)
     assert client.send(READING) is True
     assert len(calls) == 2
+
+
+def test_retries_reuse_the_same_reading_id():
+    reading = build_reading("6f1c8a2e-6b3d-4f9a-9c21-0b7e5d3a9d4b", 3.42)
+    responses = iter([httpx.ReadTimeout("timeout"), httpx.Response(504), httpx.Response(201, json={})])
+
+    def handler(request):
+        outcome = next(responses)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    client, calls = _client(handler)
+    assert client.send(reading) is True
+    assert len(calls) == 3
+    assert {json.loads(call.read())["id"] for call in calls} == {reading["id"]}
+
+
+def test_each_reading_gets_its_own_id():
+    first = build_reading("6f1c8a2e-6b3d-4f9a-9c21-0b7e5d3a9d4b", 3.42)
+    second = build_reading("6f1c8a2e-6b3d-4f9a-9c21-0b7e5d3a9d4b", 3.42)
+    assert uuid.UUID(first["id"]) != uuid.UUID(second["id"])
 
 
 def test_wait_until_ready_returns_true_once_health_db_is_up():

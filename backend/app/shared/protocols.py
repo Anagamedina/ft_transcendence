@@ -72,6 +72,7 @@ class ReadingRepository(Protocol):
         value: float,
         unit: str,
         recorded_at: datetime,
+        id: UUID | None = None,
     ) -> Any:
         """
         Inserta una lectura y devuelve la fila creada, con su id.
@@ -86,6 +87,10 @@ class ReadingRepository(Protocol):
         (`sensors/model.py`), y así la unidad de la lectura no puede
         contradecir la del sensor que la emitió.
         """
+        ...
+
+    def get(self, reading_id: UUID) -> Any | None:
+        """La lectura con ese id, o `None`. Sin filtro de organización."""
         ...
 
     def list_by_sensor(

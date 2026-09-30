@@ -76,6 +76,15 @@ class ReadingCreate(ApiRequest):
     silencio.
     """
 
+    id: UUID | None = Field(
+        default=None,
+        description=(
+            "Identificador de la lectura generado por el emisor. "
+            "**Opcional**: si no se envía, lo genera la base. El simulador "
+            "lo manda y lo reutiliza en los reintentos."
+        ),
+        examples=["0b7e5d3a-9d4b-4f9a-9c21-6f1c8a2e6b3d"],
+    )
     sensor_id: UUID = Field(
         description="Sensor que emite la lectura.",
         examples=["6f1c8a2e-6b3d-4f9a-9c21-0b7e5d3a9d4b"],

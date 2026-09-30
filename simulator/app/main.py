@@ -4,6 +4,7 @@ import random
 import signal
 import sys
 import threading
+import uuid
 from datetime import datetime, timezone
 
 from app.client import ReadingsClient
@@ -15,7 +16,7 @@ logger = logging.getLogger("simulator")
 
 def build_reading(sensor_id: str, pressure: float) -> dict:
     measured_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
-    return {"sensor_id": sensor_id, "pressure": pressure, "measured_at": measured_at}
+    return {"id": str(uuid.uuid4()), "sensor_id": sensor_id, "pressure": pressure, "measured_at": measured_at}
 
 
 def _touch_heartbeat(path: str) -> None:
