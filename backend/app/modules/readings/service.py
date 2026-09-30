@@ -28,7 +28,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.core.database import transaction
-from app.core.exceptions import NotFoundError, NotImplementedYetError
+from app.core.exceptions import ConflictError, NotFoundError, NotImplementedYetError
 from app.modules.alerts.repository import AlertRepository as SqlAlertRepository
 from app.modules.alerts.rules import evaluar_presion
 from app.modules.alerts.schemas import AlertSeverity
@@ -128,6 +128,20 @@ class ReadingService:
 
         measured_at = self._resolve_measured_at(payload.measured_at)
 
+        # Idempotencia: el simulador genera el `id` y lo reutiliza en los
+        # reintentos. Si la primera petición se guardó pero su respuesta se
+        # perdió, el reintento llega con un `id` que ya existe: se devuelve
+        # la lectura guardada, sin insertar otra ni volver a evaluar alertas.
+        if payload.id is not None:
+            existente = self.readings.get(payload.id)
+            if existente is not None:
+                if not self._es_la_misma_lectura(existente, sensor.id, payload):
+                    raise ConflictError(
+                        "Ya existe una lectura con ese id y datos distintos.",
+                        code="READING_ID_CONFLICT",
+                    )
+                return self._to_response(existente)
+
         # `transaction` confirma al salir y deshace si algo revienta. Hace
         # falta ponerlo aquí: `get_db` (core/database.py) solo cierra la
         # sesión, y el repository solo hace `flush`. Sin este bloque la
@@ -148,6 +162,7 @@ class ReadingService:
                 value=payload.pressure,
                 unit=sensor.unit,
                 recorded_at=measured_at,
+                id=payload.id,
             )
             self._aplicar_reglas(sensor, payload.pressure)
 
@@ -203,6 +218,27 @@ class ReadingService:
             total=total,
             page=offset // limit + 1,
             page_size=limit,
+        )
+
+    @classmethod
+    def _es_la_misma_lectura(
+        cls, existente: Any, sensor_id: UUID, payload: ReadingCreate
+    ) -> bool:
+        """
+        Compara un reintento con la lectura ya guardada.
+
+        `pressure` se redondea a 3 decimales porque la columna es
+        `Numeric(10,3)`. `measured_at` solo se compara si viene en la
+        petición: sin él, cada intento resolvería un «ahora» distinto.
+        """
+        if existente.sensor_id != sensor_id:
+            return False
+        if round(float(existente.value), 3) != round(payload.pressure, 3):
+            return False
+        if payload.measured_at is None:
+            return True
+        return cls._resolve_measured_at(existente.recorded_at) == (
+            cls._resolve_measured_at(payload.measured_at)
         )
 
     @staticmethod

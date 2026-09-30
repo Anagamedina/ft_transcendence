@@ -167,3 +167,45 @@ def test_una_lectura_rechazada_no_deja_rastro(client, engine):
 
     with Session(engine) as otra_sesion:
         assert otra_sesion.query(Reading).count() == 0
+
+
+def test_id_enviado_por_el_emisor_se_usa_como_id_de_la_lectura(client, sensor_id, engine):
+    """El simulador genera el id y lo reutiliza en los reintentos."""
+    reading_id = uuid4()
+    respuesta = client.post(
+        "/api/readings",
+        json={"id": str(reading_id), "sensor_id": str(sensor_id), "pressure": 3.42},
+    )
+
+    assert respuesta.status_code == 201
+    assert respuesta.json()["id"] == str(reading_id)
+    with Session(engine) as otra_sesion:
+        assert otra_sesion.query(Reading).one().id == reading_id
+
+
+def test_reenviar_la_misma_lectura_no_la_duplica(client, sensor_id, engine):
+    cuerpo = {"id": str(uuid4()), "sensor_id": str(sensor_id), "pressure": 3.42}
+
+    primera = client.post("/api/readings", json=cuerpo)
+    segunda = client.post("/api/readings", json=cuerpo)
+
+    assert primera.status_code == segunda.status_code == 201
+    assert segunda.json()["id"] == primera.json()["id"]
+    with Session(engine) as otra_sesion:
+        assert otra_sesion.query(Reading).count() == 1
+
+
+def test_mismo_id_con_datos_distintos_devuelve_409(client, sensor_id):
+    reading_id = str(uuid4())
+    client.post(
+        "/api/readings",
+        json={"id": reading_id, "sensor_id": str(sensor_id), "pressure": 3.42},
+    )
+
+    respuesta = client.post(
+        "/api/readings",
+        json={"id": reading_id, "sensor_id": str(sensor_id), "pressure": 5.0},
+    )
+
+    assert respuesta.status_code == 409
+    assert respuesta.json()["error"]["code"] == "READING_ID_CONFLICT"

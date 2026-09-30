@@ -111,11 +111,13 @@ The root `Makefile` wraps the Compose commands:
 | `make env`         | Creates `.env` from `.env.example` only when it does not exist                                                   |
 | `make certs`       | Generates a self-signed TLS certificate in `gateway/certs/` only when it does not exist                          |
 | `make build`       | Builds the images without starting them                                                                          |
-| `make down`        | Stops the containers and keeps the PostgreSQL volume                                                             |
+| `make sim`         | Same as `make up` plus the `sim` profile, which starts the sensor simulator                                      |
+| `make seed`        | Loads the demo data inside the running `backend` container; safe to run more than once                           |
+| `make down`        | Stops the containers, simulator included, and keeps the PostgreSQL volume                                        |
 | `make logs`        | Follows the logs of every running service                                                                        |
 | `make ps`          | Shows service status                                                                                             |
-| `make clean`       | `down --remove-orphans`                                                                                          |
-| `make fclean`      | `down -v --remove-orphans`, which deletes the PostgreSQL volume                                                  |
+| `make clean`       | `down --remove-orphans`, simulator included                                                                      |
+| `make fclean`      | `down -v --remove-orphans`, simulator included, which deletes the PostgreSQL volume                              |
 | `make re`          | `fclean` followed by `up`, a start from scratch                                                                  |
 
 `make fclean` destroys the database volume. PostgreSQL only creates its user on
@@ -233,9 +235,10 @@ data types, and relationships once the schema is implemented.
 | Database readiness endpoint (`GET /api/health/db`)                          | Implemented   | TBD            | `curl -k https://localhost/api/health/db`                                                                       |
 | Compose orchestration (network, volume, profiles)                           | Implemented   | Eduardo        | `make up` then `make ps`                                                                                        |
 | Nginx gateway: HTTPS, HTTP redirect, SPA, `/api` and `/ws` proxy            | Implemented   | Eduardo        | `curl -I http://localhost` returns 301, `curl -k https://localhost/api/health` returns 200                      |
-| Authentication: register, login, logout and `GET /api/me`                   | Implemented   | Ana            | `cd backend && python3 -m pytest -q` (125 tests), or `curl -k -c c.txt -X POST https://localhost/api/auth/login -H 'Content-Type: application/json' -d '{"email":"...","password":"..."}'` then `curl -k -b c.txt https://localhost/api/me` |
-| Sensor readings: store and list (`POST /api/readings`, `GET /api/sensors/{id}/readings`) | Implemented | Daruny, Ana | `cd backend && python3 -m pytest -q` (125 tests). History is paginated and scoped to the session's organization   |
-| Alerts: list, acknowledge, resolve, and low/high pressure rules            | In progress   | Daruny, Ana    | `cd backend && python3 -m pytest -q` (125 tests). A reading outside the sensor's thresholds opens an alert; `SENSOR_OFFLINE` pending (#28) |
+| Sensor simulator (`simulator/`): normal, low, high and offline scenarios    | Implemented   | Eduardo        | `cd simulator && pytest` (26 tests); `make up && make seed && make sim`. The seed creates the sensors listed in `.env.example`, so readings persist via `POST /api/readings` (#24) with no manual setup; waits for `/api/health/db` before sending, exposes its own container `HEALTHCHECK`, and demo users get real Argon2 hashes (#89) |
+| Authentication: register, login, logout and `GET /api/me`                   | Implemented   | Ana            | `cd backend && python3 -m pytest -q` (131 tests), or `curl -k -c c.txt -X POST https://localhost/api/auth/login -H 'Content-Type: application/json' -d '{"email":"...","password":"..."}'` then `curl -k -b c.txt https://localhost/api/me` |
+| Sensor readings: store and list (`POST /api/readings`, `GET /api/sensors/{id}/readings`) | Implemented | Daruny, Ana | `cd backend && python3 -m pytest -q` (131 tests). History is paginated and scoped to the session's organization   |
+| Alerts: list, acknowledge, resolve, and low/high pressure rules            | In progress   | Daruny, Ana    | `cd backend && python3 -m pytest -q` (131 tests). A reading outside the sensor's thresholds opens an alert; `SENSOR_OFFLINE` pending (#28) |
 | Admin dashboard: KPIs, sites, sensors and active alerts summaries           | In progress   | Florinda       | Run `./scripts/launch-frontend.sh`, visit `/admin` (layout and summaries render; data appears once stores are loaded) |
 
 Every pull request that adds a feature should update this table with its status,
@@ -413,15 +416,14 @@ label planned work separately from implemented work.
 
 ## Known limitations
 
-- The `simulator` service is declared but gated behind the `sim` profile,
-  because its Dockerfile is still scaffolding.
+- The `simulator` service is declared but gated behind the `sim` profile, so
+  it does not start with the default `make up`; run `make sim` to include it.
 - TLS certificates are self-signed, so browsers warn on first visit. A
   publicly trusted certificate is out of scope for this project.
 - The gateway serves a production build of the SPA. Frontend development still
   uses the Vite dev server through `./scripts/launch-frontend.sh`.
 - `.env` generation exists twice, as `make env` and as `scripts/create_env`.
   The team must settle on one.
-- Simulator code and dependencies are still scaffolding.
 - Database models and migration bodies are not implemented yet.
 - The README placeholders must be completed by the team.
 

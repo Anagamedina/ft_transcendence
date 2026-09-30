@@ -10,13 +10,14 @@ service llame a un doble, sino que la traducción entre el contrato HTTP
 
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from app.core.database import Base
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import ConflictError, NotFoundError
 from app.modules.alerts.model import Alert
 from app.modules.alerts.repository import AlertRepository
 from app.modules.organizations.model import Organization
@@ -298,3 +299,45 @@ def test_si_falla_la_alerta_tampoco_se_guarda_la_lectura(
 
     assert db.query(Reading).count() == 0
     assert _alertas(db) == []
+
+
+# ---------------------------------------------------------
+# Idempotencia: el simulador reutiliza el `id` en los reintentos.
+
+
+def test_reintento_con_el_mismo_id_devuelve_la_lectura_existente(
+    service, sensor_con_umbrales, db: Session
+):
+    payload = ReadingCreate(
+        id=uuid4(),
+        sensor_id=sensor_con_umbrales.id,
+        pressure=1.3,
+        measured_at=datetime(2026, 9, 24, 9, 15, tzinfo=timezone.utc),
+    )
+
+    primera = service.create(payload)
+    segunda = service.create(payload)
+
+    assert (segunda.id, segunda.pressure) == (primera.id, primera.pressure)
+    assert db.query(Reading).count() == 1
+    assert len(_alertas(db)) == 1
+
+
+def test_reintento_sin_measured_at_tambien_es_idempotente(service, sensor, db: Session):
+    payload = ReadingCreate(id=uuid4(), sensor_id=sensor.id, pressure=3.42)
+
+    service.create(payload)
+    service.create(payload)
+
+    assert db.query(Reading).count() == 1
+
+
+def test_mismo_id_con_datos_distintos_da_409(service, sensor, db: Session):
+    reading_id = uuid4()
+    service.create(ReadingCreate(id=reading_id, sensor_id=sensor.id, pressure=3.42))
+
+    with pytest.raises(ConflictError) as error:
+        service.create(ReadingCreate(id=reading_id, sensor_id=sensor.id, pressure=5.0))
+
+    assert error.value.code == "READING_ID_CONFLICT"
+    assert db.query(Reading).count() == 1

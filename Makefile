@@ -2,7 +2,7 @@ COMPOSE     := docker compose
 COMPOSE_DEV := docker compose -f compose.yaml -f compose.dev.yaml
 CERTS_DIR   := gateway/certs
 
-.PHONY: all env certs up dev down build logs ps clean fclean re
+.PHONY: all env certs up dev sim seed down build logs ps clean fclean re
 
 all: up
 
@@ -26,8 +26,15 @@ dev: env certs
 	$(COMPOSE_DEV) up --build -d
 	@$(COMPOSE_DEV) ps
 
+sim: env certs
+	$(COMPOSE) --profile sim up --build -d
+	@$(COMPOSE) --profile sim ps
+
+seed:
+	$(COMPOSE) exec backend python -m seeds.seed_demo
+
 down:
-	$(COMPOSE) down
+	$(COMPOSE) --profile sim down
 
 build: env
 	$(COMPOSE) build
@@ -39,9 +46,9 @@ ps:
 	$(COMPOSE) ps
 
 clean:
-	$(COMPOSE) down --remove-orphans
+	$(COMPOSE) --profile sim down --remove-orphans
 
 fclean:
-	$(COMPOSE) down -v --remove-orphans
+	$(COMPOSE) --profile sim down -v --remove-orphans
 
 re: fclean up

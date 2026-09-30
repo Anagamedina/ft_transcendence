@@ -1,34 +1,12 @@
-# SEED DEMO — datos iniciales deterministas (org, site, sensor, user demo).
-# Ejecutar tras migraciones para demos reproducibles.
-"""
-Seed de desarrollo — issue #15.
-
-Objetivo: dejar una base recién migrada con datos suficientes para el
-vertical slice (org, usuarios, sites, sensores) sin insertar nada a mano.
-
-Diseño: cada entidad se busca por su clave natural antes
-de crearla (nombre de organización, email de usuario, nombre de site
-dentro de la organización, external_id de sensor dentro del site).
-Ejecutarlo dos veces deja el mismo resultado, no datos duplicados.
-
-Todo ocurre en una única transacción (ver `transaction()` en
-`app.core.database`): si algo falla a mitad, se hace rollback completo y
-no queda un estado parcial.
-
-Uso, desde `backend/` y con las migraciones ya aplicadas:
-
-    python -m seeds.seed_demo
-"""
-
 from __future__ import annotations
 
-import hashlib
 from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal, transaction
+from app.core.security import hash_password, verify_password
 
 # Importados para registrar sus modelos en el mapper de SQLAlchemy:
 # Sensor referencia "Reading" y "Alert" como relaciones, y esas clases
@@ -42,20 +20,6 @@ from app.modules.sites.model import Site
 from app.modules.users.model import User
 
 ORGANIZATION_NAME = "Demo"
-
-
-def _placeholder_password_hash(password: str) -> str:
-    """
-    Hash de marcador de posición — SOLO para datos de desarrollo.
-
-    Todavía no existe un hasher real: `app/core/security.py`
-    Usamos sha256 de la librería estándar porque es determinista y no añade una dependencia nueva antes
-    de que se decida cuál usar en producción (Argon2/bcrypt).
-
-    Cuando #26 aporte el hasher definitivo.
-    ejecutar el seed - estos usuarios habrá que recrearlos, ya que este hash no es compatible con un verificador real.
-    """
-    return "seed-sha256$" + hashlib.sha256(password.encode("utf-8")).hexdigest()
 
 
 def _get_or_create_organization(db: Session, name: str) -> Organization:
@@ -81,12 +45,15 @@ def _get_or_create_user(
     if user is not None:
         if user.name == "Migrated User":
             user.name = name
+        if not verify_password(password, user.password_hash):
+            user.password_hash = hash_password(password)
+        user.organization_id = organization_id
         return user
     user = User(
         organization_id=organization_id,
         email=email,
         name=name,
-        password_hash=_placeholder_password_hash(password),
+        password_hash=hash_password(password),
         role=role,
     )
     db.add(user)
@@ -125,6 +92,7 @@ def _get_or_create_site(
 def _get_or_create_sensor(
     db: Session,
     *,
+    sensor_id: UUID,
     site_id: UUID,
     external_id: str,
     name: str,
@@ -140,6 +108,7 @@ def _get_or_create_sensor(
     if sensor is not None:
         return sensor
     sensor = Sensor(
+        id=sensor_id,
         site_id=site_id,
         external_id=external_id,
         name=name,
@@ -160,7 +129,7 @@ def seed() -> None:
 
             _get_or_create_user(
                 db,
-                organization_id=organization.id,
+                organization_id=None,
                 email="admin@aquaguard.dev",
                 name="Demo Admin",
                 password="dev-admin-only",
@@ -194,6 +163,7 @@ def seed() -> None:
 
             _get_or_create_sensor(
                 db,
+                sensor_id=UUID("00000000-0000-4000-8000-000000000001"),
                 site_id=site_hotel.id,
                 external_id="SENS-001",
                 name="Presión entrada",
@@ -203,6 +173,7 @@ def seed() -> None:
             )
             _get_or_create_sensor(
                 db,
+                sensor_id=UUID("00000000-0000-4000-8000-000000000002"),
                 site_id=site_hotel.id,
                 external_id="SENS-002",
                 name="Presión salida",
@@ -212,6 +183,7 @@ def seed() -> None:
             )
             _get_or_create_sensor(
                 db,
+                sensor_id=UUID("00000000-0000-4000-8000-000000000003"),
                 site_id=site_office.id,
                 external_id="SENS-003",
                 name="Presión general",
