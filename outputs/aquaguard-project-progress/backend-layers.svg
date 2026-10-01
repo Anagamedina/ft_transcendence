@@ -1,0 +1,1512 @@
+<svg aria-roledescription="flowchart-v2" role="graphics-document document" viewBox="0 -1 5210.875 1545" height="1545" class="flowchart" xmlns="http://www.w3.org/2000/svg" width="5210.875" id="backend-layers-tb">
+<style>#backend-layers-tb{font-family:system-ui,sans-serif;font-size:16px;fill:#000000;}#backend-layers-tb .error-icon{fill:#552222;}#backend-layers-tb .error-text{fill:#552222;stroke:#552222;}#backend-layers-tb .edge-thickness-normal{stroke-width:1px;}#backend-layers-tb .edge-thickness-thick{stroke-width:3.5px;}#backend-layers-tb .edge-pattern-solid{stroke-dasharray:0;}#backend-layers-tb .edge-thickness-invisible{stroke-width:0;fill:none;}#backend-layers-tb .edge-pattern-dashed{stroke-dasharray:3;}#backend-layers-tb .edge-pattern-dotted{stroke-dasharray:2;}#backend-layers-tb .marker{fill:#666;stroke:#666;}#backend-layers-tb .marker.cross{stroke:#666;}#backend-layers-tb svg{font-family:system-ui,sans-serif;font-size:16px;}#backend-layers-tb p{margin:0;}#backend-layers-tb .label{font-family:system-ui,sans-serif;color:#000000;}#backend-layers-tb .cluster-label text{fill:#333;}#backend-layers-tb .cluster-label span{color:#333;}#backend-layers-tb .cluster-label span p{background-color:transparent;}#backend-layers-tb .label text,#backend-layers-tb span{fill:#000000;color:#000000;}#backend-layers-tb .node rect,#backend-layers-tb .node circle,#backend-layers-tb .node ellipse,#backend-layers-tb .node polygon,#backend-layers-tb .node path{fill:#eee;stroke:#999;stroke-width:1px;}#backend-layers-tb .rough-node .label text,#backend-layers-tb .node .label text,#backend-layers-tb .image-shape .label,#backend-layers-tb .icon-shape .label{text-anchor:middle;}#backend-layers-tb .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#backend-layers-tb .rough-node .label,#backend-layers-tb .node .label,#backend-layers-tb .image-shape .label,#backend-layers-tb .icon-shape .label{text-align:center;}#backend-layers-tb .node.clickable{cursor:pointer;}#backend-layers-tb .root .anchor path{fill:#666!important;stroke-width:0;stroke:#666;}#backend-layers-tb .arrowheadPath{fill:#333333;}#backend-layers-tb .edgePath .path{stroke:#666;stroke-width:2.0px;}#backend-layers-tb .flowchart-link{stroke:#666;fill:none;}#backend-layers-tb .edgeLabel{background-color:white;text-align:center;}#backend-layers-tb .edgeLabel p{background-color:white;}#backend-layers-tb .edgeLabel rect{opacity:0.5;background-color:white;fill:white;}#backend-layers-tb .labelBkg{background-color:rgba(255, 255, 255, 0.5);}#backend-layers-tb .cluster rect{fill:hsl(0, 0%, 98.9215686275%);stroke:#707070;stroke-width:1px;}#backend-layers-tb .cluster text{fill:#333;}#backend-layers-tb .cluster span{color:#333;}#backend-layers-tb div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:system-ui,sans-serif;font-size:12px;background:hsl(-160, 0%, 93.3333333333%);border:1px solid #707070;border-radius:2px;pointer-events:none;z-index:100;}#backend-layers-tb .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#000000;}#backend-layers-tb rect.text{fill:none;stroke-width:0;}#backend-layers-tb .icon-shape,#backend-layers-tb .image-shape{background-color:white;text-align:center;}#backend-layers-tb .icon-shape p,#backend-layers-tb .image-shape p{background-color:white;padding:2px;}#backend-layers-tb .icon-shape rect,#backend-layers-tb .image-shape rect{opacity:0.5;background-color:white;fill:white;}#backend-layers-tb :root{--mermaid-font-family:system-ui,sans-serif;}#backend-layers-tb .pending rect{fill:#fff7ed!important;stroke:#b45309!important;stroke-dasharray:5 4!important;color:#7c2d12!important;}#backend-layers-tb .pending polygon{fill:#fff7ed!important;stroke:#b45309!important;stroke-dasharray:5 4!important;color:#7c2d12!important;}#backend-layers-tb .pending ellipse{fill:#fff7ed!important;stroke:#b45309!important;stroke-dasharray:5 4!important;color:#7c2d12!important;}#backend-layers-tb .pending circle{fill:#fff7ed!important;stroke:#b45309!important;stroke-dasharray:5 4!important;color:#7c2d12!important;}#backend-layers-tb .pending path{fill:#fff7ed!important;stroke:#b45309!important;stroke-dasharray:5 4!important;color:#7c2d12!important;}#backend-layers-tb .pending tspan{fill:#7c2d12!important;}</style>
+<g>
+<marker orient="auto" markerHeight="8" markerWidth="8" markerUnits="userSpaceOnUse" refY="5" refX="5" viewBox="0 0 10 10" class="marker flowchart-v2" id="backend-layers-tb_flowchart-v2-pointEnd">
+<path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 0 L 10 5 L 0 10 z">
+</path>
+</marker>
+<marker orient="auto" markerHeight="8" markerWidth="8" markerUnits="userSpaceOnUse" refY="5" refX="4.5" viewBox="0 0 10 10" class="marker flowchart-v2" id="backend-layers-tb_flowchart-v2-pointStart">
+<path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 5 L 10 10 L 10 0 z">
+</path>
+</marker>
+<marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="11" viewBox="0 0 10 10" class="marker flowchart-v2" id="backend-layers-tb_flowchart-v2-circleEnd">
+<circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5">
+</circle>
+</marker>
+<marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="-1" viewBox="0 0 10 10" class="marker flowchart-v2" id="backend-layers-tb_flowchart-v2-circleStart">
+<circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5">
+</circle>
+</marker>
+<marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="12" viewBox="0 0 11 11" class="marker cross flowchart-v2" id="backend-layers-tb_flowchart-v2-crossEnd">
+<path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9">
+</path>
+</marker>
+<marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="-1" viewBox="0 0 11 11" class="marker cross flowchart-v2" id="backend-layers-tb_flowchart-v2-crossStart">
+<path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9">
+</path>
+</marker>
+<g class="root">
+<g class="clusters">
+<g data-look="classic" id="data" class="cluster">
+<rect height="561" width="1032.1015625" y="975" x="8" style="">
+</rect>
+<g transform="translate(458.7129669189453, 975)" class="cluster-label">
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+<text style="" y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal">4</tspan>
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal"> ·</tspan>
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal"> Seis</tspan>
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal"> modelos</tspan>
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal"> /</tspan>
+</tspan>
+<tspan dy="1.1em" y="1em" x="0" class="text-outer-tspan">
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal">PostgreSQL</tspan>
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal"> 16</tspan>
+</tspan>
+</text>
+</g>
+</g>
+</g>
+<g data-look="classic" id="persistence" class="cluster">
+<rect height="330" width="1606.140625" y="797" x="3397.875" style="">
+</rect>
+<g transform="translate(4138.388748168945, 797)" class="cluster-label">
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+<text style="" y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal">3</tspan>
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal"> ·</tspan>
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal"> Repositories</tspan>
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal"> /</tspan>
+</tspan>
+<tspan dy="1.1em" y="1em" x="0" class="text-outer-tspan">
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal">transacción</tspan>
+</tspan>
+</text>
+</g>
+</g>
+</g>
+<g data-look="classic" id="business" class="cluster">
+<rect height="305" width="1985.53125" y="620" x="1225.1015625" style="">
+</rect>
+<g transform="translate(2127.6015625, 620)" class="cluster-label">
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+<text style="" y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal">2</tspan>
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal"> ·</tspan>
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal"> Casos</tspan>
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal"> de</tspan>
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal"> uso</tspan>
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal"> /</tspan>
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal"> reglas</tspan>
+</tspan>
+</text>
+</g>
+</g>
+</g>
+<g data-look="classic" id="http" class="cluster">
+<rect height="305" width="3008.1640625" y="265" x="1604.5703125" style="">
+</rect>
+<g transform="translate(3032.7832794189453, 265)" class="cluster-label">
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+<text style="" y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal">1</tspan>
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal"> ·</tspan>
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal"> HTTP</tspan>
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal"> /</tspan>
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal"> schemas</tspan>
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal"> /</tspan>
+</tspan>
+<tspan dy="1.1em" y="1em" x="0" class="text-outer-tspan">
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal">dependencies</tspan>
+</tspan>
+</text>
+</g>
+</g>
+</g>
+<g data-look="classic" id="entry" class="cluster">
+<rect height="385" width="570.140625" y="8" x="4632.734375" style="">
+</rect>
+<g transform="translate(4843.4765625, 8)" class="cluster-label">
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+<text style="" y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal">Entrada</tspan>
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal"> y</tspan>
+<tspan font-weight="normal" class="text-inner-tspan" font-style="normal"> bootstrap</tspan>
+</tspan>
+</text>
+</g>
+</g>
+</g>
+</g>
+<g class="edgePaths">
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_FE_NG_0" d="M4762.805,87L4762.805,91.167C4762.805,95.333,4762.805,103.667,4762.805,113.333C4762.805,123,4762.805,134,4762.805,139.5L4762.805,145">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_NG_MAIN_1" d="M4762.805,203L4762.805,209.167C4762.805,215.333,4762.805,227.667,4762.805,238C4762.805,248.333,4762.805,256.667,4786.334,266.308C4809.863,275.949,4856.921,286.898,4880.45,292.372L4903.979,297.847">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_SIM_MAIN_2" d="M5037.875,215L5037.875,219.167C5037.875,223.333,5037.875,231.667,5037.875,240C5037.875,248.333,5037.875,256.667,5037.875,264.333C5037.875,272,5037.875,279,5037.875,282.5L5037.875,286">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_OM_UM_3" d="M219.409,1078L199.591,1086.167C179.772,1094.333,140.136,1110.667,120.318,1123C100.5,1135.333,100.5,1143.667,104.72,1151.559C108.941,1159.451,117.381,1166.902,121.601,1170.627L125.822,1174.353">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_OM_STM_4" d="M324.694,1078L336.722,1086.167C348.749,1094.333,372.804,1110.667,384.832,1123C396.859,1135.333,396.859,1143.667,396.859,1153.333C396.859,1163,396.859,1174,396.859,1179.5L396.859,1185">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_STM_SM_5" d="M396.859,1243L396.859,1249.167C396.859,1255.333,396.859,1267.667,403.811,1277.677C410.763,1287.688,424.667,1295.376,431.619,1299.22L438.571,1303.064">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_SM_RM_6" d="M512.602,1383L512.602,1387.167C512.602,1391.333,512.602,1399.667,515.597,1407.485C518.592,1415.302,524.582,1422.605,527.577,1426.256L530.572,1429.907">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_SM_AM_7" d="M642.602,1377.616L662.185,1382.68C681.768,1387.744,720.935,1397.872,747.423,1406.779C773.91,1415.685,787.719,1423.37,794.624,1427.212L801.528,1431.055">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_DB_PG_8" d="M4010.02,1102L4010.02,1106.167C4010.02,1110.333,4010.02,1118.667,3423.133,1127C2836.247,1135.333,1662.475,1143.667,1080.34,1152.718C498.205,1161.769,507.707,1171.537,512.458,1176.421L517.209,1181.306">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_MAIN_AUTH_9" d="M4907.875,356.491L4879.102,362.576C4850.328,368.661,4792.781,380.83,4304.655,391.082C3816.529,401.333,2897.823,409.667,2448.964,419.676C2000.106,429.685,2021.095,441.37,2031.589,447.212L2042.084,453.054">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_MAIN_USER_10" d="M4907.875,354.787L4875.768,361.156C4843.661,367.525,4779.448,380.262,4252.9,390.798C3726.352,401.333,2737.469,409.667,2250.516,421.522C1763.563,433.378,1778.539,448.756,1786.027,456.445L1793.516,464.134">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_MAIN_READ_11" d="M4907.875,358.437L4882.435,364.197C4856.995,369.958,4806.115,381.479,4368.241,391.406C3930.367,401.333,3105.5,409.667,2704.241,419.691C2302.983,429.714,2325.332,441.429,2336.507,447.286L2347.682,453.143">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_MAIN_ALERT_12" d="M5082.055,368L5086.775,372.167C5091.495,376.333,5100.935,384.667,4735.698,393C4370.461,401.333,3630.547,409.667,3272.568,419.707C2914.589,429.746,2938.545,441.493,2950.524,447.366L2962.502,453.239">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_MAIN_HEALTH_13" d="M5094.242,368L5100.264,372.167C5106.286,376.333,5118.331,384.667,5010.579,393C4902.828,401.333,4675.281,409.667,4561.508,419.333C4447.734,429,4447.734,440,4447.734,445.5L4447.734,451">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link" id="L_MAIN_PENDING_14" d="M5069.867,368L5073.285,372.167C5076.703,376.333,5083.539,384.667,4694.5,393C4305.461,401.333,3520.547,409.667,3128.09,417.333C2735.633,425,2735.633,432,2735.633,435.5L2735.633,439">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_SCHEMA_AUTH_15" d="M2164.461,368L2156.323,372.167C2148.185,376.333,2131.909,384.667,2123.771,393C2115.633,401.333,2115.633,409.667,2115.633,419.333C2115.633,429,2115.633,440,2115.633,445.5L2115.633,451">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_SCHEMA_USER_16" d="M2110.633,348.903L2062.628,356.252C2014.622,363.602,1918.612,378.301,1870.607,389.817C1822.602,401.333,1822.602,409.667,1822.602,421.333C1822.602,433,1822.602,448,1822.602,455.5L1822.602,463">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_SCHEMA_READ_17" d="M2353.367,368L2365.411,372.167C2377.456,376.333,2401.544,384.667,2413.589,393C2425.633,401.333,2425.633,409.667,2425.633,419.333C2425.633,429,2425.633,440,2425.633,445.5L2425.633,451">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_SCHEMA_ALERT_18" d="M2370.633,339.335L2483.133,348.28C2595.633,357.224,2820.633,375.112,2933.133,388.223C3045.633,401.333,3045.633,409.667,3045.633,419.333C3045.633,429,3045.633,440,3045.633,445.5L3045.633,451">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_DEP_AUTH_19" d="M2430.633,356.733L2402.299,362.778C2373.966,368.822,2317.299,380.911,2288.966,391.122C2260.633,401.333,2260.633,409.667,2249.458,419.691C2238.283,429.714,2215.933,441.429,2204.758,447.286L2193.584,453.143">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_DEP_USER_20" d="M2430.633,342.832L2352.047,351.193C2273.461,359.554,2116.289,376.277,2037.703,388.805C1959.117,401.333,1959.117,409.667,1945.03,421.676C1930.943,433.685,1902.769,449.37,1888.682,457.212L1874.595,465.054">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_DEP_READ_21" d="M2572.82,368L2574.122,372.167C2575.424,376.333,2578.029,384.667,2579.331,393C2580.633,401.333,2580.633,409.667,2568.655,419.707C2556.676,429.746,2532.72,441.493,2520.742,447.366L2508.764,453.239">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_DEP_ALERT_22" d="M2690.633,342L2775.633,350.5C2860.633,359,3030.633,376,3115.633,388.667C3200.633,401.333,3200.633,409.667,3188.655,419.707C3176.676,429.746,3152.72,441.493,3140.742,447.366L3128.764,453.239">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_DEP_UR_23" d="M2690.633,337.667L2828.966,346.889C2967.299,356.111,3243.966,374.556,3382.299,387.944C3520.633,401.333,3520.633,409.667,3520.633,426.5C3520.633,443.333,3520.633,468.667,3520.633,494C3520.633,519.333,3520.633,544.667,3520.633,561.5C3520.633,578.333,3520.633,586.667,3520.633,595C3520.633,603.333,3520.633,611.667,3520.633,628.5C3520.633,645.333,3520.633,670.667,3520.633,696C3520.633,721.333,3520.633,746.667,3520.633,763.5C3520.633,780.333,3520.633,788.667,3520.633,798.333C3520.633,808,3520.633,819,3520.633,824.5L3520.633,830">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_DEP_SEC_24" d="M2430.633,338.39L2304.622,347.492C2178.612,356.593,1926.591,374.797,1800.581,388.065C1674.57,401.333,1674.57,409.667,1674.57,426.5C1674.57,443.333,1674.57,468.667,1674.57,494C1674.57,519.333,1674.57,544.667,1674.57,561.5C1674.57,578.333,1674.57,586.667,1674.57,595C1674.57,603.333,1674.57,611.667,1674.57,628.5C1674.57,645.333,1674.57,670.667,1674.57,696C1674.57,721.333,1674.57,746.667,1674.57,763.5C1674.57,780.333,1674.57,788.667,1675.985,796.381C1677.401,804.095,1680.231,811.19,1681.646,814.737L1683.061,818.285">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link" id="L_DEP_ROLE_25" d="M2690.633,339.465L2801.466,348.388C2912.299,357.31,3133.966,375.155,3244.799,388.244C3355.633,401.333,3355.633,409.667,3355.633,419.333C3355.633,429,3355.633,440,3355.633,445.5L3355.633,451">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_AUTH_AS_26" d="M2115.633,533L2115.633,539.167C2115.633,545.333,2115.633,557.667,2115.633,568C2115.633,578.333,2115.633,586.667,2115.633,595C2115.633,603.333,2115.633,611.667,2115.633,621.333C2115.633,631,2115.633,642,2115.633,647.5L2115.633,653">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_AS_UR_27" d="M2184.909,735L2195.863,741.167C2206.817,747.333,2228.725,759.667,2239.679,770C2250.633,780.333,2250.633,788.667,2447.007,802.729C2643.382,816.792,3036.131,836.584,3232.506,846.48L3428.88,856.376">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_AS_SEC_28" d="M2030.962,735L2017.574,741.167C2004.185,747.333,1977.409,759.667,1964.021,770C1950.633,780.333,1950.633,788.667,1931.19,797.8C1911.748,806.934,1872.862,816.867,1853.42,821.834L1833.977,826.801">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_USER_US_29" d="M1822.602,521L1822.602,529.167C1822.602,537.333,1822.602,553.667,1822.602,566C1822.602,578.333,1822.602,586.667,1822.602,595C1822.602,603.333,1822.602,611.667,1822.602,623.333C1822.602,635,1822.602,650,1822.602,657.5L1822.602,665">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_READ_RS_30" d="M2425.633,533L2425.633,539.167C2425.633,545.333,2425.633,557.667,2425.633,568C2425.633,578.333,2425.633,586.667,2425.633,595C2425.633,603.333,2425.633,611.667,2425.633,621.333C2425.633,631,2425.633,642,2425.633,647.5L2425.633,653">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_ALERT_ALS_31" d="M3045.633,533L3045.633,539.167C3045.633,545.333,3045.633,557.667,3045.633,568C3045.633,578.333,3045.633,586.667,3045.633,595C3045.633,603.333,3045.633,611.667,3045.633,621.333C3045.633,631,3045.633,642,3045.633,647.5L3045.633,653">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_ALS_AR_32" d="M3040.501,735L3039.69,741.167C3038.878,747.333,3037.256,759.667,3036.444,770C3035.633,780.333,3035.633,788.667,3327.817,802.967C3620.001,817.268,4204.369,837.536,4496.553,847.67L4788.737,857.804">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_RS_SR_33" d="M2420.501,735L2419.69,741.167C2418.878,747.333,2417.256,759.667,2416.444,770C2415.633,780.333,2415.633,788.667,2673.76,802.853C2931.886,817.038,3448.14,837.077,3706.267,847.096L3964.394,857.115">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_RS_RR_34" d="M2555.633,718.202L2608.133,727.169C2660.633,736.135,2765.633,754.067,2818.133,767.2C2870.633,780.333,2870.633,788.667,3093.288,802.722C3315.944,816.778,3761.255,836.555,3983.911,846.444L4206.566,856.333">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_RS_AR_35" d="M2555.633,710.267L2649.383,720.556C2743.133,730.845,2930.633,751.422,3024.383,765.878C3118.133,780.333,3118.133,788.667,3396.567,802.942C3675.001,817.218,4231.869,837.436,4510.303,847.546L4788.737,857.655">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_RS_RULE_36" d="M2295.633,705.541L2144.711,716.617C1993.789,727.694,1691.945,749.847,1541.023,765.09C1390.102,780.333,1390.102,788.667,1390.102,796.333C1390.102,804,1390.102,811,1390.102,814.5L1390.102,818">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link" id="L_RS_OFF_37" d="M2325.567,735L2309.745,741.167C2293.922,747.333,2262.278,759.667,2246.455,770C2230.633,780.333,2230.633,788.667,2230.633,796.333C2230.633,804,2230.633,811,2230.633,814.5L2230.633,818">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link" id="L_PENDING_STUB_38" d="M2735.633,545L2735.633,549.167C2735.633,553.333,2735.633,561.667,2735.633,570C2735.633,578.333,2735.633,586.667,2735.633,595C2735.633,603.333,2735.633,611.667,2735.633,619.333C2735.633,627,2735.633,634,2735.633,637.5L2735.633,641">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link" id="L_STUB_SR_39" d="M2728.922,747L2728.374,751.167C2727.826,755.333,2726.729,763.667,2726.181,772C2725.633,780.333,2725.633,788.667,2932.093,802.703C3138.554,816.739,3551.474,836.477,3757.935,846.347L3964.395,856.216">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link" id="L_STUB_OR_40" d="M2605.633,717.247L2549.799,726.373C2493.966,735.498,2382.299,753.749,2326.466,767.041C2270.633,780.333,2270.633,788.667,2501.26,802.558C2731.887,816.45,3193.14,835.9,3423.767,845.625L3654.394,855.35">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link" id="L_STUB_PR_41" d="M2839.646,747L2848.144,751.167C2856.642,755.333,2873.637,763.667,2882.135,772C2890.633,780.333,2890.633,788.667,3155.317,802.67C3420.001,816.673,3949.369,836.347,4214.053,846.183L4478.737,856.02">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_UR_UM_42" d="M3577.113,888L3590.013,894.167C3602.913,900.333,3628.712,912.667,3641.612,923C3654.512,933.333,3654.512,941.667,3654.512,950C3654.512,958.333,3654.512,966.667,3654.512,983.5C3654.512,1000.333,3654.512,1025.667,3654.512,1051C3654.512,1076.333,3654.512,1101.667,3091.248,1118.5C2527.984,1135.333,1401.457,1143.667,832.122,1151.645C262.787,1159.624,250.644,1167.249,244.572,1171.061L238.501,1174.873">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_SR_SM_43" d="M4160.563,870.427L4253.27,879.523C4345.977,888.618,4531.391,906.809,4624.098,920.071C4716.805,933.333,4716.805,941.667,4716.805,950C4716.805,958.333,4716.805,966.667,4716.805,983.5C4716.805,1000.333,4716.805,1025.667,4716.805,1051C4716.805,1076.333,4716.805,1101.667,4038.604,1118.5C3360.404,1135.333,2004.003,1143.667,1325.802,1158.5C647.602,1173.333,647.602,1194.667,647.602,1216C647.602,1237.333,647.602,1258.667,639.415,1273.214C631.228,1287.762,614.855,1295.524,606.668,1299.405L598.482,1303.287">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_RR_RM_44" d="M4412.734,876.217L4466.746,884.347C4520.758,892.478,4628.781,908.739,4682.793,921.036C4736.805,933.333,4736.805,941.667,4736.805,950C4736.805,958.333,4736.805,966.667,4736.805,983.5C4736.805,1000.333,4736.805,1025.667,4736.805,1051C4736.805,1076.333,4736.805,1101.667,4070.688,1118.5C3404.57,1135.333,2072.336,1143.667,1406.219,1158.5C740.102,1173.333,740.102,1194.667,740.102,1216C740.102,1237.333,740.102,1258.667,740.102,1280C740.102,1301.333,740.102,1322.667,740.102,1344C740.102,1365.333,740.102,1386.667,729.334,1401.271C718.567,1415.875,697.033,1423.751,686.266,1427.688L675.499,1431.626">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_AR_AM_45" d="M4880.875,888L4880.875,894.167C4880.875,900.333,4880.875,912.667,4880.875,923C4880.875,933.333,4880.875,941.667,4880.875,950C4880.875,958.333,4880.875,966.667,4880.875,983.5C4880.875,1000.333,4880.875,1025.667,4880.875,1051C4880.875,1076.333,4880.875,1101.667,4230.329,1118.5C3579.784,1135.333,2278.693,1143.667,1628.147,1158.5C977.602,1173.333,977.602,1194.667,977.602,1216C977.602,1237.333,977.602,1258.667,977.602,1280C977.602,1301.333,977.602,1322.667,977.602,1344C977.602,1365.333,977.602,1386.667,971.494,1401.147C965.386,1415.627,953.171,1423.254,947.063,1427.068L940.955,1430.881">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_OR_OM_46" d="M3694.621,900L3684.603,904.167C3674.584,908.333,3654.548,916.667,3644.53,925C3634.512,933.333,3634.512,941.667,3634.512,950C3634.512,958.333,3634.512,966.667,3090.06,983.187C2545.609,999.707,1456.706,1024.413,912.255,1036.766L367.804,1049.12">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_UR_DB_47" d="M3608.391,884.623L3633.391,891.352C3658.391,898.082,3708.391,911.541,3733.391,922.437C3758.391,933.333,3758.391,941.667,3758.391,950C3758.391,958.333,3758.391,966.667,3778.024,976.763C3797.657,986.86,3836.924,998.72,3856.557,1004.649L3876.19,1010.579">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_SR_DB_48" d="M3989.365,888L3972.21,894.167C3955.054,900.333,3920.744,912.667,3903.589,923C3886.434,933.333,3886.434,941.667,3886.434,950C3886.434,958.333,3886.434,966.667,3892.641,974.651C3898.849,982.635,3911.264,990.27,3917.472,994.087L3923.68,997.905">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_RR_DB_49" d="M4210.563,883.184L4178.805,890.153C4147.048,897.123,4083.534,911.061,4051.777,922.197C4020.02,933.333,4020.02,941.667,4020.02,950C4020.02,958.333,4020.02,966.667,4019.558,974.339C4019.097,982.011,4018.174,989.023,4017.713,992.528L4017.252,996.034">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_AR_DB_50" d="M4792.734,867.709L4667.282,877.257C4541.829,886.806,4290.924,905.903,4165.472,919.618C4040.02,933.333,4040.02,941.667,4040.02,950C4040.02,958.333,4040.02,966.667,4038.62,974.38C4037.22,982.093,4034.42,989.186,4033.02,992.733L4031.62,996.279">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_OR_DB_51" d="M3918.391,891.63L3941.995,897.192C3965.6,902.753,4012.81,913.877,4036.415,923.605C4060.02,933.333,4060.02,941.667,4060.02,950C4060.02,958.333,4060.02,966.667,4057.645,974.443C4055.27,982.219,4050.52,989.439,4048.145,993.049L4045.771,996.658">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_HEALTH_DB_52" d="M4447.734,533L4447.734,539.167C4447.734,545.333,4447.734,557.667,4447.734,568C4447.734,578.333,4447.734,586.667,4447.734,595C4447.734,603.333,4447.734,611.667,4447.734,628.5C4447.734,645.333,4447.734,670.667,4447.734,696C4447.734,721.333,4447.734,746.667,4447.734,763.5C4447.734,780.333,4447.734,788.667,4447.734,803.5C4447.734,818.333,4447.734,839.667,4447.734,861C4447.734,882.333,4447.734,903.667,4447.734,918.5C4447.734,933.333,4447.734,941.667,4447.734,950C4447.734,958.333,4447.734,966.667,4397.105,979.624C4346.476,992.581,4245.219,1010.163,4194.59,1018.953L4143.961,1027.744">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_BOOT_MIG_53" d="M1205.102,215L1205.102,219.167C1205.102,223.333,1205.102,231.667,1205.102,240C1205.102,248.333,1205.102,256.667,1205.102,271.5C1205.102,286.333,1205.102,307.667,1205.102,329C1205.102,350.333,1205.102,371.667,1205.102,386.5C1205.102,401.333,1205.102,409.667,1205.102,426.5C1205.102,443.333,1205.102,468.667,1205.102,494C1205.102,519.333,1205.102,544.667,1205.102,561.5C1205.102,578.333,1205.102,586.667,1205.102,595C1205.102,603.333,1205.102,611.667,1205.102,628.5C1205.102,645.333,1205.102,670.667,1205.102,696C1205.102,721.333,1205.102,746.667,1205.102,763.5C1205.102,780.333,1205.102,788.667,1205.102,803.5C1205.102,818.333,1205.102,839.667,1205.102,861C1205.102,882.333,1205.102,903.667,1205.102,918.5C1205.102,933.333,1205.102,941.667,1205.102,950C1205.102,958.333,1205.102,966.667,1205.102,976.333C1205.102,986,1205.102,997,1205.102,1002.5L1205.102,1008">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_MIG_PG_54" d="M1075.102,1066.346L989.466,1076.455C903.831,1086.564,732.56,1106.782,646.924,1121.058C561.289,1135.333,561.289,1143.667,561.289,1151.766C561.289,1159.864,561.289,1167.729,561.289,1171.661L561.289,1175.593">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_BOOT_MAIN_55" d="M1335.102,178.125L1965.98,188.438C2596.859,198.75,3858.617,219.375,4489.496,233.854C5120.375,248.333,5120.375,256.667,5115.531,264.591C5110.686,272.516,5100.998,280.032,5096.153,283.79L5091.309,287.548">
+</path>
+<path marker-end="url(#backend-layers-tb_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_SEED_PG_56" d="M2286.754,1056.452L2006.369,1068.21C1725.984,1079.968,1165.215,1103.484,884.83,1119.409C604.445,1135.333,604.445,1143.667,601.705,1152.1C598.964,1160.534,593.482,1169.068,590.741,1173.334L588.001,1177.601">
+</path>
+</g>
+<g class="edgeLabels">
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g>
+<rect style="stroke: none" class="background">
+</rect>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+<g class="edgeLabel">
+<g transform="translate(0, 0)" class="label">
+<text y="-10.1">
+<tspan dy="1.1em" y="-0.1em" x="0" class="text-outer-tspan">
+</tspan>
+</text>
+</g>
+</g>
+</g>
+<g class="nodes">
+<g transform="translate(4762.8046875, 60)" id="flowchart-FE-0" class="node default">
+<rect height="54" width="183.59375" y="-27" x="-91.796875" style="" class="basic label-container">
+</rect>
+<g transform="translate(-61.796875, -12)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="24" width="123.59375">
+<div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>Vue / navegador</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(5037.875, 176)" id="flowchart-SIM-1" class="node default">
+<rect height="78" width="260" y="-39" x="-130" style="" class="basic label-container">
+</rect>
+<g transform="translate(-100, -24)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="48" width="200">
+<div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>Simulador HTTP / UUID / retry</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(4762.8046875, 176)" id="flowchart-NG-2" class="node default">
+<rect height="54" width="190.140625" y="-27" x="-95.0703125" style="" class="basic label-container">
+</rect>
+<g transform="translate(-65.0703125, -12)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="24" width="130.140625">
+<div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>Nginx HTTPS /api</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(5037.875, 329)" id="flowchart-MAIN-3" class="node default">
+<rect height="78" width="260" y="-39" x="-130" style="" class="basic label-container">
+</rect>
+<g transform="translate(-100, -24)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="48" width="200">
+<div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>main.py factory / api.py / CORS / handlers</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(2115.6328125, 494)" id="flowchart-AUTH-9" class="node default">
+<rect height="78" width="260" y="-39" x="-130" style="" class="basic label-container">
+</rect>
+<g transform="translate(-100, -24)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="48" width="200">
+<div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>auth/router: login · register · logout</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(1822.6015625, 494)" id="flowchart-USER-10" class="node default">
+<rect height="54" width="226.0625" y="-27" x="-113.03125" style="" class="basic label-container">
+</rect>
+<g transform="translate(-83.03125, -12)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="24" width="166.0625">
+<div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>users/router: GET /me</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(2425.6328125, 494)" id="flowchart-READ-11" class="node default">
+<rect height="78" width="260" y="-39" x="-130" style="" class="basic label-container">
+</rect>
+<g transform="translate(-100, -24)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="48" width="200">
+<div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>readings/router: POST reading · GET histórico</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(3045.6328125, 494)" id="flowchart-ALERT-12" class="node default">
+<rect height="78" width="260" y="-39" x="-130" style="" class="basic label-container">
+</rect>
+<g transform="translate(-100, -24)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="48" width="200">
+<div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>alerts/router: list · ack · resolve</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(4447.734375, 494)" id="flowchart-HEALTH-13" class="node default">
+<rect height="78" width="260" y="-39" x="-130" style="" class="basic label-container">
+</rect>
+<g transform="translate(-100, -24)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="48" width="200">
+<div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>core/health: liveness · readiness DB</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(2735.6328125, 494)" id="flowchart-PENDING-14" class="node default pending">
+<rect height="102" width="260" y="-51" x="-130" style="fill:#fff7ed !important;stroke:#b45309 !important;stroke-dasharray:5 4 !important" class="basic label-container">
+</rect>
+<g transform="translate(-100, -36)" style="color:#7c2d12 !important" class="label">
+<rect>
+</rect>
+<foreignObject height="72" width="200">
+<div xmlns="http://www.w3.org/1999/xhtml" style="color: rgb(124, 45, 18) !important; display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;">
+<span class="nodeLabel" style="color:#7c2d12 !important">
+<p>Routers registrados vacíos: sites · sensors · organizations · analytics</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(2240.6328125, 329)" id="flowchart-SCHEMA-15" class="node default">
+<rect height="78" width="260" y="-39" x="-130" style="" class="basic label-container">
+</rect>
+<g transform="translate(-100, -24)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="48" width="200">
+<div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>Pydantic DTO / Page / validación</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(2560.6328125, 329)" id="flowchart-DEP-16" class="node default">
+<rect height="78" width="260" y="-39" x="-130" style="" class="basic label-container">
+</rect>
+<g transform="translate(-100, -24)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="48" width="200">
+<div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>get_current_user / DbSession / paginación</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(3355.6328125, 494)" id="flowchart-ROLE-17" class="node default pending">
+<rect height="78" width="260" y="-39" x="-130" style="fill:#fff7ed !important;stroke:#b45309 !important;stroke-dasharray:5 4 !important" class="basic label-container">
+</rect>
+<g transform="translate(-100, -24)" style="color:#7c2d12 !important" class="label">
+<rect>
+</rect>
+<foreignObject height="48" width="200">
+<div xmlns="http://www.w3.org/1999/xhtml" style="color: rgb(124, 45, 18) !important; display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;">
+<span class="nodeLabel" style="color:#7c2d12 !important">
+<p>require_role / scope admin global PENDIENTE</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(2115.6328125, 696)" id="flowchart-AS-18" class="node default">
+<rect height="78" width="260" y="-39" x="-130" style="" class="basic label-container">
+</rect>
+<g transform="translate(-100, -24)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="48" width="200">
+<div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>AuthService: login / register / logout</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(1822.6015625, 696)" id="flowchart-US-19" class="node default">
+<rect height="54" width="186.765625" y="-27" x="-93.3828125" style="" class="basic label-container">
+</rect>
+<g transform="translate(-63.3828125, -12)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="24" width="126.765625">
+<div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>UserService: /me</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(2425.6328125, 696)" id="flowchart-RS-20" class="node default">
+<rect height="78" width="260" y="-39" x="-130" style="" class="basic label-container">
+</rect>
+<g transform="translate(-100, -24)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="48" width="200">
+<div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>ReadingService: ingestión / histórico / UUID</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(3045.6328125, 696)" id="flowchart-ALS-21" class="node default">
+<rect height="78" width="260" y="-39" x="-130" style="" class="basic label-container">
+</rect>
+<g transform="translate(-100, -24)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="48" width="200">
+<div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>AlertService: list / ack / resolve</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(1390.1015625, 861)" id="flowchart-RULE-22" class="node default">
+<rect height="78" width="260" y="-39" x="-130" style="" class="basic label-container">
+</rect>
+<g transform="translate(-100, -24)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="48" width="200">
+<div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>evaluar_presion: LOW / HIGH</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(1700.1015625, 861)" id="flowchart-SEC-23" class="node default">
+<rect height="78" width="260" y="-39" x="-130" style="" class="basic label-container">
+</rect>
+<g transform="translate(-100, -24)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="48" width="200">
+<div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>core/security: Argon2 / cookie firmada</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(2735.6328125, 696)" id="flowchart-STUB-24" class="node default pending">
+<rect height="102" width="260" y="-51" x="-130" style="fill:#fff7ed !important;stroke:#b45309 !important;stroke-dasharray:5 4 !important" class="basic label-container">
+</rect>
+<g transform="translate(-100, -36)" style="color:#7c2d12 !important" class="label">
+<rect>
+</rect>
+<foreignObject height="72" width="200">
+<div xmlns="http://www.w3.org/1999/xhtml" style="color: rgb(124, 45, 18) !important; display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;">
+<span class="nodeLabel" style="color:#7c2d12 !important">
+<p>Services scaffold: Site / Sensor / Organization / Analytics</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(2230.6328125, 861)" id="flowchart-OFF-25" class="node default pending">
+<rect height="78" width="260" y="-39" x="-130" style="fill:#fff7ed !important;stroke:#b45309 !important;stroke-dasharray:5 4 !important" class="basic label-container">
+</rect>
+<g transform="translate(-100, -24)" style="color:#7c2d12 !important" class="label">
+<rect>
+</rect>
+<foreignObject height="48" width="200">
+<div xmlns="http://www.w3.org/1999/xhtml" style="color: rgb(124, 45, 18) !important; display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;">
+<span class="nodeLabel" style="color:#7c2d12 !important">
+<p>last_seen / detector OFFLINE PENDIENTE</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(3520.6328125, 861)" id="flowchart-UR-26" class="node default">
+<rect height="54" width="175.515625" y="-27" x="-87.7578125" style="" class="basic label-container">
+</rect>
+<g transform="translate(-57.7578125, -12)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="24" width="115.515625">
+<div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>UserRepository</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(4064.4765625, 861)" id="flowchart-SR-27" class="node default">
+<rect height="54" width="192.171875" y="-27" x="-96.0859375" style="" class="basic label-container">
+</rect>
+<g transform="translate(-66.0859375, -12)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="24" width="132.171875">
+<div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>SensorRepository</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(4311.6484375, 861)" id="flowchart-RR-28" class="node default">
+<rect height="54" width="202.171875" y="-27" x="-101.0859375" style="" class="basic label-container">
+</rect>
+<g transform="translate(-71.0859375, -12)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="24" width="142.171875">
+<div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>ReadingRepository</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(4880.875, 861)" id="flowchart-AR-29" class="node default">
+<rect height="54" width="176.28125" y="-27" x="-88.140625" style="" class="basic label-container">
+</rect>
+<g transform="translate(-58.140625, -12)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="24" width="116.28125">
+<div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>AlertRepository</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(3788.390625, 861)" id="flowchart-OR-30" class="node default">
+<rect height="78" width="260" y="-39" x="-130" style="" class="basic label-container">
+</rect>
+<g transform="translate(-100, -24)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="48" width="200">
+<div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>OrganizationRepository: get_by_id</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(4612.734375, 861)" id="flowchart-PR-31" class="node default pending">
+<rect height="78" width="260" y="-39" x="-130" style="fill:#fff7ed !important;stroke:#b45309 !important;stroke-dasharray:5 4 !important" class="basic label-container">
+</rect>
+<g transform="translate(-100, -24)" style="color:#7c2d12 !important" class="label">
+<rect>
+</rect>
+<foreignObject height="48" width="200">
+<div xmlns="http://www.w3.org/1999/xhtml" style="color: rgb(124, 45, 18) !important; display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;">
+<span class="nodeLabel" style="color:#7c2d12 !important">
+<p>Site repo vacío / Analytics scaffold</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(4010.01953125, 1051)" id="flowchart-DB-32" class="node default">
+<rect height="102" width="260" y="-51" x="-130" style="" class="basic label-container">
+</rect>
+<g transform="translate(-100, -36)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="72" width="200">
+<div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>SQLAlchemy Session / transaction commit-rollback</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(284.9296875, 1051)" id="flowchart-OM-33" class="node default">
+<rect height="54" width="157.75" y="-27" x="-78.875" style="" class="basic label-container">
+</rect>
+<g transform="translate(-48.875, -12)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="24" width="97.75">
+<div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>Organization</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(173, 1216)" id="flowchart-UM-34" class="node default">
+<rect height="78" width="260" y="-39" x="-130" style="" class="basic label-container">
+</rect>
+<g transform="translate(-100, -24)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="48" width="200">
+<div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>User / organization nullable</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(396.859375, 1216)" id="flowchart-STM-35" class="node default">
+<rect height="54" width="87.71875" y="-27" x="-43.859375" style="" class="basic label-container">
+</rect>
+<g transform="translate(-13.859375, -12)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="24" width="27.71875">
+<div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>Site</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(512.6015625, 1344)" id="flowchart-SM-36" class="node default">
+<rect height="78" width="260" y="-39" x="-130" style="" class="basic label-container">
+</rect>
+<g transform="translate(-100, -24)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="48" width="200">
+<div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>Sensor / thresholds / is_active</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(565.1015625, 1472)" id="flowchart-RM-37" class="node default">
+<rect height="78" width="260" y="-39" x="-130" style="" class="basic label-container">
+</rect>
+<g transform="translate(-100, -24)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="48" width="200">
+<div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>Reading / Numeric 10,3 / UUID</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(875.1015625, 1472)" id="flowchart-AM-38" class="node default">
+<rect height="78" width="260" y="-39" x="-130" style="" class="basic label-container">
+</rect>
+<g transform="translate(-100, -24)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="48" width="200">
+<div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>Alert / ACTIVE-RESOLVED / ack</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(561.2890625, 1216)" id="flowchart-PG-39" class="node default">
+<path transform="translate(-51.3125, -36.406919275123556)" style="" class="basic label-container" d="M0,11.271279516749038 a51.3125,11.271279516749038 0,0,0 102.625,0 a51.3125,11.271279516749038 0,0,0 -102.625,0 l0,50.27127951674904 a51.3125,11.271279516749038 0,0,0 102.625,0 l0,-50.27127951674904">
+</path>
+<g transform="translate(-43.8125, -2)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="24" width="87.625">
+<div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>PostgreSQL</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(1205.1015625, 176)" id="flowchart-BOOT-51" class="node default">
+<rect height="78" width="260" y="-39" x="-130" style="" class="basic label-container">
+</rect>
+<g transform="translate(-100, -24)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="48" width="200">
+<div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>entrypoint: alembic upgrade head → Uvicorn</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(1205.1015625, 1051)" id="flowchart-MIG-52" class="node default">
+<rect height="78" width="260" y="-39" x="-130" style="" class="basic label-container">
+</rect>
+<g transform="translate(-100, -24)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="48" width="200">
+<div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>5 revisiones Alembic / models registry</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+<g transform="translate(2416.75390625, 1051)" id="flowchart-SEED-53" class="node default">
+<rect height="102" width="260" y="-51" x="-130" style="" class="basic label-container">
+</rect>
+<g transform="translate(-100, -36)" style="" class="label">
+<rect>
+</rect>
+<foreignObject height="72" width="200">
+<div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">
+<p>make seed manual / Demo + admin + client + sensors</p>
+</span>
+</div>
+</foreignObject>
+</g>
+</g>
+</g>
+</g>
+</g>
+</svg>

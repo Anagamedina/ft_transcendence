@@ -1,0 +1,32 @@
+{
+  "audit_date": "2026-09-30",
+  "branch": "develop",
+  "commit": "aa95988",
+  "scope": "Tracked source in current branch; no live GitHub consultation; untracked simulator outbox excluded",
+  "backend_pytest": {"passed": 137, "warnings": 1, "seconds": 16.85},
+  "simulator_tracked_pytest": {"passed": 28, "seconds": 0.26},
+  "frontend_build": {"result": "PASS", "vite": "5.4.21", "modules": 123},
+  "compose_config": "PASS",
+  "alembic_head": "c4e0b1a3d2f7",
+  "postgresql": "16-alpine, disposable isolated container, not project volume",
+  "upgrade_empty_database": "PASS",
+  "alembic_check_current_models": "PASS",
+  "seed_admin_login": 200,
+  "global_admin_register": {"status": 201, "organization_id": null},
+  "global_admin_alerts": {"items": [], "total": 0, "page": 1, "page_size": 20, "pages": 0},
+  "sites_route": 404,
+  "sensors_route": 404,
+  "rounding_retry": {"first_status": 201, "first_response_pressure": 1.2345, "database_value": "1.235", "retry_status": 409, "retry_error": "READING_ID_CONFLICT"},
+  "sensor_response_from_orm_missing_fields": ["sensor_type", "min_pressure", "max_pressure", "status"],
+  "sensor_protocol_last_seen_missing": true,
+  "duplicate_active_alerts_allowed": 2,
+  "alembic_percent_encoded_password": "ValueError: invalid interpolation syntax for percent-encoded URL",
+  "legacy_message_migration": "IntegrityError / NotNullViolation: alerts.message contains null values",
+  "legacy_enum_migration": "IntegrityError / CheckViolation: ck_alerts_type violated by legacy LOW row",
+  "limitations": [
+    "Existing backend fixtures mostly use SQLite; no measured coverage percentage",
+    "No complete Docker Compose startup, TLS smoke or browser E2E of the application",
+    "Concurrency idempotency and ack/resolve risks were inspected statically, not reproduced with simultaneous HTTP calls",
+    "Duplicate ACTIVE alert reproduced with interleaved repository sessions, not with an implemented OFFLINE generator"
+  ]
+}

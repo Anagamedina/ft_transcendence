@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AquaGuard · estrategia de bonus</title>
+  <style>
+    :root{--bg:#f6f8fb;--surface:#fff;--ink:#172b4d;--muted:#5b6b82;--line:#d9e2ec;--brand:#087f8c;--brand-soft:#e4f4f2;--green:#237a51;--green-soft:#e6f5eb;--amber:#a45b00;--amber-soft:#fff1cf;--red:#b42318;--red-soft:#fde8e7;--purple:#5b45a4;--purple-soft:#eeeafd}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}.page{max-width:1180px;margin:auto;padding:30px 22px 56px}h1,h2,h3{line-height:1.2}h1{margin:0;font-size:clamp(1.7rem,3vw,2.5rem)}h2{margin:0 0 12px;font-size:1.35rem}h3{margin:0 0 8px;font-size:1.03rem}.muted{color:var(--muted);font-size:.93rem}.eyebrow{color:var(--brand);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:.75rem}.hero{display:flex;justify-content:space-between;gap:24px;align-items:end;flex-wrap:wrap;margin-bottom:24px}.hero-copy{max-width:730px}.hero-copy p{margin:.7rem 0 0;color:var(--muted)}.gate{background:var(--ink);color:#fff;border-radius:14px;padding:16px 18px;max-width:340px}.gate strong{display:block;font-size:1.04rem}.gate span{display:block;color:#d9e2ec;margin-top:5px;font-size:.9rem}.grid{display:grid;gap:14px}.summary{grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:26px}.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}.stat-value{font-size:1.8rem;font-weight:700;margin:4px 0}.section{margin-top:28px}.flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-items:stretch}.step{position:relative;border-top:4px solid var(--line);padding-top:12px}.step.current{border-color:var(--red)}.step.next{border-color:var(--amber)}.step.ready{border-color:var(--green)}.step-number{font-size:.78rem;font-weight:700;color:var(--muted)}.step h3{margin-top:4px}.step p{margin:0;color:var(--muted);font-size:.9rem}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.tab{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:9px 13px;font:inherit;cursor:pointer}.tab[aria-selected=true],.tab:hover{background:var(--brand);color:#fff;border-color:var(--brand)}.panel[hidden]{display:none}.bonus-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.bonus-card{display:flex;flex-direction:column;gap:11px}.bonus-top{display:flex;justify-content:space-between;gap:12px;align-items:start}.badge{white-space:nowrap;border-radius:999px;padding:4px 9px;font-size:.78rem;font-weight:700}.recommended{background:var(--green-soft);color:var(--green)}.conditional{background:var(--amber-soft);color:var(--amber)}.alternative{background:var(--purple-soft);color:var(--purple)}.points{color:var(--brand);font-weight:700}.bonus-card ul{padding-left:20px;margin:0;color:var(--muted);font-size:.92rem}.bonus-card li+li{margin-top:4px}.fit{display:flex;align-items:center;gap:10px}.fit-track{height:8px;background:#e8edf3;border-radius:20px;flex:1;overflow:hidden}.fit-fill{height:100%;background:var(--brand);border-radius:inherit}.decision{border-left:4px solid var(--brand);background:var(--brand-soft);padding:15px 17px;border-radius:0 10px 10px 0}.decision p{margin:.4rem 0;color:var(--ink)}.timeline{display:grid;gap:12px}.phase{display:grid;grid-template-columns:105px 1fr;gap:16px;align-items:start}.phase-label{font-weight:700;color:var(--brand)}.phase-body{border-left:2px solid var(--line);padding-left:15px}.phase-body strong{display:block}.phase-body p{margin:4px 0 0;color:var(--muted);font-size:.92rem}.checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.check{display:flex;gap:10px;align-items:start}.check input{margin-top:5px;accent-color:var(--brand)}.risk{background:var(--red-soft);color:var(--red);border-radius:10px;padding:12px 14px}.source{margin-top:26px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:.82rem}.source code{color:var(--ink)}@media(max-width:820px){.summary,.flow{grid-template-columns:repeat(2,minmax(0,1fr))}.bonus-grid,.checks{grid-template-columns:1fr}}@media(max-width:520px){.page{padding:22px 14px 42px}.summary,.flow{grid-template-columns:1fr}.phase{grid-template-columns:1fr;gap:4px}.phase-body{padding-left:12px}}
+  </style>
+</head>
+<body>
+<main class="page">
+  <header class="hero">
+    <div class="hero-copy">
+      <div class="eyebrow">AquaGuard · plan de decisión</div>
+      <h1>Cómo enfocar el bonus sin poner en riesgo la entrega</h1>
+      <p>El bonus debe ampliar un producto ya demostrable. No debe convertirse en una segunda aplicación independiente ni desplazar el Mandatory o los 14 puntos base.</p>
+    </div>
+    <div class="gate"><strong>Regla de oro del subject</strong><span>Primero Mandatory + 14 puntos validados. Después, máximo 5 puntos extra. Lo incompleto vale 0.</span></div>
+  </header>
+
+  <section class="grid summary" aria-label="Estado de la decisión">
+    <div class="card"><div class="muted">Bonus máximo</div><div class="stat-value">5 pts</div><div class="muted">Hasta 2 Major + 1 Minor o 5 Minor.</div></div>
+    <div class="card"><div class="muted">Propuesta recomendada</div><div class="stat-value">5 pts</div><div class="muted">Anomalías 2 + PWA 1 + DevOps 1 + i18n 1.</div></div>
+    <div class="card"><div class="muted">Bonus ahora</div><div class="stat-value" style="color:var(--red)">No</div><div class="muted">El core actual aún tiene rutas y servicios pendientes.</div></div>
+    <div class="card"><div class="muted">Criterio común</div><div class="stat-value">Demo</div><div class="muted">Código, tests, README y recorrido reproducible.</div></div>
+  </section>
+
+  <section class="section" aria-labelledby="gate-title">
+    <h2 id="gate-title">Puertas que deben cerrarse</h2>
+    <div class="flow">
+      <article class="step current"><div class="step-number">PUERTA 1</div><h3>Mandatory</h3><p>Auth, multiusuario, validación, HTTPS, legal, responsive, DB y README.</p></article>
+      <article class="step current"><div class="step-number">PUERTA 2</div><h3>Flujo vertical</h3><p>Simulador → API → PostgreSQL → API → Vue, con lecturas e históricos.</p></article>
+      <article class="step next"><div class="step-number">PUERTA 3</div><h3>14 puntos</h3><p>Los módulos planificados deben estar completos y demostrables, no solo scaffolding.</p></article>
+      <article class="step ready"><div class="step-number">PUERTA 4</div><h3>Bonus</h3><p>Agregar módulos extra con valor de producto y justificación explícita.</p></article>
+    </div>
+    <div class="risk" style="margin-top:14px"><strong>Situación actual detectada:</strong> auth register/login, sites/sensors, histórico, alertas, dashboards y simulador aún tienen partes pendientes o no verificadas. Activar bonus ahora fragmentaría el foco.</div>
+  </section>
+
+  <section class="section" aria-labelledby="recommendation-title">
+    <h2 id="recommendation-title">Selección propuesta para AquaGuard</h2>
+    <div class="decision"><strong>Recomendación:</strong><p>Elegir detección de anomalías como el bonus principal porque extiende directamente el dominio de sensores, lecturas y alertas. Después completar tres minors de bajo acoplamiento: PWA/push, health/status/backups e i18n.</p></div>
+    <div class="grid bonus-grid" style="margin-top:14px">
+      <article class="card bonus-card"><div class="bonus-top"><div><h3>Detección de anomalías</h3><div class="points">Custom Major · 2 puntos</div></div><span class="badge recommended">Prioridad 1</span></div><div class="fit"><span class="muted">Encaje</span><div class="fit-track"><div class="fit-fill" style="width:95%"></div></div><strong>95%</strong></div><ul><li>Ventanas temporales y tendencia progresiva, sin necesidad de ML complejo.</li><li>Explica por qué una lectura es anómala y la relaciona con el sensor.</li><li>Demo clara: el simulador inyecta patrones y el backend genera una alerta.</li></ul><div class="muted"><strong>Riesgo:</strong> al ser custom, justificar alcance, complejidad y valor en README y validarlo con evaluadores.</div></article>
+      <article class="card bonus-card"><div class="bonus-top"><div><h3>PWA + notificaciones push</h3><div class="points">Minor · 1 punto</div></div><span class="badge recommended">Prioridad 2</span></div><div class="fit"><span class="muted">Encaje</span><div class="fit-track"><div class="fit-fill" style="width:88%"></div></div><strong>88%</strong></div><ul><li>Instalación móvil, app shell offline y recuperación de red.</li><li>Push para alertas críticas de sensores.</li><li>El push aporta valor, pero el punto procede del módulo PWA.</li></ul><div class="muted"><strong>Dependencias:</strong> auth, alertas y configuración segura de VAPID.</div></article>
+      <article class="card bonus-card"><div class="bonus-top"><div><h3>Health/status + backups</h3><div class="points">DevOps Minor · 1 punto</div></div><span class="badge recommended">Prioridad 3</span></div><div class="fit"><span class="muted">Encaje</span><div class="fit-track"><div class="fit-fill" style="width:90%"></div></div><strong>90%</strong></div><ul><li>Extiende los health checks existentes con estado operativo útil.</li><li>Backup PostgreSQL automatizado, restauración probada y retención.</li><li>Página de status con DB, backend, gateway y última copia.</li></ul><div class="muted"><strong>Ventaja:</strong> aporta evidencia operativa sin cambiar el dominio funcional.</div></article>
+      <article class="card bonus-card"><div class="bonus-top"><div><h3>i18n ES/EN/CA</h3><div class="points">Multiple languages Minor · 1 punto</div></div><span class="badge conditional">Prioridad 4</span></div><div class="fit"><span class="muted">Encaje</span><div class="fit-track"><div class="fit-fill" style="width:76%"></div></div><strong>76%</strong></div><ul><li>Al menos tres traducciones completas y selector visible.</li><li>Todo texto de usuario debe pasar por claves traducibles.</li><li>Fechas, números y mensajes de error con formato por idioma.</li></ul><div class="muted"><strong>Condición:</strong> no iniciarlo hasta estabilizar las pantallas finales para evitar traducir UI provisional.</div></article>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="alternatives-title">
+    <h2 id="alternatives-title">Alternativas que no recomiendo como primera opción</h2>
+    <div class="grid bonus-grid">
+      <article class="card bonus-card"><div class="bonus-top"><div><h3>SMS a móvil</h3><div class="points">Custom Minor · posible 1 punto</div></div><span class="badge alternative">Solo si se valida antes</span></div><ul><li>Requiere proveedor externo, secretos, costes y pruebas de entrega.</li><li>El subject no lo lista como módulo estándar.</li><li>Hay que acordar previamente que el alcance merece un custom Minor.</li></ul></article>
+      <article class="card bonus-card"><div class="bonus-top"><div><h3>Chat Admin-Cliente</h3><div class="points">User interaction Major · 2 puntos</div></div><span class="badge alternative">Mucho riesgo</span></div><ul><li>No es solo enviar mensajes: exige chat, perfiles y sistema de amigos.</li><li>Introduciría un dominio nuevo, WebSockets y más permisos.</li><li>No encaja con la ruta crítica de monitorización.</li></ul></article>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="roadmap-title">
+    <h2 id="roadmap-title">Orden de implementación recomendado</h2>
+    <div class="tabs" role="tablist" aria-label="Fases del plan">
+      <button class="tab" role="tab" aria-selected="true" aria-controls="phase-0" data-phase="phase-0">Ahora</button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="phase-1" data-phase="phase-1">Cerrar 14</button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="phase-2" data-phase="phase-2">Anomalías</button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="phase-3" data-phase="phase-3">Minors</button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="phase-4" data-phase="phase-4">Evidencia</button>
+    </div>
+    <div id="phase-0" class="panel" role="tabpanel"><div class="timeline"><div class="phase"><div class="phase-label">Bloque A</div><div class="phase-body"><strong>Mandatory y flujo vertical</strong><p>Terminar auth, endpoints de sites/sensors, histórico, alertas, dashboards, simulador y verificación de Compose.</p></div></div><div class="phase"><div class="phase-label">Bloque B</div><div class="phase-body"><strong>Cerrar contrato de integración</strong><p>Mock y API real con el mismo JSON, tests de errores y una demo completa desde lectura simulada hasta Vue.</p></div></div></div></div>
+    <div id="phase-1" class="panel" role="tabpanel" hidden><div class="timeline"><div class="phase"><div class="phase-label">Módulos core</div><div class="phase-body"><strong>Real-time, permissions, organization, analytics</strong><p>Completar los Major que ya están en el plan de 14 y después search, export/import y notifications.</p></div></div><div class="phase"><div class="phase-label">Cierre</div><div class="phase-body"><strong>Validación del evaluador</strong><p>Solo marcar puntos con código funcional, pruebas, recorrido reproducible y contribuciones documentadas.</p></div></div></div></div>
+    <div id="phase-2" class="panel" role="tabpanel" hidden><div class="timeline"><div class="phase"><div class="phase-label">Modelo</div><div class="phase-body"><strong>Definir anomalía explicable</strong><p>Combinar umbrales configurados, media móvil, desviación y persistencia temporal. El resultado debe explicar sensor, ventana y causa.</p></div></div><div class="phase"><div class="phase-label">Producto</div><div class="phase-body"><strong>Alerta y visualización</strong><p>Persistir evento, mostrar severidad y evidencia en dashboard, y permitir reconocer/resolver sin duplicar alertas.</p></div></div><div class="phase"><div class="phase-label">Demo</div><div class="phase-body"><strong>Escenarios del simulador</strong><p>Normal, presión baja/alta, deriva gradual, picos y recuperación. Añadir tests para falsos positivos básicos.</p></div></div></div></div>
+    <div id="phase-3" class="panel" role="tabpanel" hidden><div class="timeline"><div class="phase"><div class="phase-label">PWA</div><div class="phase-body"><strong>Instalación y offline shell</strong><p>Manifest, service worker, iconos, caché de la app shell y estado de conexión visible.</p></div></div><div class="phase"><div class="phase-label">DevOps</div><div class="phase-body"><strong>Status y recovery</strong><p>Endpoint status, backup programado, restore probado y documentación de recuperación.</p></div></div><div class="phase"><div class="phase-label">i18n</div><div class="phase-body"><strong>ES, EN y CA</strong><p>Extraer todos los textos, selector, traducciones completas y pruebas de cambio de idioma.</p></div></div></div></div>
+    <div id="phase-4" class="panel" role="tabpanel" hidden><div class="checks"><label class="card check"><input type="checkbox"><span><strong>README</strong><br><span class="muted">Justificación, valor, complejidad, decisiones y miembros.</span></span></label><label class="card check"><input type="checkbox"><span><strong>Tests</strong><br><span class="muted">Unitarios, integración, E2E y casos de error del bonus.</span></span></label><label class="card check"><input type="checkbox"><span><strong>Demo</strong><br><span class="muted">Recorrido preparado para la evaluación y datos reproducibles.</span></span></label><label class="card check"><input type="checkbox"><span><strong>Operación</strong><br><span class="muted">Docker/Makefile, variables, logs y rollback documentados.</span></span></label></div></div>
+  </section>
+
+  <section class="section" aria-labelledby="definition-title">
+    <h2 id="definition-title">Definition of Done del bonus</h2>
+    <div class="card"><div class="checks"><label class="check"><input type="checkbox"><span>Funciona en el flujo real del producto, no solo en mocks.</span></label><label class="check"><input type="checkbox"><span>Cubre estados normales, errores, permisos y recuperación.</span></label><label class="check"><input type="checkbox"><span>Se ejecuta con <code>make</code> y queda reproducible en Docker.</span></label><label class="check"><input type="checkbox"><span>Todos los integrantes pueden explicar diseño y trade-offs.</span></label><label class="check"><input type="checkbox"><span>El README en inglés justifica el módulo frente al subject.</span></label><label class="check"><input type="checkbox"><span>Existe una demo corta y evidencia verificable en la rama final.</span></label></div></div>
+  </section>
+
+  <footer class="source">Base del plan: <code>en.subject_ft_transcendence.pdf</code> y <code>AquaGuard_Requisitos_Arquitectura_v3_1.pdf</code>. El subject tiene prioridad sobre el planning interno.</footer>
+</main>
+<script>
+  (() => {
+    const tabs = document.querySelectorAll('[data-phase]');
+    const panels = document.querySelectorAll('[role="tabpanel"]');
+    tabs.forEach((tab) => tab.addEventListener('click', () => {
+      const phase = tab.dataset.phase;
+      tabs.forEach((item) => item.setAttribute('aria-selected', item === tab ? 'true' : 'false'));
+      panels.forEach((panel) => { panel.hidden = panel.id !== phase; });
+    }));
+  })();
+</script>
+</body>
+</html>

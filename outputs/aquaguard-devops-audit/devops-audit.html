@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>AquaGuard · auditoría DevOps</title>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --surface: #111a2e;
+      --surface-2: #17233b;
+      --surface-3: #1d2b47;
+      --text: #ecf3ff;
+      --muted: #9caecc;
+      --line: #2a3b5c;
+      --cyan: #69e6dc;
+      --blue: #8bb9ff;
+      --amber: #f5c66b;
+      --red: #ff8e8e;
+      --green: #80dfab;
+      --violet: #c6a8ff;
+      --shadow: 0 18px 60px rgba(0, 0, 0, .24);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at 12% -8%, #18335e 0, transparent 34rem), var(--bg);
+      color: var(--text);
+      font: 15px/1.55 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main { max-width: 1240px; margin: 0 auto; padding: 28px 22px 64px; }
+    header { display: flex; justify-content: space-between; gap: 24px; align-items: end; padding: 14px 0 28px; }
+    h1, h2, h3 { line-height: 1.15; margin: 0 0 10px; letter-spacing: -.02em; }
+    h1 { font-size: clamp(30px, 5vw, 52px); max-width: 800px; }
+    h2 { font-size: 25px; margin-top: 10px; }
+    h3 { font-size: 17px; }
+    p { margin: 8px 0; }
+    .eyebrow { color: var(--cyan); font-size: 12px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
+    .lede { color: var(--muted); max-width: 780px; font-size: 17px; }
+    .meta { color: var(--muted); font-size: 13px; text-align: right; white-space: nowrap; }
+    .meta code { color: var(--text); }
+    .grid { display: grid; gap: 14px; }
+    .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .card { background: color-mix(in srgb, var(--surface) 92%, transparent); border: 1px solid var(--line); border-radius: 16px; padding: 18px; box-shadow: var(--shadow); }
+    .stat-label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+    .stat-value { font-size: 25px; font-weight: 750; margin: 9px 0 3px; }
+    .stat-note { color: var(--muted); font-size: 13px; }
+    .danger { color: var(--red); }
+    .warn { color: var(--amber); }
+    .good { color: var(--green); }
+    .info { color: var(--blue); }
+    .callout { margin: 18px 0 26px; padding: 18px 20px; border-left: 4px solid var(--amber); background: color-mix(in srgb, var(--amber) 9%, var(--surface)); border-radius: 10px; }
+    .callout strong { color: var(--amber); }
+    .tabs { display: flex; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid var(--line); margin: 24px 0 26px; padding-bottom: 10px; }
+    .tab { background: transparent; color: var(--muted); border: 1px solid transparent; border-radius: 9px; padding: 9px 12px; font: inherit; cursor: pointer; }
+    .tab:hover, .tab:focus-visible { color: var(--text); border-color: var(--line); outline: none; }
+    .tab.active { color: var(--bg); background: var(--cyan); font-weight: 700; }
+    section[hidden] { display: none; }
+    .section-intro { color: var(--muted); margin: -2px 0 18px; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 13px; }
+    table { width: 100%; border-collapse: collapse; min-width: 880px; }
+    th, td { text-align: left; vertical-align: top; padding: 13px 14px; border-bottom: 1px solid var(--line); }
+    tr:last-child td { border-bottom: 0; }
+    th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; background: var(--surface-2); }
+    td { background: color-mix(in srgb, var(--surface) 86%, transparent); }
+    code, pre { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
+    code { color: var(--cyan); font-size: .92em; }
+    pre { overflow-x: auto; margin: 14px 0 0; padding: 16px; background: #08101e; border: 1px solid var(--line); border-radius: 10px; color: #dce8ff; font-size: 13px; line-height: 1.55; }
+    .severity { display: inline-block; min-width: 76px; padding: 3px 7px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .05em; text-align: center; }
+    .critical { color: #ffd8d8; background: color-mix(in srgb, var(--red) 22%, transparent); }
+    .high { color: #ffe7b4; background: color-mix(in srgb, var(--amber) 22%, transparent); }
+    .medium { color: #d8e7ff; background: color-mix(in srgb, var(--blue) 20%, transparent); }
+    .low { color: #dff9eb; background: color-mix(in srgb, var(--green) 18%, transparent); }
+    .cards-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .cards-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .mini-card { background: var(--surface-2); border: 1px solid var(--line); border-radius: 13px; padding: 16px; }
+    .mini-card p { color: var(--muted); }
+    .flow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin: 20px 0; }
+    .step { position: relative; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 14px; min-height: 140px; }
+    .step:not(:last-child)::after { content: "→"; position: absolute; right: -17px; top: 49px; color: var(--cyan); font-size: 22px; z-index: 2; }
+    .step-num { color: var(--cyan); font-weight: 800; font-size: 12px; }
+    .checklist { display: grid; gap: 9px; }
+    .task { display: grid; grid-template-columns: 86px minmax(0, 1fr); gap: 12px; align-items: start; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+    .task strong { display: block; }
+    .task small { color: var(--muted); }
+    .muted { color: var(--muted); }
+    .file-list { columns: 2; column-gap: 30px; margin: 0; padding-left: 20px; }
+    .file-list li { break-inside: avoid; padding: 3px 0; }
+    .footer { margin-top: 34px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+    @media (max-width: 900px) { .stats, .cards-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .flow { grid-template-columns: repeat(2, minmax(0, 1fr)); } .step:not(:last-child)::after { display: none; } header { display: block; } .meta { text-align: left; margin-top: 16px; } }
+    @media (max-width: 600px) { main { padding: 20px 13px 45px; } .stats, .cards-2, .cards-3, .flow { grid-template-columns: 1fr; } .task { grid-template-columns: 1fr; gap: 4px; } .file-list { columns: 1; } h1 { font-size: 34px; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <div class="eyebrow">AquaGuard · auditoría DevOps</div>
+      <h1>Diagnóstico y plan de automatización</h1>
+      <p class="lede">Revisión de la rama actual con foco en Makefile, entorno, Docker Compose, scripts de inicialización y Alembic. El análisis es de solo lectura: no se ha modificado código fuente.</p>
+    </div>
+    <div class="meta">Rama <code>develop</code><br>HEAD <code>4b1b15b</code><br>27 sep 2026</div>
+  </header>
+
+  <div class="grid stats">
+    <div class="card"><div class="stat-label">Veredicto</div><div class="stat-value warn">Base válida</div><div class="stat-note">Flujo de desarrollo incompleto</div></div>
+    <div class="card"><div class="stat-label">Riesgo crítico</div><div class="stat-value danger">Simulator</div><div class="stat-note">Dockerfile y app son stubs</div></div>
+    <div class="card"><div class="stat-label">Migraciones</div><div class="stat-value info">upgrade head</div><div class="stat-note">Se ejecuta en entrypoint</div></div>
+    <div class="card"><div class="stat-label">Comprobaciones</div><div class="stat-value good">Compose OK</div><div class="stat-note">Alembic check requiere DB activa</div></div>
+  </div>
+
+  <div class="callout"><strong>Conclusión ejecutiva.</strong> El stack principal database/backend/gateway está razonablemente conectado y <code>docker compose config --quiet</code> pasa. La mayor deuda no es la sintaxis: es la ausencia de un contrato operativo único para validar configuración, esperar servicios, comprobar drift de migraciones, probar el stack y documentar qué significa <code>make dev</code>. Además, el simulador aún no es ejecutable y el seed actual no genera hashes compatibles con el login Argon2.</div>
+
+  <nav class="tabs" aria-label="Secciones del informe">
+    <button class="tab active" data-tab="errors" aria-selected="true">1. Errores actuales</button>
+    <button class="tab" data-tab="improvements" aria-selected="false">2. Mejoras</button>
+    <button class="tab" data-tab="makefile" aria-selected="false">3. Makefile</button>
+    <button class="tab" data-tab="scripts" aria-selected="false">4. Scripts</button>
+    <button class="tab" data-tab="flow" aria-selected="false">5. Flujo make dev</button>
+    <button class="tab" data-tab="checklist" aria-selected="false">6. Checklist</button>
+  </nav>
+
+  <section id="errors">
+    <h2>1. Errores actuales</h2>
+    <p class="section-intro">Hallazgos ordenados por impacto. Las rutas son relativas a la raíz del repositorio.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Nivel</th><th>Problema</th><th>Archivo afectado</th><th>Impacto</th><th>Solución propuesta</th></tr></thead>
+      <tbody>
+        <tr><td><span class="severity critical">CRITICAL</span></td><td>El simulador no está implementado: Dockerfile, requirements y módulos contienen solo comentarios.</td><td><code>simulator/Dockerfile</code><br><code>simulator/requirements.txt</code><br><code>simulator/app/*</code></td><td>El profile <code>sim</code> no puede arrancar una carga funcional ni validar el flujo completo.</td><td>Implementar imagen y proceso, o retirar temporalmente el profile. Añadir healthcheck y dependencia sobre backend ready.</td></tr>
+        <tr><td><span class="severity critical">CRITICAL</span></td><td>El seed usa <code>sha256</code> con prefijo propio, pero la autenticación actual verifica Argon2.</td><td><code>backend/seeds/seed_demo.py</code><br><code>backend/app/core/security.py</code></td><td>Los usuarios demo creados no pueden iniciar sesión.</td><td>Reutilizar <code>hash_password()</code> en el seed y añadir una prueba de login de datos demo.</td></tr>
+        <tr><td><span class="severity high">HIGH</span></td><td><code>make env</code> solo copia el ejemplo; no comprueba variables, valores de producción ni formato de CORS.</td><td><code>Makefile</code><br><code>.env.example</code><br><code>backend/app/core/config.py</code></td><td>El fallo aparece tarde, dentro del contenedor o durante una petición.</td><td>Crear <code>validate_env.sh</code> con contrato por entorno, secretos mínimos y mensajes accionables; llamarlo desde los targets operativos.</td></tr>
+        <tr><td><span class="severity high">HIGH</span></td><td>El entrypoint ejecuta <code>alembic upgrade head</code>, pero no hace preflight, retry, check de drift ni lock de concurrencia.</td><td><code>backend/tools/entrypoint.sh</code></td><td>Puede fallar por una carrera de disponibilidad; varias réplicas podrían migrar simultáneamente.</td><td>Separar migración one-shot para CI/prod; en dev usar retry + <code>upgrade head</code>. Ejecutar <code>alembic check</code> solo con DB lista y nunca autogenerar en arranque.</td></tr>
+        <tr><td><span class="severity high">HIGH</span></td><td>El Compose espera <code>service_healthy</code> para backend, pero el simulador solo espera <code>service_started</code>.</td><td><code>compose.yaml</code></td><td>El simulador puede intentar llamar al backend antes de que API y migraciones estén listas.</td><td>Usar readiness <code>/api/health/db</code> o retry interno; cambiar a <code>service_healthy</code> cuando el simulador sea real.</td></tr>
+        <tr><td><span class="severity high">HIGH</span></td><td>El frontend local no forma parte de <code>make dev</code>; solo se publica el puerto de PostgreSQL.</td><td><code>Makefile</code><br><code>compose.dev.yaml</code><br><code>scripts/launch-frontend.sh</code></td><td>El nombre del target promete un entorno de desarrollo completo, pero requiere una segunda acción manual.</td><td>Definir explícitamente un perfil local: frontend Vite con volumen y <code>make dev</code> coordinado, o documentar que frontend se lanza aparte.</td></tr>
+        <tr><td><span class="severity high">HIGH</span></td><td>La regla <code>.env</code> del .dockerignore raíz no cubre claramente <code>frontend/.env</code>; el gateway copia todo <code>frontend/</code> al build.</td><td><code>.dockerignore</code><br><code>gateway/Dockerfile</code></td><td>Variables locales podrían entrar al contexto y quedar incorporadas al bundle público.</td><td>Excluir <code>**/.env</code> y <code>**/.env.*</code>, permitir solo ejemplos, y pasar únicamente configuración pública explícita al build.</td></tr>
+        <tr><td><span class="severity medium">MEDIUM</span></td><td>Los servicios reciben el .env completo aunque solo necesitan subconjuntos.</td><td><code>compose.yaml</code></td><td>Reduce claridad y aplica un principio de mínimo privilegio débil.</td><td>Usar variables explícitas para Postgres y un bloque mínimo para backend/simulador.</td></tr>
+        <tr><td><span class="severity medium">MEDIUM</span></td><td><code>logs</code>, <code>ps</code> y <code>down</code> siempre usan Compose base, incluso después de <code>make dev</code>.</td><td><code>Makefile</code></td><td>La operación diaria puede observar o apagar un conjunto distinto al iniciado.</td><td>Centralizar archivos Compose en una variable o añadir targets <code>dev-logs</code>, <code>dev-ps</code> y <code>dev-down</code>.</td></tr>
+        <tr><td><span class="severity medium">MEDIUM</span></td><td>La generación de certificados regenera el par completo si falta uno de los dos archivos.</td><td><code>Makefile</code></td><td>Puede sobrescribir una clave existente y romper confianza local.</td><td>Moverlo a script idempotente: fallar si el par es incompleto y generar solo cuando no existe ninguno.</td></tr>
+        <tr><td><span class="severity medium">MEDIUM</span></td><td>El backend no copia <code>backend/seeds</code> a la imagen.</td><td><code>backend/Dockerfile</code></td><td>No se puede ejecutar seed dentro del contenedor aunque se añada un target.</td><td>Copiar seeds si son parte del flujo soportado, o crear un servicio/job separado de inicialización.</td></tr>
+        <tr><td><span class="severity low">LOW</span></td><td>Dockerfiles de frontend y simulator vacíos generan una expectativa de imagen propia que no existe.</td><td><code>frontend/Dockerfile</code><br><code>simulator/Dockerfile</code></td><td>Confunde a nuevos desarrolladores y dificulta saber qué artefacto es fuente de verdad.</td><td>Implementarlos o eliminarlos y dejar documentado que gateway construye frontend.</td></tr>
+        <tr><td><span class="severity low">LOW</span></td><td>Documentación y comentarios no reflejan el estado actual de migraciones/auth.</td><td><code>README.md</code><br><code>backend/README.md</code><br><code>auth/router.py</code></td><td>El onboarding induce a seguir instrucciones ya falsas.</td><td>Actualizar docs desde comandos verificables y añadir una sección de troubleshooting.</td></tr>
+        <tr><td><span class="severity low">LOW</span></td><td>CI solo comprueba cambios del README; no ejecuta build, tests, lint, Compose ni migraciones.</td><td><code>.github/workflows/readme-check.yml</code></td><td>Los errores de infraestructura llegan a integración o evaluación manual.</td><td>Añadir jobs reproducibles para configuración, build, checks y smoke test.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="improvements" hidden>
+    <h2>2. Mejoras recomendadas</h2>
+    <p class="section-intro">Orden de diseño recomendado para que el flujo sea mantenible y no esconda decisiones peligrosas.</p>
+    <div class="grid cards-2">
+      <article class="mini-card"><h3>Contrato único de entorno</h3><p>Definir variables requeridas por servicio, valores por defecto solo para local y validación temprana. <code>SECRET_KEY</code> debe ser distinto del placeholder en producción; validar <code>COOKIE_SECURE</code>, hosts, puertos y CORS.</p></article>
+      <article class="mini-card"><h3>Compose por capas</h3><p>Mantener una base común y un override de desarrollo que añada puertos, volúmenes y frontend Vite. El perfil <code>sim</code> debe ser explícito y operable, no una promesa vacía.</p></article>
+      <article class="mini-card"><h3>Migraciones seguras</h3><p>Arranque: comprobar configuración, esperar DB y ejecutar <code>upgrade head</code> en local. Desarrollo: <code>alembic check</code> detecta cambios sin migración. Generar autogenerate solo bajo un target manual y con revisión.</p></article>
+      <article class="mini-card"><h3>Readiness real</h3><p>Conservar <code>/api/health</code> para liveness y usar <code>/api/health/db</code> para readiness. El gateway, simulador y smoke tests deben depender de la señal correcta.</p></article>
+      <article class="mini-card"><h3>Reproducibilidad</h3><p>Instalar dependencias con lockfiles; frontend ya usa <code>npm ci</code> en gateway. Para Python, considerar constraints/lock y una imagen de desarrollo separada con pytest, lint y formatter.</p></article>
+      <article class="mini-card"><h3>CI operativa</h3><p>Validar Compose, construir imágenes, ejecutar tests/lint, comprobar migraciones contra Postgres efímero y hacer smoke de <code>/api/health</code> y <code>/api/health/db</code>.</p></article>
+    </div>
+    <h3 style="margin-top:26px">Política de Alembic</h3>
+    <div class="grid cards-3">
+      <div class="mini-card"><h3>Arranque local</h3><p><code>alembic upgrade head</code> tras esperar DB. Es determinista y no crea archivos.</p></div>
+      <div class="mini-card"><h3>Detección</h3><p><code>alembic check</code> en <code>make migration-check</code>, con base levantada. Si falla por conexión, reportar prerequisito, no “sin drift”.</p></div>
+      <div class="mini-card"><h3>Creación</h3><p><code>make migration MSG="..."</code> ejecuta <code>revision --autogenerate</code> solo por petición explícita. Nunca desde entrypoint.</p></div>
+    </div>
+  </section>
+
+  <section id="makefile" hidden>
+    <h2>3. Nuevos targets del Makefile</h2>
+    <p class="section-intro">El Makefile debe orquestar comandos cortos; la lógica de validación, retry y mensajes debe vivir en scripts.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Target</th><th>Propósito</th><th>Dependencias / comportamiento</th></tr></thead>
+      <tbody>
+        <tr><td><code>help</code></td><td>Descubrir comandos</td><td>Imprimir targets y ejemplos.</td></tr>
+        <tr><td><code>setup</code></td><td>Preparar primer uso</td><td>Verificar Docker, Node/npm, crear .env desde ejemplo sin sobrescribir, preparar certificados y comprobar dependencias.</td></tr>
+        <tr><td><code>config-check</code></td><td>Validar configuración</td><td>Ejecutar <code>scripts/validate_env.sh</code> antes de levantar servicios.</td></tr>
+        <tr><td><code>dev</code></td><td>Entorno diario</td><td><code>config-check</code>, certs, build/up de Compose dev, esperar readiness y mostrar URLs. Decidir si incluye frontend Vite.</td></tr>
+        <tr><td><code>up</code> / <code>down</code> / <code>restart</code></td><td>Operación básica</td><td>Usar el mismo conjunto Compose seleccionado; <code>restart</code> no borra volúmenes.</td></tr>
+        <tr><td><code>build</code></td><td>Construir imágenes</td><td>Build sin arrancar; validar contexto y secretos no incluidos.</td></tr>
+        <tr><td><code>migrate</code></td><td>Aplicar migraciones</td><td><code>exec backend alembic upgrade head</code> con DB lista.</td></tr>
+        <tr><td><code>migration</code></td><td>Crear revisión</td><td>Requiere <code>MSG</code>; autogenerate manual y revisable.</td></tr>
+        <tr><td><code>migration-check</code></td><td>Detectar drift</td><td><code>current --check-heads</code> y <code>alembic check</code>.</td></tr>
+        <tr><td><code>seed</code></td><td>Datos demo</td><td>Después de migrate; solo en perfil local y con hash compatible.</td></tr>
+        <tr><td><code>logs</code> / <code>shell</code> / <code>ps</code></td><td>Diagnóstico</td><td>Permitir servicio opcional: <code>SERVICE=backend make logs</code>.</td></tr>
+        <tr><td><code>test</code> / <code>lint</code> / <code>format</code></td><td>Calidad</td><td>Usar imagen/dev environment reproducible; no depender de que la imagen prod copie tests.</td></tr>
+        <tr><td><code>smoke</code> / <code>doctor</code></td><td>Verificación</td><td>Smoke HTTP y diagnóstico de herramientas, puertos, variables, health y migraciones.</td></tr>
+        <tr><td><code>clean</code> / <code>reset-db</code></td><td>Limpieza</td><td><code>clean</code> quita contenedores; <code>reset-db</code> borra volumen y exige confirmación explícita.</td></tr>
+      </tbody>
+    </table></div>
+    <h3 style="margin-top:26px">Ejemplo de interfaz</h3>
+    <pre><code>COMPOSE := docker compose
+DEV_FILES := -f compose.yaml -f compose.dev.yaml
+.PHONY: help setup dev up down restart build migrate migration migration-check seed smoke doctor logs shell test lint format clean reset-db
+
+up: env certs config-check
+	$(COMPOSE) up --build -d
+	./scripts/wait_for_stack.sh
+
+migrate: config-check
+	$(COMPOSE) exec backend alembic upgrade head
+
+migration-check: config-check
+	$(COMPOSE) exec backend alembic current --check-heads
+	$(COMPOSE) exec backend alembic check
+
+migration:
+	@test -n "$(MSG)" || (echo 'Uso: make migration MSG="descripcion"' >&amp; exit 2)
+	$(COMPOSE) run --rm backend alembic revision --autogenerate -m "$(MSG)"
+
+seed: migrate
+	$(COMPOSE) exec backend python -m seeds.seed_demo</code></pre>
+    <p class="muted">Nota: el ejemplo es un contrato propuesto; no se ha aplicado al repositorio.</p>
+  </section>
+
+  <section id="scripts" hidden>
+    <h2>4. Scripts auxiliares necesarios</h2>
+    <p class="section-intro">Extraer lógica evita targets frágiles y permite reutilizarla en Compose, CI y diagnóstico local.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Script</th><th>Responsabilidad</th><th>Resultado esperado</th></tr></thead>
+      <tbody>
+        <tr><td><code>scripts/setup.sh</code></td><td>Comprobar herramientas, crear archivos locales desde ejemplos sin sobrescribir y preparar certs.</td><td>Primer uso repetible, sin instalar silenciosamente paquetes globales.</td></tr>
+        <tr><td><code>scripts/validate_env.sh</code></td><td>Validar nombres, tipos, secretos, CORS y valores incompatibles por <code>ENV</code>.</td><td>Fallo temprano con variable concreta y ejemplo de corrección.</td></tr>
+        <tr><td><code>scripts/wait_for_stack.sh</code></td><td>Esperar <code>/api/health/db</code>, timeout y diagnóstico de logs.</td><td>Targets y CI no dependen de sleeps fijos.</td></tr>
+        <tr><td><code>scripts/migration_check.sh</code></td><td>Comprobar heads, versión actual y drift; distinguir DB apagada de drift real.</td><td>Salida confiable para developer y pipeline.</td></tr>
+        <tr><td><code>scripts/create_certs.sh</code></td><td>Crear certificado solo si el par no existe; fallar ante par incompleto.</td><td>Idempotencia sin sobrescribir claves.</td></tr>
+        <tr><td><code>scripts/smoke.sh</code></td><td>Probar gateway, API health, readiness y una ruta pública mínima.</td><td>Verificación rápida posterior a <code>make dev</code>.</td></tr>
+      </tbody>
+    </table></div>
+    <h3 style="margin-top:26px">Qué no debe hacer un script de arranque</h3>
+    <div class="grid cards-2">
+      <div class="mini-card"><h3>No autogenerar migraciones</h3><p>La generación automática cambia el repositorio y puede ocultar una decisión de esquema. Debe ser una acción manual y revisable.</p></div>
+      <div class="mini-card"><h3>No instalar dependencias a ciegas</h3><p><code>setup</code> puede verificar o preparar explícitamente. El arranque de producción no debería ejecutar <code>npm install</code> ni modificar lockfiles.</p></div>
+    </div>
+  </section>
+
+  <section id="flow" hidden>
+    <h2>5. Flujo de arranque recomendado</h2>
+    <p class="section-intro">Propuesta para que <code>make dev</code> sea predecible tanto en el primer uso como en los siguientes.</p>
+    <div class="flow">
+      <div class="step"><div class="step-num">01 · DOCTOR</div><h3>Herramientas</h3><p>Verificar Docker Compose, OpenSSL, Node/npm si se usa frontend local y disponibilidad de puertos.</p></div>
+      <div class="step"><div class="step-num">02 · CONFIG</div><h3>Entorno</h3><p>Crear .env solo si falta; validar variables y no imprimir secretos. Preparar certificado local idempotente.</p></div>
+      <div class="step"><div class="step-num">03 · BUILD</div><h3>Imágenes</h3><p>Construir backend y gateway; excluir .env anidados y artefactos locales del contexto.</p></div>
+      <div class="step"><div class="step-num">04 · DB/API</div><h3>Arranque</h3><p>Levantar Postgres, esperar health; backend aplica <code>upgrade head</code> y publica liveness/readiness.</p></div>
+      <div class="step"><div class="step-num">05 · VERIFY</div><h3>Validación</h3><p>Esperar readiness, comprobar migración, ejecutar smoke y mostrar URLs/logs. Seed solo si se solicita.</p></div>
+    </div>
+    <div class="grid cards-2">
+      <article class="mini-card"><h3>Primera ejecución</h3><p><code>make setup</code> → revisión manual de <code>.env</code> → <code>make dev</code> → <code>make smoke</code>. Si se necesitan datos demo: <code>make seed</code>. No borrar el volumen para “arreglar” un fallo sin diagnóstico.</p></article>
+      <article class="mini-card"><h3>Ejecuciones posteriores</h3><p><code>make dev</code> debe ser idempotente: reutilizar volumen, aplicar solo migraciones pendientes, esperar health y mantener logs accesibles. <code>make migration-check</code> se ejecuta antes de crear una PR.</p></article>
+      <article class="mini-card"><h3>CI</h3><p>Levantar Postgres efímero, instalar dependencias bloqueadas, ejecutar <code>alembic upgrade head</code>, <code>alembic check</code>, tests y smoke. Fallar si faltan migraciones o hay drift.</p></article>
+      <article class="mini-card"><h3>Producción</h3><p>Preferir job de migración versionado y único antes de nuevas réplicas. El entrypoint de la API no debería ser el coordinador de schema en un despliegue multi-réplica.</p></article>
+    </div>
+  </section>
+
+  <section id="checklist" hidden>
+    <h2>6. Lista de tareas priorizada</h2>
+    <p class="section-intro">Orden sugerido para crear issues y cerrar la deuda operativa.</p>
+    <div class="checklist">
+      <div class="task"><span class="severity critical">CRITICAL</span><div><strong>Decidir e implementar el simulador o retirar su profile.</strong><small>Archivos: <code>simulator/*</code>, <code>compose.yaml</code>.</small></div></div>
+      <div class="task"><span class="severity critical">CRITICAL</span><div><strong>Corregir el seed para usar Argon2 y probar login de usuarios demo.</strong><small>Archivos: <code>backend/seeds/seed_demo.py</code>, tests de auth.</small></div></div>
+      <div class="task"><span class="severity high">HIGH</span><div><strong>Añadir validación formal de .env y target <code>doctor/config-check</code>.</strong><small>Archivos nuevos: <code>scripts/validate_env.sh</code>, <code>scripts/doctor.sh</code>, <code>Makefile</code>.</small></div></div>
+      <div class="task"><span class="severity high">HIGH</span><div><strong>Definir la política de migraciones local, CI y producción.</strong><small>Targets: <code>migrate</code>, <code>migration</code>, <code>migration-check</code>; nunca autogenerate en startup.</small></div></div>
+      <div class="task"><span class="severity high">HIGH</span><div><strong>Corregir el flujo <code>make dev</code> y la selección de Compose.</strong><small>Incluir frontend o documentar explícitamente el lanzamiento separado; alinear logs/ps/down.</small></div></div>
+      <div class="task"><span class="severity high">HIGH</span><div><strong>Blindar el build context frente a <code>frontend/.env</code>.</strong><small>Archivos: <code>.dockerignore</code>, <code>gateway/Dockerfile</code>.</small></div></div>
+      <div class="task"><span class="severity medium">MEDIUM</span><div><strong>Añadir retry/readiness y healthchecks coherentes.</strong><small>Archivos: <code>compose.yaml</code>, <code>scripts/wait_for_stack.sh</code>, endpoint DB readiness.</small></div></div>
+      <div class="task"><span class="severity medium">MEDIUM</span><div><strong>Separar variables por servicio y adoptar lock/constraints de Python.</strong><small>Archivos: <code>compose.yaml</code>, requirements/CI.</small></div></div>
+      <div class="task"><span class="severity medium">MEDIUM</span><div><strong>Crear imagen o entorno de desarrollo para pytest, lint y format.</strong><small>La imagen prod excluye tests; los targets deben ser reproducibles.</small></div></div>
+      <div class="task"><span class="severity medium">MEDIUM</span><div><strong>Actualizar README y documentación backend a la realidad actual.</strong><small>Eliminar afirmaciones obsoletas sobre Alembic, imagen y auth.</small></div></div>
+      <div class="task"><span class="severity low">LOW</span><div><strong>Limpiar Dockerfiles vacíos o convertirlos en artefactos funcionales.</strong><small>Archivos: <code>frontend/Dockerfile</code>, <code>simulator/Dockerfile</code>.</small></div></div>
+      <div class="task"><span class="severity low">LOW</span><div><strong>Ampliar CI más allá del README.</strong><small>Build, Compose config, tests, lint, migraciones y smoke.</small></div></div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <strong>Archivos revisados:</strong>
+    <ul class="file-list">
+      <li><code>Makefile</code>, <code>.env.example</code>, <code>.dockerignore</code></li>
+      <li><code>compose.yaml</code>, <code>compose.dev.yaml</code></li>
+      <li><code>backend/Dockerfile</code>, <code>backend/.dockerignore</code></li>
+      <li><code>backend/tools/entrypoint.sh</code></li>
+      <li><code>backend/alembic.ini</code>, <code>backend/migrations/env.py</code></li>
+      <li><code>backend/seeds/seed_demo.py</code></li>
+      <li><code>gateway/Dockerfile</code>, <code>gateway/nginx.conf</code></li>
+      <li><code>frontend/Dockerfile</code>, <code>frontend/.env.example</code></li>
+      <li><code>scripts/create_env</code>, <code>scripts/launch-frontend.sh</code></li>
+      <li><code>.github/workflows/readme-check.yml</code></li>
+      <li><code>README.md</code>, <code>backend/README.md</code></li>
+    </ul>
+    <p>Verificaciones observadas: Compose válido; Alembic tiene un único head <code>c4e0b1a3d2f7</code>; <code>alembic check</code> no pudo conectar a PostgreSQL apagado; pytest no está instalado en el entorno virtual raíz.</p>
+  </footer>
+</main>
+<script>
+  const tabs = [...document.querySelectorAll('.tab')];
+  const panels = [...document.querySelectorAll('section[id]')];
+  tabs.forEach(tab => tab.addEventListener('click', () => {
+    const target = tab.dataset.tab;
+    tabs.forEach(item => {
+      const active = item === tab;
+      item.classList.toggle('active', active);
+      item.setAttribute('aria-selected', String(active));
+    });
+    panels.forEach(panel => { panel.hidden = panel.id !== target; });
+    history.replaceState(null, '', '#' + target);
+  }));
+  const initial = location.hash.slice(1);
+  const first = tabs.find(tab => tab.dataset.tab === initial);
+  if (first) first.click();
+</script>
+</body>
+</html>

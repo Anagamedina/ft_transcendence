@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AquaGuard · Modelos y Repositories</title>
+  <style>
+    :root { --ink:#172033; --muted:#667085; --line:#dfe5ee; --blue:#356ae6; --blue-soft:#eef3ff; --green:#16845b; --green-soft:#eaf8f1; --orange:#b86112; --orange-soft:#fff4e8; --bg:#f7f9fc; --card:#fff; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.55 Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; }
+    main { max-width:1180px; margin:auto; padding:48px 24px 72px; }
+    .hero { background:linear-gradient(135deg,#172d67,#356ae6); color:white; border-radius:24px; padding:42px; box-shadow:0 18px 50px #16377522; }
+    .eyebrow { text-transform:uppercase; letter-spacing:.12em; font-size:12px; opacity:.78; font-weight:700; }
+    h1 { margin:8px 0 12px; font-size:clamp(32px,5vw,58px); line-height:1.03; }
+    h2 { margin:46px 0 18px; font-size:30px; }
+    h3 { margin:0 0 8px; font-size:19px; }
+    p { margin:8px 0; }
+    .hero p { max-width:760px; font-size:18px; opacity:.9; }
+    .quote { margin-top:24px; padding:16px 20px; border-left:4px solid #a9c1ff; background:#ffffff16; border-radius:8px; font-weight:600; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:20px; box-shadow:0 6px 22px #1f3b6810; }
+    .card p, li { color:var(--muted); }
+    .tag { display:inline-block; margin:0 4px 8px 0; padding:4px 9px; border-radius:99px; font-size:12px; font-weight:700; background:var(--blue-soft); color:var(--blue); }
+    .model { border-top:4px solid var(--blue); }
+    .repo { border-top:4px solid var(--green); }
+    .warning { border-top:4px solid var(--orange); background:var(--orange-soft); }
+    .diagram { background:#fff; border:1px solid var(--line); border-radius:16px; padding:22px; overflow:auto; }
+    .two { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:20px; }
+    ul { padding-left:20px; margin-bottom:0; }
+    code { background:#f0f2f6; padding:2px 5px; border-radius:5px; }
+    .flow { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:10px; }
+    .step { padding:13px 16px; border:1px solid #bdcaf1; background:var(--blue-soft); border-radius:12px; text-align:center; font-weight:700; }
+    .arrow { color:var(--blue); font-size:24px; font-weight:800; }
+    footer { margin-top:48px; color:var(--muted); font-size:14px; text-align:center; }
+    a { color:var(--blue); }
+  </style>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad:true, theme:'base', themeVariables:{ primaryColor:'#eef3ff', primaryTextColor:'#172033', primaryBorderColor:'#356ae6', lineColor:'#667085', secondaryColor:'#eaf8f1', tertiaryColor:'#fff4e8' } });
+  </script>
+</head>
+<body>
+<main>
+  <section class="hero">
+    <div class="eyebrow">AquaGuard · Backend</div>
+    <h1>Modelos, Repositories<br>y flujo del backend</h1>
+    <p>Resumen visual para explicar el trabajo de Daruny en persistencia, aislamiento por organización y separación de responsabilidades.</p>
+    <div class="quote">El router habla HTTP. El service entiende el caso de uso. El repository sabe dónde viven los datos.</div>
+  </section>
+
+  <h2>La arquitectura en una imagen</h2>
+  <div class="diagram"><pre class="mermaid">flowchart LR
+    C[Frontend / simulador] --> R[FastAPI Router]
+    R --> V[Schema + dependencias]
+    V --> S[Service]
+    S --> RP[Repository]
+    RP --> SES[SQLAlchemy Session]
+    SES --> DB[(PostgreSQL)]
+    DB --> SES --> RP --> S --> OUT[Schema de respuesta]
+    SES -. error .-> RB[rollback]
+    SES -. fin .-> CL[close]
+  </pre></div>
+
+  <h2>Modelos del dominio</h2>
+  <div class="diagram"><pre class="mermaid">erDiagram
+    ORGANIZATION ||--o{ USER : contiene
+    ORGANIZATION ||--o{ SITE : posee
+    SITE ||--o{ SENSOR : instala
+    SENSOR ||--o{ READING : recibe
+    SENSOR ||--o{ ALERT : genera
+  </pre></div>
+  <div class="grid" style="margin-top:16px">
+    <article class="card model"><h3>Organization</h3><span class="tag">multi-tenant</span><p>Límite de aislamiento. Contiene usuarios y sites.</p></article>
+    <article class="card model"><h3>User</h3><span class="tag">identidad</span><p>Email único, password hash, rol y organización.</p></article>
+    <article class="card model"><h3>Site</h3><span class="tag">geografía</span><p>Lugar físico con FK a organización y coordenadas válidas.</p></article>
+    <article class="card model"><h3>Sensor</h3><span class="tag">dispositivo</span><p>Dispositivo de un site, umbrales, unidad e histórico asociado.</p></article>
+    <article class="card model"><h3>Reading</h3><span class="tag">histórico</span><p>Medición temporal con índice por sensor y fecha.</p></article>
+    <article class="card model"><h3>Alert</h3><span class="tag">auditoría</span><p>Anomalía con tipo, severidad, estado y timestamps de ciclo de vida.</p></article>
+  </div>
+
+  <h2>Repositories implementados</h2>
+  <div class="grid">
+    <article class="card repo"><h3>SensorRepository</h3><p>Lista y busca sensores con filtro obligatorio por organización, paginación y orden estable.</p></article>
+    <article class="card repo"><h3>ReadingRepository</h3><p>Crea lecturas con <code>flush()</code> y consulta históricos con join seguro por organización.</p></article>
+    <article class="card repo"><h3>UserRepository</h3><p>Normaliza emails, busca por email o ID y crea usuarios con rollback ante errores.</p></article>
+    <article class="card repo"><h3>OrganizationRepository</h3><p>Encapsula la búsqueda de organizaciones por UUID.</p></article>
+    <article class="card repo"><h3>AlertRepository</h3><p>Crea, lista, reconoce y resuelve alertas con filtros, índices e idempotencia.</p></article>
+  </div>
+
+  <h2>Flujo de guardar una lectura</h2>
+  <div class="flow">
+    <div class="step">POST /api/readings</div><div class="arrow">→</div>
+    <div class="step">Validación Pydantic</div><div class="arrow">→</div>
+    <div class="step">ReadingService</div><div class="arrow">→</div>
+    <div class="step">Repositories</div><div class="arrow">→</div>
+    <div class="step">flush + commit</div><div class="arrow">→</div>
+    <div class="step">ReadingResponse</div>
+  </div>
+  <div class="diagram" style="margin-top:18px"><pre class="mermaid">sequenceDiagram
+    participant Sim as Simulador
+    participant S as ReadingService
+    participant SR as SensorRepository
+    participant RR as ReadingRepository
+    participant DB as PostgreSQL
+    Sim->>S: lectura validada
+    S->>SR: validar sensor + organización
+    SR->>DB: SELECT con JOIN
+    S->>RR: crear reading
+    RR->>DB: INSERT + flush()
+    S->>S: actualizar sensor / evaluar alerta
+    S->>DB: commit() de la operación completa
+    S-->>Sim: respuesta JSON
+  </pre></div>
+
+  <h2>Por qué separar Repository y Service</h2>
+  <div class="two">
+    <article class="card"><h3>Repository</h3><ul><li>Centraliza consultas y joins.</li><li>Aplica filtros multi-tenant.</li><li>Controla paginación e índices.</li><li>Se puede sustituir en tests.</li></ul></article>
+    <article class="card"><h3>Service</h3><ul><li>Aplica reglas de negocio.</li><li>Coordina varias operaciones.</li><li>Decide 404, conflictos y alertas.</li><li>Es reutilizable fuera de HTTP.</li></ul></article>
+  </div>
+
+  <h2>Estado actual</h2>
+  <div class="grid">
+    <article class="card"><h3>Implementado</h3><p>Modelos ORM, relaciones, FK, constraints, índices, repositories principales, sesiones, Alembic y tests unitarios.</p></article>
+    <article class="card warning"><h3>Siguiente integración</h3><p>Completar services, implementar SiteRepository y alinear roles de User, campos de Sensor y <code>alert_type/type</code> con los schemas.</p></article>
+  </div>
+
+  <footer>Documento fuente completo: <a href="artefacto-modelos-repositories.md">artefacto-modelos-repositories.md</a></footer>
+</main>
+</body>
+</html>

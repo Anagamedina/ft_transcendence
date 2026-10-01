@@ -1,0 +1,12 @@
+Estamos construyendo la capa que guarda y busca usuarios/organizaciones en la base de datos — nada de login ni contraseñas, solo "guardar" y "buscar".
+
+En simple:
+
+1. OrganizationRepository.get_by_id: dado un ID, trae esa organización de la tabla Organizations, o None si no existe.
+2. UserRepository.get_by_email: recibe un correo electrónico, lo limpia (minúsculas, sin espacios) y busca en la tabla usuarios si ya existe alguien con ese correo electrónico. Se usa para "¿este usuario ya existe?" al hacer login/registro.
+3. UserRepository.get_by_id: busca un usuario por su ID, pero solo si pertenece a la organización indicada — así un usuario de la empresa A nunca puede aparecer cuando se consulta desde la empresa B.
+4. UserRepository.create: crea un usuario nuevo (correo electrónico, hash de contraseña ya calculado por otro, rol, organización) y lo guarda. Si alguien intenta crear dos usuarios con el mismo correo electrónico, PostgreSQL lo rechaza (por la restricción UNIQUE que ya existía) y el error sube tal cual, sin que el repositorio lo maquille — quien decida qué responder al usuario final (ej. "ese correo electrónico ya está registrado") es el servicio de Ana, no esta capa.
+
+En una frase: es la pieza que sabe hablar con la base de datos de usuarios/organizaciones, para que el resto del sistema (login, registro, permisos) no tenga que escribir SQL directamente.
+
+Y las pruebas que corrieron confirman que esto funciona: búsqueda normalizada, aislamiento entre organizaciones, y que el duplicado realmente falla.
