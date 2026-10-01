@@ -90,8 +90,10 @@ database is unreachable:
 
 Stop the stack with `make down`, which keeps the PostgreSQL volume.
 
-Alembic runs from the host and therefore needs the PostgreSQL port, which the
-delivery topology does not publish. `make dev` starts the same stack plus
+The `make migrate`, `make migration` and `make migration-check` targets run
+Alembic inside Docker, so they need no published port. Running Alembic directly
+from the host does need the PostgreSQL port, which the delivery topology does
+not publish: `make dev` starts the same stack plus
 [`compose.dev.yaml`](compose.dev.yaml), which binds PostgreSQL to
 `127.0.0.1:5432` for that purpose only.
 
@@ -113,6 +115,9 @@ The root `Makefile` wraps the Compose commands:
 | `make build`       | Builds the images without starting them                                                                          |
 | `make sim`         | Same as `make up` plus the `sim` profile, which starts the sensor simulator                                      |
 | `make seed`        | Loads the demo data inside the running `backend` container; safe to run more than once                           |
+| `make migrate`     | Applies pending migrations (`alembic upgrade head`)                                                              |
+| `make migration MSG="..."` | Generates a migration with `alembic revision --autogenerate` without applying it; fails without `MSG`   |
+| `make migration-check` | Fails if the database is unreachable, has pending migrations, or the models drifted from the migrations      |
 | `make down`        | Stops the containers, simulator included, and keeps the PostgreSQL volume                                        |
 | `make logs`        | Follows the logs of every running service                                                                        |
 | `make ps`          | Shows service status                                                                                             |
@@ -143,17 +148,28 @@ server, opening it automatically in the browser.
 
 ### Database migrations
 
-Alembic is configured under `backend/`, but the migration files and the backend
-image still require completion before migrations can be considered part of the
-standard startup flow. The intended workflow is:
+The backend container applies `alembic upgrade head` on every start, so
+`make up` always leaves the database at the latest revision. It never generates
+migrations on its own.
+
+The migration targets run Alembic in a one-off `backend` container with
+`backend/app` and `backend/migrations` mounted from the working tree, so they
+always use the current models even if the image was built earlier, and a
+generated file lands directly in `backend/migrations/versions/`. They require
+the `database` service to be running (`make up`).
+
+Workflow after changing a model:
 
 ```bash
-cd backend
-alembic upgrade head
+make migration MSG="add sensor serial number"   # generate the revision
+# review the generated file in backend/migrations/versions/
+make migrate                                     # apply it
+make migration-check                             # database at head, no drift
 ```
 
-This command must only be added to the normal startup instructions after the
-database models, migration revisions, and container image have been verified.
+`make migration-check` compares column types and server defaults as well
+(`compare_type` and `compare_server_default` in `backend/migrations/env.py`).
+See [`backend/migrations/README.md`](backend/migrations/README.md) for details.
 
 ## Architecture
 

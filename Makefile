@@ -1,8 +1,12 @@
 COMPOSE     := docker compose
 COMPOSE_DEV := docker compose -f compose.yaml -f compose.dev.yaml
 CERTS_DIR   := gateway/certs
+ALEMBIC     := $(COMPOSE) run --rm --no-deps --user "$$(id -u):$$(id -g)" \
+	-v $(CURDIR)/backend/app:/app/app:ro \
+	-v $(CURDIR)/backend/migrations:/app/migrations \
+	--entrypoint alembic
 
-.PHONY: all env certs up dev sim seed down build logs ps clean fclean re
+.PHONY: all env certs up dev sim seed migrate migration migration-check down build logs ps clean fclean re
 
 all: up
 
@@ -32,6 +36,16 @@ sim: env certs
 
 seed:
 	$(COMPOSE) exec backend python -m seeds.seed_demo
+
+migrate:
+	$(ALEMBIC) backend upgrade head
+
+migration:
+	@test -n "$(MSG)" || { echo 'Usage: make migration MSG="description"'; exit 1; }
+	$(ALEMBIC) backend revision --autogenerate -m "$(MSG)"
+
+migration-check:
+	@sh scripts/migration_check.sh
 
 down:
 	$(COMPOSE) --profile sim down
