@@ -14,6 +14,10 @@ import { useAlertsStore } from '../../stores/alerts'
 import SitesSummary from '../../components/SitesSummary.vue'
 import SensorsSummary from '../../components/SensorsSummary.vue'
 import AlertsSummary from '../../components/AlertsSummary.vue'
+import SitesMap from '../../components/SitesMap.vue'
+// TODO: temporary mock data until the sites store exists (Services/Stores area).
+// Replace with the store, e.g. `sitesStore.sites`, and delete this import.
+import { sites as mockSites } from '../../services/fixtures/sites'
 
 const sensorStore = useSensorsStore()
 const alertsStore = useAlertsStore()
@@ -53,6 +57,10 @@ const activeAlerts = computed(() => activeAlertList.value.length)
     <section class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
       <SitesSummary />
       <SensorsSummary :sensors="sensorStore.sensors" />
+    </section>
+
+    <section class="mb-8">
+      <SitesMap :sites="mockSites" />
     </section>
 
     <AlertsSummary :alerts="activeAlertList" />
