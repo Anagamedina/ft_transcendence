@@ -88,6 +88,37 @@ database is unreachable:
 {"status":"ok","database":"connected","checked_at":"2026-09-02T21:52:53.859027Z"}
 ```
 
+`make smoke` checks the whole stack in one run and is the check to use before
+a merge or an evaluation. It needs the demo data (`make seed`):
+
+```bash
+make up
+make seed
+make smoke
+```
+
+It runs `docker compose up -d --wait` for `database`, `backend` and `gateway`,
+which starts any of them that is stopped and waits up to 60 seconds for all
+three to report `healthy`. Then it checks both health endpoints, the HTTP to
+HTTPS redirect and the SPA, sends a reading through `POST /api/readings`, and
+confirms it was stored in PostgreSQL. The test reading is deleted afterwards.
+When the simulator is running (`make sim`), it also checks that its readings
+reach the database, unless its scenario is `offline`, which sends none on
+purpose. The first failing check stops the run with a non-zero exit code and a
+message that names the logs to look at:
+
+```text
+smoke: ok    database, backend and gateway are healthy
+smoke: ok    /api/health responds
+smoke: ok    /api/health/db responds
+smoke: ok    HTTP redirects to HTTPS
+smoke: ok    the gateway serves the SPA
+smoke: ok    POST /api/readings accepts a reading
+smoke: ok    the reading is stored in PostgreSQL
+smoke: ok    simulator readings reach the database (6 in the last 30s)
+smoke: OK, all checks passed
+```
+
 Stop the stack with `make down`, which keeps the PostgreSQL volume.
 
 Alembic runs from the host and therefore needs the PostgreSQL port, which the
@@ -113,6 +144,7 @@ The root `Makefile` wraps the Compose commands:
 | `make build`       | Builds the images without starting them                                                                          |
 | `make sim`         | Same as `make up` plus the `sim` profile, which starts the sensor simulator                                      |
 | `make seed`        | Loads the demo data inside the running `backend` container; safe to run more than once                           |
+| `make smoke`       | Smoke test of the stack: health, gateway, and a reading stored end to end; fails with a non-zero code            |
 | `make down`        | Stops the containers, simulator included, and keeps the PostgreSQL volume                                        |
 | `make logs`        | Follows the logs of every running service                                                                        |
 | `make ps`          | Shows service status                                                                                             |
@@ -236,6 +268,7 @@ data types, and relationships once the schema is implemented.
 | Compose orchestration (network, volume, profiles)                           | Implemented   | Eduardo        | `make up` then `make ps`                                                                                        |
 | Nginx gateway: HTTPS, HTTP redirect, SPA, `/api` and `/ws` proxy            | Implemented   | Eduardo        | `curl -I http://localhost` returns 301, `curl -k https://localhost/api/health` returns 200                      |
 | Sensor simulator (`simulator/`): normal, low, high and offline scenarios    | Implemented   | Eduardo        | `cd simulator && pytest` (26 tests); `make up && make seed && make sim`. The seed creates the sensors listed in `.env.example`, so readings persist via `POST /api/readings` (#24) with no manual setup; waits for `/api/health/db` before sending, exposes its own container `HEALTHCHECK`, and demo users get real Argon2 hashes (#89) |
+| Health checks and smoke test (`make smoke`)                                 | Implemented   | Eduardo        | `make up && make seed && make smoke`; with `make sim` it also checks the simulator -> API -> database flow |
 | Authentication: register, login, logout and `GET /api/me`                   | Implemented   | Ana            | `cd backend && python3 -m pytest -q` (131 tests), or `curl -k -c c.txt -X POST https://localhost/api/auth/login -H 'Content-Type: application/json' -d '{"email":"...","password":"..."}'` then `curl -k -b c.txt https://localhost/api/me` |
 | Sensor readings: store and list (`POST /api/readings`, `GET /api/sensors/{id}/readings`) | Implemented | Daruny, Ana | `cd backend && python3 -m pytest -q` (131 tests). History is paginated and scoped to the session's organization   |
 | Alerts: list, acknowledge, resolve, and low/high pressure rules            | In progress   | Daruny, Ana    | `cd backend && python3 -m pytest -q` (131 tests). A reading outside the sensor's thresholds opens an alert; `SENSOR_OFFLINE` pending (#28) |
