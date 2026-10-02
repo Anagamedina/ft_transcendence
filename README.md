@@ -199,6 +199,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the detailed design.
 |-------------|------------------------------|-------------------------------------------|
 | Frontend    | Vue, Vite, Vue Router, Pinia | Responsive single-page application        |
 | Styling     | Tailwind CSS, DaisyUI        | Consistent responsive UI styling          |
+| Maps        | MapLibre GL, OpenFreeMap     | Admin map of sites (no API key required)  |
 | HTTP client | Axios                        | Frontend-to-backend communication         |
 | Backend     | FastAPI, Uvicorn             | HTTP API and application server           |
 | Persistence | PostgreSQL                   | Relational storage and data integrity     |
@@ -239,7 +240,8 @@ data types, and relationships once the schema is implemented.
 | Authentication: register, login, logout and `GET /api/me`                   | Implemented   | Ana            | `cd backend && python3 -m pytest -q` (131 tests), or `curl -k -c c.txt -X POST https://localhost/api/auth/login -H 'Content-Type: application/json' -d '{"email":"...","password":"..."}'` then `curl -k -b c.txt https://localhost/api/me` |
 | Sensor readings: store and list (`POST /api/readings`, `GET /api/sensors/{id}/readings`) | Implemented | Daruny, Ana | `cd backend && python3 -m pytest -q` (131 tests). History is paginated and scoped to the session's organization   |
 | Alerts: list, acknowledge, resolve, and low/high pressure rules            | In progress   | Daruny, Ana    | `cd backend && python3 -m pytest -q` (131 tests). A reading outside the sensor's thresholds opens an alert; `SENSOR_OFFLINE` pending (#28) |
-| Admin dashboard: KPIs, sites, sensors and active alerts summaries           | In progress   | Florinda       | Run `./scripts/launch-frontend.sh`, visit `/admin` (layout and summaries render; data appears once stores are loaded) |
+| Admin dashboard: KPIs, sites, sensors and active alerts summaries           | In progress   | Florinda       | Run `./scripts/launch-frontend.sh`, visit `/admin` (layout and summaries render; sites come from mocks, sensors and alerts appear once stores are loaded) |
+| Admin sites map: Barcelona municipal boundary, marker colour by active alert, zoom limited to the city | Implemented | Florinda | Run `./scripts/launch-frontend.sh`, visit `/admin`, click "Ver mapa" |
 
 Every pull request that adds a feature should update this table with its status,
 contributors, and a reproducible verification method.
@@ -360,6 +362,7 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 | 04                    | Public landing page                                                                                                                         | Implemented                                                  |
 | 05                    | Privacy Policy and Terms of Service: sectioned content with semantic headings, sticky anchor-link index, legal-review disclaimer; both routes public, linked from Footer; `Header` logo now links back to Landing; fixed `scrollBehavior` so navigation resets scroll to top | [#70](https://github.com/Anagamedina/ft_transcendence/pull/70) | `overflow-x-hidden` on `PublicLayout.vue` was silently breaking `position: sticky` on the index sidebar; removed it and re-verified Landing still has no horizontal overflow at 320px. |
 | 06                    | Admin Dashboard visual structure: route `/admin`, `AdminLayout`, `KPICard`, shared `AppIcon` SVG set (also used in `Sidebar`), `SitesSummary`, `SensorsSummary`, `AlertsSummary`; KPIs derived from Pinia stores with `computed`, no direct HTTP calls | [#96](https://github.com/Anagamedina/ft_transcendence/pull/96) | No sites store exists yet, so the Sites KPI shows "—" instead of an invented number; emojis rendered differently per OS, replaced by a single SVG icon component. |
+| 07                    | Admin sites map (`SitesMap`): MapLibre GL + OpenFreeMap, official Barcelona boundary with the outside faded, marker colour by most severe active alert, opened in a `Modal` (new `size` prop) and lazy-loaded; props only, no HTTP calls | [#PR](https://github.com/Anagamedina/ft_transcendence/pulls) | Leaflet cannot rotate the map with upright labels, so it was replaced by MapLibre; a world mask drawn at ±90° broke rendering (Web Mercator stops at ±85°); a large inline map hid the KPIs, so it moved to a modal and MapLibre (~1 MB) now loads only when the map is opened. |
 
 | Lylia (`lylfergu`)                                                                    | Features/modules | Pull requests                                                                                                                                                   | Challenges and solutions |
 |---------------------------------------------------------------------------------------|------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------|
@@ -388,6 +391,9 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 - [SQLAlchemy documentation](https://docs.sqlalchemy.org/)
 - [Alembic documentation](https://alembic.sqlalchemy.org/)
 - [Docker Compose documentation](https://docs.docker.com/compose/)
+- [MapLibre GL JS documentation](https://maplibre.org/maplibre-gl-js/docs/)
+- [OpenFreeMap](https://openfreemap.org/) (map tiles, OpenStreetMap data)
+- Barcelona municipal boundary: Ajuntament de Barcelona / CartoBCN (CC-BY)
 
 ### AI usage
 
@@ -420,6 +426,8 @@ label planned work separately from implemented work.
   it does not start with the default `make up`; run `make sim` to include it.
 - TLS certificates are self-signed, so browsers warn on first visit. A
   publicly trusted certificate is out of scope for this project.
+- The admin sites map loads its tiles from OpenFreeMap, so it needs an
+  internet connection.
 - The gateway serves a production build of the SPA. Frontend development still
   uses the Vite dev server through `./scripts/launch-frontend.sh`.
 - `.env` generation exists twice, as `make env` and as `scripts/create_env`.
