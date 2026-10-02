@@ -65,7 +65,7 @@ const criticalSites = computed(() => sitesForMap.value.filter((s) => s.alertLeve
     <h1 class="text-2xl font-bold text-gray-800 mb-6">Dashboard Admin</h1>
 
     <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-      <KPICard label="Sites">
+      <KPICard label="Sites" :value="mockSites.length">
         <template #icon><AppIcon name="building" /></template>
       </KPICard>
 
@@ -83,7 +83,7 @@ const criticalSites = computed(() => sitesForMap.value.filter((s) => s.alertLeve
     </section>
 
     <section class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
-      <SitesSummary />
+      <SitesSummary :sites="mockSites" />
       <SensorsSummary :sensors="sensorStore.sensors" />
     </section>
 
