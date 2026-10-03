@@ -62,7 +62,12 @@ python -c "import sys; sys.path.insert(0, 'backend'); from app.core.config impor
 python -c "import sys; sys.path.insert(0, 'backend'); from app.core.database import engine, SessionLocal, Base, get_db; print(engine.url.render_as_string(hide_password=True)); print(Base.metadata.tables.keys())"
 ```
 
-Run Alembic commands from the `backend/` directory:
+To create, apply or check migrations, prefer the root `Makefile` targets
+(`make migration MSG="..."`, `make migrate`, `make migration-check`): they run
+inside Docker and need no host port. See
+[`migrations/README.md`](migrations/README.md).
+
+To run Alembic directly from the host, use the `backend/` directory:
 
 ```bash
 cd backend
@@ -102,8 +107,8 @@ docker compose logs -f backend
 
 The backend container is not published directly to the host. The gateway
 exposes the API through HTTPS, and the backend entrypoint runs
-`alembic upgrade head` before starting Uvicorn. The image includes the
-migration files and `alembic.ini`.
+`alembic upgrade head` before starting Uvicorn. It never generates
+migrations. The image includes the migration files and `alembic.ini`.
 
 Stop the services with:
 
