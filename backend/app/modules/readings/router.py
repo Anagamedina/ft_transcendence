@@ -31,12 +31,14 @@ contra el schema, y se delega. Es el criterio de aceptación de la issue
 from __future__ import annotations
 
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 
 from app.modules.readings.schemas import ReadingCreate, ReadingResponse
 from app.modules.readings.service import ReadingService, get_reading_service
-from app.shared.schemas import error_response
+from app.shared.dependencies import OrgScope, Pagination
+from app.shared.schemas import Page, error_response
 
 router = APIRouter(tags=["Readings"])
 
@@ -55,8 +57,14 @@ ReadingSvc = Annotated[ReadingService, Depends(get_reading_service)]
         "(issue #16). Devuelve **201** con la lectura registrada.\n\n"
         "`measured_at` es opcional: si no se envía, el servidor usa el "
         "momento de recepción.\n\n"
-        "_La persistencia depende del repository de Daruny (issue #14). "
-        "Mientras no exista, una petición válida responde 501 indicándolo._"
+        "Si la presión se sale de los umbrales del sensor, se abre una "
+        "alerta `LOW_PRESSURE` o `HIGH_PRESSURE` (visible en "
+        "`GET /api/alerts`). Mientras siga abierta, las lecturas "
+        "siguientes no crean otra; solo pueden subirla de `WARNING` a "
+        "`CRITICAL`.\n\n"
+        "`id` es opcional. Si se reenvía una lectura con un `id` ya "
+        "guardado y los mismos datos, se devuelve la existente sin "
+        "duplicarla ni abrir otra alerta."
     ),
     responses={
         **error_response(
@@ -64,13 +72,14 @@ ReadingSvc = Annotated[ReadingService, Depends(get_reading_service)]
             "El sensor indicado no existe (`SENSOR_NOT_FOUND`).",
         ),
         **error_response(
+            status.HTTP_409_CONFLICT,
+            "Ya existe una lectura con ese `id` y datos distintos "
+            "(`READING_ID_CONFLICT`).",
+        ),
+        **error_response(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             "Presión fuera del rango 0–25 bar, campo desconocido o cuerpo "
             "mal formado.",
-        ),
-        **error_response(
-            status.HTTP_501_NOT_IMPLEMENTED,
-            "Falta el repository de readings (issue #14, Daruny).",
         ),
     },
 )
@@ -78,3 +87,48 @@ def create_reading(payload: ReadingCreate, service: ReadingSvc) -> ReadingRespon
     # `payload` llega ya validado: si el JSON no encajaba con ReadingCreate,
     # FastAPI cortó antes y el handler de validación devolvió el 422.
     return service.create(payload)
+
+
+@router.get(
+    "/sensors/{sensor_id}/readings",
+    response_model=Page[ReadingResponse],
+    summary="Histórico de lecturas de un sensor",
+    description=(
+        "Devuelve las lecturas de un sensor, paginadas y ordenadas por "
+        "fecha de medida. Lo consume la vista de detalle de sensor "
+        "(issue #40).\n\n"
+        "Solo devuelve sensores de **tu propia organización**: un "
+        "`sensor_id` de otro cliente responde 404, igual que uno que no "
+        "existe. Que respondan lo mismo es deliberado — distinguirlos "
+        "diría si ese identificador existe en alguna parte."
+    ),
+    responses={
+        **error_response(
+            status.HTTP_401_UNAUTHORIZED,
+            "No hay sesión (`UNAUTHORIZED`).",
+        ),
+        **error_response(
+            status.HTTP_403_FORBIDDEN,
+            "Cuenta de cliente sin organización (`FORBIDDEN`).",
+        ),
+        **error_response(
+            status.HTTP_404_NOT_FOUND,
+            "El sensor no existe o no es de tu organización "
+            "(`SENSOR_NOT_FOUND`).",
+        ),
+    },
+)
+def list_sensor_readings(
+    sensor_id: UUID,
+    service: ReadingSvc,
+    scope: OrgScope,
+    pagination: Pagination,
+) -> Page[ReadingResponse]:
+    # La organización sale de la sesión (`OrgScope`), nunca de lo que envíe
+    # el cliente: si viniera en la query, cualquiera podría pedir la de otro.
+    return service.list_by_sensor(
+        sensor_id=sensor_id,
+        organization_id=scope,
+        offset=pagination.offset,
+        limit=pagination.limit,
+    )

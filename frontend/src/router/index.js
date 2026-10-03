@@ -37,12 +37,22 @@ const routes = [
     path: "/sensors/:id",
     component: () => import("../views/public/SensorDetailView.vue"),
   },
+  {
+    path: "/admin",
+    component: () => import("../views/admin/DashboardView.vue"),
+  },
 ];
 
 const router = createRouter({
   history: createWebHistory(),
   routes,
-});
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) {
+      return savedPosition // browser back/forward: restore previous scroll position
+    }
+    return { top: 0 } // any other navigation: scroll to top
+  },
+})
 
 router.beforeEach(async (to) => {
   const authStore = useAuthStore();

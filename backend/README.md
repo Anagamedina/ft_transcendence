@@ -1,9 +1,8 @@
 # Backend development
 
-This document describes the current backend development environment.<br>
-The project-wide setup and the final production commands will be documented in the
-root [`README.md`](../README.md) once the Makefile, gateway, and complete
-Compose stack are finished.
+This document describes the backend development environment. Project-wide
+setup and Compose commands are documented in the root
+[`README.md`](../README.md).
 
 ## Requirements
 
@@ -42,10 +41,10 @@ The remaining values are read from the root `.env` file.
 
 ## Run PostgreSQL and test the backend locally
 
-Start only the database container from the repository root:
+Start PostgreSQL with its host port available for local Alembic commands:
 
 ```bash
-docker compose up -d database
+docker compose -f compose.yaml -f compose.dev.yaml up -d database
 docker compose ps
 ```
 
@@ -63,7 +62,12 @@ python -c "import sys; sys.path.insert(0, 'backend'); from app.core.config impor
 python -c "import sys; sys.path.insert(0, 'backend'); from app.core.database import engine, SessionLocal, Base, get_db; print(engine.url.render_as_string(hide_password=True)); print(Base.metadata.tables.keys())"
 ```
 
-Run Alembic commands from the `backend/` directory:
+To create, apply or check migrations, prefer the root `Makefile` targets
+(`make migration MSG="..."`, `make migrate`, `make migration-check`): they run
+inside Docker and need no host port. See
+[`migrations/README.md`](migrations/README.md).
+
+To run Alembic directly from the host, use the `backend/` directory:
 
 ```bash
 cd backend
@@ -95,11 +99,16 @@ Useful endpoints:
 From the repository root:
 
 ```bash
-docker compose up --build -d database backend
+make up
 docker compose ps
-curl --fail http://localhost:8000/api/health
+curl --fail -k https://localhost/api/health
 docker compose logs -f backend
 ```
+
+The backend container is not published directly to the host. The gateway
+exposes the API through HTTPS, and the backend entrypoint runs
+`alembic upgrade head` before starting Uvicorn. It never generates
+migrations. The image includes the migration files and `alembic.ini`.
 
 Stop the services with:
 
@@ -109,10 +118,8 @@ docker compose down
 
 ## Current limitations
 
-- The backend image currently starts Uvicorn but does not run Alembic
-  automatically.
-- The backend image does not yet copy the migration files and `alembic.ini`.
-- The current migration revisions and SQLAlchemy models are scaffolding; the
-  domain tables are not complete yet.
-- The final commands will move to the root Makefile when the infrastructure work
-  is integrated.
+- The simulator is still under development and runs only through the `sim`
+  Compose profile.
+- PostgreSQL is not published in the default Compose topology. Use
+  `compose.dev.yaml` when Alembic must connect from the host.
+- Authentication and other application-level features continue to evolve.

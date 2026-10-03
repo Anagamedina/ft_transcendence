@@ -1,8 +1,12 @@
 COMPOSE     := docker compose
 COMPOSE_DEV := docker compose -f compose.yaml -f compose.dev.yaml
 CERTS_DIR   := gateway/certs
+ALEMBIC     := $(COMPOSE) run --rm --no-deps --user "$$(id -u):$$(id -g)" \
+	-v $(CURDIR)/backend/app:/app/app:ro \
+	-v $(CURDIR)/backend/migrations:/app/migrations \
+	--entrypoint alembic
 
-.PHONY: all env certs up dev down build logs ps clean fclean re
+.PHONY: all env certs up dev sim seed migrate migration migration-check down build logs ps clean fclean re smoke
 
 all: up
 
@@ -26,8 +30,28 @@ dev: env certs
 	$(COMPOSE_DEV) up --build -d
 	@$(COMPOSE_DEV) ps
 
+sim: env certs
+	$(COMPOSE) --profile sim up --build -d
+	@$(COMPOSE) --profile sim ps
+
+seed:
+	$(COMPOSE) exec backend python -m seeds.seed_demo
+
+migrate:
+	$(ALEMBIC) backend upgrade head
+
+migration:
+	@test -n "$(MSG)" || { echo 'Usage: make migration MSG="description"'; exit 1; }
+	$(ALEMBIC) backend revision --autogenerate -m "$(MSG)"
+
+migration-check:
+	@sh scripts/migration_check.sh
+
+smoke:
+	@sh scripts/smoke.sh
+
 down:
-	$(COMPOSE) down
+	$(COMPOSE) --profile sim down
 
 build: env
 	$(COMPOSE) build
@@ -39,9 +63,9 @@ ps:
 	$(COMPOSE) ps
 
 clean:
-	$(COMPOSE) down --remove-orphans
+	$(COMPOSE) --profile sim down --remove-orphans
 
 fclean:
-	$(COMPOSE) down -v --remove-orphans
+	$(COMPOSE) --profile sim down -v --remove-orphans
 
 re: fclean up

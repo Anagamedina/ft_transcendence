@@ -19,6 +19,8 @@ en Axios. Sin eso el navegador no envía la cookie y todo responde 401.
 
 from __future__ import annotations
 
+from uuid import UUID
+
 from pydantic import EmailStr, Field
 
 from app.modules.users.schemas import UserCreate, UserResponse
@@ -35,7 +37,17 @@ class RegisterRequest(UserCreate):
     endpoint corresponde. Además permite que el registro evolucione
     (aceptar un código de invitación, por ejemplo) sin arrastrar el alta
     administrativa de usuarios.
+
+    `organization_id` es obligatorio desde la issue #27. Antes el cliente
+    heredaba la organización del admin que lo daba de alta, y un admin
+    global (sin organización) creaba clientes sin organización: cuentas
+    que no ven nada.
     """
+
+    organization_id: UUID = Field(
+        description="Organización a la que pertenecerá el cliente.",
+        examples=["11111111-1111-4111-8111-111111111111"],
+    )
 
 
 class LoginRequest(ApiRequest):

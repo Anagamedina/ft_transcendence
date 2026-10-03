@@ -21,24 +21,24 @@ Lo que hay implementado y lo que no:
 
 - `get_db`             → implementado (reexportado de `core.database`, de Daruny).
 - `PaginationParams`   → implementado.
-- `get_current_user`   → pertenece a la issue #26; declarado y lanzando 501.
-- `require_role`       → pertenece a la issue #27; declarado y lanzando 501.
-
-Los dos últimos existen ya, aunque no funcionen, para que los routers
-puedan declarar hoy qué endpoints van protegidos. Eso hace que OpenAPI
-muestre el contrato completo y que la issue #26 solo tenga que rellenar
-el cuerpo de una función, sin tocar 20 firmas.
+- `get_current_user`   → implementado en la issue #26.
+- `require_role`       → implementado en la issue #27.
+- `get_org_scope`      → implementado en la issue #27.
 """
 
 from __future__ import annotations
 
 from typing import Annotated
+from uuid import UUID
 
-from fastapi import Depends, Query
+from fastapi import Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.exceptions import NotImplementedYetError
+from app.core.exceptions import ForbiddenError, UnauthorizedError
+from app.core.security import SESSION_COOKIE, read_session_token
+from app.modules.users.model import User
+from app.modules.users.repository import UserRepository
 
 __all__ = [
     "get_db",
@@ -48,6 +48,8 @@ __all__ = [
     "get_current_user",
     "CurrentUser",
     "require_role",
+    "get_org_scope",
+    "OrgScope",
 ]
 
 
@@ -107,22 +109,50 @@ Pagination = Annotated[PaginationParams, Depends(PaginationParams)]
 # ---------------------------------------------------------
 # AUTENTICACIÓN — issue #26
 # ---------------------------------------------------------
-def get_current_user() -> "object":
+def get_current_user(request: Request, db: DbSession) -> User:
     """
     Usuario de la sesión actual, leído de la cookie httpOnly (ADR 0001).
 
-    Pendiente de la issue #26. Cuando se implemente, esta función leerá la
-    cookie de sesión, la validará y devolverá el usuario; si no hay sesión
-    válida lanzará `UnauthorizedError`.
+    Tres pasos, y cada uno puede cortar con un 401:
 
-    Se deja lanzando 501 en lugar de devolver un usuario falso: un usuario
-    de mentira aquí haría que los endpoints protegidos parecieran
-    funcionar y escondería la falta de autenticación hasta la integración.
+    1. Sacar la cookie de la petición.
+    2. Comprobar su firma y que no haya caducado, que devuelve el id.
+    3. Buscar ese usuario en la base de datos.
+
+    **El paso 3 no sobra.** Sería más rápido fiarse de lo que trae la
+    cookie, pero entonces el rol y la organización se quedarían congelados
+    en el momento de entrar: cambiarle el rol a alguien, o darlo de baja,
+    no tendría efecto hasta que volviera a iniciar sesión. Leyendo el
+    usuario en cada petición, el cambio se aplica en la siguiente.
+
+    Es el precio que se paga por meter solo el id en la cookie
+    (`core/security.py`), y se paga a gusto: una consulta por clave
+    primaria.
+
+    Sobre los mensajes de error: se distingue «no hay cookie» de «la
+    cookie no vale», porque el cliente ya sabe si la ha enviado. Lo que NO
+    se distingue es por qué no vale — firma incorrecta, caducada, o
+    usuario que ya no existe. Las tres responden igual: decirle a alguien
+    cuál de las tres es le está diciendo hasta dónde ha llegado su intento.
     """
-    raise NotImplementedYetError("#26", "La autenticación se implementa en la issue #26.")
+    token = request.cookies.get(SESSION_COOKIE)
+    if token is None:
+        raise UnauthorizedError("No hay sesión iniciada.")
+
+    user_id = read_session_token(token)
+    if user_id is None:
+        raise UnauthorizedError("La sesión no es válida.")
+
+    # Se busca por id a secas, sin filtrar por organización: la cookie solo
+    # lleva el id, y la organización es justo lo que se quiere averiguar.
+    user = UserRepository(db).get(user_id)
+    if user is None:
+        raise UnauthorizedError("La sesión no es válida.")
+
+    return user
 
 
-CurrentUser = Annotated[object, Depends(get_current_user)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 # ---------------------------------------------------------
@@ -138,14 +168,42 @@ def require_role(*roles: str):
     forma de parametrizar una dependency en FastAPI (una dependency no
     acepta argumentos propios en el momento de declararla).
 
-    Pendiente de la issue #27, junto con el aislamiento por organización:
-    no basta con el rol, cada consulta debe filtrar además por la
-    organización del usuario.
+    Sin sesión responde 401, porque depende de `get_current_user`; con
+    sesión y otro rol, 403. El rol no basta para decidir qué datos ve
+    alguien: eso lo hace `get_org_scope`.
     """
 
-    def dependency() -> None:
-        raise NotImplementedYetError(
-            "#27", f"Control de acceso por rol ({', '.join(roles)}): issue #27."
-        )
+    def dependency(user: CurrentUser) -> User:
+        if user.role not in roles:
+            raise ForbiddenError("No tienes permiso para esta operación.")
+        return user
 
     return dependency
+
+
+def get_org_scope(user: CurrentUser) -> UUID | None:
+    """
+    Qué organizaciones puede ver quien pregunta. Issue #27, decidido por
+    Ana el 28-09-2026:
+
+        admin (con o sin organización)  → None = TODAS
+        cliente con organización        → su organization_id
+        cliente sin organización        → 403
+
+    **`None` significa «todas», no «ninguna».** Los repositories solo
+    filtran por organización si reciben un id. Por eso ningún router debe
+    pasar `user.organization_id` directamente a una consulta: con un
+    cliente sin organización, ese `None` le enseñaría los datos de todos.
+    El alcance se calcula solo aquí, y aquí se corta ese caso.
+
+    El admin ve todo aunque tenga organización: gestiona las
+    organizaciones de todos los clientes, no la suya.
+    """
+    if user.role == "admin":
+        return None
+    if user.organization_id is None:
+        raise ForbiddenError("Esta cuenta no pertenece a ninguna organización.")
+    return user.organization_id
+
+
+OrgScope = Annotated[UUID | None, Depends(get_org_scope)]

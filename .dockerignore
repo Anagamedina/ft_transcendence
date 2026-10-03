@@ -2,6 +2,7 @@
 .github
 .gitignore
 .env
+**/.env
 .venv
 *.md
 docs

@@ -2,26 +2,25 @@
 
 | Concepto | Qué debes entender | Tiempo |
 |---|---|---:|
-| Leaflet map | Instancia, viewport y lifecycle | 30 min |
-| Tile layer | Imágenes que componen el mapa | 20 min |
-| Coordenadas | Latitud/longitud y orden correcto | 20 min |
-| Marker | Representación interactiva de un site | 20 min |
-| Vue lifecycle | Crear/actualizar/destruir mapa | 25 min |
-| Geolocation/accessibility | Alternativas al mapa visual | 25 min |
-| Attribution | Requisito de OpenStreetMap/tiles | 15 min |
-
-## Conceptos relacionados
-
-El mapa es presentacional: recibe sites y emite selección. La lista y la API son responsabilidad de User04. Coordenadas inválidas deben ignorarse o señalarse, no romper toda la vista.
+| Teselas (tiles) | El mapa se descarga en piezas según el zoom; el proveedor las sirve | 20 min |
+| Leaflet vs MapLibre | Leaflet: imágenes planas, ligero. MapLibre: WebGL, permite girar e inclinar | 30 min |
+| Orden de coordenadas | Leaflet `[lat, lng]`; MapLibre y GeoJSON `[lng, lat]` | 15 min |
+| Proyección Mercator | La de los mapas web; no llega a los polos (límite ±85°) | 15 min |
+| GeoJSON | Formato de formas geográficas; Barcelona es un `MultiPolygon` de 3 piezas | 20 min |
+| Lifecycle Vue | `onMounted` crea el mapa; `onBeforeUnmount` lo destruye | 25 min |
+| Objetos no reactivos | El mapa no va en `ref()`: el proxy de Vue rompe MapLibre | 15 min |
+| `watch` / `computed` | Redibujar marcadores al cambiar los datos | 20 min |
+| `defineAsyncComponent` | Cargar MapLibre solo al abrir la ventana | 15 min |
+| `textContent` | Construir los popups sin HTML para evitar XSS | 10 min |
+| Atribución | OpenFreeMap/OpenStreetMap y límite del Ajuntament (CC-BY) visibles | 10 min |
 
 ## Conceptos en conjunto
 
-Vue controla el ciclo de vida; Leaflet controla el mapa; User04 controla los datos. Al montar se crea la instancia, al cambiar props se sincronizan markers y al desmontar se liberan listeners y recursos.
-
-Un mapa no debe ser la única forma de conocer sites. La UI debe conservar nombre, dirección o lista alternativa para usuarios con necesidades de accesibilidad o sin tiles disponibles.
+El Dashboard prepara los datos y el mapa solo los pinta: recibe sites por props y emite `select-site`. Vue controla el ciclo de vida; MapLibre controla el mapa; los stores controlan los datos.
 
 ## Qué debes poder demostrar
 
-- Explicar quién crea, actualiza y destruye la instancia.
-- Distinguir coordenadas inválidas de un fallo de red.
-- Seleccionar un marker y comunicarlo al padre sin navegar directamente.
+- Explicar quién crea, actualiza y destruye la instancia del mapa.
+- Por qué el mapa no va en un `ref()`.
+- Por qué el velo falla con ±90° y funciona con ±85°.
+- Cómo se calcula el color de un site (alerta → sensor → site, gana la más grave).

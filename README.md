@@ -6,7 +6,7 @@
 
 ## Description
 
-AquaGuard is a **web platform** for monitoring water-related data from sensors. The en el paquete.
+AquaGuard is a **web platform** for monitoring water-related data from sensors. The
 planned application provides authenticated users with access to organizations,
 sites, sensors, readings, alerts, and analytics.
 
@@ -88,10 +88,43 @@ database is unreachable:
 {"status":"ok","database":"connected","checked_at":"2026-09-02T21:52:53.859027Z"}
 ```
 
+`make smoke` checks the whole stack in one run and is the check to use before
+a merge or an evaluation. It needs the demo data (`make seed`):
+
+```bash
+make up
+make seed
+make smoke
+```
+
+It runs `docker compose up -d --wait` for `database`, `backend` and `gateway`,
+which starts any of them that is stopped and waits up to 60 seconds for all
+three to report `healthy`. Then it checks both health endpoints, the HTTP to
+HTTPS redirect and the SPA, sends a reading through `POST /api/readings`, and
+confirms it was stored in PostgreSQL. The test reading is deleted afterwards.
+When the simulator is running (`make sim`), it also checks that its readings
+reach the database, unless its scenario is `offline`, which sends none on
+purpose. The first failing check stops the run with a non-zero exit code and a
+message that names the logs to look at:
+
+```text
+smoke: ok    database, backend and gateway are healthy
+smoke: ok    /api/health responds
+smoke: ok    /api/health/db responds
+smoke: ok    HTTP redirects to HTTPS
+smoke: ok    the gateway serves the SPA
+smoke: ok    POST /api/readings accepts a reading
+smoke: ok    the reading is stored in PostgreSQL
+smoke: ok    simulator readings reach the database (6 in the last 30s)
+smoke: OK, all checks passed
+```
+
 Stop the stack with `make down`, which keeps the PostgreSQL volume.
 
-Alembic runs from the host and therefore needs the PostgreSQL port, which the
-delivery topology does not publish. `make dev` starts the same stack plus
+The `make migrate`, `make migration` and `make migration-check` targets run
+Alembic inside Docker, so they need no published port. Running Alembic directly
+from the host does need the PostgreSQL port, which the delivery topology does
+not publish: `make dev` starts the same stack plus
 [`compose.dev.yaml`](compose.dev.yaml), which binds PostgreSQL to
 `127.0.0.1:5432` for that purpose only.
 
@@ -104,19 +137,25 @@ The simulator is still being integrated into Compose.
 
 The root `Makefile` wraps the Compose commands:
 
-| Target | Effect |
-|--------|--------|
+| Target             | Effect                                                                                                           |
+|--------------------|------------------------------------------------------------------------------------------------------------------|
 | `make` / `make up` | Copies `.env` and generates certificates if missing, then `docker compose up --build -d` and `docker compose ps` |
-| `make dev` | Same as `make up` plus `compose.dev.yaml`, which publishes PostgreSQL on `127.0.0.1:5432` for Alembic |
-| `make env` | Creates `.env` from `.env.example` only when it does not exist |
-| `make certs` | Generates a self-signed TLS certificate in `gateway/certs/` only when it does not exist |
-| `make build` | Builds the images without starting them |
-| `make down` | Stops the containers and keeps the PostgreSQL volume |
-| `make logs` | Follows the logs of every running service |
-| `make ps` | Shows service status |
-| `make clean` | `down --remove-orphans` |
-| `make fclean` | `down -v --remove-orphans`, which deletes the PostgreSQL volume |
-| `make re` | `fclean` followed by `up`, a start from scratch |
+| `make dev`         | Same as `make up` plus `compose.dev.yaml`, which publishes PostgreSQL on `127.0.0.1:5432` for Alembic            |
+| `make env`         | Creates `.env` from `.env.example` only when it does not exist                                                   |
+| `make certs`       | Generates a self-signed TLS certificate in `gateway/certs/` only when it does not exist                          |
+| `make build`       | Builds the images without starting them                                                                          |
+| `make sim`         | Same as `make up` plus the `sim` profile, which starts the sensor simulator                                      |
+| `make seed`        | Loads the demo data inside the running `backend` container; safe to run more than once                           |
+| `make migrate`     | Applies pending migrations (`alembic upgrade head`)                                                              |
+| `make migration MSG="..."` | Generates a migration with `alembic revision --autogenerate` without applying it; fails without `MSG`   |
+| `make migration-check` | Fails if the database is unreachable, has pending migrations, or the models drifted from the migrations      |
+| `make smoke`       | Smoke test of the stack: health, gateway, and a reading stored end to end; fails with a non-zero code            |
+| `make down`        | Stops the containers, simulator included, and keeps the PostgreSQL volume                                        |
+| `make logs`        | Follows the logs of every running service                                                                        |
+| `make ps`          | Shows service status                                                                                             |
+| `make clean`       | `down --remove-orphans`, simulator included                                                                      |
+| `make fclean`      | `down -v --remove-orphans`, simulator included, which deletes the PostgreSQL volume                              |
+| `make re`          | `fclean` followed by `up`, a start from scratch                                                                  |
 
 `make fclean` destroys the database volume. PostgreSQL only creates its user on
 the first initialisation of that volume, so this is also the command to run
@@ -141,17 +180,28 @@ server, opening it automatically in the browser.
 
 ### Database migrations
 
-Alembic is configured under `backend/`, but the migration files and the backend
-image still require completion before migrations can be considered part of the
-standard startup flow. The intended workflow is:
+The backend container applies `alembic upgrade head` on every start, so
+`make up` always leaves the database at the latest revision. It never generates
+migrations on its own.
+
+The migration targets run Alembic in a one-off `backend` container with
+`backend/app` and `backend/migrations` mounted from the working tree, so they
+always use the current models even if the image was built earlier, and a
+generated file lands directly in `backend/migrations/versions/`. They require
+the `database` service to be running (`make up`).
+
+Workflow after changing a model:
 
 ```bash
-cd backend
-alembic upgrade head
+make migration MSG="add sensor serial number"   # generate the revision
+# review the generated file in backend/migrations/versions/
+make migrate                                     # apply it
+make migration-check                             # database at head, no drift
 ```
 
-This command must only be added to the normal startup instructions after the
-database models, migration revisions, and container image have been verified.
+`make migration-check` compares column types and server defaults as well
+(`compare_type` and `compare_server_default` in `backend/migrations/env.py`).
+See [`backend/migrations/README.md`](backend/migrations/README.md) for details.
 
 ## Architecture
 
@@ -163,6 +213,16 @@ Simulator -> readings API -> FastAPI backend
 
 The backend follows a modular structure. Each domain is organized into routers,
 schemas, services, repositories, and models where applicable.
+
+**Every ORM model must be listed in `backend/app/core/models.py`.** SQLAlchemy
+resolves relationships declared by name (`Mapped[list["Alert"]]`) against the
+classes that have been imported, so a model missing from that module breaks
+*every* database query in the application, not just queries on its own table.
+The application (`app/main.py`) and Alembic (`migrations/env.py`) both import
+that single module, so adding a model there covers both.
+
+Note that tests do not catch a missing model: each test file imports the models
+it needs, which builds the registry by hand. Only running the stack does.
 
 See [`docs/architecture.md`](docs/architecture.md) for the detailed design.
 
@@ -223,10 +283,14 @@ data types, and relationships once the schema is implemented.
 | Database readiness endpoint (`GET /api/health/db`)                          | Implemented   | TBD            | `curl -k https://localhost/api/health/db`                                                                       |
 | Compose orchestration (network, volume, profiles)                           | Implemented   | Eduardo        | `make up` then `make ps`                                                                                        |
 | Nginx gateway: HTTPS, HTTP redirect, SPA, `/api` and `/ws` proxy            | Implemented   | Eduardo        | `curl -I http://localhost` returns 301, `curl -k https://localhost/api/health` returns 200                      |
-| Authentication                                                              | Planned       | TBD            | Add test or endpoint link                                                                                       |
-| Sensor readings                                                             | In progress   | Daruny         | `backend/tests/unit/test_sensor_reading_repositories.py` (repositories implemented; services/routers pending)   |
-| Alerts                                                                      | Planned       | TBD            | Add test or endpoint link                                                                                       |
-| Frontend dashboard                                                          | Planned       | TBD            | Add browser flow or screenshot                                                                                  |
+| Sensor simulator (`simulator/`): normal, low, high and offline scenarios    | Implemented   | Eduardo        | `cd simulator && pytest` (26 tests); `make up && make seed && make sim`. The seed creates the sensors listed in `.env.example`, so readings persist via `POST /api/readings` (#24) with no manual setup; waits for `/api/health/db` before sending, exposes its own container `HEALTHCHECK`, and demo users get real Argon2 hashes (#89) |
+| Health checks and smoke test (`make smoke`)                                 | Implemented   | Eduardo        | `make up && make seed && make smoke`; with `make sim` it also checks the simulator -> API -> database flow |
+| Authentication: register, login, logout and `GET /api/me`                   | Implemented   | Ana            | `cd backend && python3 -m pytest -q` (157 tests), or `curl -k -c c.txt -X POST https://localhost/api/auth/login -H 'Content-Type: application/json' -d '{"email":"...","password":"..."}'` then `curl -k -b c.txt https://localhost/api/me` |
+| Permissions: `admin` sees every organization, `client` only its own, 401/403 | Implemented   | Ana            | `cd backend && python3 -m pytest -q tests/test_permisos.py`. Registering a client now requires `organization_id`. How the simulator authenticates on `POST /api/readings` is still open |
+| Sensor readings: store and list (`POST /api/readings`, `GET /api/sensors/{id}/readings`) | Implemented | Daruny, Ana | `cd backend && python3 -m pytest -q` (157 tests). History is paginated and scoped to the session's organization   |
+| Alerts: list, acknowledge, resolve, and low/high pressure rules            | In progress   | Daruny, Ana    | `cd backend && python3 -m pytest -q` (157 tests). A reading outside the sensor's thresholds opens an alert; `SENSOR_OFFLINE` pending (#28) |
+| Admin dashboard: KPIs, sites, sensors and active alerts summaries           | In progress   | Florinda       | Run `./scripts/launch-frontend.sh`, visit `/admin` (layout and summaries render; sites come from mocks, sensors and alerts appear once stores are loaded) |
+| Admin sites map: Barcelona municipal boundary, marker colour by active alert, zoom limited to the city | Implemented | Florinda | Run `./scripts/launch-frontend.sh`, visit `/admin`, click "Ver mapa" |
 
 Every pull request that adds a feature should update this table with its status,
 contributors, and a reproducible verification method.
@@ -318,12 +382,15 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 
 ## Individual contributions
 
-This section is updated continuously. Each contribution should identify the
-feature, module, relevant pull request, technical challenge, and solution.
+### Ana (`anamedin`)
 
-| Ana (`anamedin`)                | Features/modules | Pull requests | Challenges and solutions                                             |
-|---------------------------------|------------------|---------------|----------------------------------------------------------------------|
-| fix-sensors-atributs-daruny-ana | sensors          | daru          | se ha modificado los atributos con nombres correctos de los sensores |
+| Issue | Contribution                                        | Status      |
+|-------|-----------------------------------------------------|-------------|
+| 01    | FastAPI modular architecture and health checks      | Implemented |
+| 02    | Pydantic schemas and OpenAPI contract               | Implemented |
+| 03    | `POST /api/readings` contract and service structure | In progress |
+
+### Daruny (`dasalaza`)
 
 | Daruny (`dasalaza`)                                                                                                                                                                        | Features/modules                                               | Pull requests                                                                                                                                                                                                                                                                                                                                                                                           | Challenges and solutions |
 |--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------|
@@ -332,11 +399,19 @@ feature, module, relevant pull request, technical challenge, and solution.
 | Issue 03 — Domain models: `Organization`, `User`, `Site`, `Sensor`, `Reading`, `Alert` with FKs, constraints and indexes                                                                   | [#48](https://github.com/Anagamedina/ft_transcendence/pull/48) | Enforcing multi-tenant isolation and referential integrity at the DB level; solved with `organization_id`-based relationships, unique/NOT NULL constraints, and a matching Alembic migration.                                                                                                                                                                                                           |
 | Issue 04 — data-access layer: `SensorRepository` and `ReadingRepository`,  queries, stable pagination, <br/>`flush`/`rollback` transaction handling, plus fixes to sensor model attributes | [#55](https://github.com/Anagamedina/ft_transcendence/pull/55) | Preventing cross-tenant data leaks and keeping SQLAlchemy out of routers/services; solved with `Site.organization_id` filters on every query and unit tests (`test_sensor_reading_repositories.py`) covering isolation, pagination, and invalid input. Pending: wire repositories into services/routers.                                                                                                |
 | Issue 05 — development seed (`backend/seeds/seed_demo.py`): 1 organization, Admin + Client users, 2 sites, 3 sensors                                                                       | [#59](https://github.com/Anagamedina/ft_transcendence/pull/59) | Keeping it idempotent without a real password hasher yet (issue #26 pending); solved by looking up each row by its natural key before inserting, running the whole script in one transaction, and using a clearly-labelled placeholder password hash to be replaced once Ana's hasher lands. Verified by running it twice against a real PostgreSQL instance and confirming row counts stay at 1/2/2/3. |
+| Issue 07 — User and organization repositories: email normalizado, búsqueda aislada y creación con `name` y `organization_id` opcional                                                        | [#74](https://github.com/Anagamedina/ft_transcendence/pull/74) | Alineado el modelo `User` con el contrato de la API: roles en minúsculas, usuarios globales, migración Alembic, seed actualizado y tests de persistencia.                                                                                                                                                                                                                                               |
+| 08                                                                                                                                                                                         | Update Alert model and repositories                            | Implemented                                                                                                                                                                                                                                                                                                                                                                                             |
 
-| Florinda (`flperez-`) | Features/modules | Pull requests | Challenges and solutions |
-|-----------------------|------------------|---------------|--------------------------|
-| Public Landing Page: Hero, value proposition, navigation to Login/Registro; extended `Header`/`Footer`/`Card` with optional props and slots | [#5](https://github.com/Anagamedina/ft_transcendence/pull/5) | The first version of the Hero copy did not communicate the product's real function to a user unfamiliar with the project (found via an external comprehension test); the text was iterated, and in the process a click bug was found (a decorative SVG blocking the "Comenzar ahora" CTA), fixed with `pointer-events-none`. |
-
+| Florinda (`flperez-`) | Features/modules                                                                                                                            | Pull requests                                                | Challenges and solutions                                                                                                                                                                                                                                                                                                     |
+|-----------------------|---------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 00                    | Public Landing Page: Hero, value proposition, navigation to Login/Registro; extended `Header`/`Footer`/`Card` with optional props and slots | [#63](https://github.com/Anagamedina/ft_transcendence/pull/63) | The first version of the Hero copy did not communicate the product's real function to a user unfamiliar with the project (found via an external comprehension test); the text was iterated, and in the process a click bug was found (a decorative SVG blocking the "Comenzar ahora" CTA), fixed with `pointer-events-none`. |
+| 01                    | Vue/Vite frontend setup                                                                                                                     | Implemented                                                  |
+| 02                    | Shared layouts and visual components                                                                                                        | Implemented                                                  |
+| 03                    | `SensorCard` and sensor detail view                                                                                                         | Implemented                                                  |
+| 04                    | Public landing page                                                                                                                         | Implemented                                                  |
+| 05                    | Privacy Policy and Terms of Service: sectioned content with semantic headings, sticky anchor-link index, legal-review disclaimer; both routes public, linked from Footer; `Header` logo now links back to Landing; fixed `scrollBehavior` so navigation resets scroll to top | [#70](https://github.com/Anagamedina/ft_transcendence/pull/70) | `overflow-x-hidden` on `PublicLayout.vue` was silently breaking `position: sticky` on the index sidebar; removed it and re-verified Landing still has no horizontal overflow at 320px. |
+| 06                    | Admin Dashboard visual structure: route `/admin`, `AdminLayout`, `KPICard`, shared `AppIcon` SVG set (also used in `Sidebar`), `SitesSummary`, `SensorsSummary`, `AlertsSummary`; KPIs derived from Pinia stores with `computed`, no direct HTTP calls | [#96](https://github.com/Anagamedina/ft_transcendence/pull/96) | No sites store exists yet, so the Sites KPI shows "—" instead of an invented number; emojis rendered differently per OS, replaced by a single SVG icon component. |
+| 07                    | Admin sites map (`SitesMap`): MapLibre GL + OpenFreeMap, official Barcelona boundary with the outside faded, marker colour by most severe active alert, opened in a `Modal` (new `size` prop) and lazy-loaded; props only, no HTTP calls | [#104](https://github.com/Anagamedina/ft_transcendence/pull/104) | Leaflet cannot rotate the map with upright labels, so it was replaced by MapLibre; a world mask drawn at ±90° broke rendering (Web Mercator stops at ±85°); a large inline map hid the KPIs, so it moved to a modal and MapLibre (~1 MB) now loads only when the map is opened. |
 
 | Lylia (`lylfergu`) | Features/modules   | Pull requests | Challenges and solutions |
 |---------------------------------------------------------------------------------------|
@@ -352,9 +427,11 @@ feature, module, relevant pull request, technical challenge, and solution.
   states and prevented double submission. Authentication was tested with the MockAdapter 
   while the backend was not yet available.                                              |
 
-| Eduardo (`egalindo`) | Features/modules | Pull requests | Challenges and solutions |
-|----------------------|------------------|---------------|--------------------------|
-|                      | TBD              | TBD           | TBD                      |
+| Eduardo (`egalindo`) | Features/modules             | Pull requests | Challenges and solutions |
+|----------------------|------------------------------|---------------|--------------------------|
+| 09                   | Docker Compose stack         | Implemented   |
+| 10                   | Nginx gateway and HTTPS      | Implemented   |
+| 11                   | Health checks and smoke test | Implemented   |
 
 ## Resources
 
@@ -366,6 +443,9 @@ feature, module, relevant pull request, technical challenge, and solution.
 - [SQLAlchemy documentation](https://docs.sqlalchemy.org/)
 - [Alembic documentation](https://alembic.sqlalchemy.org/)
 - [Docker Compose documentation](https://docs.docker.com/compose/)
+- [MapLibre GL JS documentation](https://maplibre.org/maplibre-gl-js/docs/)
+- [OpenFreeMap](https://openfreemap.org/) (map tiles, OpenStreetMap data)
+- Barcelona municipal boundary: Ajuntament de Barcelona / CartoBCN (CC-BY)
 
 ### AI usage
 
@@ -394,15 +474,16 @@ label planned work separately from implemented work.
 
 ## Known limitations
 
-- The `simulator` service is declared but gated behind the `sim` profile,
-  because its Dockerfile is still scaffolding.
+- The `simulator` service is declared but gated behind the `sim` profile, so
+  it does not start with the default `make up`; run `make sim` to include it.
 - TLS certificates are self-signed, so browsers warn on first visit. A
   publicly trusted certificate is out of scope for this project.
+- The admin sites map loads its tiles from OpenFreeMap, so it needs an
+  internet connection.
 - The gateway serves a production build of the SPA. Frontend development still
   uses the Vite dev server through `./scripts/launch-frontend.sh`.
 - `.env` generation exists twice, as `make env` and as `scripts/create_env`.
   The team must settle on one.
-- Simulator code and dependencies are still scaffolding.
 - Database models and migration bodies are not implemented yet.
 - The README placeholders must be completed by the team.
 
