@@ -6,7 +6,7 @@ ALEMBIC     := $(COMPOSE) run --rm --no-deps --user "$$(id -u):$$(id -g)" \
 	-v $(CURDIR)/backend/migrations:/app/migrations \
 	--entrypoint alembic
 
-.PHONY: all env certs up dev sim seed migrate migration migration-check down build logs ps clean fclean re
+.PHONY: all env certs up dev sim seed migrate migration migration-check down build logs ps clean fclean re smoke
 
 all: up
 
@@ -46,6 +46,9 @@ migration:
 
 migration-check:
 	@sh scripts/migration_check.sh
+
+smoke:
+	@sh scripts/smoke.sh
 
 down:
 	$(COMPOSE) --profile sim down
