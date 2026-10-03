@@ -4,7 +4,7 @@
 Endpoints de emplazamientos (`/api/sites/...`).
 
 Registrado desde la issue #22. Las del nivel Básico son de la issue #29;
-las dos primeras están hechas y la tercera espera a la #97:
+las tres están hechas:
 
     GET /api/sites
     GET /api/sites/{id}
@@ -22,6 +22,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 
+from app.modules.sensors.schemas import SensorResponse
 from app.modules.sites.schemas import SiteResponse
 from app.modules.sites.service import SiteService, get_site_service
 from app.shared.dependencies import OrgScope, Pagination
@@ -77,3 +78,30 @@ def list_sites(
 )
 def get_site(site_id: UUID, service: SiteSvc, scope: OrgScope) -> SiteResponse:
     return service.get(site_id, organization_id=scope)
+
+
+@router.get(
+    "/{site_id}/sensors",
+    response_model=Page[SensorResponse],
+    summary="Sensores de un site",
+    description=(
+        "Sensores instalados en el site, paginados y por nombre, con el mismo "
+        "formato que `GET /api/sensors` (estado y última lectura incluidos)."
+    ),
+    responses={
+        **_NO_AUTORIZADO,
+        **error_response(
+            status.HTTP_404_NOT_FOUND,
+            "El site no existe, o no es de tu organización (`SITE_NOT_FOUND`).",
+        ),
+    },
+)
+def list_site_sensors(
+    site_id: UUID, service: SiteSvc, scope: OrgScope, pagination: Pagination
+) -> Page[SensorResponse]:
+    return service.list_sensors(
+        site_id,
+        organization_id=scope,
+        offset=pagination.offset,
+        limit=pagination.limit,
+    )

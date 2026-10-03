@@ -8,19 +8,20 @@ El site es el nivel donde se ancla el aislamiento por organización: tiene
 esta capa recibe el alcance que calcula `get_org_scope` (issue #27):
 `None` para un admin, que ve todas, o la organización de un cliente.
 
-Implementación: issue #29. `list` y `get` están hechos; `list_sensors`
-falta. Ya no está bloqueado: desde la #97 la tabla `sensors` tiene
-`location`, `sensor_type` y umbrales obligatorios.
+Implementación: issue #29. `list`, `get` y `list_sensors` están hechos.
 """
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import NotFoundError, NotImplementedYetError
+from app.core.exceptions import NotFoundError
+from app.modules.sensors.repository import SensorRepository
 from app.modules.sensors.schemas import SensorResponse
+from app.modules.sensors.service import SensorService
 from app.modules.sites.repository import SiteRepository
 from app.modules.sites.schemas import SiteResponse
 from app.shared.dependencies import DbSession
@@ -69,7 +70,7 @@ class SiteService:
         return self._to_response(site)
 
     def list_sensors(
-        self, site_id: UUID, offset: int, limit: int
+        self, site_id: UUID, organization_id: UUID | None, offset: int, limit: int
     ) -> Page[SensorResponse]:
         """
         Sensores instalados en un site.
@@ -79,10 +80,27 @@ class SiteService:
         mapa solo necesita los marcadores. Devolverlos siempre anidados
         obligaría a cargarlos aunque nadie los mire.
 
-        Pendiente (#29, parte B): espera a la #97. Cuando se haga, tendrá
-        que recibir también el alcance (`organization_id`), como `get`.
+        Primero se comprueba que el site sea visible para quien pregunta
+        (`organization_id` de `get_org_scope`); si no, 404 `SITE_NOT_FOUND`,
+        como en `get`. Los sensores salen con el mismo formato que en
+        `GET /api/sensors`: se reutiliza su conversión y su cálculo de
+        estado, con la última lectura de toda la página en una consulta.
         """
-        raise NotImplementedYetError("#29")
+        if self.sites.get_by_id(site_id, organization_id) is None:
+            raise NotFoundError("El site indicado no existe.", code="SITE_NOT_FOUND")
+
+        sensores = SensorRepository(self.db)
+        filas, total = sensores.list_by_site(site_id, offset=offset, limit=limit)
+        ultimas = sensores.last_seen_by_sensor([f.id for f in filas])
+        ahora = datetime.now(timezone.utc)
+        return Page[SensorResponse](
+            items=[
+                SensorService._to_response(f, ultimas.get(f.id), ahora) for f in filas
+            ],
+            total=total,
+            page=offset // limit + 1,
+            page_size=limit,
+        )
 
     @staticmethod
     def _to_response(site) -> SiteResponse:

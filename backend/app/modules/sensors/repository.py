@@ -79,6 +79,48 @@ class SensorRepository:
         ).all()
         return {sensor_id: ultima for sensor_id, ultima in filas}
 
+    # Añadidos por Ana para la #29 (partes B y C).
+    def list_by_site(
+        self, site_id: UUID, offset: int = 0, limit: int = 100
+    ) -> tuple[list[Sensor], int]:
+        """
+        Sensores de un site, por nombre. No filtra por organización: quien
+        llama ya ha comprobado que el site es visible para el usuario.
+        """
+        if offset < 0 or limit <= 0:
+            raise ValueError("Invalid pagination")
+        query = select(Sensor).where(Sensor.site_id == site_id)
+        total = self.db.scalar(select(func.count()).select_from(query.subquery()))
+        items = list(
+            self.db.scalars(
+                query.order_by(Sensor.name, Sensor.id).offset(offset).limit(limit)
+            ).all()
+        )
+        return items, int(total or 0)
+
+    def external_id_taken(self, site_id: UUID, external_id: str) -> bool:
+        """True si ya hay un sensor con esa etiqueta en ese site."""
+        return (
+            self.db.scalar(
+                select(Sensor.id).where(
+                    Sensor.site_id == site_id, Sensor.external_id == external_id
+                )
+            )
+            is not None
+        )
+
+    def create(self, **campos) -> Sensor:
+        sensor = Sensor(**campos)
+        self.db.add(sensor)
+        self.db.flush()
+        return sensor
+
+    def update(self, sensor: Sensor, **campos) -> Sensor:
+        for nombre, valor in campos.items():
+            setattr(sensor, nombre, valor)
+        self.db.flush()
+        return sensor
+
     def get(self, sensor_id: UUID) -> Sensor | None:
         """
         Busca un sensor solo por su id, SIN filtrar por organización.

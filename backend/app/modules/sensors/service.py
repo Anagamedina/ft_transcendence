@@ -26,14 +26,22 @@ Implementación: issues #25 (lectura) y #29 (alta y modificación).
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from decimal import Decimal
 from uuid import UUID
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import NotFoundError, NotImplementedYetError
+from app.core.database import transaction
+from app.core.exceptions import (
+    ConflictError,
+    DomainValidationError,
+    NotFoundError,
+)
 from app.modules.sensors.repository import SensorRepository as SqlSensorRepository
 from app.modules.sensors.schemas import SensorCreate, SensorResponse, SensorUpdate
 from app.modules.sensors.status import calcular_estado
+from app.modules.sites.repository import SiteRepository
 from app.shared.dependencies import DbSession
 from app.shared.protocols import SensorRepository
 from app.shared.schemas import Page
@@ -90,13 +98,44 @@ class SensorService:
 
     def create(self, payload: SensorCreate) -> SensorResponse:
         """
-        Alta de sensor. Issue #29.
+        Alta de sensor. Issue #29, solo admin (lo exige el router).
 
-        Antes de crearlo hay que comprobar que `payload.site_id` existe y
-        pertenece a la organización del usuario; si no, un admin podría
-        instalar sensores en edificios de otro cliente.
+        Un admin ve todas las organizaciones (#27), así que puede instalar
+        un sensor en cualquier site; lo que hay que comprobar es que el site
+        exista. `external_id` no se puede repetir dentro del mismo site: se
+        mira antes para devolver un 409 claro, y la restricción de la tabla
+        lo garantiza aunque dos altas lleguen a la vez.
+
+        Se aceptan `PRESSURE` y `FLOW` (Ana, 03-10-2026): el contrato ya los
+        ofrece. El sensor nace `OFFLINE`, porque aún no ha mandado nada.
         """
-        raise NotImplementedYetError("#29")
+        if SiteRepository(self.db).get_by_id(payload.site_id, None) is None:
+            raise NotFoundError("El site indicado no existe.", code="SITE_NOT_FOUND")
+        if self.sensors.external_id_taken(payload.site_id, payload.external_id):
+            raise ConflictError(
+                "Ya hay un sensor con ese external_id en este site.",
+                code="SENSOR_EXTERNAL_ID_TAKEN",
+            )
+        try:
+            with transaction(self.db):
+                sensor = self.sensors.create(
+                    site_id=payload.site_id,
+                    external_id=payload.external_id,
+                    name=payload.name,
+                    location=payload.location,
+                    sensor_type=payload.sensor_type.value,
+                    unit=payload.unit,
+                    low_threshold=Decimal(str(payload.min_pressure)),
+                    high_threshold=Decimal(str(payload.max_pressure)),
+                )
+        except IntegrityError:
+            # Dos altas con el mismo external_id a la vez: las dos pasan la
+            # comprobación de arriba y la tabla para a la segunda. Mismo 409.
+            raise ConflictError(
+                "Ya hay un sensor con ese external_id en este site.",
+                code="SENSOR_EXTERNAL_ID_TAKEN",
+            )
+        return self._to_response(sensor, None, datetime.now(timezone.utc))
 
     def update(self, sensor_id: UUID, payload: SensorUpdate) -> SensorResponse:
         """
@@ -107,8 +146,50 @@ class SensorService:
         ve el estado actual del sensor. Sin esa comprobación se puede
         dejar un sensor con `min_pressure` por encima de `max_pressure`
         en dos peticiones seguidas, cada una válida por separado.
+
+        Solo se cambian los campos que vienen en la petición
+        (`exclude_unset`). Se pueden editar nombre, ubicación y umbrales;
+        no el site, el tipo ni el `external_id`, porque cambiarlos sería
+        otro sensor (Ana, 03-10-2026).
         """
-        raise NotImplementedYetError("#29")
+        sensor = self.sensors.get_by_id(sensor_id, None)
+        if sensor is None:
+            raise NotFoundError("El sensor indicado no existe.", code="SENSOR_NOT_FOUND")
+
+        cambios = payload.model_dump(exclude_unset=True)
+        minimo = cambios.get("min_pressure", float(sensor.low_threshold))
+        maximo = cambios.get("max_pressure", float(sensor.high_threshold))
+        if minimo is None or maximo is None:
+            raise DomainValidationError(
+                "Los umbrales no pueden quedar vacíos.", code="INVALID_THRESHOLDS"
+            )
+        if minimo >= maximo:
+            raise DomainValidationError(
+                "min_pressure debe ser menor que max_pressure.",
+                code="INVALID_THRESHOLDS",
+            )
+
+        if "name" in cambios and cambios["name"] is None:
+            raise DomainValidationError(
+                "El nombre no puede quedar vacío.", code="INVALID_NAME"
+            )
+
+        campos = {}
+        if "name" in cambios:
+            campos["name"] = cambios["name"]
+        if "location" in cambios:
+            campos["location"] = cambios["location"]
+        if "min_pressure" in cambios:
+            campos["low_threshold"] = Decimal(str(minimo))
+        if "max_pressure" in cambios:
+            campos["high_threshold"] = Decimal(str(maximo))
+
+        with transaction(self.db):
+            sensor = self.sensors.update(sensor, **campos)
+        ultimas = self.sensors.last_seen_by_sensor([sensor.id])
+        return self._to_response(
+            sensor, ultimas.get(sensor.id), datetime.now(timezone.utc)
+        )
 
     @staticmethod
     def _to_response(
@@ -131,9 +212,11 @@ class SensorService:
         return SensorResponse(
             id=sensor.id,
             site_id=sensor.site_id,
+            external_id=sensor.external_id,
             name=sensor.name,
             location=sensor.location,
             sensor_type=sensor.sensor_type,
+            unit=sensor.unit,
             min_pressure=float(sensor.low_threshold),
             max_pressure=float(sensor.high_threshold),
             status=calcular_estado(ultima_lectura, ahora),

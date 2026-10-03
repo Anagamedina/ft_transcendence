@@ -29,9 +29,9 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 
-from app.modules.sensors.schemas import SensorResponse
+from app.modules.sensors.schemas import SensorCreate, SensorResponse, SensorUpdate
 from app.modules.sensors.service import SensorService, get_sensor_service
-from app.shared.dependencies import OrgScope, Pagination
+from app.shared.dependencies import OrgScope, Pagination, require_role
 from app.shared.schemas import Page, error_response
 
 router = APIRouter(prefix="/sensors", tags=["Sensors"])
@@ -88,3 +88,57 @@ def list_sensors(
 )
 def get_sensor(sensor_id: UUID, service: SensorSvc, scope: OrgScope) -> SensorResponse:
     return service.get(sensor_id, organization_id=scope)
+
+
+_SOLO_ADMIN = {
+    **error_response(status.HTTP_401_UNAUTHORIZED, "No hay sesión (`UNAUTHORIZED`)."),
+    **error_response(status.HTTP_403_FORBIDDEN, "La sesión no es de un admin (`FORBIDDEN`)."),
+}
+
+
+@router.post(
+    "",
+    response_model=SensorResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Dar de alta un sensor",
+    description=(
+        "Solo admin. `external_id` es la etiqueta del aparato físico y no se "
+        "puede repetir en el mismo site. `unit` vale `bar` si no se envía. "
+        "El sensor nace `OFFLINE`: todavía no ha mandado lecturas."
+    ),
+    dependencies=[Depends(require_role("admin"))],
+    responses={
+        **_SOLO_ADMIN,
+        **error_response(status.HTTP_404_NOT_FOUND, "El site no existe (`SITE_NOT_FOUND`)."),
+        **error_response(
+            status.HTTP_409_CONFLICT,
+            "Ese `external_id` ya existe en el site (`SENSOR_EXTERNAL_ID_TAKEN`).",
+        ),
+    },
+)
+def create_sensor(payload: SensorCreate, service: SensorSvc) -> SensorResponse:
+    return service.create(payload)
+
+
+@router.patch(
+    "/{sensor_id}",
+    response_model=SensorResponse,
+    summary="Modificar un sensor",
+    description=(
+        "Solo admin. Cambia solo los campos enviados: nombre, ubicación y "
+        "umbrales. Si llega un solo umbral, se compara con el guardado."
+    ),
+    dependencies=[Depends(require_role("admin"))],
+    responses={
+        **_SOLO_ADMIN,
+        **error_response(status.HTTP_404_NOT_FOUND, "El sensor no existe (`SENSOR_NOT_FOUND`)."),
+        **error_response(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "Umbrales incoherentes o vacíos (`INVALID_THRESHOLDS`), o nombre vacío.",
+        ),
+    },
+)
+def update_sensor(
+    sensor_id: UUID, payload: SensorUpdate, service: SensorSvc
+) -> SensorResponse:
+    return service.update(sensor_id, payload)
