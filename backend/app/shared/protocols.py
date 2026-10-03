@@ -142,20 +142,23 @@ class SensorRepository(Protocol):
         """
         ...
 
-    def touch_last_seen(self, sensor_id: UUID, seen_at: datetime) -> None:
+    def list_by_organization(
+        self, organization_id: UUID | None, offset: int, limit: int
+    ) -> tuple[list[Any], int]:
         """
-        Actualiza `last_seen_at` tras recibir una lectura.
+        Sensores de esa organización, o de todas con `None` (admin), por
+        nombre. Devuelve la página y el total. Issue #25.
+        """
+        ...
 
-        Es la base de la alerta SENSOR_OFFLINE (issue #28): un sensor está
-        mudo cuando este valor se aleja demasiado del momento actual.
+    def last_seen_by_sensor(self, sensor_ids: list[UUID]) -> dict[UUID, datetime]:
+        """
+        Cuándo llegó la última lectura de cada sensor, en una sola consulta
+        para toda la página. Los que no tienen lecturas no aparecen.
 
-        **NO IMPLEMENTABLE HOY (24-09-2026).** La tabla `sensors` no tiene
-        columna `last_seen_at`: las suyas son las de `sensors/model.py`, y
-        ahí no está. Se deja declarado porque el contrato lo necesita, y
-        porque lo dan por hecho `sensors/schemas.py` (lo expone en la
-        respuesta) y `alerts/service.py` (calcula SENSOR_OFFLINE con él).
-        Hasta que exista la columna, el paso 4 de la issue #24 queda fuera
-        de su alcance.
+        Sustituye al antiguo `touch_last_seen`: `last_seen_at` no es una
+        columna, se calcula a partir de las lecturas (issue #25). Así no
+        hay un dato guardado dos veces que pueda contradecirse.
         """
         ...
 
