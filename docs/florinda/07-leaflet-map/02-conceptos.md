@@ -16,7 +16,7 @@
 
 ## Conceptos en conjunto
 
-El Dashboard prepara los datos y el mapa solo los pinta: recibe sites por props y emite `select-site`. Vue controla el ciclo de vida; MapLibre controla el mapa; los stores controlan los datos.
+El Dashboard prepara los datos y el mapa solo los pinta: recibe sites por props y no hace llamadas HTTP. Vue controla el ciclo de vida; MapLibre controla el mapa; los stores controlan los datos.
 
 ## Qué debes poder demostrar
 

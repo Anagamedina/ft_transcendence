@@ -8,7 +8,6 @@ flowchart LR
  D -- "Ver mapa" --> E["Modal size=xl"]
  E --> F["SitesMap (carga diferida)"]
  F --> G["Marcadores con color por alerta"]
- G -. "select-site (preparado para #9)" .-> C
 
  classDef default fill:#e0f2fe,stroke:#0369a1,color:#0f172a
 ```
