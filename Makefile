@@ -2,7 +2,7 @@ COMPOSE     := docker compose
 COMPOSE_DEV := docker compose -f compose.yaml -f compose.dev.yaml
 CERTS_DIR   := gateway/certs
 
-.PHONY: all env certs up dev sim seed down build logs ps clean fclean re
+.PHONY: all env certs up dev sim seed smoke down build logs ps clean fclean re
 
 all: up
 
@@ -32,6 +32,9 @@ sim: env certs
 
 seed:
 	$(COMPOSE) exec backend python -m seeds.seed_demo
+
+smoke:
+	@sh scripts/smoke.sh
 
 down:
 	$(COMPOSE) --profile sim down
