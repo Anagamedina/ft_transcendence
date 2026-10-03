@@ -52,6 +52,8 @@ def _montar_cliente(session, nombre, alertas=0):
         external_id=f"SENS-{nombre}",
         name=f"Sensor de {nombre}",
         unit="bar",
+        low_threshold=Decimal("1.000"),
+        high_threshold=Decimal("10.000"),
     )
     session.add(sensor)
 
