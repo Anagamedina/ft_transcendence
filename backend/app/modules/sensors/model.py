@@ -39,10 +39,17 @@ class Sensor(Base):
         ),
         # The lower threshold must be lower than the higher threshold.
         CheckConstraint(
-            "low_threshold IS NULL "
-            "OR high_threshold IS NULL "
-            "OR low_threshold < high_threshold",
+            "low_threshold < high_threshold",
             name="ck_sensors_threshold_order",
+        ),
+        # Same bar range as PRESSURE_MIN_BAR / PRESSURE_MAX_BAR in schemas.py.
+        CheckConstraint(
+            "low_threshold >= 0 AND high_threshold <= 25",
+            name="ck_sensors_threshold_range",
+        ),
+        CheckConstraint(
+            "sensor_type IN ('PRESSURE', 'FLOW')",
+            name="ck_sensors_type",
         ),
     )
 
@@ -76,22 +83,36 @@ class Sensor(Base):
         nullable=False,
     )
 
-    # Measurement unit, for example "bar"
-    unit: Mapped[str] = mapped_column(
+    # Optional zone of the building, for example "Sala técnica"
+    location: Mapped[str | None] = mapped_column(
+        String(120),
+        nullable=True,
+    )
+
+    # Measured magnitude: PRESSURE or FLOW
+    sensor_type: Mapped[str] = mapped_column(
         String(20),
+        server_default="PRESSURE",
         nullable=False,
     )
 
-    # Optional lower pressure threshold
-    low_threshold: Mapped[Decimal | None] = mapped_column(
-        Numeric(10, 3),
-        nullable=True,
+    # Measurement unit, for example "bar"
+    unit: Mapped[str] = mapped_column(
+        String(20),
+        server_default="bar",
+        nullable=False,
     )
 
-    # Optional higher pressure threshold
-    high_threshold: Mapped[Decimal | None] = mapped_column(
+    # Required lower pressure threshold
+    low_threshold: Mapped[Decimal] = mapped_column(
         Numeric(10, 3),
-        nullable=True,
+        nullable=False,
+    )
+
+    # Required higher pressure threshold
+    high_threshold: Mapped[Decimal] = mapped_column(
+        Numeric(10, 3),
+        nullable=False,
     )
 
     # Indicates whether the sensor is active

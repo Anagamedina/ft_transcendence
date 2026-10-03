@@ -97,8 +97,9 @@ def _get_or_create_sensor(
     external_id: str,
     name: str,
     unit: str,
-    low_threshold: Decimal | None = None,
-    high_threshold: Decimal | None = None,
+    low_threshold: Decimal,
+    high_threshold: Decimal,
+    location: str | None = None,
 ) -> Sensor:
     sensor = (
         db.query(Sensor)
@@ -106,12 +107,15 @@ def _get_or_create_sensor(
         .one_or_none()
     )
     if sensor is not None:
+        if sensor.location is None:
+            sensor.location = location
         return sensor
     sensor = Sensor(
         id=sensor_id,
         site_id=site_id,
         external_id=external_id,
         name=name,
+        location=location,
         unit=unit,
         low_threshold=low_threshold,
         high_threshold=high_threshold,
@@ -167,6 +171,7 @@ def seed() -> None:
                 site_id=site_hotel.id,
                 external_id="SENS-001",
                 name="Presión entrada",
+                location="Sala técnica",
                 unit="bar",
                 low_threshold=Decimal("1.500"),
                 high_threshold=Decimal("6.000"),
@@ -177,6 +182,7 @@ def seed() -> None:
                 site_id=site_hotel.id,
                 external_id="SENS-002",
                 name="Presión salida",
+                location="Cubierta",
                 unit="bar",
                 low_threshold=Decimal("1.000"),
                 high_threshold=Decimal("5.500"),
@@ -187,6 +193,7 @@ def seed() -> None:
                 site_id=site_office.id,
                 external_id="SENS-003",
                 name="Presión general",
+                location="Sótano - Cuarto de bombas",
                 unit="bar",
                 low_threshold=Decimal("1.500"),
                 high_threshold=Decimal("6.000"),

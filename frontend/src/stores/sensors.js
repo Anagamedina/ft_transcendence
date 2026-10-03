@@ -45,27 +45,11 @@ export const useSensorsStore = defineStore("sensors", () =>{
     }
 
 
-    function clearSensors() {
-    async function fetchSensors() {
-     status.value = "loading";
-     error.value = null;
-
-     try {
-        const response = await sensorService.getSensors();
-
-        sensors.value = response.data.items;
-        status.value = "success";
-     } catch (err) {
-        error.value = err;
-        status.value = "error";
-       }
-    }
-
     function selectSensor(sensor) {
         selectedSensor.value = sensor;
     }
 
-    const clearSensors = () => {
+    function clearSensors() {
         sensors.value = [];
         selectedSensor.value = null;
         status.value = "idle";
@@ -75,6 +59,7 @@ export const useSensorsStore = defineStore("sensors", () =>{
 
     return {   
         sensors,
+        selectedSensor,
         status,
         error,
         sensorCount,
