@@ -72,6 +72,7 @@ class ReadingRepository(Protocol):
         value: float,
         unit: str,
         recorded_at: datetime,
+        id: UUID | None = None,
     ) -> Any:
         """
         Inserta una lectura y devuelve la fila creada, con su id.
@@ -86,6 +87,10 @@ class ReadingRepository(Protocol):
         (`sensors/model.py`), y así la unidad de la lectura no puede
         contradecir la del sensor que la emitió.
         """
+        ...
+
+    def get(self, reading_id: UUID) -> Any | None:
+        """La lectura con ese id, o `None`. Sin filtro de organización."""
         ...
 
     def list_by_sensor(
@@ -151,5 +156,41 @@ class SensorRepository(Protocol):
         respuesta) y `alerts/service.py` (calcula SENSOR_OFFLINE con él).
         Hasta que exista la columna, el paso 4 de la issue #24 queda fuera
         de su alcance.
+        """
+        ...
+
+
+@runtime_checkable
+class AlertRepository(Protocol):
+    """
+    Lo que necesita `ReadingService` para abrir alertas al recibir una
+    lectura (issue #28). Listar, reconocer y resolver los usa
+    `AlertService` directamente sobre el repository real.
+    """
+
+    def create(
+        self,
+        sensor_id: UUID,
+        alert_type: str,
+        severity: str,
+        message: str,
+    ) -> Any:
+        """Abre una alerta en estado ACTIVE y devuelve la fila creada."""
+        ...
+
+    def get_active(self, sensor_id: UUID, alert_type: str) -> Any | None:
+        """
+        La alerta ACTIVE de ese tipo para ese sensor, o `None`.
+
+        Es lo que evita abrir una alerta por cada lectura mala: mientras
+        haya una abierta, las siguientes lecturas no crean otra.
+        """
+        ...
+
+    def escalate(self, alert: Any, severity: str, message: str) -> Any:
+        """
+        Sube la severidad de una alerta abierta, con el mensaje de la
+        lectura que la ha empeorado. Solo se sube, nunca se baja: eso lo
+        decide el service.
         """
         ...

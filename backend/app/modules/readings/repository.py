@@ -24,8 +24,10 @@ class ReadingRepository:
         value: float,
         unit: str,
         recorded_at: datetime,
+        id: UUID | None = None,
     ) -> Reading:
         reading = Reading(
+            **({"id": id} if id is not None else {}),
             sensor_id=sensor_id,
             value=value,
             unit=unit,
@@ -39,6 +41,9 @@ class ReadingRepository:
             raise
 
         return reading
+
+    def get(self, reading_id: UUID) -> Reading | None:
+        return self.db.get(Reading, reading_id)
 
     def list_by_sensor(
         self,

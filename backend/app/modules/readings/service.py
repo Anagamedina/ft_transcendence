@@ -28,7 +28,10 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.core.database import transaction
-from app.core.exceptions import NotFoundError, NotImplementedYetError
+from app.core.exceptions import ConflictError, NotFoundError, NotImplementedYetError
+from app.modules.alerts.repository import AlertRepository as SqlAlertRepository
+from app.modules.alerts.rules import evaluar_presion
+from app.modules.alerts.schemas import AlertSeverity
 from app.modules.readings.repository import (
     ReadingRepository as SqlReadingRepository,
 )
@@ -37,7 +40,11 @@ from app.modules.sensors.repository import (
     SensorRepository as SqlSensorRepository,
 )
 from app.shared.dependencies import DbSession
-from app.shared.protocols import ReadingRepository, SensorRepository
+from app.shared.protocols import (
+    AlertRepository,
+    ReadingRepository,
+    SensorRepository,
+)
 from app.shared.schemas import Page
 
 
@@ -59,10 +66,12 @@ class ReadingService:
         db: Session,
         readings: ReadingRepository | None = None,
         sensors: SensorRepository | None = None,
+        alerts: AlertRepository | None = None,
     ) -> None:
         self.db = db
         self.readings = readings
         self.sensors = sensors
+        self.alerts = alerts
 
     def _require_repositories(self) -> None:
         """Corta con un 501 explicativo si la persistencia aún no existe."""
@@ -85,7 +94,9 @@ class ReadingService:
         4. ~~Actualizar `last_seen_at` del sensor.~~ **Fuera de alcance:**
            esa columna no existe en `sensors/model.py`. Mientras no la
            añada la issue #13, no hay dónde escribirla.
-        5. Evaluar los umbrales y generar alerta si procede — issue #28.
+        5. Evaluar los umbrales y abrir o empeorar la alerta si procede
+           (issue #28, `_aplicar_reglas`). En la misma transacción que la
+           lectura: o se guardan las dos, o ninguna.
         6. Devolver la fila convertida al schema de salida.
 
         El paso 1 no es opcional: sin él, una `sensor_id` inventada crearía
@@ -101,6 +112,12 @@ class ReadingService:
         separado, y el service es quien conoce los dos.
         """
         self._require_repositories()
+        if self.alerts is None:
+            raise NotImplementedYetError(
+                "#28",
+                "Registrar una lectura necesita el repository de alertas "
+                "para evaluar las reglas de presión.",
+            )
 
         sensor = self.sensors.get(payload.sensor_id)
         if sensor is None:
@@ -110,6 +127,20 @@ class ReadingService:
             )
 
         measured_at = self._resolve_measured_at(payload.measured_at)
+
+        # Idempotencia: el simulador genera el `id` y lo reutiliza en los
+        # reintentos. Si la primera petición se guardó pero su respuesta se
+        # perdió, el reintento llega con un `id` que ya existe: se devuelve
+        # la lectura guardada, sin insertar otra ni volver a evaluar alertas.
+        if payload.id is not None:
+            existente = self.readings.get(payload.id)
+            if existente is not None:
+                if not self._es_la_misma_lectura(existente, sensor.id, payload):
+                    raise ConflictError(
+                        "Ya existe una lectura con ese id y datos distintos.",
+                        code="READING_ID_CONFLICT",
+                    )
+                return self._to_response(existente)
 
         # `transaction` confirma al salir y deshace si algo revienta. Hace
         # falta ponerlo aquí: `get_db` (core/database.py) solo cierra la
@@ -131,7 +162,9 @@ class ReadingService:
                 value=payload.pressure,
                 unit=sensor.unit,
                 recorded_at=measured_at,
+                id=payload.id,
             )
+            self._aplicar_reglas(sensor, payload.pressure)
 
         # Se lee después del commit a propósito: `SessionLocal` se crea con
         # `expire_on_commit=False` (core/database.py), así que los
@@ -187,6 +220,27 @@ class ReadingService:
             page_size=limit,
         )
 
+    @classmethod
+    def _es_la_misma_lectura(
+        cls, existente: Any, sensor_id: UUID, payload: ReadingCreate
+    ) -> bool:
+        """
+        Compara un reintento con la lectura ya guardada.
+
+        `pressure` se redondea a 3 decimales porque la columna es
+        `Numeric(10,3)`. `measured_at` solo se compara si viene en la
+        petición: sin él, cada intento resolvería un «ahora» distinto.
+        """
+        if existente.sensor_id != sensor_id:
+            return False
+        if round(float(existente.value), 3) != round(payload.pressure, 3):
+            return False
+        if payload.measured_at is None:
+            return True
+        return cls._resolve_measured_at(existente.recorded_at) == (
+            cls._resolve_measured_at(payload.measured_at)
+        )
+
     @staticmethod
     def _to_response(reading: Any) -> ReadingResponse:
         """
@@ -208,6 +262,48 @@ class ReadingService:
             measured_at=reading.recorded_at,
             created_at=reading.created_at,
         )
+
+    def _aplicar_reglas(self, sensor: Any, presion: float) -> None:
+        """
+        Abre o empeora la alerta que toque. Decisiones de Ana, 28-09-2026:
+
+        - **Una sola ACTIVE por sensor y tipo.** Si la presión sigue baja
+          durante cien lecturas, es la misma alerta, no cien.
+        - **Solo se sube la severidad, nunca se baja.** Si la abierta es
+          WARNING y llega una lectura CRITICAL, pasa a CRITICAL con el
+          mensaje de esa lectura: quien la está atendiendo tiene que
+          enterarse de que ha empeorado. Una lectura menos mala no la
+          rebaja.
+        - **No se resuelve sola.** Aunque la presión vuelva al rango, la
+          alerta sigue ACTIVE hasta el `PATCH /resolve`, para que nadie
+          se pierda una bajada que duró cinco minutos.
+        """
+        propuesta = evaluar_presion(
+            presion,
+            sensor.low_threshold,
+            sensor.high_threshold,
+            sensor.unit,
+        )
+        if propuesta is None:
+            return
+
+        abierta = self.alerts.get_active(sensor.id, propuesta.tipo.value)
+        if abierta is None:
+            self.alerts.create(
+                sensor_id=sensor.id,
+                alert_type=propuesta.tipo.value,
+                severity=propuesta.severidad.value,
+                message=propuesta.mensaje,
+            )
+        elif (
+            abierta.severity == AlertSeverity.WARNING.value
+            and propuesta.severidad is AlertSeverity.CRITICAL
+        ):
+            self.alerts.escalate(
+                abierta,
+                severity=AlertSeverity.CRITICAL.value,
+                message=propuesta.mensaje,
+            )
 
     @staticmethod
     def _resolve_measured_at(value: datetime | None) -> datetime:
@@ -249,4 +345,5 @@ def get_reading_service(db: DbSession) -> ReadingService:
         db,
         readings=SqlReadingRepository(db),
         sensors=SqlSensorRepository(db),
+        alerts=SqlAlertRepository(db),
     )
