@@ -88,6 +88,37 @@ database is unreachable:
 {"status":"ok","database":"connected","checked_at":"2026-09-02T21:52:53.859027Z"}
 ```
 
+`make smoke` checks the whole stack in one run and is the check to use before
+a merge or an evaluation. It needs the demo data (`make seed`):
+
+```bash
+make up
+make seed
+make smoke
+```
+
+It runs `docker compose up -d --wait` for `database`, `backend` and `gateway`,
+which starts any of them that is stopped and waits up to 60 seconds for all
+three to report `healthy`. Then it checks both health endpoints, the HTTP to
+HTTPS redirect and the SPA, sends a reading through `POST /api/readings`, and
+confirms it was stored in PostgreSQL. The test reading is deleted afterwards.
+When the simulator is running (`make sim`), it also checks that its readings
+reach the database, unless its scenario is `offline`, which sends none on
+purpose. The first failing check stops the run with a non-zero exit code and a
+message that names the logs to look at:
+
+```text
+smoke: ok    database, backend and gateway are healthy
+smoke: ok    /api/health responds
+smoke: ok    /api/health/db responds
+smoke: ok    HTTP redirects to HTTPS
+smoke: ok    the gateway serves the SPA
+smoke: ok    POST /api/readings accepts a reading
+smoke: ok    the reading is stored in PostgreSQL
+smoke: ok    simulator readings reach the database (6 in the last 30s)
+smoke: OK, all checks passed
+```
+
 Stop the stack with `make down`, which keeps the PostgreSQL volume.
 
 Alembic runs from the host and therefore needs the PostgreSQL port, which the
@@ -113,6 +144,7 @@ The root `Makefile` wraps the Compose commands:
 | `make build`       | Builds the images without starting them                                                                          |
 | `make sim`         | Same as `make up` plus the `sim` profile, which starts the sensor simulator                                      |
 | `make seed`        | Loads the demo data inside the running `backend` container; safe to run more than once                           |
+| `make smoke`       | Smoke test of the stack: health, gateway, and a reading stored end to end; fails with a non-zero code            |
 | `make down`        | Stops the containers, simulator included, and keeps the PostgreSQL volume                                        |
 | `make logs`        | Follows the logs of every running service                                                                        |
 | `make ps`          | Shows service status                                                                                             |
@@ -199,6 +231,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the detailed design.
 |-------------|------------------------------|-------------------------------------------|
 | Frontend    | Vue, Vite, Vue Router, Pinia | Responsive single-page application        |
 | Styling     | Tailwind CSS, DaisyUI        | Consistent responsive UI styling          |
+| Maps        | MapLibre GL, OpenFreeMap     | Admin map of sites (no API key required)  |
 | HTTP client | Axios                        | Frontend-to-backend communication         |
 | Backend     | FastAPI, Uvicorn             | HTTP API and application server           |
 | Persistence | PostgreSQL                   | Relational storage and data integrity     |
@@ -236,11 +269,13 @@ data types, and relationships once the schema is implemented.
 | Compose orchestration (network, volume, profiles)                           | Implemented   | Eduardo        | `make up` then `make ps`                                                                                        |
 | Nginx gateway: HTTPS, HTTP redirect, SPA, `/api` and `/ws` proxy            | Implemented   | Eduardo        | `curl -I http://localhost` returns 301, `curl -k https://localhost/api/health` returns 200                      |
 | Sensor simulator (`simulator/`): normal, low, high and offline scenarios    | Implemented   | Eduardo        | `cd simulator && pytest` (26 tests); `make up && make seed && make sim`. The seed creates the sensors listed in `.env.example`, so readings persist via `POST /api/readings` (#24) with no manual setup; waits for `/api/health/db` before sending, exposes its own container `HEALTHCHECK`, and demo users get real Argon2 hashes (#89) |
+| Health checks and smoke test (`make smoke`)                                 | Implemented   | Eduardo        | `make up && make seed && make smoke`; with `make sim` it also checks the simulator -> API -> database flow |
 | Authentication: register, login, logout and `GET /api/me`                   | Implemented   | Ana            | `cd backend && python3 -m pytest -q` (157 tests), or `curl -k -c c.txt -X POST https://localhost/api/auth/login -H 'Content-Type: application/json' -d '{"email":"...","password":"..."}'` then `curl -k -b c.txt https://localhost/api/me` |
 | Permissions: `admin` sees every organization, `client` only its own, 401/403 | Implemented   | Ana            | `cd backend && python3 -m pytest -q tests/test_permisos.py`. Registering a client now requires `organization_id`. How the simulator authenticates on `POST /api/readings` is still open |
 | Sensor readings: store and list (`POST /api/readings`, `GET /api/sensors/{id}/readings`) | Implemented | Daruny, Ana | `cd backend && python3 -m pytest -q` (157 tests). History is paginated and scoped to the session's organization   |
 | Alerts: list, acknowledge, resolve, and low/high pressure rules            | In progress   | Daruny, Ana    | `cd backend && python3 -m pytest -q` (157 tests). A reading outside the sensor's thresholds opens an alert; `SENSOR_OFFLINE` pending (#28) |
-| Admin dashboard: KPIs, sites, sensors and active alerts summaries           | In progress   | Florinda       | Run `./scripts/launch-frontend.sh`, visit `/admin` (layout and summaries render; data appears once stores are loaded) |
+| Admin dashboard: KPIs, sites, sensors and active alerts summaries           | In progress   | Florinda       | Run `./scripts/launch-frontend.sh`, visit `/admin` (layout and summaries render; sites come from mocks, sensors and alerts appear once stores are loaded) |
+| Admin sites map: Barcelona municipal boundary, marker colour by active alert, zoom limited to the city | Implemented | Florinda | Run `./scripts/launch-frontend.sh`, visit `/admin`, click "Ver mapa" |
 
 Every pull request that adds a feature should update this table with its status,
 contributors, and a reproducible verification method.
@@ -361,6 +396,7 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 | 04                    | Public landing page                                                                                                                         | Implemented                                                  |
 | 05                    | Privacy Policy and Terms of Service: sectioned content with semantic headings, sticky anchor-link index, legal-review disclaimer; both routes public, linked from Footer; `Header` logo now links back to Landing; fixed `scrollBehavior` so navigation resets scroll to top | [#70](https://github.com/Anagamedina/ft_transcendence/pull/70) | `overflow-x-hidden` on `PublicLayout.vue` was silently breaking `position: sticky` on the index sidebar; removed it and re-verified Landing still has no horizontal overflow at 320px. |
 | 06                    | Admin Dashboard visual structure: route `/admin`, `AdminLayout`, `KPICard`, shared `AppIcon` SVG set (also used in `Sidebar`), `SitesSummary`, `SensorsSummary`, `AlertsSummary`; KPIs derived from Pinia stores with `computed`, no direct HTTP calls | [#96](https://github.com/Anagamedina/ft_transcendence/pull/96) | No sites store exists yet, so the Sites KPI shows "—" instead of an invented number; emojis rendered differently per OS, replaced by a single SVG icon component. |
+| 07                    | Admin sites map (`SitesMap`): MapLibre GL + OpenFreeMap, official Barcelona boundary with the outside faded, marker colour by most severe active alert, opened in a `Modal` (new `size` prop) and lazy-loaded; props only, no HTTP calls | [#104](https://github.com/Anagamedina/ft_transcendence/pull/104) | Leaflet cannot rotate the map with upright labels, so it was replaced by MapLibre; a world mask drawn at ±90° broke rendering (Web Mercator stops at ±85°); a large inline map hid the KPIs, so it moved to a modal and MapLibre (~1 MB) now loads only when the map is opened. |
 
 | Lylia (`lylfergu`)                                                                    | Features/modules | Pull requests                                                                                                                                                   | Challenges and solutions |
 |---------------------------------------------------------------------------------------|------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------|
@@ -389,6 +425,9 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 - [SQLAlchemy documentation](https://docs.sqlalchemy.org/)
 - [Alembic documentation](https://alembic.sqlalchemy.org/)
 - [Docker Compose documentation](https://docs.docker.com/compose/)
+- [MapLibre GL JS documentation](https://maplibre.org/maplibre-gl-js/docs/)
+- [OpenFreeMap](https://openfreemap.org/) (map tiles, OpenStreetMap data)
+- Barcelona municipal boundary: Ajuntament de Barcelona / CartoBCN (CC-BY)
 
 ### AI usage
 
@@ -421,6 +460,8 @@ label planned work separately from implemented work.
   it does not start with the default `make up`; run `make sim` to include it.
 - TLS certificates are self-signed, so browsers warn on first visit. A
   publicly trusted certificate is out of scope for this project.
+- The admin sites map loads its tiles from OpenFreeMap, so it needs an
+  internet connection.
 - The gateway serves a production build of the SPA. Frontend development still
   uses the Vite dev server through `./scripts/launch-frontend.sh`.
 - `.env` generation exists twice, as `make env` and as `scripts/create_env`.

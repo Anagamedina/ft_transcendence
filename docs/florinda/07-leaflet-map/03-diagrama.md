@@ -2,24 +2,44 @@
 
 ```mermaid
 flowchart LR
- A[Antes: sites solo en lista] --> B[Difícil localizar edificios]
- C[Store/API User04] --> D[Map props: sites]
- D --> E[Leaflet map]
- E --> F[Markers lat/lng]
-F --> G[Evento site seleccionado]
+ A["Stores: sensores y alertas"] --> C["DashboardView: sitesForMap (alertLevel)"]
+ B["Sites (mocks por ahora)"] --> C
+ C --> D["Tarjeta compacta: n.º de sites y alertas"]
+ D -- "Ver mapa" --> E["Modal size=xl"]
+ E --> F["SitesMap (carga diferida)"]
+ F --> G["Marcadores con color por alerta"]
+ G -. "select-site (preparado para #9)" .-> C
+
+ classDef default fill:#e0f2fe,stroke:#0369a1,color:#0f172a
+```
+
+## Nivel de alerta de un site
+
+```mermaid
+flowchart LR
+ A["Alerta ACTIVE"] -- sensor_id --> B[Sensor]
+ B -- site_id --> C[Site]
+ C --> D{"¿La más grave?"}
+ D -- CRITICAL --> E[critical: rojo]
+ D -- WARNING --> F[warning: ámbar]
+ D -- ninguna --> G[none: turquesa]
+
+ classDef default fill:#e0f2fe,stroke:#0369a1,color:#0f172a
 ```
 
 ## Ciclo de vida
 
 ```mermaid
 sequenceDiagram
- participant V as Vista
- participant M as MapComponent
- participant L as Leaflet
- V->>M: props sites
+ participant V as DashboardView
+ participant M as SitesMap
+ participant L as MapLibre
+ V->>M: abre Modal, props sites
  M->>L: onMounted crea mapa
- M->>L: dibuja markers
- V->>M: cambia sites
- M->>L: sincroniza markers
- M->>L: onUnmounted remove()
+ L-->>M: load: contorno, velo y encuadre
+ M->>L: dibuja marcadores
+ V->>M: cambian sites
+ M->>L: redibuja marcadores (watch)
+ V->>M: cierra Modal
+ M->>L: onBeforeUnmount remove()
 ```

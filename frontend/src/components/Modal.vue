@@ -7,7 +7,8 @@
         @click.self="close"
       >
         <div
-          class="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+          class="bg-white rounded-xl shadow-2xl w-full max-h-[90vh] overflow-y-auto"
+          :class="SIZES[size] || SIZES.md"
           role="dialog"
           aria-modal="true"
         >
@@ -45,8 +46,12 @@ import { onMounted, onUnmounted } from 'vue'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
-  title: { type: String, default: '' }
+  title: { type: String, default: '' },
+  // Width of the window: 'md' (default, forms/messages) | 'lg' | 'xl' (maps, big content)
+  size: { type: String, default: 'md' }
 })
+
+const SIZES = { md: 'max-w-md', lg: 'max-w-3xl', xl: 'max-w-6xl' }
 
 const emit = defineEmits(['close'])
 
