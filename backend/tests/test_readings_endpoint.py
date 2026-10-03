@@ -11,6 +11,7 @@ comprueba desde una sesión **distinta** que la fila sigue ahí. Sin él, un
 """
 
 from datetime import datetime, timezone
+from decimal import Decimal
 from uuid import uuid4
 
 import pytest
@@ -59,6 +60,8 @@ def sensor_id(engine):
             external_id="sensor-01",
             name="Entrada principal",
             unit="bar",
+            low_threshold=Decimal("1.000"),
+            high_threshold=Decimal("10.000"),
         )
         session.add(sensor)
         session.commit()

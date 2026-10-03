@@ -64,6 +64,8 @@ def sensor(db: Session):
         external_id="sensor-01",
         name="Entrada principal",
         unit="bar",
+        low_threshold=Decimal("1.000"),
+        high_threshold=Decimal("10.000"),
     )
     db.add(sensor)
     db.flush()
@@ -212,13 +214,6 @@ def test_una_lectura_alta_abre_high_pressure(service, sensor_con_umbrales, db: S
 def test_justo_en_el_umbral_no_es_alerta(service, sensor_con_umbrales, db: Session):
     service.create(ReadingCreate(sensor_id=sensor_con_umbrales.id, pressure=1.5))
     service.create(ReadingCreate(sensor_id=sensor_con_umbrales.id, pressure=10.0))
-
-    assert _alertas(db) == []
-
-
-def test_sin_umbrales_no_hay_regla(service, sensor, db: Session):
-    """Hasta la #97 la tabla admite sensores sin umbrales."""
-    service.create(ReadingCreate(sensor_id=sensor.id, pressure=0.1))
 
     assert _alertas(db) == []
 
