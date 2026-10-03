@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from decimal import Decimal
 
 import pytest
 from sqlalchemy import create_engine
@@ -40,12 +41,16 @@ def fixtures(db: Session):
         external_id="sensor-a",
         name="Sensor A",
         unit="bar",
+        low_threshold=Decimal("1.000"),
+        high_threshold=Decimal("10.000"),
     )
     sensor_b = Sensor(
         site_id=site_b.id,
         external_id="sensor-b",
         name="Sensor B",
         unit="bar",
+        low_threshold=Decimal("1.000"),
+        high_threshold=Decimal("10.000"),
     )
     db.add_all([sensor_a, sensor_b])
     db.flush()

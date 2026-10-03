@@ -79,12 +79,36 @@ def test_el_id_sobrevive_al_viaje_de_ida_y_vuelta():
     assert security.read_session_token(token) == user_id
 
 
-def test_un_token_manipulado_no_vale():
+def _cambiar_caracter_del_medio(texto: str) -> str:
+    """
+    Cambia el carácter central de un trozo en base64.
+
+    No vale cambiar el último: en base64 el último carácter puede llevar bits
+    que no se usan, y cambiar solo esos deja el contenido igual. Eso hacía
+    que una versión anterior de estos tests fallara más o menos 1 de cada 20
+    veces. Un carácter del medio siempre cambia el contenido.
+    """
+    i = len(texto) // 2
+    nuevo = "A" if texto[i] != "A" else "B"
+    return texto[:i] + nuevo + texto[i + 1 :]
+
+
+def test_cambiar_el_id_del_token_rompe_la_firma():
     """
     Firmado, no cifrado: el id se puede leer, pero cambiarlo rompe la firma.
+    Es lo que intentaría quien quiere hacerse pasar por otro usuario.
     """
-    token = security.create_session_token(uuid4())
-    manipulado = token[:-1] + ("A" if token[-1] != "A" else "B")
+    datos, fecha, firma = security.create_session_token(uuid4()).split(".")
+
+    manipulado = ".".join([_cambiar_caracter_del_medio(datos), fecha, firma])
+
+    assert security.read_session_token(manipulado) is None
+
+
+def test_cambiar_la_firma_del_token_lo_invalida():
+    datos, fecha, firma = security.create_session_token(uuid4()).split(".")
+
+    manipulado = ".".join([datos, fecha, _cambiar_caracter_del_medio(firma)])
 
     assert security.read_session_token(manipulado) is None
 

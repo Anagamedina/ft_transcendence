@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.modules.readings.model import Reading
 from app.modules.sensors.model import Sensor
 from app.modules.sites.model import Site
 
@@ -36,7 +38,9 @@ class SensorRepository:
 
         items = list(
             self.db.scalars(
-                query.order_by(Sensor.id).offset(offset).limit(limit)
+                # #25 (Ana): por nombre, como los sites; el id desempata para
+                # que la paginación no repita ni salte sensores.
+                query.order_by(Sensor.name, Sensor.id).offset(offset).limit(limit)
             ).all()
         )
 
@@ -53,6 +57,27 @@ class SensorRepository:
         if organization_id is not None:
             query = query.where(Site.organization_id == organization_id)
         return self.db.scalar(query)
+
+    def last_seen_by_sensor(self, sensor_ids: list[UUID]) -> dict[UUID, datetime]:
+        """
+        Cuándo llegó la última lectura de cada sensor (#25, Ana).
+
+        Una sola consulta para toda la página, no una por sensor. Los
+        sensores sin lecturas no aparecen en el diccionario.
+
+        Usa `created_at` (cuándo la recibió el backend) y no `recorded_at`
+        (cuándo dice el sensor que la midió); ver `sensors/status.py`. Hoy
+        no hay índice por `(sensor_id, created_at)`: con muchas lecturas
+        convendrá crearlo.
+        """
+        if not sensor_ids:
+            return {}
+        filas = self.db.execute(
+            select(Reading.sensor_id, func.max(Reading.created_at))
+            .where(Reading.sensor_id.in_(sensor_ids))
+            .group_by(Reading.sensor_id)
+        ).all()
+        return {sensor_id: ultima for sensor_id, ultima in filas}
 
     def get(self, sensor_id: UUID) -> Sensor | None:
         """

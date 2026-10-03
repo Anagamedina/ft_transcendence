@@ -15,20 +15,25 @@ sesión. Esa comprobación es de la issue #27, pero condiciona todas las
 consultas de aquí: filtrar por organización no es un extra que se añade al
 final, es parte de la consulta.
 
-**`status` y `last_seen_at` no los escribe el cliente.** Los mantiene el
-backend cuando llegan lecturas. Por eso `SensorUpdate` no los incluye.
+**`status` y `last_seen_at` no los escribe el cliente, ni se guardan.** Se
+calculan al responder, a partir de las lecturas: `last_seen_at` es cuándo
+llegó la última, y `status` sale de `sensors/status.py`. Por eso
+`SensorUpdate` no los incluye.
 
 Implementación: issues #25 (lectura) y #29 (alta y modificación).
 """
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import NotImplementedYetError
+from app.core.exceptions import NotFoundError, NotImplementedYetError
+from app.modules.sensors.repository import SensorRepository as SqlSensorRepository
 from app.modules.sensors.schemas import SensorCreate, SensorResponse, SensorUpdate
+from app.modules.sensors.status import calcular_estado
 from app.shared.dependencies import DbSession
 from app.shared.protocols import SensorRepository
 from app.shared.schemas import Page
@@ -39,13 +44,31 @@ class SensorService:
         self, db: Session, sensors: SensorRepository | None = None
     ) -> None:
         self.db = db
-        self.sensors = sensors
+        self.sensors = sensors or SqlSensorRepository(db)
 
-    def list(self, offset: int, limit: int) -> Page[SensorResponse]:
-        """Sensores visibles para el usuario, paginados. Issue #25."""
-        raise NotImplementedYetError("#25")
+    def list(
+        self, organization_id: UUID | None, offset: int, limit: int
+    ) -> Page[SensorResponse]:
+        """
+        Sensores visibles para el usuario, paginados y por nombre. Issue #25.
 
-    def get(self, sensor_id: UUID) -> SensorResponse:
+        `organization_id` sale de `get_org_scope`: `None` (admin) son todas
+        las organizaciones. Se listan también los inactivos: el contrato no
+        tiene `is_active` y el admin tiene que verlos (Ana, 03-10-2026).
+        """
+        filas, total = self.sensors.list_by_organization(
+            organization_id=organization_id, offset=offset, limit=limit
+        )
+        ultimas = self.sensors.last_seen_by_sensor([f.id for f in filas])
+        ahora = datetime.now(timezone.utc)
+        return Page[SensorResponse](
+            items=[self._to_response(f, ultimas.get(f.id), ahora) for f in filas],
+            total=total,
+            page=offset // limit + 1,
+            page_size=limit,
+        )
+
+    def get(self, sensor_id: UUID, organization_id: UUID | None) -> SensorResponse:
         """
         Un sensor por id. Issue #25.
 
@@ -54,7 +77,16 @@ class SensorService:
         que pregunta que ese identificador existe, que es justo lo que no
         queremos revelar.
         """
-        raise NotImplementedYetError("#25")
+        sensor = self.sensors.get_by_id(sensor_id, organization_id)
+        if sensor is None:
+            raise NotFoundError(
+                "El sensor indicado no existe.",
+                code="SENSOR_NOT_FOUND",
+            )
+        ultimas = self.sensors.last_seen_by_sensor([sensor.id])
+        return self._to_response(
+            sensor, ultimas.get(sensor.id), datetime.now(timezone.utc)
+        )
 
     def create(self, payload: SensorCreate) -> SensorResponse:
         """
@@ -77,6 +109,37 @@ class SensorService:
         en dos peticiones seguidas, cada una válida por separado.
         """
         raise NotImplementedYetError("#29")
+
+    @staticmethod
+    def _to_response(
+        sensor, ultima_lectura: datetime | None, ahora: datetime
+    ) -> SensorResponse:
+        """
+        Convierte la fila al schema de salida.
+
+        Aquí se cruza la frontera de vocabulario: la tabla dice
+        `low_threshold` / `high_threshold` y el contrato `min_pressure` /
+        `max_pressure`. Los umbrales llegan como `Decimal` (columna
+        `Numeric`) y el contrato los publica como número.
+
+        Algunos motores (sqlite en los tests) devuelven las fechas sin zona
+        horaria; se tratan como UTC, que es como se guardan, para poder
+        compararlas con `ahora`.
+        """
+        if ultima_lectura is not None and ultima_lectura.tzinfo is None:
+            ultima_lectura = ultima_lectura.replace(tzinfo=timezone.utc)
+        return SensorResponse(
+            id=sensor.id,
+            site_id=sensor.site_id,
+            name=sensor.name,
+            location=sensor.location,
+            sensor_type=sensor.sensor_type,
+            min_pressure=float(sensor.low_threshold),
+            max_pressure=float(sensor.high_threshold),
+            status=calcular_estado(ultima_lectura, ahora),
+            last_seen_at=ultima_lectura,
+            created_at=sensor.created_at,
+        )
 
 
 def get_sensor_service(db: DbSession) -> SensorService:

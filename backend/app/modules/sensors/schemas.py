@@ -38,8 +38,9 @@ from app.shared.schemas import ApiModel, ApiRequest
 # un edificio ronda 1–6 bar; el margen hasta 25 cubre picos y golpe de
 # ariete sin dar por buena una lectura absurda como 900.
 #
-# PENDIENTE de confirmar con Daruny: si el modelo SQLAlchemy añade un
-# CHECK constraint, debe usar este mismo rango.
+# La tabla `sensors` aplica este mismo rango a los umbrales con el CHECK
+# `ck_sensors_threshold_range` (issue #97): si se cambia aquí, hay que
+# cambiarlo también allí con una migración.
 PRESSURE_MIN_BAR = 0.0
 PRESSURE_MAX_BAR = 25.0
 

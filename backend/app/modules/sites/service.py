@@ -9,8 +9,8 @@ esta capa recibe el alcance que calcula `get_org_scope` (issue #27):
 `None` para un admin, que ve todas, o la organización de un cliente.
 
 Implementación: issue #29. `list` y `get` están hechos; `list_sensors`
-espera a la #97, porque devuelve `SensorResponse` y la tabla `sensors`
-todavía no tiene `location` ni `sensor_type`.
+falta. Ya no está bloqueado: desde la #97 la tabla `sensors` tiene
+`location`, `sensor_type` y umbrales obligatorios.
 """
 
 from __future__ import annotations
