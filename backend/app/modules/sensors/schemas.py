@@ -134,6 +134,22 @@ class SensorCreate(SensorBase):
     """
 
     site_id: UUID = Field(description="Site donde se instala el sensor.")
+    external_id: str = Field(
+        min_length=1,
+        max_length=100,
+        description=(
+            "Etiqueta del aparato físico o del fabricante, distinta del id "
+            "interno. Única dentro de su site: repetirla da 409."
+        ),
+        examples=["SENS-001"],
+    )
+    unit: str = Field(
+        default="bar",
+        min_length=1,
+        max_length=20,
+        description="Unidad de medida. Si no se envía, `bar`.",
+        examples=["bar"],
+    )
 
 
 class SensorUpdate(ApiRequest):
@@ -173,9 +189,13 @@ class SensorUpdate(ApiRequest):
 class SensorResponse(ApiModel):
     id: UUID
     site_id: UUID
+    external_id: str = Field(
+        description="Etiqueta del aparato físico (`SENS-001`), única en su site."
+    )
     name: str
     location: str | None = None
     sensor_type: SensorType
+    unit: str = Field(description="Unidad de las lecturas y de los umbrales.")
     min_pressure: float = Field(description="Umbral inferior en bar.")
     max_pressure: float = Field(description="Umbral superior en bar.")
     status: SensorStatus = Field(description="Estado operativo calculado.")
