@@ -247,7 +247,6 @@ See [`docs/architecture.md`](docs/architecture.md) for the detailed design.
 |-------------|------------------------------|-------------------------------------------|
 | Frontend    | Vue, Vite, Vue Router, Pinia | Responsive single-page application        |
 | Styling     | Tailwind CSS, DaisyUI        | Consistent responsive UI styling          |
-| Maps        | MapLibre GL, OpenFreeMap     | Admin map of sites (no API key required)  |
 | HTTP client | Axios                        | Frontend-to-backend communication         |
 | Backend     | FastAPI, Uvicorn             | HTTP API and application server           |
 | Persistence | PostgreSQL                   | Relational storage and data integrity     |
@@ -414,16 +413,19 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 | 06                    | Admin Dashboard visual structure: route `/admin`, `AdminLayout`, `KPICard`, shared `AppIcon` SVG set (also used in `Sidebar`), `SitesSummary`, `SensorsSummary`, `AlertsSummary`; KPIs derived from Pinia stores with `computed`, no direct HTTP calls | [#96](https://github.com/Anagamedina/ft_transcendence/pull/96) | No sites store exists yet, so the Sites KPI shows "—" instead of an invented number; emojis rendered differently per OS, replaced by a single SVG icon component. |
 | 07                    | Admin sites map (`SitesMap`): MapLibre GL + OpenFreeMap, official Barcelona boundary with the outside faded, marker colour by most severe active alert, opened in a `Modal` (new `size` prop) and lazy-loaded; props only, no HTTP calls | [#104](https://github.com/Anagamedina/ft_transcendence/pull/104) | Leaflet cannot rotate the map with upright labels, so it was replaced by MapLibre; a world mask drawn at ±90° broke rendering (Web Mercator stops at ±85°); a large inline map hid the KPIs, so it moved to a modal and MapLibre (~1 MB) now loads only when the map is opened. |
 
-| Lylia (`lylfergu`)                                                                    | Features/modules | Pull requests                                                                                                                                                   | Challenges and solutions |
-|---------------------------------------------------------------------------------------|------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------|
-| Pinia stores                                                                          | [PR number]      | Created centralized stores to manage frontend application state                                                                                                 |
-| Axios API services and error handling                                                 | #57              | Created a centralized API layer with                                                                                                                            |
-| services, adapters, and common error handling                                         |
-| MockAdapter                                                                           | #61              | Frontend API mocking and development fixtures                                                                                                                   |
-| Enabled frontend development without a running backend by implementing a mock adapter |
-| with the same interface and response shapes as the real API, including fixtures,      |
-| pagination, validation errors, authentication states, and CRUD-like operations.       |
-| Sensors and readings integration                                                      | #34              | Connected `/api/sensors` and `/api/sensors/{id}/readings` through services and Pinia stores, with loading/error handling and data mapping for visual components |
+| Lylia (`lylfergu`) | Features/modules   | Pull requests | Challenges and solutions |
+|---------------------------------------------------------------------------------------|
+| Pinia stores | Created centralized stores to manage frontend application state        |
+| Axios API services and error handling | #57 | Created a centralized API layer with
+  services, adapters, and common error handling                                         |
+| MockAdapter | #61 | Frontend API mocking and development fixtures | Enabled frontend  
+  development without a running backend by implementing a mock adapter with the same 
+  interface and response shapes as the real API, including fixtures, pagination, 
+  validation errors, authentication states, and CRUD-like operations.                   |
+| Login, Register and Logout frontend | # 99| Implemented the complete frontend 
+  authentication flow using Auth services, Auth Store, handled loading/error 
+  states and prevented double submission. Authentication was tested with the MockAdapter 
+  while the backend was not yet available.                                              |
 
 | Eduardo (`egalindo`) | Features/modules             | Pull requests | Challenges and solutions |
 |----------------------|------------------------------|---------------|--------------------------|

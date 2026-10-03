@@ -10,7 +10,7 @@
             Iniciar sesión
           </RouterLink>
           <RouterLink
-            to="/registro"
+            to="/register"
             class="border border-white text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-semibold hover:bg-white/10 transition text-xs sm:text-sm"
           >
             Registrarse

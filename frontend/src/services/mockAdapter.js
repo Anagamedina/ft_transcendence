@@ -15,7 +15,7 @@ const mockUser = { //fictitious user, used when the frontend requests "GET /api/
   created_at: '2026-08-01T08:00:00Z',
 }
 
-let isAuthenticated = true
+let isAuthenticated = false
 
 /*
 We create an object that
@@ -208,10 +208,17 @@ const mockAdapter = {
   },
 
   post(url, data = {}, config = {}) {
-    console.log('[MOCK POST]', url, data, config)
+    if (url.startsWith('/api/auth/')) {
+      console.log('[MOCK POST]', url)
+    } else {
+      console.log('[MOCK POST]', url, data, config)
+    }
 
     // Register
     if (url === '/api/auth/register') {
+      
+      isAuthenticated = true
+
       return Promise.resolve({
         data: {
           user: mockUser,
@@ -222,6 +229,18 @@ const mockAdapter = {
 
     // Login
     if (url === '/api/auth/login') {
+      if (
+        data.email !== 'test@example.com' ||
+        data.password !== '123'
+      ) {
+        return Promise.reject({
+          status: 401,
+          code: 'INVALID_CREDENTIALS',
+          message: 'Invalid email or password.',
+          details: null,
+        })
+      }
+
       isAuthenticated = true
 
       return Promise.resolve({
