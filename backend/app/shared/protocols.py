@@ -96,7 +96,7 @@ class ReadingRepository(Protocol):
     def list_by_sensor(
         self,
         sensor_id: UUID,
-        organization_id: UUID,
+        organization_id: UUID | None,
         offset: int,
         limit: int,
     ) -> tuple[list[Any], int]:
@@ -108,9 +108,11 @@ class ReadingRepository(Protocol):
         repository obligaría al service a lanzar una segunda consulta y a
         saber cómo se filtra — que es justo lo que esta capa oculta.
 
-        `organization_id` no es opcional y no se puede omitir «porque ya
-        conocemos el sensor»: sin él, cualquiera que acierte un
-        `sensor_id` ajeno se lee el histórico de otro cliente.
+        `organization_id` no se puede omitir «porque ya conocemos el
+        sensor»: sin él, cualquiera que acierte un `sensor_id` ajeno se lee
+        el histórico de otro cliente. `None` es un valor explícito que
+        significa «todas las organizaciones», solo para un admin; lo decide
+        `get_org_scope` (issue #27).
         """
         ...
 
@@ -129,9 +131,10 @@ class SensorRepository(Protocol):
         """
         ...
 
-    def get_by_id(self, sensor_id: UUID, organization_id: UUID) -> Any | None:
+    def get_by_id(self, sensor_id: UUID, organization_id: UUID | None) -> Any | None:
         """
-        El sensor, solo si pertenece a esa organización.
+        El sensor, solo si pertenece a esa organización. Con `None`, de
+        cualquier organización (admin, issue #27).
 
         Es la versión que se usa cuando quien pregunta tiene sesión, y la
         que evita que alguien lea los sensores de otro cliente acertando un

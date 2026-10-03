@@ -36,16 +36,22 @@ from fastapi import APIRouter, Depends, Query, status
 
 from app.modules.alerts.schemas import AlertResponse, AlertStatus
 from app.modules.alerts.service import AlertService, get_alert_service
-from app.shared.dependencies import CurrentUser, Pagination
+from app.shared.dependencies import OrgScope, Pagination
 from app.shared.schemas import Page, error_response
 
 router = APIRouter(prefix="/alerts", tags=["Alerts"])
 
 AlertSvc = Annotated[AlertService, Depends(get_alert_service)]
 
-_NO_AUTORIZADO = error_response(
-    status.HTTP_401_UNAUTHORIZED, "No hay sesión (`UNAUTHORIZED`)."
-)
+_NO_AUTORIZADO = {
+    **error_response(
+        status.HTTP_401_UNAUTHORIZED, "No hay sesión (`UNAUTHORIZED`)."
+    ),
+    **error_response(
+        status.HTTP_403_FORBIDDEN,
+        "Cuenta de cliente sin organización (`FORBIDDEN`).",
+    ),
+}
 _NO_ENCONTRADA = error_response(
     status.HTTP_404_NOT_FOUND,
     "La alerta no existe, o no es de tu organización (`ALERT_NOT_FOUND`).",
@@ -57,7 +63,8 @@ _NO_ENCONTRADA = error_response(
     response_model=Page[AlertResponse],
     summary="Listar alertas",
     description=(
-        "Alertas de tu organización, paginadas.\n\n"
+        "Alertas de tu organización, paginadas. Un admin ve las de todas "
+        "las organizaciones.\n\n"
         "Los dos filtros son los que usa el panel: `status` para ver solo "
         "las activas, que es la vista por defecto de quien atiende, y "
         "`sensor_id` para entrar desde el detalle de un sensor."
@@ -66,7 +73,7 @@ _NO_ENCONTRADA = error_response(
 )
 def list_alerts(
     service: AlertSvc,
-    user: CurrentUser,
+    scope: OrgScope,
     pagination: Pagination,
     status_filtro: Annotated[
         AlertStatus | None,
@@ -77,10 +84,10 @@ def list_alerts(
         Query(description="Deja solo las alertas de ese sensor."),
     ] = None,
 ) -> Page[AlertResponse]:
-    # La organización sale de la sesión, nunca de la query: si viniera de
-    # fuera, cualquiera pediría las alertas de otro cliente.
+    # La organización sale de la sesión (`OrgScope`), nunca de la query: si
+    # viniera de fuera, cualquiera pediría las alertas de otro cliente.
     return service.list(
-        organization_id=user.organization_id,
+        organization_id=scope,
         offset=pagination.offset,
         limit=pagination.limit,
         status=status_filtro.value if status_filtro else None,
@@ -101,9 +108,9 @@ def list_alerts(
     responses={**_NO_AUTORIZADO, **_NO_ENCONTRADA},
 )
 def acknowledge_alert(
-    alert_id: UUID, service: AlertSvc, user: CurrentUser
+    alert_id: UUID, service: AlertSvc, scope: OrgScope
 ) -> AlertResponse:
-    return service.acknowledge(alert_id, organization_id=user.organization_id)
+    return service.acknowledge(alert_id, organization_id=scope)
 
 
 @router.patch(
@@ -126,6 +133,6 @@ def acknowledge_alert(
     },
 )
 def resolve_alert(
-    alert_id: UUID, service: AlertSvc, user: CurrentUser
+    alert_id: UUID, service: AlertSvc, scope: OrgScope
 ) -> AlertResponse:
-    return service.resolve(alert_id, organization_id=user.organization_id)
+    return service.resolve(alert_id, organization_id=scope)

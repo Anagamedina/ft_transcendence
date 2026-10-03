@@ -42,25 +42,30 @@ class AlertRepository:
     def get_by_id(
             self,
             alert_id: UUID,
-            organization_id: UUID) -> Alert | None:
+            organization_id: UUID | None) -> Alert | None:
+        # #27 (Ana): organization_id=None significa TODAS las organizaciones
+        # (admin). Lo decide `get_org_scope` en shared/dependencies.py.
         query = (
             select(Alert).join(Sensor).join(Site)
-            .where(Alert.id == alert_id, Site.organization_id == organization_id)
+            .where(Alert.id == alert_id)
         )
+        if organization_id is not None:
+            query = query.where(Site.organization_id == organization_id)
         return self.db.scalar(query)
 
     def list_by_organization(
-            self, organization_id: UUID, status: str | None = None,
+            self, organization_id: UUID | None, status: str | None = None,
             sensor_id: UUID | None = None,
             offset: int = 0, limit: int = 100,
     ) -> tuple[list[Alert], int]:
         if offset < 0 or limit <= 0:
             raise ValueError("Invalid pagination")
 
-        query = (
-            select(Alert).join(Sensor).join(Site)
-            .where(Site.organization_id == organization_id)
-        )
+        # #27 (Ana): organization_id=None significa TODAS las organizaciones
+        # (admin). Lo decide `get_org_scope` en shared/dependencies.py.
+        query = select(Alert).join(Sensor).join(Site)
+        if organization_id is not None:
+            query = query.where(Site.organization_id == organization_id)
         if status is not None:
             query = query.where(Alert.status == status)
         if sensor_id is not None:

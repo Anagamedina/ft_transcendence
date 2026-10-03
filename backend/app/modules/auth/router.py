@@ -32,7 +32,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Response, status
 
-from app.core.exceptions import ForbiddenError
 from app.core.security import (
     SESSION_COOKIE,
     SESSION_MAX_AGE_SECONDS,
@@ -46,7 +45,7 @@ from app.modules.auth.schemas import (
     SessionResponse,
 )
 from app.modules.auth.service import AuthService, get_auth_service
-from app.shared.dependencies import CurrentUser
+from app.shared.dependencies import require_role
 from app.shared.schemas import error_response
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -127,13 +126,14 @@ def login(
     status_code=status.HTTP_201_CREATED,
     summary="Dar de alta una cuenta",
     description=(
-        "Crea una cuenta de cliente dentro de la organización de quien la "
-        "da de alta.\n\n"
+        "Crea una cuenta de cliente en la organización indicada en "
+        "`organization_id`.\n\n"
         "**Exige sesión de administrador.** El equipo acordó que no hay "
         "registro público: las cuentas de cliente las crea un admin. Por "
         "eso este endpoint no abre sesión para el usuario creado — quien "
         "sigue dentro es el admin que lo dio de alta."
     ),
+    dependencies=[Depends(require_role("admin"))],
     responses={
         **error_response(
             status.HTTP_401_UNAUTHORIZED, "No hay sesión (`UNAUTHORIZED`)."
@@ -143,26 +143,15 @@ def login(
             "La sesión no es de un administrador (`FORBIDDEN`).",
         ),
         **error_response(
+            status.HTTP_404_NOT_FOUND,
+            "La organización no existe (`ORGANIZATION_NOT_FOUND`).",
+        ),
+        **error_response(
             status.HTTP_409_CONFLICT,
             "Ese email ya existe (`EMAIL_ALREADY_EXISTS`).",
         ),
     },
 )
-def register(
-    payload: RegisterRequest,
-    service: AuthSvc,
-    user: CurrentUser,
-) -> SessionResponse:
-    # Comprobación de rol a mano. Lo propio sería `require_role("admin")`,
-    # pero esa dependencia es de la issue #27 y todavía lanza 501. Cuando
-    # exista, esta línea se sustituye por la dependencia y el cuerpo se
-    # queda solo con la llamada al service.
-    if user.role != "admin":
-        raise ForbiddenError("Solo un administrador puede dar de alta cuentas.")
-
-    creado = service.register(
-        payload,
-        organization_id=user.organization_id,
-        role="client",
-    )
+def register(payload: RegisterRequest, service: AuthSvc) -> SessionResponse:
+    creado = service.register(payload, role="client")
     return SessionResponse(user=creado)

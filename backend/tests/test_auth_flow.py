@@ -194,6 +194,7 @@ def test_un_admin_puede_dar_de_alta_un_cliente(client, datos):
             "email": "nuevo@aquaguard.dev",
             "name": "Hotel Nuevo",
             "password": "otra-contrasena-larga",
+            "organization_id": str(datos["org"].id),
         },
     )
 
@@ -201,7 +202,7 @@ def test_un_admin_puede_dar_de_alta_un_cliente(client, datos):
     creado = respuesta.json()["user"]
     assert creado["email"] == "nuevo@aquaguard.dev"
     assert creado["role"] == "client"
-    # Hereda la organización de quien lo da de alta, no la elige él.
+    # Va a la organización que indica el admin (issue #27).
     assert creado["organization_id"] == str(datos["org"].id)
 
 
@@ -213,6 +214,7 @@ def test_el_nuevo_usuario_puede_entrar(client, datos):
             "email": "nuevo@aquaguard.dev",
             "name": "Hotel Nuevo",
             "password": "otra-contrasena-larga",
+            "organization_id": str(datos["org"].id),
         },
     )
     client.post("/api/auth/logout")
@@ -233,6 +235,7 @@ def test_un_cliente_no_puede_dar_de_alta_a_nadie(client, datos):
             "email": "nuevo@aquaguard.dev",
             "name": "Hotel Nuevo",
             "password": "otra-contrasena-larga",
+            "organization_id": str(datos["org"].id),
         },
     )
 
@@ -247,6 +250,7 @@ def test_sin_sesion_no_se_puede_registrar(client, datos):
             "email": "nuevo@aquaguard.dev",
             "name": "Hotel Nuevo",
             "password": "otra-contrasena-larga",
+            "organization_id": str(datos["org"].id),
         },
     )
 
@@ -262,6 +266,7 @@ def test_un_email_repetido_da_409(client, datos):
             "email": "cliente@aquaguard.dev",
             "name": "Otro",
             "password": "otra-contrasena-larga",
+            "organization_id": str(datos["org"].id),
         },
     )
 
@@ -278,6 +283,7 @@ def test_la_contrasena_se_guarda_hasheada(client, datos, engine):
             "email": "nuevo@aquaguard.dev",
             "name": "Hotel Nuevo",
             "password": "otra-contrasena-larga",
+            "organization_id": str(datos["org"].id),
         },
     )
 

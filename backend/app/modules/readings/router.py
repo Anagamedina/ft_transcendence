@@ -37,7 +37,7 @@ from fastapi import APIRouter, Depends, status
 
 from app.modules.readings.schemas import ReadingCreate, ReadingResponse
 from app.modules.readings.service import ReadingService, get_reading_service
-from app.shared.dependencies import CurrentUser, Pagination
+from app.shared.dependencies import OrgScope, Pagination
 from app.shared.schemas import Page, error_response
 
 router = APIRouter(tags=["Readings"])
@@ -108,6 +108,10 @@ def create_reading(payload: ReadingCreate, service: ReadingSvc) -> ReadingRespon
             "No hay sesión (`UNAUTHORIZED`).",
         ),
         **error_response(
+            status.HTTP_403_FORBIDDEN,
+            "Cuenta de cliente sin organización (`FORBIDDEN`).",
+        ),
+        **error_response(
             status.HTTP_404_NOT_FOUND,
             "El sensor no existe o no es de tu organización "
             "(`SENSOR_NOT_FOUND`).",
@@ -117,14 +121,14 @@ def create_reading(payload: ReadingCreate, service: ReadingSvc) -> ReadingRespon
 def list_sensor_readings(
     sensor_id: UUID,
     service: ReadingSvc,
-    user: CurrentUser,
+    scope: OrgScope,
     pagination: Pagination,
 ) -> Page[ReadingResponse]:
-    # La organización sale de la sesión, nunca de lo que envíe el cliente:
-    # si viniera en la query, cualquiera podría pedir la de otro.
+    # La organización sale de la sesión (`OrgScope`), nunca de lo que envíe
+    # el cliente: si viniera en la query, cualquiera podría pedir la de otro.
     return service.list_by_sensor(
         sensor_id=sensor_id,
-        organization_id=user.organization_id,
+        organization_id=scope,
         offset=pagination.offset,
         limit=pagination.limit,
     )

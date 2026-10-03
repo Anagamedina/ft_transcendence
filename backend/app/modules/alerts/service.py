@@ -47,7 +47,7 @@ class AlertService:
 
     def list(
         self,
-        organization_id: UUID,
+        organization_id: UUID | None,
         offset: int,
         limit: int,
         status: str | None = None,
@@ -60,8 +60,9 @@ class AlertService:
         las activas, que es la vista por defecto de quien atiende, y
         `sensor_id` para entrar desde el detalle de un sensor.
 
-        `organization_id` sale de la sesión y no es opcional: sin él,
-        cualquiera vería las alertas de otro cliente.
+        `organization_id` sale siempre de `get_org_scope`: sin él,
+        cualquiera vería las alertas de otro cliente. `None` significa
+        «todas las organizaciones», y solo se da para un admin (issue #27).
         """
         filas, total = self.alerts.list_by_organization(
             organization_id=organization_id,
@@ -77,7 +78,7 @@ class AlertService:
             page_size=limit,
         )
 
-    def acknowledge(self, alert_id: UUID, organization_id: UUID) -> AlertResponse:
+    def acknowledge(self, alert_id: UUID, organization_id: UUID | None) -> AlertResponse:
         """
         Marca la alerta como reconocida: alguien la ha visto.
 
@@ -97,7 +98,7 @@ class AlertService:
 
         return self._to_response(alerta)
 
-    def resolve(self, alert_id: UUID, organization_id: UUID) -> AlertResponse:
+    def resolve(self, alert_id: UUID, organization_id: UUID | None) -> AlertResponse:
         """
         Cierra la alerta.
 
@@ -122,7 +123,7 @@ class AlertService:
 
         return self._to_response(alerta)
 
-    def _propia_o_404(self, alert_id: UUID, organization_id: UUID):
+    def _propia_o_404(self, alert_id: UUID, organization_id: UUID | None):
         """
         La alerta, solo si es de esa organización.
 
