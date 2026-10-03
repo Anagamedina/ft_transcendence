@@ -52,6 +52,13 @@ with the `database` service name for the backend service.
 `backend/app/core/app_config.py` checks to refuse startup when `ENV=production`,
 so do not replace it with another placeholder.
 
+`INGEST_API_KEY` works the same way and ships as `dev-only-ingest-key`. It is the
+key the simulator sends in the `X-Ingest-Key` header with every `POST /api/readings`
+(#106): without it, or with a different one, the backend answers 401 and stores
+nothing. Backend and simulator read it from the same `.env`, so in development
+they match with no setup. With `ENV=production` the backend refuses to start if
+it is still the example value.
+
 Frontend-only configuration is documented in
 [`frontend/.env.example`](frontend/.env.example).
 
@@ -285,11 +292,11 @@ data types, and relationships once the schema is implemented.
 | Nginx gateway: HTTPS, HTTP redirect, SPA, `/api` and `/ws` proxy            | Implemented   | Eduardo        | `curl -I http://localhost` returns 301, `curl -k https://localhost/api/health` returns 200                      |
 | Sensor simulator (`simulator/`): normal, low, high and offline scenarios    | Implemented   | Eduardo        | `cd simulator && pytest` (26 tests); `make up && make seed && make sim`. The seed creates the sensors listed in `.env.example`, so readings persist via `POST /api/readings` (#24) with no manual setup; waits for `/api/health/db` before sending, exposes its own container `HEALTHCHECK`, and demo users get real Argon2 hashes (#89) |
 | Health checks and smoke test (`make smoke`)                                 | Implemented   | Eduardo        | `make up && make seed && make smoke`; with `make sim` it also checks the simulator -> API -> database flow |
-| Authentication: register, login, logout and `GET /api/me`                   | Implemented   | Ana            | `cd backend && python3 -m pytest -q` (168 tests), or `curl -k -c c.txt -X POST https://localhost/api/auth/login -H 'Content-Type: application/json' -d '{"email":"...","password":"..."}'` then `curl -k -b c.txt https://localhost/api/me` |
+| Authentication: register, login, logout and `GET /api/me`                   | Implemented   | Ana            | `cd backend && python3 -m pytest -q` (177 tests), or `curl -k -c c.txt -X POST https://localhost/api/auth/login -H 'Content-Type: application/json' -d '{"email":"...","password":"..."}'` then `curl -k -b c.txt https://localhost/api/me` |
 | Permissions: `admin` sees every organization, `client` only its own, 401/403 | Implemented   | Ana            | `cd backend && python3 -m pytest -q tests/test_permisos.py`. Registering a client now requires `organization_id`. How the simulator authenticates on `POST /api/readings` is still open |
 | Sites: list and detail (`GET /api/sites`, `GET /api/sites/{id}`)             | In progress   | Ana            | `cd backend && python3 -m pytest -q tests/test_sites.py`. `admin` sees every organization's sites, `client` only its own. `GET /api/sites/{id}/sensors`, and creating and editing sensors, wait for #97 (#29) |
-| Sensor readings: store and list (`POST /api/readings`, `GET /api/sensors/{id}/readings`) | Implemented | Daruny, Ana | `cd backend && python3 -m pytest -q` (168 tests). History is paginated and scoped to the session's organization   |
-| Alerts: list, acknowledge, resolve, and low/high pressure rules            | In progress   | Daruny, Ana    | `cd backend && python3 -m pytest -q` (168 tests). A reading outside the sensor's thresholds opens an alert; `SENSOR_OFFLINE` pending (#28) |
+| Sensor readings: store and list (`POST /api/readings`, `GET /api/sensors/{id}/readings`) | Implemented | Daruny, Ana | `cd backend && python3 -m pytest -q` (177 tests). History is paginated and scoped to the session's organization. `POST /api/readings` requires the simulator key in `X-Ingest-Key` (#106)   |
+| Alerts: list, acknowledge, resolve, and low/high pressure rules            | In progress   | Daruny, Ana    | `cd backend && python3 -m pytest -q` (177 tests). A reading outside the sensor's thresholds opens an alert; `SENSOR_OFFLINE` pending (#28) |
 | Admin dashboard: KPIs, sites, sensors and active alerts summaries           | In progress   | Florinda       | Run `./scripts/launch-frontend.sh`, visit `/admin` (layout and summaries render; sites come from mocks, sensors and alerts appear once stores are loaded) |
 | Admin sites map: Barcelona municipal boundary, marker colour by active alert, zoom limited to the city | Implemented | Florinda | Run `./scripts/launch-frontend.sh`, visit `/admin`, click "Ver mapa" |
 
