@@ -178,6 +178,21 @@ This script detects the `frontend/` directory, loads the correct Node.js
 version via nvm, installs dependencies if needed, and starts the Vite dev
 server, opening it automatically in the browser.
 
+If you start Vite another way (for example `npm run dev` inside `frontend/`),
+run `npm install` after every pull that changes `frontend/package.json`. The
+sites map (#104) added `maplibre-gl`; without it the app fails with
+*"failed to resolve import maplibre-gl"*.
+
+The frontend has no automated tests yet, so before opening a PR that touches it,
+check that it still compiles:
+
+```bash
+cd frontend && npx vite build
+```
+
+A broken merge of `src/stores/sensors.js` once left `develop` unable to build
+(fixed in #110); this command catches that kind of error in seconds.
+
 ### Database migrations
 
 The backend container applies `alembic upgrade head` on every start, so
