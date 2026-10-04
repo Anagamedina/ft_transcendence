@@ -152,6 +152,7 @@ The root `Makefile` wraps the Compose commands:
 | `make certs`               | Generates a self-signed TLS certificate in `gateway/certs/` only when it does not exist                          |
 | `make build`               | Builds the images without starting them                                                                          |
 | `make sim`                 | Same as `make up` plus the `sim` profile, which starts the sensor simulator                                      |
+| `make demo`                | Starts everything for a full test: `make up`, `make seed`, the simulator and `make smoke`                        |
 | `make seed`                | Loads the demo data inside the running `backend` container; safe to run more than once                           |
 | `make migrate`             | Applies pending migrations (`alembic upgrade head`)                                                              |
 | `make migration MSG="..."` | Generates a migration with `alembic revision --autogenerate` without applying it; fails without `MSG`            |
