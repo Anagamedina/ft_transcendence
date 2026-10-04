@@ -8,6 +8,7 @@ Sin ella, cualquiera podría mandar lecturas y abrir alertas falsas (#28).
 """
 
 import os
+from decimal import Decimal
 import subprocess
 import sys
 from pathlib import Path
@@ -50,7 +51,15 @@ def sensor_id(engine):
         site = Site(organization_id=org.id, name="Planta 1")
         session.add(site)
         session.flush()
-        sensor = Sensor(site_id=site.id, external_id="sensor-01", name="Entrada", unit="bar")
+        # Desde la #97 los umbrales son obligatorios.
+        sensor = Sensor(
+            site_id=site.id,
+            external_id="sensor-01",
+            name="Entrada",
+            unit="bar",
+            low_threshold=Decimal("1.5"),
+            high_threshold=Decimal("6"),
+        )
         session.add(sensor)
         session.commit()
         return sensor.id
