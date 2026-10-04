@@ -7,6 +7,7 @@ import httpx
 from app.client import ReadingsClient
 from app.main import build_reading
 
+INGEST_KEY = "test-ingest-key"
 READING = {"sensor_id": "6f1c8a2e-6b3d-4f9a-9c21-0b7e5d3a9d4b", "pressure": 3.42, "measured_at": "2026-09-16T10:00:00Z"}
 
 
@@ -18,7 +19,7 @@ def _client(handler, max_retries=2):
         return handler(request)
 
     client = ReadingsClient(
-        "http://backend:8000", 1, max_retries, retry_delay_seconds=0,
+        "http://backend:8000", INGEST_KEY, 1, max_retries, retry_delay_seconds=0,
         transport=httpx.MockTransport(recording_handler),
     )
     return client, calls
@@ -30,6 +31,31 @@ def test_posts_reading_to_contract_path():
     assert calls[0].method == "POST"
     assert calls[0].url.path == "/api/readings"
     assert calls[0].read() == httpx.Request("POST", "/", json=READING).read()
+
+
+def test_sends_ingest_key_header():
+    client, calls = _client(lambda request: httpx.Response(201, json={}))
+    assert client.send(READING) is True
+    assert calls[0].headers["X-Ingest-Key"] == INGEST_KEY
+
+
+def test_ingest_key_header_is_sent_on_every_retry():
+    responses = iter([httpx.Response(503), httpx.Response(201, json={})])
+    client, calls = _client(lambda request: next(responses))
+    assert client.send(READING) is True
+    assert [call.headers["X-Ingest-Key"] for call in calls] == [INGEST_KEY, INGEST_KEY]
+
+
+def test_rejected_ingest_key_is_not_retried():
+    client, calls = _client(lambda request: httpx.Response(401), max_retries=3)
+    assert client.send(READING) is False
+    assert len(calls) == 1
+
+
+def test_health_check_does_not_send_ingest_key():
+    client, calls = _client(lambda request: httpx.Response(200))
+    assert client.wait_until_ready(threading.Event(), poll_interval=0, timeout=1) is True
+    assert "X-Ingest-Key" not in calls[0].headers
 
 
 def test_client_errors_are_not_retried():

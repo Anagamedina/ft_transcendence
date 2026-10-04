@@ -30,7 +30,7 @@ def run(config: SimulatorConfig, stop: threading.Event) -> bool:
     rng = random.Random(config.random_seed)
     scenario = SCENARIOS[config.scenario]
     client = None if config.dry_run else ReadingsClient(
-        config.api_url, config.request_timeout_seconds, config.max_retries
+        config.api_url, config.ingest_api_key, config.request_timeout_seconds, config.max_retries
     )
 
     logger.info(

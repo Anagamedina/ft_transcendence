@@ -13,12 +13,14 @@ class ReadingsClient:
     def __init__(
         self,
         api_url: str,
+        ingest_api_key: str,
         timeout_seconds: float,
         max_retries: int,
         retry_delay_seconds: float = 1.0,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
         self._http = httpx.Client(base_url=api_url, timeout=timeout_seconds, transport=transport)
+        self._ingest_headers = {"X-Ingest-Key": ingest_api_key}
         self._max_retries = max_retries
         self._retry_delay_seconds = retry_delay_seconds
 
@@ -26,7 +28,9 @@ class ReadingsClient:
         attempts = self._max_retries + 1
         for attempt in range(1, attempts + 1):
             try:
-                response = self._http.post("/api/readings", json=reading)
+                response = self._http.post(
+                    "/api/readings", json=reading, headers=self._ingest_headers
+                )
             except httpx.TransportError as exc:
                 logger.warning(
                     "sensor=%s attempt=%d/%d network error: %s",
@@ -39,6 +43,13 @@ class ReadingsClient:
                         reading["sensor_id"], reading["pressure"], response.status_code,
                     )
                     return True
+                if response.status_code == 401:
+                    # Config error (wrong or missing INGEST_API_KEY), not a network one: never retry.
+                    logger.error(
+                        "sensor=%s status=401 ingest key rejected: check INGEST_API_KEY in .env",
+                        reading["sensor_id"],
+                    )
+                    return False
                 if response.status_code not in RETRYABLE_STATUS_CODES:
                     logger.error(
                         "sensor=%s status=%d rejected: %s",
