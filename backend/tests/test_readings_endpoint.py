@@ -20,6 +20,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
+from app.core.app_config import app_settings
 from app.core.database import Base, get_db
 from app.main import app
 from app.modules.alerts.model import Alert  # noqa: F401 - registra el modelo ORM
@@ -78,7 +79,9 @@ def client(engine):
             db.close()
 
     app.dependency_overrides[get_db] = _get_db
-    yield TestClient(app)
+    # Todas las peticiones de este fichero son del simulador: llevan su clave
+    # (issue #106). Lo que pasa sin ella se prueba en test_ingest_key.py.
+    yield TestClient(app, headers={"X-Ingest-Key": app_settings.INGEST_API_KEY})
     app.dependency_overrides.clear()
 
 

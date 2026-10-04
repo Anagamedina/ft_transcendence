@@ -37,7 +37,7 @@ from fastapi import APIRouter, Depends, status
 
 from app.modules.readings.schemas import ReadingCreate, ReadingResponse
 from app.modules.readings.service import ReadingService, get_reading_service
-from app.shared.dependencies import OrgScope, Pagination
+from app.shared.dependencies import OrgScope, Pagination, require_ingest_key
 from app.shared.schemas import Page, error_response
 
 router = APIRouter(tags=["Readings"])
@@ -55,6 +55,9 @@ ReadingSvc = Annotated[ReadingService, Depends(get_reading_service)]
     description=(
         "Recibe una medición de presión de un sensor. Lo usa el simulador "
         "(issue #16). Devuelve **201** con la lectura registrada.\n\n"
+        "**Exige la cabecera `X-Ingest-Key`** con la clave del simulador "
+        "(`INGEST_API_KEY` del .env, issue #106). No pide sesión: quien "
+        "manda lecturas es el simulador, no una persona.\n\n"
         "`measured_at` es opcional: si no se envía, el servidor usa el "
         "momento de recepción.\n\n"
         "Si la presión se sale de los umbrales del sensor, se abre una "
@@ -66,7 +69,13 @@ ReadingSvc = Annotated[ReadingService, Depends(get_reading_service)]
         "guardado y los mismos datos, se devuelve la existente sin "
         "duplicarla ni abrir otra alerta."
     ),
+    dependencies=[Depends(require_ingest_key)],
     responses={
+        **error_response(
+            status.HTTP_401_UNAUTHORIZED,
+            "Falta `X-Ingest-Key` o no es la clave del simulador "
+            "(`UNAUTHORIZED`).",
+        ),
         **error_response(
             status.HTTP_404_NOT_FOUND,
             "El sensor indicado no existe (`SENSOR_NOT_FOUND`).",

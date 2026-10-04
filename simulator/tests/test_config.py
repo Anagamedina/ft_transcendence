@@ -16,6 +16,7 @@ def test_defaults_with_only_sensor_ids():
     assert config.ready_poll_seconds == 2
     assert config.ready_timeout_seconds == 60
     assert config.heartbeat_file == "/tmp/simulator-heartbeat"
+    assert config.ingest_api_key == "dev-only-ingest-key"
 
 
 def test_parses_multiple_sensor_ids_and_flags():
@@ -28,6 +29,7 @@ def test_parses_multiple_sensor_ids_and_flags():
         "SIMULATOR_READY_POLL_SECONDS": "1",
         "SIMULATOR_READY_TIMEOUT_SECONDS": "0",
         "SIMULATOR_HEARTBEAT_FILE": "/tmp/custom-heartbeat",
+        "INGEST_API_KEY": "my-own-key",
     })
     assert len(config.sensor_ids) == 2
     assert config.scenario == "high"
@@ -37,6 +39,7 @@ def test_parses_multiple_sensor_ids_and_flags():
     assert config.ready_poll_seconds == 1
     assert config.ready_timeout_seconds == 0
     assert config.heartbeat_file == "/tmp/custom-heartbeat"
+    assert config.ingest_api_key == "my-own-key"
 
 
 @pytest.mark.parametrize("env", [
@@ -47,6 +50,7 @@ def test_parses_multiple_sensor_ids_and_flags():
     {"SIMULATOR_SENSOR_IDS": SENSOR_ID, "SIMULATOR_MAX_RETRIES": "-1"},
     {"SIMULATOR_SENSOR_IDS": SENSOR_ID, "SIMULATOR_READY_POLL_SECONDS": "0"},
     {"SIMULATOR_SENSOR_IDS": SENSOR_ID, "SIMULATOR_READY_TIMEOUT_SECONDS": "-1"},
+    {"SIMULATOR_SENSOR_IDS": SENSOR_ID, "INGEST_API_KEY": "  "},
 ])
 def test_invalid_configuration_is_rejected(env):
     with pytest.raises(ConfigError):

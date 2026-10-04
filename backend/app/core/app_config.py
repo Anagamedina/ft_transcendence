@@ -12,6 +12,7 @@ El `.env` del proyecto tiene variables de dos dueños distintos:
     SIMULATOR_API_URL, SIMULATOR_SEED     → simulador      (Daruny, #16)
 
     SECRET_KEY, COOKIE_SECURE             → cookie de sesión (Ana, #26)
+    INGEST_API_KEY                        → clave del simulador (Ana, #106)
     CORS_ORIGINS                          → CORS de FastAPI  (Ana, #22)
 
 `core/config.py` es de Daruny y lee las suyas. Este archivo lee las de
@@ -86,6 +87,17 @@ class AppSettings(BaseSettings):
     # producción se activa desde el .env.
     COOKIE_SECURE: bool = False
 
+    # Clave compartida con el simulador (issue #106). La manda en la cabecera
+    # `X-Ingest-Key` de cada `POST /api/readings`, y es lo único que
+    # distingue una lectura del simulador de una que manda cualquiera.
+    #
+    # Mismo trato que SECRET_KEY: un valor de desarrollo para que el
+    # proyecto arranque sin tocar el .env, y la salvaguarda de abajo para
+    # que ese valor no llegue a producción. El simulador lee la misma
+    # variable del mismo .env (compose.yaml), así que en desarrollo los dos
+    # coinciden sin configurar nada.
+    INGEST_API_KEY: str = "dev-only-ingest-key"
+
     # Orígenes que el navegador tiene permitido usar para llamar a la API,
     # separados por comas. Vite sirve el frontend en el puerto 5173.
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
@@ -117,6 +129,11 @@ class AppSettings(BaseSettings):
         """True si sigue puesta la clave de desarrollo."""
         return self.SECRET_KEY == "dev-only-change-me"
 
+    @property
+    def has_default_ingest_key(self) -> bool:
+        """True si la clave del simulador sigue con el valor de desarrollo."""
+        return self.INGEST_API_KEY == "dev-only-ingest-key"
+
 
 app_settings = AppSettings()
 
@@ -129,4 +146,13 @@ if app_settings.is_production and app_settings.has_default_secret:
     raise RuntimeError(
         "SECRET_KEY sigue con el valor por defecto y ENV=production. "
         "Define SECRET_KEY en el .env antes de desplegar."
+    )
+
+# Lo mismo con la clave del simulador (issue #106): con el valor por
+# defecto, cualquiera que haya visto el repositorio podría mandar lecturas,
+# y cada lectura fuera de rango abre una alerta.
+if app_settings.is_production and app_settings.has_default_ingest_key:
+    raise RuntimeError(
+        "INGEST_API_KEY sigue con el valor por defecto y ENV=production. "
+        "Define INGEST_API_KEY en el .env antes de desplegar."
     )

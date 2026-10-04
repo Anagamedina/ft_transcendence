@@ -24,16 +24,19 @@ Lo que hay implementado y lo que no:
 - `get_current_user`   → implementado en la issue #26.
 - `require_role`       → implementado en la issue #27.
 - `get_org_scope`      → implementado en la issue #27.
+- `require_ingest_key` → implementado en la issue #106.
 """
 
 from __future__ import annotations
 
+import secrets
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, Query, Request
+from fastapi import Depends, Header, Query, Request
 from sqlalchemy.orm import Session
 
+from app.core.app_config import app_settings
 from app.core.database import get_db
 from app.core.exceptions import ForbiddenError, UnauthorizedError
 from app.core.security import SESSION_COOKIE, read_session_token
@@ -50,6 +53,7 @@ __all__ = [
     "require_role",
     "get_org_scope",
     "OrgScope",
+    "require_ingest_key",
 ]
 
 
@@ -207,3 +211,39 @@ def get_org_scope(user: CurrentUser) -> UUID | None:
 
 
 OrgScope = Annotated[UUID | None, Depends(get_org_scope)]
+
+
+# ---------------------------------------------------------
+# INGESTA DE LECTURAS — issue #106
+# ---------------------------------------------------------
+def require_ingest_key(
+    x_ingest_key: Annotated[
+        str | None,
+        Header(
+            description=(
+                "Clave del simulador (`INGEST_API_KEY` del .env). Sin ella, "
+                "o si no coincide, la lectura se rechaza con 401."
+            ),
+        ),
+    ] = None,
+) -> None:
+    """
+    Exige la clave compartida con el simulador en `X-Ingest-Key`.
+
+    `POST /api/readings` no puede pedir sesión: el simulador no es una
+    persona y no hace login. Sin otra comprobación, cualquiera que llegue
+    al servidor podría mandar lecturas, y desde la #28 cada lectura fuera
+    de rango abre una alerta.
+
+    Se compara con `secrets.compare_digest`, que tarda lo mismo acierte o
+    no. Con un `==` normal, la comparación se corta en el primer carácter
+    distinto, y midiendo tiempos se podría adivinar la clave letra a letra.
+
+    Faltar la cabecera y traerla mal responden igual: decir cuál de las dos
+    es da pistas a quien está probando.
+    """
+    esperada = app_settings.INGEST_API_KEY
+    if x_ingest_key is None or not secrets.compare_digest(
+        x_ingest_key.encode(), esperada.encode()
+    ):
+        raise UnauthorizedError("Falta la clave del simulador o no es válida.")

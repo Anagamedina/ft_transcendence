@@ -40,7 +40,6 @@ RUTAS_PUBLICAS = {
     ("GET", "/api/health/db"),  # readiness de Docker
     ("POST", "/api/auth/login"),  # es como se consigue la sesión
     ("POST", "/api/auth/logout"),  # salir tiene que funcionar siempre
-    ("POST", "/api/readings"),  # el simulador; cómo se autentica va en otra issue
 }
 
 
