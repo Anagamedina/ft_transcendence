@@ -70,7 +70,7 @@ class SensorService:
         ultimas = self.sensors.last_seen_by_sensor([f.id for f in filas])
         ahora = datetime.now(timezone.utc)
         return Page[SensorResponse](
-            items=[self._to_response(f, ultimas.get(f.id), ahora) for f in filas],
+            items=[sensor_a_respuesta(f, ultimas.get(f.id), ahora) for f in filas],
             total=total,
             page=offset // limit + 1,
             page_size=limit,
@@ -92,7 +92,7 @@ class SensorService:
                 code="SENSOR_NOT_FOUND",
             )
         ultimas = self.sensors.last_seen_by_sensor([sensor.id])
-        return self._to_response(
+        return sensor_a_respuesta(
             sensor, ultimas.get(sensor.id), datetime.now(timezone.utc)
         )
 
@@ -128,14 +128,21 @@ class SensorService:
                     low_threshold=Decimal(str(payload.min_pressure)),
                     high_threshold=Decimal(str(payload.max_pressure)),
                 )
-        except IntegrityError:
+        except IntegrityError as exc:
             # Dos altas con el mismo external_id a la vez: las dos pasan la
-            # comprobación de arriba y la tabla para a la segunda. Mismo 409.
-            raise ConflictError(
-                "Ya hay un sensor con ese external_id en este site.",
-                code="SENSOR_EXTERNAL_ID_TAKEN",
-            )
-        return self._to_response(sensor, None, datetime.now(timezone.utc))
+            # comprobación de arriba y la tabla para a la segunda. Pero la
+            # tabla puede rechazar el alta por otros motivos (por ejemplo, el
+            # site se ha borrado entretanto). Así que se vuelve a mirar: solo
+            # si el external_id ya está ocupado es un 409; si no, el error
+            # sigue su camino sin disfrazarlo. `transaction` ya ha deshecho
+            # la sesión, así que se puede consultar.
+            if self.sensors.external_id_taken(payload.site_id, payload.external_id):
+                raise ConflictError(
+                    "Ya hay un sensor con ese external_id en este site.",
+                    code="SENSOR_EXTERNAL_ID_TAKEN",
+                ) from exc
+            raise
+        return sensor_a_respuesta(sensor, None, datetime.now(timezone.utc))
 
     def update(self, sensor_id: UUID, payload: SensorUpdate) -> SensorResponse:
         """
@@ -187,42 +194,46 @@ class SensorService:
         with transaction(self.db):
             sensor = self.sensors.update(sensor, **campos)
         ultimas = self.sensors.last_seen_by_sensor([sensor.id])
-        return self._to_response(
+        return sensor_a_respuesta(
             sensor, ultimas.get(sensor.id), datetime.now(timezone.utc)
         )
 
-    @staticmethod
-    def _to_response(
-        sensor, ultima_lectura: datetime | None, ahora: datetime
-    ) -> SensorResponse:
-        """
-        Convierte la fila al schema de salida.
 
-        Aquí se cruza la frontera de vocabulario: la tabla dice
-        `low_threshold` / `high_threshold` y el contrato `min_pressure` /
-        `max_pressure`. Los umbrales llegan como `Decimal` (columna
-        `Numeric`) y el contrato los publica como número.
+def sensor_a_respuesta(
+    sensor, ultima_lectura: datetime | None, ahora: datetime
+) -> SensorResponse:
+    """
+    Convierte la fila al schema de salida.
 
-        Algunos motores (sqlite en los tests) devuelven las fechas sin zona
-        horaria; se tratan como UTC, que es como se guardan, para poder
-        compararlas con `ahora`.
-        """
-        if ultima_lectura is not None and ultima_lectura.tzinfo is None:
-            ultima_lectura = ultima_lectura.replace(tzinfo=timezone.utc)
-        return SensorResponse(
-            id=sensor.id,
-            site_id=sensor.site_id,
-            external_id=sensor.external_id,
-            name=sensor.name,
-            location=sensor.location,
-            sensor_type=sensor.sensor_type,
-            unit=sensor.unit,
-            min_pressure=float(sensor.low_threshold),
-            max_pressure=float(sensor.high_threshold),
-            status=calcular_estado(ultima_lectura, ahora),
-            last_seen_at=ultima_lectura,
-            created_at=sensor.created_at,
-        )
+    Es pública porque también la usa `SiteService.list_sensors` (#29), para
+    que los sensores salgan igual en `/api/sensors` y en
+    `/api/sites/{id}/sensors`.
+
+    Aquí se cruza la frontera de vocabulario: la tabla dice
+    `low_threshold` / `high_threshold` y el contrato `min_pressure` /
+    `max_pressure`. Los umbrales llegan como `Decimal` (columna
+    `Numeric`) y el contrato los publica como número.
+
+    Algunos motores (sqlite en los tests) devuelven las fechas sin zona
+    horaria; se tratan como UTC, que es como se guardan, para poder
+    compararlas con `ahora`.
+    """
+    if ultima_lectura is not None and ultima_lectura.tzinfo is None:
+        ultima_lectura = ultima_lectura.replace(tzinfo=timezone.utc)
+    return SensorResponse(
+        id=sensor.id,
+        site_id=sensor.site_id,
+        external_id=sensor.external_id,
+        name=sensor.name,
+        location=sensor.location,
+        sensor_type=sensor.sensor_type,
+        unit=sensor.unit,
+        min_pressure=float(sensor.low_threshold),
+        max_pressure=float(sensor.high_threshold),
+        status=calcular_estado(ultima_lectura, ahora),
+        last_seen_at=ultima_lectura,
+        created_at=sensor.created_at,
+    )
 
 
 def get_sensor_service(db: DbSession) -> SensorService:

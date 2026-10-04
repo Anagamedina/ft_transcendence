@@ -376,10 +376,60 @@ def test_dos_altas_simultaneas_con_el_mismo_external_id_dan_409(client, datos, m
     """
     from app.modules.sensors.repository import SensorRepository
 
-    monkeypatch.setattr(SensorRepository, "external_id_taken", lambda *a, **k: False)
+    original = SensorRepository.external_id_taken
+    llamadas = []
+
+    def _primero_libre(self, site_id, external_id):
+        # La primera vez está libre (la otra alta aún no se ha guardado);
+        # después ya lo encuentra ocupado, como en la base de verdad.
+        llamadas.append(1)
+        return False if len(llamadas) == 1 else original(self, site_id, external_id)
+
+    monkeypatch.setattr(SensorRepository, "external_id_taken", _primero_libre)
     _entrar(client, datos["admin"])
 
     respuesta = client.post("/api/sensors", json=_alta(datos["hotel"], external_id="SENS-001"))
 
     assert respuesta.status_code == 409
     assert respuesta.json()["error"]["code"] == "SENSOR_EXTERNAL_ID_TAKEN"
+
+
+def test_otro_error_de_la_base_no_se_disfraza_de_409(client, datos, monkeypatch):
+    """
+    Comentario de Daru en la #115: si la tabla rechaza el alta por otro
+    motivo (aquí, se simula un error cualquiera al guardar), no debe
+    salir como "external_id repetido".
+    """
+    from sqlalchemy.exc import IntegrityError
+
+    from app.modules.sensors.repository import SensorRepository
+
+    def _revienta(self, **campos):
+        raise IntegrityError("INSERT", {}, Exception("FOREIGN KEY constraint failed"))
+
+    monkeypatch.setattr(SensorRepository, "create", _revienta)
+    _entrar(client, datos["admin"])
+
+    with pytest.raises(IntegrityError):
+        client.post("/api/sensors", json=_alta(datos["hotel"], external_id="NUEVO"))
+
+
+@pytest.mark.parametrize("ruta", ["alta", "edicion"])
+def test_un_nombre_de_solo_espacios_da_422(client, datos, ruta):
+    """Comentario de Daru en la #115: min_length=1 no recortaba los espacios."""
+    _entrar(client, datos["admin"])
+
+    if ruta == "alta":
+        respuesta = client.post("/api/sensors", json=_alta(datos["hotel"], name="   "))
+    else:
+        respuesta = client.patch(f"/api/sensors/{datos['entrada'].id}", json={"name": "   "})
+
+    assert respuesta.status_code == 422
+
+
+def test_los_espacios_de_los_extremos_del_nombre_se_quitan(client, datos):
+    _entrar(client, datos["admin"])
+
+    cuerpo = client.post("/api/sensors", json=_alta(datos["hotel"], name="  Salida  ")).json()
+
+    assert cuerpo["name"] == "Salida"

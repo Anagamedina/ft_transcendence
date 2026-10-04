@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import NotFoundError
 from app.modules.sensors.repository import SensorRepository
 from app.modules.sensors.schemas import SensorResponse
-from app.modules.sensors.service import SensorService
+from app.modules.sensors.service import sensor_a_respuesta
 from app.modules.sites.repository import SiteRepository
 from app.modules.sites.schemas import SiteResponse
 from app.shared.dependencies import DbSession
@@ -95,7 +95,7 @@ class SiteService:
         ahora = datetime.now(timezone.utc)
         return Page[SensorResponse](
             items=[
-                SensorService._to_response(f, ultimas.get(f.id), ahora) for f in filas
+                sensor_a_respuesta(f, ultimas.get(f.id), ahora) for f in filas
             ],
             total=total,
             page=offset // limit + 1,
