@@ -5,6 +5,9 @@ from uuid import UUID
 from app.scenarios import SCENARIOS
 
 
+DEFAULT_INGEST_API_KEY = "dev-only-ingest-key"
+
+
 class ConfigError(ValueError):
     pass
 
@@ -12,6 +15,7 @@ class ConfigError(ValueError):
 @dataclass(frozen=True)
 class SimulatorConfig:
     api_url: str
+    ingest_api_key: str
     sensor_ids: tuple[UUID, ...]
     scenario: str
     interval_seconds: float
@@ -68,6 +72,14 @@ def _sensor_ids(env: dict[str, str]) -> tuple[UUID, ...]:
         raise ConfigError(f"SIMULATOR_SENSOR_IDS contains an invalid UUID: {raw!r}") from exc
 
 
+def _ingest_api_key(env: dict[str, str]) -> str:
+    # Same key the backend checks on POST /api/readings via X-Ingest-Key (#106).
+    key = env.get("INGEST_API_KEY", DEFAULT_INGEST_API_KEY).strip()
+    if not key:
+        raise ConfigError("INGEST_API_KEY must not be empty")
+    return key
+
+
 def load_config(env: dict[str, str] | None = None) -> SimulatorConfig:
     env = dict(os.environ) if env is None else env
 
@@ -78,6 +90,7 @@ def load_config(env: dict[str, str] | None = None) -> SimulatorConfig:
 
     return SimulatorConfig(
         api_url=env.get("SIMULATOR_API_URL", "http://backend:8000").rstrip("/"),
+        ingest_api_key=_ingest_api_key(env),
         sensor_ids=_sensor_ids(env),
         scenario=scenario,
         interval_seconds=_positive_float(env, "SIMULATOR_INTERVAL_SECONDS", "5"),

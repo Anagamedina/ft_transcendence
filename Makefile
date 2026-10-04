@@ -6,7 +6,7 @@ ALEMBIC     := $(COMPOSE) run --rm --no-deps --user "$$(id -u):$$(id -g)" \
 	-v $(CURDIR)/backend/migrations:/app/migrations \
 	--entrypoint alembic
 
-.PHONY: all env certs up dev sim seed migrate migration migration-check down build logs ps clean fclean re smoke
+.PHONY: all env certs up dev sim demo seed migrate migration migration-check down build logs ps clean fclean re smoke
 
 all: up
 
@@ -32,6 +32,14 @@ dev: env certs
 
 sim: env certs
 	$(COMPOSE) --profile sim up --build -d
+	@$(COMPOSE) --profile sim ps
+
+# Whole project in one command: stack, demo data, simulator, then the smoke test.
+demo: env certs
+	$(COMPOSE) up --build -d --wait
+	$(MAKE) seed
+	$(COMPOSE) --profile sim up --build -d --wait simulator
+	@sh scripts/smoke.sh
 	@$(COMPOSE) --profile sim ps
 
 seed:

@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
 from app.core import models  # noqa: F401 - registra los modelos ORM
+from app.core.app_config import app_settings
 from app.core.database import Base, get_db
 from app.core.security import SESSION_COOKIE, create_session_token
 from app.main import app
@@ -278,7 +279,9 @@ def test_una_lectura_fuera_de_rango_aparece_en_mis_alertas(client, datos, engine
         session.commit()
 
     respuesta = client.post(
-        "/api/readings", json={"sensor_id": str(sensor_id), "pressure": 0.8}
+        "/api/readings",
+        json={"sensor_id": str(sensor_id), "pressure": 0.8},
+        headers={"X-Ingest-Key": app_settings.INGEST_API_KEY},
     )
     assert respuesta.status_code == 201
 

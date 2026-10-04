@@ -46,6 +46,7 @@ READING_ID="$(cat /proc/sys/kernel/random/uuid)"
 
 curl -skf -X POST https://localhost/api/readings \
 	-H "Content-Type: application/json" \
+	-H "X-Ingest-Key: ${INGEST_API_KEY:-dev-only-ingest-key}" \
 	-d "{\"id\": \"$READING_ID\", \"sensor_id\": \"$SENSOR_ID\", \"pressure\": 3.5}" > /dev/null \
 	|| fail "POST /api/readings failed. Check: docker compose logs backend"
 ok "POST /api/readings accepts a reading"
