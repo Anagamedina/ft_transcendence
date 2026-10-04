@@ -3,6 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 from uuid import UUID
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal, transaction
@@ -23,7 +24,12 @@ ORGANIZATION_NAME = "Demo"
 
 
 def _get_or_create_organization(db: Session, name: str) -> Organization:
-    organization = db.query(Organization).filter_by(name=name).one_or_none()
+    # Case-insensitive, same as the uq_organizations_name_lower index.
+    organization = (
+        db.query(Organization)
+        .filter(func.lower(Organization.name) == name.lower())
+        .one_or_none()
+    )
     if organization is not None:
         return organization
     organization = Organization(name=name)
