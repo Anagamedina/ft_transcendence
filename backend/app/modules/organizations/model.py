@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, String, Uuid, func
+from sqlalchemy import DateTime, Index, String, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -21,8 +21,9 @@ class Organization(Base):
         server_default=func.gen_random_uuid(),
     )
     name: Mapped[str] = mapped_column(
-        String(50),
-        nullable=False
+        # Same max length as OrganizationCreate.name in schemas.py.
+        String(120),
+        nullable=False,
     )
 
     created_at: Mapped[datetime] = mapped_column(
@@ -49,3 +50,12 @@ class Organization(Base):
         "Site",
         back_populates="organization",
     )
+
+
+# Names are unique ignoring case: "Hotel Sol" and "hotel sol" collide.
+# Declared after the class so the expression can reference the column.
+Index(
+    "uq_organizations_name_lower",
+    func.lower(Organization.name),
+    unique=True,
+)
