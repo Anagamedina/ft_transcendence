@@ -25,7 +25,9 @@ Uvicorn necesita de todos modos un objeto al que apuntar:
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,6 +43,7 @@ from app.core import health
 from app.core import models  # noqa: F401
 from app.core.app_config import APP_NAME, APP_VERSION, app_settings
 from app.core.exceptions import register_exception_handlers
+from app.modules.alerts.vigilante import vigilar
 from app.openapi import register_contract_schemas
 
 logging.basicConfig(
@@ -120,9 +123,28 @@ ellos; sus rutas se publicarán en las issues #25 a #29.
 """
 
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """
+    Lo que corre mientras la aplicación está viva (issue #28): la búsqueda
+    de sensores mudos cada minuto. Se cancela al apagar.
+
+    Los tests no lo arrancan: `TestClient(app)` solo ejecuta el `lifespan`
+    si se usa con `with`, así que no aparecen alertas por su cuenta.
+    """
+    tarea = asyncio.create_task(vigilar())
+    try:
+        yield
+    finally:
+        tarea.cancel()
+        with suppress(asyncio.CancelledError):
+            await tarea
+
+
 def create_app() -> FastAPI:
     """Construye y configura la aplicación."""
     app = FastAPI(
+        lifespan=lifespan,
         title=APP_NAME,
         version=APP_VERSION,
         description=DESCRIPTION,
