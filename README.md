@@ -409,11 +409,13 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 
 ### Ana (`anamedin`)
 
-| Issue | Contribution                                        | Status      |
-|-------|-----------------------------------------------------|-------------|
-| 01    | FastAPI modular architecture and health checks      | Implemented |
-| 02    | Pydantic schemas and OpenAPI contract               | Implemented |
-| 03    | `POST /api/readings` contract and service structure | In progress |
+| Issue | Contribution                                        | Status               |
+|-------|-----------------------------------------------------|----------------------|
+| 01    | FastAPI modular architecture and health checks      | Implemented          |
+| 02    | Pydantic schemas and OpenAPI contract               | Implemented          |
+| 03    | `POST /api/readings` contract and service structure | In progress          |
+| 04    | script new issues                                   | In progress to check |
+
 
 ### Daruny (`dasalaza`)
 
