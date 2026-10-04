@@ -162,6 +162,24 @@ class SensorRepository(Protocol):
         """
         ...
 
+    def list_by_site(
+        self, site_id: UUID, offset: int, limit: int
+    ) -> tuple[list[Any], int]:
+        """Sensores de un site, por nombre (#29). El site ya está comprobado."""
+        ...
+
+    def external_id_taken(self, site_id: UUID, external_id: str) -> bool:
+        """Si ya hay un sensor con esa etiqueta en ese site (#29)."""
+        ...
+
+    def create(self, **campos: Any) -> Any:
+        """Crea el sensor y devuelve la fila, con su id (#29)."""
+        ...
+
+    def update(self, sensor: Any, **campos: Any) -> Any:
+        """Cambia los campos indicados y devuelve la fila (#29)."""
+        ...
+
 
 @runtime_checkable
 class AlertRepository(Protocol):
