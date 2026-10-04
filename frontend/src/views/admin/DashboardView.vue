@@ -114,7 +114,7 @@ const criticalSites = computed(() => sitesForMap.value.filter((s) => s.alertLeve
     </section>
 
     <Modal :show="showMap" title="Mapa de sites · Barcelona" size="xl" @close="showMap = false">
-      <SitesMap :sites="sitesForMap" height="70vh" interactive />
+      <SitesMap :sites="sitesForMap" height="70vh" />
     </Modal>
 
     <AlertsSummary :alerts="activeAlertList" />

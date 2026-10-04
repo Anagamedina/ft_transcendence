@@ -16,13 +16,10 @@ Issue de GitHub: #8.
 
 | Prop | Por defecto | Uso |
 |---|---|---|
-| `sites` | `[]` | `id`, `name`, `latitude`, `longitude`; opcional `address`, `alertLevel`, `organization_name` |
+| `sites` | `[]` | `id`, `name`, `latitude`, `longitude`; opcional `address`, `alertLevel` |
 | `height` | `560px` | Alto del mapa |
-| `interactive` | `false` | Zoom y desplazamiento limitados a la ciudad |
-| `selectable` | `false` | Botón "Ver detalle" y evento `select-site` |
-| `bearing` | `-45` | Giro del mapa |
-| `cropTop` | `0` | Recorte superior (0 = ciudad entera) |
-| `boundary` | Barcelona | Contorno en GeoJSON |
+
+El giro (−45°) y el contorno de Barcelona son constantes del componente; el zoom y el desplazamiento están siempre limitados a la ciudad.
 
 ## Fases
 
@@ -32,6 +29,7 @@ Issue de GitHub: #8.
 4. MapLibre con giro de −45° y encuadre calculado sobre el mapa girado.
 5. Color por alerta calculado en el Dashboard.
 6. Mapa en Modal, carga diferida, zoom con límites y botón "Ver toda la ciudad".
+7. Revisión (#107): el zoom ya no se reinicia al cambiar los datos; se eliminan props sin uso y la dependencia `leaflet`.
 
 ## Decisiones
 
@@ -50,6 +48,5 @@ Issue de GitHub: #8.
 ## Pendiente (otras áreas)
 
 - Store de sites en lugar de mocks; mocks solo con sites de Barcelona.
-- Nombre del cliente desde la API (`organization_name` o endpoint de organizaciones).
-- Ruta de detalle para activar "Ver detalle" (#9).
-- Decidir si se quita `leaflet` de `package.json`.
+- Nombre del cliente: no existe en `SiteResponse`; requiere cambio en Backend si se quiere mostrar.
+- "Ver detalle" (evento de selección): se añadirá en #9, cuando exista la ruta de detalle.

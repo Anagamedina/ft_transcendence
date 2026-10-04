@@ -45,4 +45,4 @@ O bien, desde `frontend/`: `npm install` y `npm run dev`. Abrir `http://localhos
 
 - [ ] A 375 px el botón ☰ tapa el logo y el título "Admin" de la Sidebar (preexistente; issue de calidad/responsive).
 - [ ] Marcadores accesibles por teclado (issue de calidad/responsive).
-- [ ] Con zoom activo, un cambio de datos vuelve a encuadrar la ciudad (relevante con datos en tiempo real).
+- [x] Con zoom activo, un cambio de datos ya no vuelve a encuadrar la ciudad (#107).

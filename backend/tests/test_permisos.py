@@ -14,6 +14,7 @@ Tres preguntas, en este orden:
 """
 
 from datetime import datetime, timezone
+from decimal import Decimal
 from uuid import uuid4
 
 import pytest
@@ -67,6 +68,8 @@ def _organizacion(session, nombre):
         external_id=f"SENS-{nombre}",
         name=f"Sensor de {nombre}",
         unit="bar",
+        low_threshold=Decimal("1.000"),
+        high_threshold=Decimal("10.000"),
     )
     session.add(sensor)
     session.flush()

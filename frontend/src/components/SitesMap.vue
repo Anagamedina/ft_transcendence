@@ -1,19 +1,11 @@
 <!--
   SITES MAP
-  Reusable MapLibre map with a FIXED overview of the city of Barcelona, rotated like
-  tourist maps (sea at the bottom, Collserola at the top), so the admin always sees
-  all clients at a glance (no zoom, no panning).
-  - Official municipal boundary outlined, everything outside it faded.
-  - Marker colour shows the site's alert level (none / warning / critical).
-  Only the map and its legend: the parent decides where it goes (card, modal...).
-  interactive = false: fixed overview (no zoom, no panning).
-  interactive = true : zoom and panning allowed, but never further out than the whole
-                       city nor outside it; a button brings back the whole city.
+  MapLibre map of the city of Barcelona, rotated like tourist maps (sea at the bottom,
+  Collserola at the top), with the official municipal boundary and the outside faded.
+  Zoom and panning are allowed but limited to the city; a button brings back the whole city.
+  Marker colour shows the site's alert level (none / warning / critical).
   Receives sites via props only (no HTTP calls).
-  Each site needs: id, name, latitude, longitude.
-  Optional: address (shown in popup), alertLevel: 'none' | 'warning' | 'critical',
-  organization_name (client name, shown first in the popup and tooltip).
-  Emits: select-site(site) when "Ver detalle" is clicked (only with selectable).
+  Each site needs: id, name, latitude, longitude. Optional: address, alertLevel.
 -->
 
 <template>
@@ -41,7 +33,7 @@
       ></div>
 
       <button
-        v-if="interactive && zoomedIn"
+        v-if="zoomedIn"
         type="button"
         class="absolute top-3 left-3 z-10 bg-white text-aqua-600 text-sm font-semibold px-3 py-1.5 rounded-lg shadow-md border border-gray-200 hover:bg-aqua-50 transition"
         @click="fitCity(true)"
@@ -70,25 +62,12 @@ import barcelonaLimit from '../assets/geo/barcelona-limit.json'
 const props = defineProps({
   sites: { type: Array, default: () => [] },
   height: { type: String, default: '560px' },
-  // GeoJSON of the area to show. Default: the city of Barcelona
-  boundary: { type: Object, default: () => barcelonaLimit },
-  // -45: coast horizontal, sea at the bottom, Collserola at the top
-  bearing: { type: Number, default: -45 },
-  // Fraction of the area (from the top of the rotated map) left out of the frame.
-  // 0 = the whole municipality (default). E.g. 0.3 hides most of Collserola forest.
-  // Sites are never left out.
-  cropTop: { type: Number, default: 0 },
-  // true: allow zoom and panning (inside the city). false: fixed overview
-  interactive: { type: Boolean, default: false },
-  // true: the popup shows a "Ver detalle" button that emits 'select-site'.
-  // The parent decides what to do (e.g. navigate): the map has no router inside.
-  selectable: { type: Boolean, default: false },
 })
-
-const emit = defineEmits(['select-site'])
 
 // Free base map, no API key: OpenFreeMap "Liberty" (coloured style, OpenStreetMap data)
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty'
+// -45: coast horizontal, sea at the bottom, Collserola at the top
+const BEARING = -45
 const PADDING = 16
 
 // Marker look per alert level (Tailwind classes from the AquaGuard palette)
@@ -101,6 +80,24 @@ const ALERT_TEXT = {
   warning: 'Aviso activo',
   critical: 'Alerta crítica activa',
 }
+
+// Outer rings of the boundary, as [lng, lat] (GeoJSON order)
+const BOUNDARY_RINGS = barcelonaLimit.features.flatMap((feature) => {
+  const geom = feature.geometry
+  const polygons = geom.type === 'Polygon' ? [geom.coordinates] : geom.coordinates
+  return polygons.map((polygon) => polygon[0])
+})
+
+// Lng/lat box of the boundary: keeps the view inside the city
+const BOUNDARY_BOX = (() => {
+  const pts = BOUNDARY_RINGS.flat()
+  return {
+    minLng: Math.min(...pts.map((p) => p[0])),
+    maxLng: Math.max(...pts.map((p) => p[0])),
+    minLat: Math.min(...pts.map((p) => p[1])),
+    maxLat: Math.max(...pts.map((p) => p[1])),
+  }
+})()
 
 const mapContainer = ref(null)
 // true when the user has zoomed in (shows the "Ver toda la ciudad" button)
@@ -121,41 +118,12 @@ const validSites = computed(() =>
   )
 )
 
-// All outer rings of the boundary, as [lng, lat] (GeoJSON order)
-const boundaryRings = computed(() => {
-  const rings = []
-  props.boundary.features.forEach((feature) => {
-    const geom = feature.geometry
-    const polygons = geom.type === 'Polygon' ? [geom.coordinates] : geom.coordinates
-    polygons.forEach((polygon) => rings.push(polygon[0]))
-  })
-  return rings
-})
-
-// Lng/lat box of the boundary: sites outside it are not used to frame the map
-const boundaryBox = computed(() => {
-  const pts = boundaryRings.value.flat()
-  return {
-    minLng: Math.min(...pts.map((p) => p[0])),
-    maxLng: Math.max(...pts.map((p) => p[0])),
-    minLat: Math.min(...pts.map((p) => p[1])),
-    maxLat: Math.max(...pts.map((p) => p[1])),
-  }
-})
-
 // Popup built with textContent (not an HTML string) so data coming
 // from the API can never inject HTML.
 function buildPopup(site, level) {
   const box = document.createElement('div')
-  // Client (organization) name first, when the parent provides it
-  if (site.organization_name) {
-    const client = document.createElement('p')
-    client.className = 'text-base font-bold text-aqua-900'
-    client.textContent = site.organization_name
-    box.appendChild(client)
-  }
   const name = document.createElement('p')
-  name.className = site.organization_name ? 'text-sm font-semibold text-gray-700' : 'font-semibold text-gray-800'
+  name.className = 'font-semibold text-gray-800'
   name.textContent = site.name
   box.appendChild(name)
   if (site.address) {
@@ -170,15 +138,6 @@ function buildPopup(site, level) {
     alert.textContent = ALERT_TEXT[level]
     box.appendChild(alert)
   }
-  if (props.selectable) {
-    const button = document.createElement('button')
-    button.type = 'button'
-    button.className =
-      'mt-2 w-full bg-aqua-600 text-white text-sm font-semibold px-3 py-1.5 rounded-md hover:bg-aqua-800 transition'
-    button.textContent = 'Ver detalle'
-    button.addEventListener('click', () => emit('select-site', site))
-    box.appendChild(button)
-  }
   return box
 }
 
@@ -189,7 +148,7 @@ function drawMarkers() {
     const level = MARKER_CLASSES[site.alertLevel] ? site.alertLevel : 'none'
     const el = document.createElement('div')
     el.className = `w-[18px] h-[18px] rounded-full border-2 shadow-md cursor-pointer ${MARKER_CLASSES[level]}`
-    el.title = site.organization_name ? `${site.organization_name} · ${site.name}` : site.name
+    el.title = site.name
     return new maplibregl.Marker({ element: el })
       .setLngLat([Number(site.longitude), Number(site.latitude)]) // MapLibre: [lng, lat]
       .setPopup(new maplibregl.Popup({ offset: 12 }).setDOMContent(buildPopup(site, level)))
@@ -207,29 +166,17 @@ function fitCity(animate = false) {
   if (width <= 0 || height <= 0) return
 
   // Rotate Mercator coordinates the same way the screen is rotated
-  const phi = (-props.bearing * Math.PI) / 180
+  const phi = (-BEARING * Math.PI) / 180
   const cos = Math.cos(phi)
   const sin = Math.sin(phi)
-  const rotate = (lng, lat) => {
-    const m = maplibregl.MercatorCoordinate.fromLngLat([lng, lat])
-    return [m.x * cos - m.y * sin, m.x * sin + m.y * cos]
-  }
-
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
-  const extend = ([x, y]) => {
+  BOUNDARY_RINGS.flat().forEach(([lng, lat]) => {
+    const m = maplibregl.MercatorCoordinate.fromLngLat([lng, lat])
+    const x = m.x * cos - m.y * sin
+    const y = m.x * sin + m.y * cos
     minX = Math.min(minX, x); maxX = Math.max(maxX, x)
     minY = Math.min(minY, y); maxY = Math.max(maxY, y)
-  }
-  boundaryRings.value.flat().forEach(([lng, lat]) => extend(rotate(lng, lat)))
-
-  // Crop the top (Collserola forest)...
-  minY += (maxY - minY) * props.cropTop
-  // ...but never leave out a site that is inside the city
-  const box = boundaryBox.value
-  validSites.value
-    .map((s) => [Number(s.longitude), Number(s.latitude)])
-    .filter(([lng, lat]) => lng >= box.minLng && lng <= box.maxLng && lat >= box.minLat && lat <= box.maxLat)
-    .forEach(([lng, lat]) => extend(rotate(lng, lat)))
+  })
 
   // 512 = size of the world in pixels at zoom 0 in MapLibre
   const zoom = Math.log2(Math.min(width / ((maxX - minX) * 512), height / ((maxY - minY) * 512)))
@@ -238,19 +185,18 @@ function fitCity(animate = false) {
   const cy = (minY + maxY) / 2
   const center = new maplibregl.MercatorCoordinate(cx * cos + cy * sin, -cx * sin + cy * cos).toLngLat()
   fittedZoom = zoom
-  if (props.interactive) map.setMinZoom(zoom) // never further out than the whole city
-  const view = { center, zoom, bearing: props.bearing, pitch: 0 }
+  map.setMinZoom(zoom) // never further out than the whole city
+  const view = { center, zoom, bearing: BEARING, pitch: 0 }
   if (animate) map.easeTo({ ...view, duration: 800 })
   else map.jumpTo(view)
 }
 
-// Interactive mode: if the centre goes out of the city, bring it back inside
+// If the centre goes out of the city, bring it back inside
 function keepInsideCity() {
   if (!map) return
-  const box = boundaryBox.value
   const { lng, lat } = map.getCenter()
-  const clampedLng = Math.min(Math.max(lng, box.minLng), box.maxLng)
-  const clampedLat = Math.min(Math.max(lat, box.minLat), box.maxLat)
+  const clampedLng = Math.min(Math.max(lng, BOUNDARY_BOX.minLng), BOUNDARY_BOX.maxLng)
+  const clampedLat = Math.min(Math.max(lat, BOUNDARY_BOX.minLat), BOUNDARY_BOX.maxLat)
   if (clampedLng !== lng || clampedLat !== lat) {
     map.easeTo({ center: [clampedLng, clampedLat], duration: 300 })
   }
@@ -262,7 +208,7 @@ function drawBoundary() {
   const world = [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]]
   map.addSource('city-mask', {
     type: 'geojson',
-    data: { type: 'Feature', geometry: { type: 'Polygon', coordinates: [world, ...boundaryRings.value] } },
+    data: { type: 'Feature', geometry: { type: 'Polygon', coordinates: [world, ...BOUNDARY_RINGS] } },
   })
   map.addLayer({
     id: 'city-mask',
@@ -272,7 +218,7 @@ function drawBoundary() {
   })
 
   // Outline of the city
-  map.addSource('city-limit', { type: 'geojson', data: props.boundary })
+  map.addSource('city-limit', { type: 'geojson', data: barcelonaLimit })
   map.addLayer({
     id: 'city-limit',
     type: 'line',
@@ -287,31 +233,22 @@ onMounted(() => {
     style: MAP_STYLE,
     center: [2.16, 41.39],
     zoom: 11.5,
-    bearing: props.bearing,
+    bearing: BEARING,
     attributionControl: { compact: true, customAttribution: 'Límite: Ajuntament de Barcelona (CC-BY)' },
-    // Zoom/pan only in interactive mode. Rotation and tilt are always off,
-    // so the map keeps its orientation (sea at the bottom).
-    dragPan: props.interactive,
-    scrollZoom: props.interactive,
-    doubleClickZoom: props.interactive,
-    touchZoomRotate: props.interactive,
-    keyboard: props.interactive,
+    // Rotation and tilt are off, so the map keeps its orientation (sea at the bottom)
     boxZoom: false,
     dragRotate: false,
     touchPitch: false,
     pitchWithRotate: false,
   })
-
-  if (props.interactive) {
-    map.touchZoomRotate.disableRotation()
-    map.keyboard.disableRotation()
-    // + / − buttons (no compass: the map cannot be rotated)
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
-    map.on('moveend', keepInsideCity)
-    map.on('zoom', () => {
-      zoomedIn.value = fittedZoom !== null && map.getZoom() > fittedZoom + 0.05
-    })
-  }
+  map.touchZoomRotate.disableRotation()
+  map.keyboard.disableRotation()
+  // + / − buttons (no compass: the map cannot be rotated)
+  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
+  map.on('moveend', keepInsideCity)
+  map.on('zoom', () => {
+    zoomedIn.value = fittedZoom !== null && map.getZoom() > fittedZoom + 0.05
+  })
 
   map.on('load', () => {
     mapReady = true
@@ -320,24 +257,18 @@ onMounted(() => {
   })
   drawMarkers()
 
-  // Keep the whole city visible when the window/box is resized (e.g. mobile, sidebar)
+  // Keep the whole city visible when the box is resized, unless the user zoomed in
   resizeObserver = new ResizeObserver(() => {
-    // Interactive and zoomed in: keep the user's view, only adapt the size
-    if (props.interactive && zoomedIn.value) map.resize()
+    if (zoomedIn.value) map.resize()
     else fitCity()
   })
   resizeObserver.observe(mapContainer.value)
 })
 
-// New list of sites (e.g. the store finished loading, or an alert changed a colour)
-watch(
-  validSites,
-  () => {
-    drawMarkers()
-    fitCity()
-  },
-  { deep: true }
-)
+// New list of sites (e.g. the store finished loading, or an alert changed a colour):
+// only the markers are redrawn. The framing depends on the city boundary, not on the
+// sites, so the user's zoom is never reset.
+watch(validSites, drawMarkers)
 
 // Free map resources when leaving the page
 onBeforeUnmount(() => {
