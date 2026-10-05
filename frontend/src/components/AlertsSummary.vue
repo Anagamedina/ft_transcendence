@@ -1,7 +1,9 @@
 <!--
   ALERTS SUMMARY
-  Presentational list of alerts for the admin dashboard. Receives alerts via props only.
+  Presentational list of alerts for the admin dashboard. Receives data via props only.
   Values follow the backend contract: severity WARNING | CRITICAL.
+  Async states (loading / error / empty) come from the parent via `status` and `error`;
+  the retry is emitted so the parent re-runs the store action.
   No actions here: acknowledging/resolving alerts belongs to another issue.
 -->
 
@@ -12,9 +14,22 @@
       <h2 class="text-lg font-bold text-gray-800">Alertas activas</h2>
     </div>
 
-    <p v-if="alerts.length === 0" class="text-sm text-gray-500">
-      No hay alertas activas.
-    </p>
+    <LoadingState v-if="status === 'loading' || status === 'idle'" message="Cargando alertas…" compact />
+
+    <ErrorState
+      v-else-if="status === 'error'"
+      title="No se han podido cargar las alertas"
+      :message="error?.message"
+      compact
+      @retry="$emit('retry')"
+    />
+
+    <EmptyState
+      v-else-if="alerts.length === 0"
+      title="No hay alertas activas"
+      icon="alert"
+      compact
+    />
 
     <ul v-else class="divide-y divide-gray-100">
       <li
@@ -42,10 +57,19 @@
 
 <script setup>
 import AppIcon from './AppIcon.vue'
+import LoadingState from './LoadingState.vue'
+import ErrorState from './ErrorState.vue'
+import EmptyState from './EmptyState.vue'
 
 defineProps({
   alerts: { type: Array, default: () => [] },
+  // Store status: idle | loading | success | error
+  status: { type: String, default: 'success' },
+  // Store error object ({ code, message, details }) or null
+  error: { type: Object, default: null },
 })
+
+defineEmits(['retry'])
 
 const typeLabels = {
   LOW_PRESSURE: 'Presión baja',

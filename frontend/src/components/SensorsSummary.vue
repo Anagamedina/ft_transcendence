@@ -1,7 +1,9 @@
 <!--
   SENSORS SUMMARY
-  Presentational list of sensors for the admin dashboard. Receives sensors via props only.
+  Presentational list of sensors for the admin dashboard. Receives data via props only.
   Status values follow the backend contract: ONLINE | OFFLINE.
+  Async states (loading / error / empty) come from the parent via `status` and `error`;
+  the retry is emitted so the parent re-runs the store action.
 -->
 
 <template>
@@ -11,9 +13,22 @@
       <h2 class="text-lg font-bold text-gray-800">Sensores</h2>
     </div>
 
-    <p v-if="sensors.length === 0" class="text-sm text-gray-500">
-      No hay sensores disponibles todavía.
-    </p>
+    <LoadingState v-if="status === 'loading' || status === 'idle'" message="Cargando sensores…" compact />
+
+    <ErrorState
+      v-else-if="status === 'error'"
+      title="No se han podido cargar los sensores"
+      :message="error?.message"
+      compact
+      @retry="$emit('retry')"
+    />
+
+    <EmptyState
+      v-else-if="sensors.length === 0"
+      title="No hay sensores disponibles todavía"
+      icon="droplet"
+      compact
+    />
 
     <ul v-else class="divide-y divide-gray-100">
       <li
@@ -40,8 +55,17 @@
 
 <script setup>
 import AppIcon from './AppIcon.vue'
+import LoadingState from './LoadingState.vue'
+import ErrorState from './ErrorState.vue'
+import EmptyState from './EmptyState.vue'
 
 defineProps({
   sensors: { type: Array, default: () => [] },
+  // Store status: idle | loading | success | error
+  status: { type: String, default: 'success' },
+  // Store error object ({ code, message, details }) or null
+  error: { type: Object, default: null },
 })
+
+defineEmits(['retry'])
 </script>
