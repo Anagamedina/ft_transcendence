@@ -49,7 +49,7 @@ export const useAlertsStore = defineStore("alerts", () =>{
         );
 
         if (index !== -1) {
-            alerts.value[index] = response.data;
+            alerts.value[index] = { ...response.data };
         }
 
         return response.data;
@@ -64,6 +64,7 @@ export const useAlertsStore = defineStore("alerts", () =>{
         throw err;
         }
     }
+
     function clearAlerts() {
         alerts.value = [];
         status.value = "idle";
@@ -79,7 +80,7 @@ export const useAlertsStore = defineStore("alerts", () =>{
         );
 
         if (index !== -1) {
-            alerts.value[index] = response.data;
+            alerts.value[index] = { ...response.data };
         }
 
         return response.data;

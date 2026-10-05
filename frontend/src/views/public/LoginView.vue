@@ -99,7 +99,7 @@
 
 
 <script setup>
-import { computed, reactive } from "vue";
+import { computed, reactive, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../../stores/auth.js";
 import PublicLayout from "../../layouts/PublicLayout.vue";
@@ -137,4 +137,8 @@ async function handleSubmit() {
     // L'erreur est déjà gérée par le Auth Store.
   }
 }
+
+onMounted(() => {
+  authStore.clearError();
+});
 </script>

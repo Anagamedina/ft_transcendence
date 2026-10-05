@@ -73,6 +73,7 @@
                 v-model="form.password"
                 type="password"
                 autocomplete="new-password"
+                minlength="8"
                 required
                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 placeholder="Tu contraseña"
@@ -119,7 +120,7 @@
 
 
 <script setup>
-import { computed, reactive } from "vue";
+import { computed, reactive, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../../stores/auth.js";
 import PublicLayout from "../../layouts/PublicLayout.vue";
@@ -154,9 +155,13 @@ async function handleSubmit() {
 
     await authStore.fetchMe();
 
-    router.push("dashboard");
+    router.push("/dashboard");
   } catch (error) {
     // error already handled by the auth store.
   }
 }
+
+onMounted(() => {
+  authStore.clearError();
+});
 </script>
