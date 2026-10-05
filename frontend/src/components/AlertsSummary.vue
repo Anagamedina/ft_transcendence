@@ -21,7 +21,8 @@
       title="No se han podido cargar las alertas"
       :message="error?.message"
       compact
-      @retry="$emit('retry')"
+      :autofocus="retried"
+      @retry="onRetry"
     />
 
     <EmptyState
@@ -56,6 +57,7 @@
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import AppIcon from './AppIcon.vue'
 import LoadingState from './LoadingState.vue'
 import ErrorState from './ErrorState.vue'
@@ -69,7 +71,14 @@ defineProps({
   error: { type: Object, default: null },
 })
 
-defineEmits(['retry'])
+const emit = defineEmits(['retry'])
+
+// After a user-triggered retry, a new error moves focus back to the retry button
+const retried = ref(false)
+function onRetry() {
+  retried.value = true
+  emit('retry')
+}
 
 const typeLabels = {
   LOW_PRESSURE: 'Presión baja',
