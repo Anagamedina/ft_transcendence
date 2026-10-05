@@ -2,10 +2,12 @@
   ADMIN DASHBOARD VIEW
   Main admin page: KPIs summary, sites, sensors and alerts overview.
   Rendered inside AdminLayout. Data comes only from Pinia stores (no direct HTTP calls).
+  Sensors and alerts are fetched on mount; loading / error / empty states are shown
+  inside each summary card, and retry re-runs the store action.
 -->
 
 <script setup>
-import { ref, computed, defineAsyncComponent } from 'vue'
+import { ref, computed, onMounted, defineAsyncComponent } from 'vue'
 import AdminLayout from '../../layouts/AdminLayout.vue'
 import KPICard from '../../components/KPICard.vue'
 import AppIcon from '../../components/AppIcon.vue'
@@ -24,6 +26,24 @@ const SitesMap = defineAsyncComponent(() => import('../../components/SitesMap.vu
 
 const sensorStore = useSensorsStore()
 const alertsStore = useAlertsStore()
+
+// Load data on mount. Errors are already stored in each store (status/error),
+// so we only catch them here to avoid unhandled promise rejections.
+async function loadSensors() {
+  try { await sensorStore.fetchSensors() } catch { /* handled via sensorStore.error */ }
+}
+async function loadAlerts() {
+  try { await alertsStore.fetchAlerts() } catch { /* handled via alertsStore.error */ }
+}
+
+onMounted(() => {
+  loadSensors()
+  loadAlerts()
+})
+
+// KPIs show "—" until the store has real data, so "0" always means a real zero
+const sensorsReady = computed(() => sensorStore.status === 'success')
+const alertsReady = computed(() => alertsStore.status === 'success')
 
 const totalSensors = computed(() => sensorStore.sensorCount)
 const onlineSensors = computed(
@@ -69,22 +89,27 @@ const criticalSites = computed(() => sitesForMap.value.filter((s) => s.alertLeve
         <template #icon><AppIcon name="building" /></template>
       </KPICard>
 
-      <KPICard label="Sensores totales" :value="totalSensors">
+      <KPICard label="Sensores totales" :value="sensorsReady ? totalSensors : '—'">
         <template #icon><AppIcon name="droplet" /></template>
       </KPICard>
 
-      <KPICard label="Sensores online" :value="onlineSensors">
+      <KPICard label="Sensores online" :value="sensorsReady ? onlineSensors : '—'">
         <template #icon><AppIcon name="wifi" /></template>
       </KPICard>
 
-      <KPICard label="Alertas activas" :value="activeAlerts">
+      <KPICard label="Alertas activas" :value="alertsReady ? activeAlerts : '—'">
         <template #icon><AppIcon name="alert" /></template>
       </KPICard>
     </section>
 
     <section class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
       <SitesSummary :sites="mockSites" />
-      <SensorsSummary :sensors="sensorStore.sensors" />
+      <SensorsSummary
+        :sensors="sensorStore.sensors"
+        :status="sensorStore.status"
+        :error="sensorStore.error"
+        @retry="loadSensors"
+      />
     </section>
 
     <!-- Map card: compact on the dashboard, full map opens in a modal -->
@@ -117,6 +142,11 @@ const criticalSites = computed(() => sitesForMap.value.filter((s) => s.alertLeve
       <SitesMap :sites="sitesForMap" height="70vh" />
     </Modal>
 
-    <AlertsSummary :alerts="activeAlertList" />
+    <AlertsSummary
+      :alerts="activeAlertList"
+      :status="alertsStore.status"
+      :error="alertsStore.error"
+      @retry="loadAlerts"
+    />
   </AdminLayout>
 </template>
