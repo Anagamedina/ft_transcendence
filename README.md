@@ -453,7 +453,7 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 development without a running backend by implementing a mock adapter with the same 
   interface and response shapes as the real API, including fixtures, pagination, 
   validation errors, authentication states, and CRUD-like operations.                   |
-| Login, Register and Logout frontend | # 99| Implemented the complete frontend 
+| Login,Register and Logout frontend | # 99| Implemented the complete frontend 
   authentication flow using Auth services, Auth Store, handled loading/error 
   states and prevented double submission. Authentication was tested with the MockAdapter 
   while the backend was not yet available.|                                              |

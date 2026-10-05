@@ -36,6 +36,12 @@ export const useAuthStore = defineStore("auth", () =>{
       user.value = null;
       role.value = null;
 
+      if (err.status === 401 || err.code === "UNAUTHORIZED") {
+      error.value = null;
+      status.value = "idle";
+      return null;
+      }
+
       error.value = {
         code: err.code,
         message: err.message,
@@ -141,6 +147,10 @@ export const useAuthStore = defineStore("auth", () =>{
     }
   }
 
+  function clearError() {
+  error.value = null
+  }
+
   return {
     user,
     role,
@@ -156,6 +166,7 @@ export const useAuthStore = defineStore("auth", () =>{
     fetchMe,
     initializeAuth,
     logout,
+    clearError,
   };
 
 });

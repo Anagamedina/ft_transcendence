@@ -169,7 +169,7 @@ const mockAdapter = {
     if (url === '/api/alerts') {
       return Promise.resolve({
         data: {
-          items: alerts,
+          items: alerts.map((alert) => ({ ...alert })),
           total: alerts.length,
           page: 1,
           page_size: Math.max(alerts.length, 1),
@@ -397,7 +397,7 @@ const mockAdapter = {
       alert.acknowledged_at = new Date().toISOString()
 
       return Promise.resolve({
-        data: alert,
+        data: { ...alert },
         status: 200,
       })
     }
@@ -421,7 +421,7 @@ const mockAdapter = {
       alert.resolved_at = new Date().toISOString()
 
       return Promise.resolve({
-        data: alert,
+        data: { ...alert },
         status: 200,
       })
     }

@@ -25,7 +25,7 @@ export const useReadingsStore = defineStore("readings", () => {
     try {
       const response = await readingService.getSensorReadings(sensorId);
 
-      // Ignore une réponse ancienne
+      // ignore an old response
       if (currentSensorId.value !== sensorId) {
         return;
       }
@@ -33,7 +33,7 @@ export const useReadingsStore = defineStore("readings", () => {
       readings.value = response.data.items;
       status.value = "success";
     } catch (err) {
-      // Ignore également l'erreur d'une ancienne requête
+      // Ignore error from an old request
       if (currentSensorId.value !== sensorId) {
         return;
       }
