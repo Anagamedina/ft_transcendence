@@ -10,6 +10,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Integer,
     Numeric,
     String,
     Text,
@@ -42,6 +43,17 @@ class Site(Base):
             "longitude IS NULL OR longitude BETWEEN -180 AND 180",
             name="ck_sites_longitude",
         ),
+        # Same values as BuildingType in the common contract (B2).
+        CheckConstraint(
+            "building_type IN ('HOTEL', 'COMMUNITY', 'OFFICE', 'SPORTS', "
+            "'RESIDENCE', 'INDUSTRIAL', 'OTHER')",
+            name="ck_sites_building_type",
+        ),
+        # A building has at least the ground floor.
+        CheckConstraint(
+            "floors >= 1 AND basements >= 0",
+            name="ck_sites_floors",
+        ),
     )
 
     # Auto-generated primary key.
@@ -64,7 +76,8 @@ class Site(Base):
 
     # Human-readable site name.
     name: Mapped[str] = mapped_column(
-        String(150),
+        # Same max length as SiteBase.name in schemas.py.
+        String(120),
         nullable=False,
     )
 
@@ -84,6 +97,27 @@ class Site(Base):
     longitude: Mapped[Decimal | None] = mapped_column(
         Numeric(9, 6),
         nullable=True,
+    )
+
+    # Floors above ground, ground floor included. Existing sites have 1.
+    floors: Mapped[int] = mapped_column(
+        Integer,
+        server_default="1",
+        nullable=False,
+    )
+
+    # Floors below ground.
+    basements: Mapped[int] = mapped_column(
+        Integer,
+        server_default="0",
+        nullable=False,
+    )
+
+    # Kind of building, see ck_sites_building_type.
+    building_type: Mapped[str] = mapped_column(
+        String(20),
+        server_default="OTHER",
+        nullable=False,
     )
 
     # Creation timestamp managed by the database.
