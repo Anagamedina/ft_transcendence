@@ -22,29 +22,69 @@ create_issue() {
   local labels="$2"
   local body="$3"
 
-  echo "Creating: $title"
+  # No duplicar: si ya existe una issue con este título exacto, se reutiliza.
   local issue_url
-  issue_url=$(gh issue create \
+  issue_url=$(gh issue list \
     --repo "$REPO" \
-    --title "$title" \
-    --assignee "$ASSIGNEE" \
-    --label "$labels" \
-    --body "$body")
+    --state all \
+    --search "\"$title\" in:title" \
+    --json title,url \
+    --jq ".[] | select(.title == \"$title\") | .url" | head -n 1)
 
-  local project_item_id
-  project_item_id=$(gh project item-add "$PROJECT_NUMBER" \
-    --owner "$PROJECT_OWNER" \
-    --url "$issue_url" \
-    --format json \
-    --jq '.id')
+  if [ -n "$issue_url" ]; then
+    echo "Ya existe: $title ($issue_url)"
+  else
+    echo "Creating: $title"
+    issue_url=$(gh issue create \
+      --repo "$REPO" \
+      --title "$title" \
+      --assignee "$ASSIGNEE" \
+      --label "$labels" \
+      --body "$body")
+  fi
+
+  # El proyecto añade solo las issues nuevas (auto-add): se busca primero ese
+  # elemento y solo si no aparece se añade a mano.
+  local project_item_id=""
+  local attempt
+  for attempt in 1 2 3 4 5; do
+    project_item_id=$(project_item_for "${issue_url##*/}")
+    [ -n "$project_item_id" ] && break
+    sleep 2
+  done
+  if [ -z "$project_item_id" ]; then
+    project_item_id=$(gh project item-add "$PROJECT_NUMBER" \
+      --owner "$PROJECT_OWNER" \
+      --url "$issue_url" \
+      --format json \
+      --jq '.id')
+  fi
 
   gh project item-edit \
     --id "$project_item_id" \
     --project-id "$PROJECT_ID" \
     --field-id "$ITERATION_FIELD_ID" \
-    --iteration-id "$ITERATION_ID"
+    --iteration-id "$ITERATION_ID" >/dev/null
 
   echo "Added to project iteration: $PROJECT_ITERATION_NAME"
+}
+
+# Devuelve el id del elemento de la issue en el proyecto, o nada si no está.
+project_item_for() {
+  gh api graphql \
+    -f query='query($owner: String!, $name: String!, $number: Int!) {
+      repository(owner: $owner, name: $name) {
+        issue(number: $number) {
+          projectItems(first: 20) { nodes { id project { number } } }
+        }
+      }
+    }' \
+    -F owner="${REPO%%/*}" \
+    -F name="${REPO##*/}" \
+    -F number="$1" \
+    --jq ".data.repository.issue.projectItems.nodes[]
+      | select(.project.number == $PROJECT_NUMBER)
+      | .id"
 }
 
 # ── Labels ────────────────────────────────────────────────────────────────
@@ -78,12 +118,22 @@ ITERATION_FIELD_ID=$(gh project field-list "$PROJECT_NUMBER" \
     | .id
   ')
 
-ITERATION_ID=$(gh project field-list "$PROJECT_NUMBER" \
-  --owner "$PROJECT_OWNER" \
-  --format json \
-  --jq ".fields[]
-    | select(.name == \"Iteration\")
-    | .configuration.iterations[]
+# `gh project field-list` no devuelve las iteraciones: se leen por GraphQL.
+ITERATION_ID=$(gh api graphql \
+  -f query='query($login: String!, $number: Int!) {
+    user(login: $login) {
+      projectV2(number: $number) {
+        field(name: "Iteration") {
+          ... on ProjectV2IterationField {
+            configuration { iterations { id title } }
+          }
+        }
+      }
+    }
+  }' \
+  -F login="$PROJECT_OWNER" \
+  -F number="$PROJECT_NUMBER" \
+  --jq ".data.user.projectV2.field.configuration.iterations[]
     | select(.title == \"$PROJECT_ITERATION_NAME\")
     | .id")
 
@@ -223,6 +273,7 @@ Ana
 - Abre la sesión (cookie) y devuelve el usuario, como el login.
 - Contraseña de 12 caracteres como mínimo y no común: definir aquí la regla común, que B4 y B8 reutilizan.
 - 409 EMAIL_ALREADY_EXISTS y 409 ORGANIZATION_NAME_TAKEN.
+- Actualizar e2e/tests/register.spec.js (#127): hoy espera que el registro sea solo para admin.
 
 ## No incluye
 - Columnas status, trial_ends_at y terms_* (D1, Daruny).
@@ -243,7 +294,8 @@ El frontend depende de esta tarea para:
 - Un visitante se registra sin sesión y entra directamente a su panel.
 - Se crea una organización TRIAL que vence a los 7 días.
 - Email u organización repetidos responden 409.
-- La contraseña débil responde 422."
+- La contraseña débil responde 422.
+- e2e/tests/register.spec.js pasa con el registro público."
 
 # ── Issue 4: B4 + B6 — Auth, invitaciones y usuarios ─────────────────────
 # Sustituyen al registro actual y completan el sistema de usuarios.
@@ -469,7 +521,7 @@ Depende de:
 - D9 (purge_organization, Daruny).
 
 El frontend depende de esta tarea para:
-- F7 (acción «Eliminar» en la ficha de cliente, Eduardo).
+- F7 (acción «Eliminar» en la ficha de cliente, Florinda).
 
 ## Criterios de aceptación
 - El admin puede borrar una organización con todos sus datos en una transacción.

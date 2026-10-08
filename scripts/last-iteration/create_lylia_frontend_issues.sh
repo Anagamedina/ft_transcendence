@@ -22,29 +22,69 @@ create_issue() {
   local labels="$2"
   local body="$3"
 
-  echo "Creating: $title"
+  # No duplicar: si ya existe una issue con este título exacto, se reutiliza.
   local issue_url
-  issue_url=$(gh issue create \
+  issue_url=$(gh issue list \
     --repo "$REPO" \
-    --title "$title" \
-    --assignee "$ASSIGNEE" \
-    --label "$labels" \
-    --body "$body")
+    --state all \
+    --search "\"$title\" in:title" \
+    --json title,url \
+    --jq ".[] | select(.title == \"$title\") | .url" | head -n 1)
 
-  local project_item_id
-  project_item_id=$(gh project item-add "$PROJECT_NUMBER" \
-    --owner "$PROJECT_OWNER" \
-    --url "$issue_url" \
-    --format json \
-    --jq '.id')
+  if [ -n "$issue_url" ]; then
+    echo "Ya existe: $title ($issue_url)"
+  else
+    echo "Creating: $title"
+    issue_url=$(gh issue create \
+      --repo "$REPO" \
+      --title "$title" \
+      --assignee "$ASSIGNEE" \
+      --label "$labels" \
+      --body "$body")
+  fi
+
+  # El proyecto añade solo las issues nuevas (auto-add): se busca primero ese
+  # elemento y solo si no aparece se añade a mano.
+  local project_item_id=""
+  local attempt
+  for attempt in 1 2 3 4 5; do
+    project_item_id=$(project_item_for "${issue_url##*/}")
+    [ -n "$project_item_id" ] && break
+    sleep 2
+  done
+  if [ -z "$project_item_id" ]; then
+    project_item_id=$(gh project item-add "$PROJECT_NUMBER" \
+      --owner "$PROJECT_OWNER" \
+      --url "$issue_url" \
+      --format json \
+      --jq '.id')
+  fi
 
   gh project item-edit \
     --id "$project_item_id" \
     --project-id "$PROJECT_ID" \
     --field-id "$ITERATION_FIELD_ID" \
-    --iteration-id "$ITERATION_ID"
+    --iteration-id "$ITERATION_ID" >/dev/null
 
   echo "Added to project iteration: $PROJECT_ITERATION_NAME"
+}
+
+# Devuelve el id del elemento de la issue en el proyecto, o nada si no está.
+project_item_for() {
+  gh api graphql \
+    -f query='query($owner: String!, $name: String!, $number: Int!) {
+      repository(owner: $owner, name: $name) {
+        issue(number: $number) {
+          projectItems(first: 20) { nodes { id project { number } } }
+        }
+      }
+    }' \
+    -F owner="${REPO%%/*}" \
+    -F name="${REPO##*/}" \
+    -F number="$1" \
+    --jq ".data.repository.issue.projectItems.nodes[]
+      | select(.project.number == $PROJECT_NUMBER)
+      | .id"
 }
 
 # ── Labels ────────────────────────────────────────────────────────────────
@@ -78,12 +118,22 @@ ITERATION_FIELD_ID=$(gh project field-list "$PROJECT_NUMBER" \
     | .id
   ')
 
-ITERATION_ID=$(gh project field-list "$PROJECT_NUMBER" \
-  --owner "$PROJECT_OWNER" \
-  --format json \
-  --jq ".fields[]
-    | select(.name == \"Iteration\")
-    | .configuration.iterations[]
+# `gh project field-list` no devuelve las iteraciones: se leen por GraphQL.
+ITERATION_ID=$(gh api graphql \
+  -f query='query($login: String!, $number: Int!) {
+    user(login: $login) {
+      projectV2(number: $number) {
+        field(name: "Iteration") {
+          ... on ProjectV2IterationField {
+            configuration { iterations { id title } }
+          }
+        }
+      }
+    }
+  }' \
+  -F login="$PROJECT_OWNER" \
+  -F number="$PROJECT_NUMBER" \
+  --jq ".data.user.projectV2.field.configuration.iterations[]
     | select(.title == \"$PROJECT_ITERATION_NAME\")
     | .id")
 
@@ -115,9 +165,11 @@ Lylia
 
 ### F1 — Router por rol con las rutas del diseño
 - Ya existe un guard beforeEach que exige sesión en /dashboard; falta comprobar el rol.
-- Rutas /admin/* con meta { requiresAuth, role: 'admin' }.
+- Rutas /admin/* con meta { requiresAuth, role: 'admin' }, incluidas las ya creadas en #128 (/admin/clients, /admin/clients/:id, /admin/sites).
+- Mantener los nombres en inglés de esas rutas o renombrarlas todas a la vez; no mezclar.
 - Rutas /app/* con meta { requiresAuth, role: 'client' }.
 - Rutas públicas: /, /login, /prueba, /registro, /legal y /status (I5, Eduardo).
+- Ruta /admin/sensors para SensorsView (F10, Florinda).
 - Ruta 404 para /:pathMatch(.*)*.
 - Guard beforeEach: initializeAuth + rol + redirección.
 - Tras login, admin va a /admin, cliente va a /app.
@@ -154,15 +206,17 @@ Depende de:
 Florinda depende de esta tarea para:
 - F6 (aceptar invitación).
 - F15-P (registro y prueba de 7 días).
+- F7 y F10 (clientes, edificios y sensores de admin).
 
 Lylia depende de esta tarea para:
 - F0-C, F8, F9-C, F13-C y F14 (portal cliente).
 
 Eduardo depende de esta tarea para:
-- F0-A, F7, F9-A, F10, F12 y F11+F13-A (portal admin).
+- F0-A, F9-A, F12 y F11+F13-A (portal admin).
 
 ## Criterios de aceptación
 - El router protege /admin/* y /app/* por rol.
+- Pasa e2e/tests/roles.spec.js (#127), que hoy falla porque /admin no tiene guard.
 - Los servicios nuevos funcionan con MockAdapter.
 - Los componentes compartidos están listos para usar.
 - useLabels traduce enums a español."
@@ -226,7 +280,7 @@ Lylia
 - Sustituye a SensorDetailView y su búsqueda en la lista completa.
 
 ## No incluye
-- Vistas que usan estos componentes (F8, Lylia; F10, Eduardo).
+- Vistas que usan estos componentes (F8, Lylia; F10, Florinda).
 
 ## Dependencias
 Depende de:
@@ -237,7 +291,7 @@ Depende de:
 
 Dependen de esta tarea:
 - F8 (Mis edificios, Lylia).
-- F10 (Admin · Sensores, Eduardo).
+- F10 (Admin · Sensores, Florinda).
 
 ## Criterios de aceptación
 - BuildingStack dibuja plantas y sótanos con sensores coloreados.
@@ -375,13 +429,13 @@ Lylia
 - Vista client/DocumentsView.
 - Componente FileDropzone: progreso, tipos y tamaño.
 - Componente DocumentsTable con vista previa de imágenes y PDF y borrado de los propios.
-- FileDropzone y DocumentsTable son reutilizables: F7 (Eduardo) los usa en la ficha de cliente.
+- FileDropzone y DocumentsTable son reutilizables: F7 (Florinda) los usa en la ficha de cliente.
 - Validar tipo y tamaño (PDF, JPG, PNG, CSV; 10 MB) antes de subir.
 - Barra de progreso con onUploadProgress de Axios.
 - Ocultar «borrar» en los documentos subidos por el equipo.
 
 ## No incluye
-- Pestaña de documentos en la ficha de cliente (F7, Eduardo), que reutiliza estos componentes.
+- Pestaña de documentos en la ficha de cliente (F7, Florinda), que reutiliza estos componentes.
 
 ## Dependencias
 Depende de:

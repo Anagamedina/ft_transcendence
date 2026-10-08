@@ -5,7 +5,7 @@ REPO="Anagamedina/ft_transcendence"
 ASSIGNEE="Edugs94"
 PROJECT_OWNER="${PROJECT_OWNER:-Anagamedina}"
 PROJECT_NUMBER="${PROJECT_NUMBER:-5}"
-PROJECT_ITERATION_NAME="${PROJECT_ITERATION_NAME:-Admin-Eduardo}"
+PROJECT_ITERATION_NAME="${PROJECT_ITERATION_NAME:-Admin-Edu}"
 
 PROJECT_ID=""
 ITERATION_FIELD_ID=""
@@ -22,29 +22,69 @@ create_issue() {
   local labels="$2"
   local body="$3"
 
-  echo "Creating: $title"
+  # No duplicar: si ya existe una issue con este título exacto, se reutiliza.
   local issue_url
-  issue_url=$(gh issue create \
+  issue_url=$(gh issue list \
     --repo "$REPO" \
-    --title "$title" \
-    --assignee "$ASSIGNEE" \
-    --label "$labels" \
-    --body "$body")
+    --state all \
+    --search "\"$title\" in:title" \
+    --json title,url \
+    --jq ".[] | select(.title == \"$title\") | .url" | head -n 1)
 
-  local project_item_id
-  project_item_id=$(gh project item-add "$PROJECT_NUMBER" \
-    --owner "$PROJECT_OWNER" \
-    --url "$issue_url" \
-    --format json \
-    --jq '.id')
+  if [ -n "$issue_url" ]; then
+    echo "Ya existe: $title ($issue_url)"
+  else
+    echo "Creating: $title"
+    issue_url=$(gh issue create \
+      --repo "$REPO" \
+      --title "$title" \
+      --assignee "$ASSIGNEE" \
+      --label "$labels" \
+      --body "$body")
+  fi
+
+  # El proyecto añade solo las issues nuevas (auto-add): se busca primero ese
+  # elemento y solo si no aparece se añade a mano.
+  local project_item_id=""
+  local attempt
+  for attempt in 1 2 3 4 5; do
+    project_item_id=$(project_item_for "${issue_url##*/}")
+    [ -n "$project_item_id" ] && break
+    sleep 2
+  done
+  if [ -z "$project_item_id" ]; then
+    project_item_id=$(gh project item-add "$PROJECT_NUMBER" \
+      --owner "$PROJECT_OWNER" \
+      --url "$issue_url" \
+      --format json \
+      --jq '.id')
+  fi
 
   gh project item-edit \
     --id "$project_item_id" \
     --project-id "$PROJECT_ID" \
     --field-id "$ITERATION_FIELD_ID" \
-    --iteration-id "$ITERATION_ID"
+    --iteration-id "$ITERATION_ID" >/dev/null
 
   echo "Added to project iteration: $PROJECT_ITERATION_NAME"
+}
+
+# Devuelve el id del elemento de la issue en el proyecto, o nada si no está.
+project_item_for() {
+  gh api graphql \
+    -f query='query($owner: String!, $name: String!, $number: Int!) {
+      repository(owner: $owner, name: $name) {
+        issue(number: $number) {
+          projectItems(first: 20) { nodes { id project { number } } }
+        }
+      }
+    }' \
+    -F owner="${REPO%%/*}" \
+    -F name="${REPO##*/}" \
+    -F number="$1" \
+    --jq ".data.repository.issue.projectItems.nodes[]
+      | select(.project.number == $PROJECT_NUMBER)
+      | .id"
 }
 
 # ── Labels ────────────────────────────────────────────────────────────────
@@ -61,7 +101,7 @@ ensure_label "p1" "Priority 1 — High"
 ensure_label "p2" "Priority 2 — Medium"
 ensure_label "p3" "Priority 3 — Low"
 
-# ── GitHub Project: Admin-Eduardo ──────────────────────────────────────────
+# ── GitHub Project: Admin-Edu ──────────────────────────────────────────
 # Cada issue creado por este script se añade automáticamente al proyecto
 # y se asigna a la iteración configurada.
 PROJECT_ID=$(gh project view "$PROJECT_NUMBER" \
@@ -78,12 +118,22 @@ ITERATION_FIELD_ID=$(gh project field-list "$PROJECT_NUMBER" \
     | .id
   ')
 
-ITERATION_ID=$(gh project field-list "$PROJECT_NUMBER" \
-  --owner "$PROJECT_OWNER" \
-  --format json \
-  --jq ".fields[]
-    | select(.name == \"Iteration\")
-    | .configuration.iterations[]
+# `gh project field-list` no devuelve las iteraciones: se leen por GraphQL.
+ITERATION_ID=$(gh api graphql \
+  -f query='query($login: String!, $number: Int!) {
+    user(login: $login) {
+      projectV2(number: $number) {
+        field(name: "Iteration") {
+          ... on ProjectV2IterationField {
+            configuration { iterations { id title } }
+          }
+        }
+      }
+    }
+  }' \
+  -F login="$PROJECT_OWNER" \
+  -F number="$PROJECT_NUMBER" \
+  --jq ".data.user.projectV2.field.configuration.iterations[]
     | select(.title == \"$PROJECT_ITERATION_NAME\")
     | .id")
 
@@ -149,8 +199,8 @@ Crear el layout y la navegación completa del área administrativa.
 Eduardo
 
 ## Tareas
-- Ya existe layouts/AdminLayout.vue con Header, Sidebar y Footer; el Sidebar tiene enlaces href="#".
-- Rehacer la navegación con Panel, Clientes, Edificios, Sensores, Alertas, Usuarios y Mi cuenta, usando router-link.
+- Ya existe layouts/AdminLayout.vue, y el Sidebar ya navega con router-link (#128).
+- Completar la navegación con Panel, Clientes, Edificios, Sensores, Alertas, Usuarios y Mi cuenta.
 - Mostrar el contador de alertas activas en la navegación.
 - Integrar las rutas protegidas de /admin/* definidas por la base técnica de Lylia.
 - Mantener este layout independiente de ClientLayout y PublicLayout.
@@ -167,45 +217,7 @@ Depende de:
 - La navegación muestra el contador de alertas activas.
 - Las rutas /admin/* se renderizan correctamente según el rol admin."
 
-# ── Issue 3: ADMIN — Clientes ────────────────────────────────────────────
-create_issue \
-"[FRONTEND][P1] F7 — Clientes y ficha de cliente" \
-"frontend,p1,mvp,dependency" \
-"## Objetivo
-Crear las pantallas administrativas de clientes, ficha y alta.
-
-## Responsable
-Eduardo
-
-## Tareas
-- Crear ClientsView con filtros por estado, expansión de edificios y sensores y paginación.
-- Crear ClientDetailView con pestañas de edificios, usuarios, documentos, datos y acciones.
-- Crear NewClientWizard para cliente, primer edificio, primer usuario y facturación.
-- Crear SiteForm (nombre, dirección, plantas, sótanos, tipo) dentro del wizard; F10 lo reutiliza.
-- Crear InviteLinkCopy para copiar el enlace de invitación.
-- Acciones de estado: suspender, reactivar, ampliar prueba y activar (B1); eliminar (B16).
-- Pedir confirmación en la propia página para las acciones destructivas.
-
-## No incluye
-- Layout, router, stores y componentes compartidos.
-
-## Dependencias
-Depende de:
-- F0-A AdminLayout (Eduardo).
-- F1+F2+F3 (base técnica frontend, Lylia).
-- B1 (organizaciones, Ana).
-- B2 (edificios, Ana).
-- B4 (invitaciones, Ana).
-- B16 (eliminar organización, Ana): no bloquea; solo el botón «Eliminar».
-- B11 (documentos, Ana) y F14 (componentes de documentos, Lylia): no bloquean; solo la pestaña de documentos.
-
-## Criterios de aceptación
-- La lista filtra por estado y tiene paginación.
-- La ficha muestra edificios, usuarios, documentos y acciones.
-- El wizard crea cliente, edificio y usuario.
-- El enlace de invitación se puede copiar."
-
-# ── Issue 4: ADMIN — Alertas ──────────────────────────────────────────────
+# ── Issue 3: ADMIN — Alertas ──────────────────────────────────────────────
 create_issue \
 "[FRONTEND][P1] F9-A — Alertas administrativas" \
 "frontend,p1,mvp,dependency" \
@@ -238,7 +250,7 @@ Depende de:
 - Se muestran contadores y ranking de sensores.
 - Las acciones actualizan la fila sin recargar la lista."
 
-# ── Issue 5: I5 — Health checks, página de estado, backups y recuperación ─
+# ── Issue 4: I5 — Health checks, página de estado, backups y recuperación ─
 # Minor de DevOps del subject: «Health check and status page system with
 # automated backups and disaster recovery procedures». Las cuatro partes
 # son obligatorias: un módulo incompleto vale 0 puntos.
@@ -295,7 +307,7 @@ El backend expone /api/status dentro de esta tarea (endpoint pequeño, sin lógi
 - docs/disaster-recovery.md describe el procedimiento y el resultado de la prueba.
 - El README explica el módulo para la evaluación."
 
-# ── Issue 6: I1+I2 — Nginx y volumen de documentos ───────────────────────
+# ── Issue 5: I1+I2 — Nginx y volumen de documentos ───────────────────────
 create_issue \
 "[DEVOPS][P2] I1+I2 — Nginx para formularios públicos y volumen de documentos" \
 "devops,p2,dependency" \
@@ -333,39 +345,7 @@ Protege o habilita:
 - Las cabeceras de seguridad aparecen en todas las respuestas HTTPS.
 - Un documento subido sigue ahí tras docker compose down y up."
 
-# ── Issue 7: ADMIN — Edificios y sensores ─────────────────────────────────
-create_issue \
-"[FRONTEND][P2] F10 — Edificios y sensores" \
-"frontend,p2,mvp,dependency" \
-"## Objetivo
-Crear las pantallas administrativas de edificios y sensores.
-
-## Responsable
-Eduardo
-
-## Tareas
-- Crear admin/SitesView con la lista de edificios y alta.
-- Crear admin/SensorsView con edificio planta a planta, tabla de sensores y detalle.
-- Reutilizar SiteForm (creado en F7) y crear SensorForm.
-- Validar umbrales entre 0 y 25 bar, con mínimo menor que máximo.
-- Permitir seleccionar plantas desde -sótanos hasta plantas.
-- Permitir dar de alta sensores y ajustar umbrales.
-
-## Dependencias
-Depende de:
-- F0-A AdminLayout (Eduardo).
-- F7 (SiteForm, Eduardo).
-- F1+F2+F3 (base técnica frontend, Lylia).
-- F4+F5 (componentes de sensores, Lylia).
-- B2 (edificios CRUD, Ana).
-- B3 (sensores CRUD, Ana).
-
-## Criterios de aceptación
-- La lista de edificios muestra todos los clientes.
-- Sensores muestra la distribución por planta y el detalle.
-- Los formularios validan planta y umbrales."
-
-# ── Issue 8: F12 — Panel con KPIs y mapa ─────────────────────────────────
+# ── Issue 6: F12 — Panel con KPIs y mapa ─────────────────────────────────
 # Base del major «Advanced analytics dashboard» del subject.
 create_issue \
 "[FRONTEND][P2] F12 — Panel con KPIs y mapa" \
@@ -399,7 +379,7 @@ Depende de:
 - El mapa usa datos de la API y carga MapLibre bajo demanda.
 - No queda ningún import de fixtures en la vista."
 
-# ── Issue 9: F11+F13-A — Usuarios, invitaciones y Mi cuenta ──────────────
+# ── Issue 7: F11+F13-A — Usuarios, invitaciones y Mi cuenta ──────────────
 create_issue \
 "[FRONTEND][P2] F11+F13-A — Usuarios, invitaciones y Mi cuenta" \
 "frontend,p2,mvp,dependency" \

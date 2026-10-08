@@ -22,29 +22,69 @@ create_issue() {
   local labels="$2"
   local body="$3"
 
-  echo "Creating: $title"
+  # No duplicar: si ya existe una issue con este título exacto, se reutiliza.
   local issue_url
-  issue_url=$(gh issue create \
+  issue_url=$(gh issue list \
     --repo "$REPO" \
-    --title "$title" \
-    --assignee "$ASSIGNEE" \
-    --label "$labels" \
-    --body "$body")
+    --state all \
+    --search "\"$title\" in:title" \
+    --json title,url \
+    --jq ".[] | select(.title == \"$title\") | .url" | head -n 1)
 
-  local project_item_id
-  project_item_id=$(gh project item-add "$PROJECT_NUMBER" \
-    --owner "$PROJECT_OWNER" \
-    --url "$issue_url" \
-    --format json \
-    --jq '.id')
+  if [ -n "$issue_url" ]; then
+    echo "Ya existe: $title ($issue_url)"
+  else
+    echo "Creating: $title"
+    issue_url=$(gh issue create \
+      --repo "$REPO" \
+      --title "$title" \
+      --assignee "$ASSIGNEE" \
+      --label "$labels" \
+      --body "$body")
+  fi
+
+  # El proyecto añade solo las issues nuevas (auto-add): se busca primero ese
+  # elemento y solo si no aparece se añade a mano.
+  local project_item_id=""
+  local attempt
+  for attempt in 1 2 3 4 5; do
+    project_item_id=$(project_item_for "${issue_url##*/}")
+    [ -n "$project_item_id" ] && break
+    sleep 2
+  done
+  if [ -z "$project_item_id" ]; then
+    project_item_id=$(gh project item-add "$PROJECT_NUMBER" \
+      --owner "$PROJECT_OWNER" \
+      --url "$issue_url" \
+      --format json \
+      --jq '.id')
+  fi
 
   gh project item-edit \
     --id "$project_item_id" \
     --project-id "$PROJECT_ID" \
     --field-id "$ITERATION_FIELD_ID" \
-    --iteration-id "$ITERATION_ID"
+    --iteration-id "$ITERATION_ID" >/dev/null
 
   echo "Added to project iteration: $PROJECT_ITERATION_NAME"
+}
+
+# Devuelve el id del elemento de la issue en el proyecto, o nada si no está.
+project_item_for() {
+  gh api graphql \
+    -f query='query($owner: String!, $name: String!, $number: Int!) {
+      repository(owner: $owner, name: $name) {
+        issue(number: $number) {
+          projectItems(first: 20) { nodes { id project { number } } }
+        }
+      }
+    }' \
+    -F owner="${REPO%%/*}" \
+    -F name="${REPO##*/}" \
+    -F number="$1" \
+    --jq ".data.repository.issue.projectItems.nodes[]
+      | select(.project.number == $PROJECT_NUMBER)
+      | .id"
 }
 
 # ── Labels ────────────────────────────────────────────────────────────────
@@ -78,12 +118,22 @@ ITERATION_FIELD_ID=$(gh project field-list "$PROJECT_NUMBER" \
     | .id
   ')
 
-ITERATION_ID=$(gh project field-list "$PROJECT_NUMBER" \
-  --owner "$PROJECT_OWNER" \
-  --format json \
-  --jq ".fields[]
-    | select(.name == \"Iteration\")
-    | .configuration.iterations[]
+# `gh project field-list` no devuelve las iteraciones: se leen por GraphQL.
+ITERATION_ID=$(gh api graphql \
+  -f query='query($login: String!, $number: Int!) {
+    user(login: $login) {
+      projectV2(number: $number) {
+        field(name: "Iteration") {
+          ... on ProjectV2IterationField {
+            configuration { iterations { id title } }
+          }
+        }
+      }
+    }
+  }' \
+  -F login="$PROJECT_OWNER" \
+  -F number="$PROJECT_NUMBER" \
+  --jq ".data.user.projectV2.field.configuration.iterations[]
     | select(.title == \"$PROJECT_ITERATION_NAME\")
     | .id")
 
@@ -187,7 +237,7 @@ Florinda
 - Vista InvitationView con formulario: contraseña, aceptar términos.
 - Pantalla de invitación caducada (410 INVITATION_EXPIRED).
 - Pantalla de cuenta lista tras aceptar.
-- Contraseña de 12 caracteres mínimo, misma regla que backend.
+- Contraseña de 12 caracteres como mínimo: la misma regla que F15-P y que el backend (B10).
 - El email viene de la invitación y no se edita.
 
 ## No incluye
@@ -206,7 +256,80 @@ Depende de:
 - Muestra pantalla de caducada en 410.
 - Crea usuario y abre sesión tras aceptar."
 
-# ── Issue 4: F18 — Idioma, accesibilidad y responsive ────────────────────
+# ── Issue 4: ADMIN — Clientes ────────────────────────────────────────────
+create_issue \
+"[FRONTEND][P1] F7 — Clientes y ficha de cliente" \
+"frontend,p1,mvp,dependency" \
+"## Objetivo
+Crear las pantallas administrativas de clientes, ficha y alta.
+
+## Responsable
+Florinda
+
+## Tareas
+- Ya existen admin/ClientsView y admin/ClientDetailView en /admin/clients y /admin/clients/:id (#128), con datos ficticios (views/admin/mockClients.js).
+- Conectarlas a la API (B1) y borrar mockClients.js.
+- ClientsView: añadir filtros por estado, expansión de edificios y sensores y paginación.
+- ClientDetailView: añadir pestañas de usuarios, documentos, datos y acciones (la de edificios ya existe).
+- Crear NewClientWizard para cliente, primer edificio, primer usuario y facturación.
+- Crear SiteForm (nombre, dirección, plantas, sótanos, tipo) dentro del wizard; F10 lo reutiliza.
+- Crear InviteLinkCopy para copiar el enlace de invitación.
+- Acciones de estado: suspender, reactivar, ampliar prueba y activar (B1); eliminar (B16).
+- Pedir confirmación en la propia página para las acciones destructivas.
+
+## No incluye
+- Layout, router, stores y componentes compartidos.
+
+## Dependencias
+Depende de:
+- F0-A AdminLayout (Eduardo): no bloquea; se puede partir del AdminLayout actual.
+- F1+F2+F3 (base técnica frontend, Lylia).
+- B1 (organizaciones, Ana).
+- B2 (edificios, Ana).
+- B4 (invitaciones, Ana).
+- B16 (eliminar organización, Ana): no bloquea; solo el botón «Eliminar».
+- B11 (documentos, Ana) y F14 (componentes de documentos, Lylia): no bloquean; solo la pestaña de documentos.
+
+## Criterios de aceptación
+- La lista filtra por estado y tiene paginación.
+- La ficha muestra edificios, usuarios, documentos y acciones.
+- El wizard crea cliente, edificio y usuario.
+- El enlace de invitación se puede copiar."
+
+# ── Issue 5: ADMIN — Edificios y sensores ─────────────────────────────────
+create_issue \
+"[FRONTEND][P2] F10 — Edificios y sensores" \
+"frontend,p2,mvp,dependency" \
+"## Objetivo
+Crear las pantallas administrativas de edificios y sensores.
+
+## Responsable
+Florinda
+
+## Tareas
+- Ya existe admin/SitesView en /admin/sites (#128), con datos de services/fixtures/sites.js.
+- Conectarla a la API (B2), quitar el import de fixtures y añadir el alta.
+- Crear admin/SensorsView en /admin/sensors (la ruta la define F1, Lylia) con edificio planta a planta, tabla de sensores y detalle.
+- Reutilizar SiteForm (creado en F7) y crear SensorForm.
+- Validar umbrales entre 0 y 25 bar, con mínimo menor que máximo.
+- Permitir seleccionar plantas desde -sótanos hasta plantas.
+- Permitir dar de alta sensores y ajustar umbrales.
+
+## Dependencias
+Depende de:
+- F0-A AdminLayout (Eduardo): no bloquea; se puede partir del AdminLayout actual.
+- F7 (SiteForm, Florinda).
+- F1+F2+F3 (base técnica frontend, Lylia).
+- F4+F5 (componentes de sensores, Lylia).
+- B2 (edificios CRUD, Ana).
+- B3 (sensores CRUD, Ana).
+
+## Criterios de aceptación
+- La lista de edificios muestra todos los clientes.
+- Sensores muestra la distribución por planta y el detalle.
+- Los formularios validan planta y umbrales."
+
+# ── Issue 6: F18 — Idioma, accesibilidad y responsive ────────────────────
 # Florinda: pulido global de la UI.
 create_issue \
 "[FRONTEND][P2] F18 — Idioma, accesibilidad, responsive y navegadores" \
@@ -244,7 +367,7 @@ Depende de:
 - Funciona en Firefox y Edge, con las limitaciones documentadas.
 - La consola del navegador no muestra errores ni advertencias."
 
-# ── Issue 5: F17 — Portada y legal ───────────────────────────────────────
+# ── Issue 7: F17 — Portada y legal ───────────────────────────────────────
 # Florinda: adaptar LandingView y unificar Privacy + Terms en /legal.
 create_issue \
 "[FRONTEND][P3] F17 — Portada y legal con el nuevo diseño" \
