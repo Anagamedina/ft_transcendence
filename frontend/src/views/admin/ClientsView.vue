@@ -33,7 +33,7 @@ function openClient(client) {
 
 <template>
   <AdminLayout>
-    <div class="p-6">
+    <div>
       <ClientsList
         v-model:search="search"
         :clients="clients"

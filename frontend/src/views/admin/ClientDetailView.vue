@@ -31,7 +31,7 @@ function formatDate(isoDate) {
 
 <template>
   <AdminLayout>
-    <div class="p-6 space-y-6">
+    <div class="space-y-6">
       <router-link to="/admin/clients" class="text-sm text-aqua-700 hover:underline">
         ← Volver a clientes
       </router-link>

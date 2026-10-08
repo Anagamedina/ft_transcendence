@@ -24,7 +24,7 @@ function openSiteClient(site) {
 
 <template>
   <AdminLayout>
-    <div class="p-6 space-y-4">
+    <div class="space-y-4">
       <!-- Search box: visual only. Filtering logic belongs to the data/state area -->
       <label class="block w-full sm:w-72 sm:ml-auto">
         <span class="sr-only">Buscar site</span>
