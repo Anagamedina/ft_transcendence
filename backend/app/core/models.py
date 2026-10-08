@@ -1,4 +1,4 @@
-# MODELS — importa los siete modelos para que SQLAlchemy los conozca.
+# MODELS — importa los modelos para que SQLAlchemy los conozca.
 """
 Registro de modelos ORM.
 
@@ -65,6 +65,7 @@ from __future__ import annotations
 # autenticación usa `User`, que vive en `users`. Si algún día añade una
 # (sesiones persistentes, por ejemplo), se importa aquí.
 from app.modules.alerts.model import Alert
+from app.modules.invitations.model import Invitation
 from app.modules.organizations.model import Organization
 from app.modules.readings.model import Reading
 from app.modules.sensors.model import Sensor
@@ -75,6 +76,7 @@ from app.modules.users.model import User
 # que un test pueda comprobar que no falta ninguno.
 __all__ = [
     "Alert",
+    "Invitation",
     "Organization",
     "Reading",
     "Sensor",
