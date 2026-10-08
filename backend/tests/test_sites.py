@@ -23,6 +23,7 @@ from app.main import app
 from app.modules.organizations.model import Organization
 from app.modules.sites.model import Site
 from app.modules.users.model import User
+from app.shared.dependencies import get_current_user
 
 
 @pytest.fixture()
@@ -71,7 +72,6 @@ def datos(engine):
         usuarios = {
             "admin": _usuario(session, "admin@aquaguard.dev", "admin", None),
             "cliente_a": _usuario(session, "a@aquaguard.dev", "client", a.id),
-            "cliente_sin_org": _usuario(session, "huerfano@aquaguard.dev", "client", None),
         }
         session.commit()
         return {
@@ -98,6 +98,23 @@ def client(engine):
 
 def _entrar(client, user):
     client.cookies.set(SESSION_COOKIE, create_session_token(user.id))
+
+
+def _entrar_sin_organizacion():
+    """
+    Un cliente sin organización ya no se puede guardar: lo impide
+    `ck_users_client_has_organization`. `get_org_scope` lo sigue cortando por
+    si acaso, así que se prueba con un usuario que nunca llega a la base.
+    """
+    huerfano = User(
+        id=uuid4(),
+        organization_id=None,
+        email="huerfano@aquaguard.dev",
+        name="huerfano",
+        password_hash="da-igual-aqui",
+        role="client",
+    )
+    app.dependency_overrides[get_current_user] = lambda: huerfano
 
 
 def _nombres(respuesta):
@@ -128,7 +145,7 @@ def test_un_cliente_solo_ve_los_suyos(client, datos):
 
 
 def test_un_cliente_sin_organizacion_no_ve_nada(client, datos):
-    _entrar(client, datos["cliente_sin_org"])
+    _entrar_sin_organizacion()
 
     assert client.get("/api/sites").status_code == 403
 
