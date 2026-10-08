@@ -3,6 +3,13 @@ set -e
 
 REPO="Anagamedina/ft_transcendence"
 ASSIGNEE="Anagamedina"
+PROJECT_OWNER="${PROJECT_OWNER:-Anagamedina}"
+PROJECT_NUMBER="${PROJECT_NUMBER:-5}"
+PROJECT_ITERATION_NAME="${PROJECT_ITERATION_NAME:-Backend-Ana}"
+
+PROJECT_ID=""
+ITERATION_FIELD_ID=""
+ITERATION_ID=""
 
 ensure_label() {
   local name="$1"
@@ -16,12 +23,28 @@ create_issue() {
   local body="$3"
 
   echo "Creating: $title"
-  gh issue create \
+  local issue_url
+  issue_url=$(gh issue create \
     --repo "$REPO" \
     --title "$title" \
     --assignee "$ASSIGNEE" \
     --label "$labels" \
-    --body "$body"
+    --body "$body")
+
+  local project_item_id
+  project_item_id=$(gh project item-add "$PROJECT_NUMBER" \
+    --owner "$PROJECT_OWNER" \
+    --url "$issue_url" \
+    --format json \
+    --jq '.id')
+
+  gh project item-edit \
+    --id "$project_item_id" \
+    --project-id "$PROJECT_ID" \
+    --field-id "$ITERATION_FIELD_ID" \
+    --iteration-id "$ITERATION_ID"
+
+  echo "Added to project iteration: $PROJECT_ITERATION_NAME"
 }
 
 # ── Labels ────────────────────────────────────────────────────────────────
@@ -38,10 +61,49 @@ ensure_label "p1" "Priority 1 — High"
 ensure_label "p2" "Priority 2 — Medium"
 ensure_label "p3" "Priority 3 — Low"
 
+# ── GitHub Project: Backend-Ana ──────────────────────────────────────────
+# Cada issue creado por este script se añade automáticamente al proyecto
+# y se asigna a la iteración configurada.
+PROJECT_ID=$(gh project view "$PROJECT_NUMBER" \
+  --owner "$PROJECT_OWNER" \
+  --format json \
+  --jq '.id')
+
+ITERATION_FIELD_ID=$(gh project field-list "$PROJECT_NUMBER" \
+  --owner "$PROJECT_OWNER" \
+  --format json \
+  --jq '
+    .fields[]
+    | select(.name == "Iteration")
+    | .id
+  ')
+
+ITERATION_ID=$(gh project field-list "$PROJECT_NUMBER" \
+  --owner "$PROJECT_OWNER" \
+  --format json \
+  --jq ".fields[]
+    | select(.name == \"Iteration\")
+    | .configuration.iterations[]
+    | select(.title == \"$PROJECT_ITERATION_NAME\")
+    | .id")
+
+test -n "$PROJECT_ID" || {
+  echo "ERROR: no se pudo obtener el ID del proyecto $PROJECT_NUMBER." >&2
+  exit 1
+}
+test -n "$ITERATION_FIELD_ID" || {
+  echo "ERROR: no se encontró el campo Iteration en el proyecto." >&2
+  exit 1
+}
+test -n "$ITERATION_ID" || {
+  echo "ERROR: no se encontró la iteración '$PROJECT_ITERATION_NAME'." >&2
+  exit 1
+}
+
 # ── Issue 1: B0 — Contrato común ─────────────────────────────────────────
 # Base para todo: enums, filtros, paginación y campos relacionados.
 create_issue \
-"[BACKEND][DISEÑO AZUL][P1] B0 — Contrato común: enums, filtros y paginación" \
+"[BACKEND][P1] B0 — Contrato común: enums, filtros y paginación" \
 "backend,diseno-azul,p1,dependency" \
 "## Objetivo
 Fijar el vocabulario de la API antes de abrir endpoints nuevos.
@@ -78,7 +140,7 @@ Ana (frontend) depende de esta tarea para:
 # ── Issue 2: B1 + B2 + B3 — Jerarquía de datos ──────────────────────────
 # Organizaciones → Edificios → Sensores, la columna vertebral de todas las pantallas.
 create_issue \
-"[BACKEND][DISEÑO AZUL][P1] B1+B2+B3 — Jerarquía: organizaciones, edificios y sensores" \
+"[BACKEND][P1] B1+B2+B3 — Jerarquía: organizaciones, edificios y sensores" \
 "backend,database,diseno-azul,p1,mvp,dependency" \
 "## Objetivo
 Completar la jerarquía de datos que usan todas las pantallas del diseño:
@@ -145,7 +207,7 @@ Ana (frontend) depende de esta tarea para:
 # ── Issue 3: B4 + B6 — Auth, invitaciones y usuarios ─────────────────────
 # Sustituyen al registro actual y completan el sistema de usuarios.
 create_issue \
-"[BACKEND][DISEÑO AZUL][P1] B4+B6 — Invitaciones, registro y gestión de usuarios" \
+"[BACKEND][P1] B4+B6 — Invitaciones, registro y gestión de usuarios" \
 "backend,database,diseno-azul,p1,mvp,dependency" \
 "## Objetivo
 Sustituir el registro público por invitación y completar la gestión de usuarios
@@ -206,7 +268,7 @@ Ana (frontend) depende de esta tarea para:
 
 # ── Issue 4: B5 — Alertas con filtros y estados ──────────────────────────
 create_issue \
-"[BACKEND][DISEÑO AZUL][P1] B5 — Alertas: filtros, estado «reconocida» y quién actuó" \
+"[BACKEND][P1] B5 — Alertas: filtros, estado «reconocida» y quién actuó" \
 "backend,database,diseno-azul,p1,mvp,dependency" \
 "## Objetivo
 Completar el sistema de alertas con filtros avanzados, estado «reconocida»
@@ -247,7 +309,7 @@ Ana (frontend) depende de esta tarea para:
 
 # ── Issue 5: B7 — Series de lecturas para gráficas ──────────────────────
 create_issue \
-"[BACKEND][DISEÑO AZUL][P1] B7 — Lecturas: series de 7 días para gráficas" \
+"[BACKEND][P1] B7 — Lecturas: series de 7 días para gráficas" \
 "backend,diseno-azul,p1,dependency" \
 "## Objetivo
 Permitir al frontend dibujar la gráfica de presión de los últimos 7 días
@@ -285,7 +347,7 @@ Ana (frontend) depende de esta tarea para:
 
 # ── Issue 6: B8 + B9 — Mi cuenta y KPIs ──────────────────────────────────
 create_issue \
-"[BACKEND][DISEÑO AZUL][P2] B8+B9 — Mi cuenta y panel de KPIs" \
+"[BACKEND][P2] B8+B9 — Mi cuenta y panel de KPIs" \
 "backend,diseno-azul,p2,mvp,dependency" \
 "## Objetivo
 Completar la vista de Mi cuenta (datos, contraseña, suscripción) y el panel
@@ -331,7 +393,7 @@ Ana (frontend) depende de esta tarea para:
 
 # ── Issue 7: B10 + B11 — Solicitudes de prueba y documentos ──────────────
 create_issue \
-"[BACKEND][DISEÑO AZUL][P2] B10+B11 — Solicitudes de prueba y documentos por edificio" \
+"[BACKEND][P2] B10+B11 — Solicitudes de prueba y documentos por edificio" \
 "backend,database,diseno-azul,p2,dependency" \
 "## Objetivo
 Completar las pantallas secundarias: formulario público de prueba de 7 días
@@ -384,7 +446,7 @@ Ana (frontend) depende de esta tarea para:
 
 # ── Issue 8: B12 — Ciclo de vida de la prueba ────────────────────────────
 create_issue \
-"[BACKEND][DISEÑO AZUL][P2] B12 — Ciclo de vida de la prueba de 7 días" \
+"[BACKEND][P2] B12 — Ciclo de vida de la prueba de 7 días" \
 "backend,diseno-azul,p2,dependency" \
 "## Objetivo
 Implementar el ciclo de vida automático de la prueba:
@@ -420,7 +482,7 @@ Ana (frontend) depende de esta tarea para:
 
 # ── Issue 9: B13 — Mocks, fixtures y seed alineados ──────────────────────
 create_issue \
-"[BACKEND][DISEÑO AZUL][P2] B13 — Mocks, fixtures y seed alineados con la API" \
+"[BACKEND][P2] B13 — Mocks, fixtures y seed alineados con la API" \
 "backend,database,diseno-azul,p2,testing,dependency" \
 "## Objetivo
 Alinear los mocks del frontend y el seed de la demo con la API del diseño
@@ -459,7 +521,7 @@ Ana (frontend) depende de esta tarea para:
 # ── Issue 10: B14+B15+B16+B17 — Tareas opcionales ────────────────────────
 # Solo si entran en el alcance de la entrega.
 create_issue \
-"[BACKEND][DISEÑO AZUL][P3] B14+B15+B16+B17 — Tareas opcionales: suscripción, privacidad, borrado y búsqueda" \
+"[BACKEND][P3] B14+B15+B16+B17 — Tareas opcionales: suscripción, privacidad, borrado y búsqueda" \
 "backend,diseno-azul,p3,dependency" \
 "## Objetivo
 Implementar las tareas de prioridad 3 del Diseño Azul, según decida el equipo

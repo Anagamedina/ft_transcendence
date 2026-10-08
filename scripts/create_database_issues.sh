@@ -4,8 +4,8 @@ set -e
 REPO="Anagamedina/ft_transcendence"
 ASSIGNEE="Daruuu"
 PROJECT_OWNER="${PROJECT_OWNER:-Anagamedina}"
-PROJECT_NUMBER="${PROJECT_NUMBER:-7}"
-PROJECT_ITERATION_NAME="${PROJECT_ITERATION_NAME:-Iteration-8-last}"
+PROJECT_NUMBER="${PROJECT_NUMBER:-5}"
+PROJECT_ITERATION_NAME="${PROJECT_ITERATION_NAME:-DB-Daruny}"
 
 PROJECT_ID=""
 ITERATION_FIELD_ID=""
@@ -103,8 +103,8 @@ test -n "$ITERATION_ID" || {
 # ── Issue 1: D0 + D1 + D2 — Reglas, columnas nuevas y restricciones ──────
 # Base para todas las migraciones del diseño.
 create_issue \
-"[DATABASE][DISEÑO AZUL][P1] D0+D1+D2 — Reglas de migración, columnas nuevas y restricciones" \
-"database,diseno-azul,p1,mvp,dependency" \
+"[DB][P1] D0+D1+D2 - Reglas de migración, columnas nuevas y restricciones" \
+"database,p1,mvp,dependency" \
 "## Objetivo
 Establecer las reglas de migración y aplicar los cambios de esquema en las 6 tablas existentes que necesitan las pantallas principales.
 
@@ -159,8 +159,8 @@ Ana (backend) depende de esta tarea para:
 
 # ── Issue 2: D3 — Tabla de invitaciones ──────────────────────────────────
 create_issue \
-"[DATABASE][DISEÑO AZUL][P1] D3 — Tabla de invitaciones" \
-"database,diseno-azul,p1,mvp,dependency" \
+"[DB][P1] D3 — Tabla de invitaciones" \
+"database,p1,mvp,dependency" \
 "## Objetivo
 Crear la tabla de invitaciones para el registro por invitación, sustituyendo el registro público.
 
@@ -201,7 +201,7 @@ Ana (frontend) depende de esta tarea para:
 
 # ── Issue 3: D4 — Tablas de trial_requests y documents ───────────────────
 create_issue \
-"[DATABASE][DISEÑO AZUL][P2] D4 — Tablas de trial_requests y documents" \
+"[DB][P2] D4 — Tablas de trial_requests y documents" \
 "database,diseno-azul,p2,dependency" \
 "## Objetivo
 Crear las tablas para las pantallas secundarias: solicitudes de prueba públicas y documentos por edificio.
@@ -245,7 +245,7 @@ Ana (frontend) depende de esta tarea para:
 
 # ── Issue 4: D5 + D6 + D7 — Índices, seed de demo y simulador ───────────
 create_issue \
-"[DATABASE][DISEÑO AZUL][P2] D5+D6+D7 — Índices, seed de demo y simulador alineado" \
+"[DB][P2] D5+D6+D7 — Índices, seed de demo y simulador alineado" \
 "database,simulator,diseno-azul,p2,mvp,dependency" \
 "## Objetivo
 Añadir índices para las consultas del diseño, crear el seed de demo con 5 clientes y alinear el simulador.
@@ -302,7 +302,7 @@ Ana (frontend) depende de esta tarea para:
 
 # ── Issue 5: D8 + D9 — Retención y borrado ordenado ──────────────────────
 create_issue \
-"[DATABASE][DISEÑO AZUL][P2+P3] D8+D9 — Retención de lecturas y borrado ordenado" \
+"[DB][P2+P3] D8+D9 — Retención de lecturas y borrado ordenado" \
 "database,diseno-azul,p2,p3,dependency" \
 "## Objetivo
 Implementar el mantenimiento de datos: retención de lecturas antiguas y borrado ordenado de una organización completa.
