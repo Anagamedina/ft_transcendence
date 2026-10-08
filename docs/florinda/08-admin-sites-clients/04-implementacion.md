@@ -1,26 +1,33 @@
 # Implementación — Issue 08
 
-## Fase 1 — Contrato
+## Rutas
 
-1. Acordar shapes, IDs, labels y rutas con User04.
-2. Definir detalle y estados vacío/carga/error.
-3. Confirmar qué acciones son solo navegación.
+| Ruta | Vista | Contenido |
+|---|---|---|
+| `/admin/clients` | `ClientsView` | Listado de clientes (organizaciones) |
+| `/admin/clients/:id` | `ClientDetailView` | Datos del cliente y sus sites; "no encontrado" si el id no existe |
+| `/admin/sites` | `SitesView` | Listado de sites; al pulsar uno se abre su cliente |
 
-## Fase 2 — Vistas
+## Componentes
 
-1. Crear listado de clientes/organizaciones.
-2. Crear listado de sites.
-3. Añadir navegación a detalles.
-4. Reutilizar layouts, Cards y estados existentes.
-5. Mantener datos por props/composables definidos.
+- **`ClientsList`** (nuevo): presentacional. Usa `Card` y los estados Loading/Error/Empty (#37).
+- **`SitesSummary`** (reutilizado): nueva prop opcional `selectable`. Sin ella, el Dashboard no cambia.
+- **`Sidebar`**: los enlaces llegan por la prop `items` y se pintan con `router-link`. Marca el apartado activo (también en rutas hijas) y muestra atenuados los que aún no tienen ruta. Sin `items` mantiene el menú original.
+- **`AppIcon`**: nuevo icono `users`.
 
-## Fase 3 — Verificación
+## Contrato para el área de datos
 
-1. Datos múltiples, uno y ninguno.
-2. Rutas directas y back navigation.
-3. Responsive y teclado.
-4. Confirmar que no se duplican componentes ni llamadas HTTP.
+| Componente | Props | Eventos |
+|---|---|---|
+| `ClientsList` | `clients` `[{ id, name, created_at, sites_count? }]`, `loading`, `error`, `search` | `select(client)`, `retry`, `update:search` |
+| `SitesSummary` | `sites` (shape `SiteResponse`), `selectable` | `select(site)` |
 
-## Criterio de entrega
+## Datos temporales
 
-Entregar a User04 el contrato de props, eventos y rutas. La vista está preparada para integración cuando todos los estados se pueden renderizar con datos locales.
+- Clientes: `views/admin/mockClients.js` (shape `OrganizationResponse`).
+- Sites: `services/fixtures/sites.js`.
+- Ambos marcados con `TODO`; se sustituyen por el store cuando exista.
+
+## Fuera de alcance
+
+Filtros funcionales, paginación, estado global y llamadas a la API (área de datos). Alta de organizaciones y ruta protegida: #122.

@@ -6,7 +6,7 @@ flowchart TD
  B --> C[Detalle organización]
  C --> D[Sites]
  D --> E[Detalle site]
- F[Store/service User04] -. props .-> B
+ F[Store/service área de datos] -. props .-> B
 F -. props .-> D
 ```
 

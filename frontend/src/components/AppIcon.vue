@@ -1,6 +1,7 @@
 <!--
   APP ICON
   Shared SVG icon set. Usage: <AppIcon name="droplet" />
+  Available names: building, droplet, wifi, alert, bar-chart, users
   Icons inherit the text color (currentColor); size is set by the parent container.
 -->
 
@@ -45,6 +46,13 @@
       <line x1="4" y1="20" x2="4" y2="10" />
       <line x1="12" y1="20" x2="12" y2="4" />
       <line x1="20" y1="20" x2="20" y2="14" />
+    </template>
+
+    <template v-else-if="name === 'users'">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
     </template>
   </svg>
 </template>

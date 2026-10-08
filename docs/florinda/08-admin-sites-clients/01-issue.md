@@ -6,11 +6,11 @@ Crear las vistas visuales que permiten al administrador navegar entre organizaci
 
 ## 2. Requisitos y límites
 
-Listado visual, navegación y preparación para filtros/datos reales. User04 integra services, mocks, estado, filtros y paginación. No incluye API, filtros funcionales, paginación ni estado global.
+Listado visual, navegación y preparación para filtros/datos reales. El área de datos integra services, mocks, estado, filtros y paginación. No incluye API, filtros funcionales, paginación ni estado global.
 
 ## 3. Dependencias y aprendizaje
 
-Depende de Dashboard y componentes compartidos; User04 proporciona datos. Diseño de listados — 30 min; navegación y routing — 30 min; estados de colección — 30 min; implementación — 60–90 min.
+Depende de Dashboard y componentes compartidos; el área de datos proporciona los datos. Diseño de listados — 30 min; navegación y routing — 30 min; estados de colección — 30 min; implementación — 60–90 min.
 
 ## 4. Finalidad
 
@@ -18,12 +18,12 @@ El Admin obtiene una navegación coherente por la jerarquía del producto sin du
 
 ## 5. Criterios de aceptación
 
-- [ ] Puede navegar entre clientes y sites.
-- [ ] Las vistas aceptan datos externos.
-- [ ] Existen enlaces a detalle definidos.
-- [ ] Se reutilizan componentes comunes.
-- [ ] Loading/empty/error tienen integración prevista.
-- [ ] No hay llamadas HTTP en las vistas.
+- [x] Puede navegar entre clientes y sites.
+- [x] Las vistas aceptan datos externos.
+- [x] Existen enlaces a detalle definidos.
+- [x] Se reutilizan componentes comunes.
+- [x] Loading/empty/error tienen integración prevista.
+- [x] No hay llamadas HTTP en las vistas.
 
 ## 6. Decisiones técnicas
 
