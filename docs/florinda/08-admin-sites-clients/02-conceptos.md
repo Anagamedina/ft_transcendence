@@ -8,7 +8,7 @@
 | Empty state | Colección válida sin elementos | 15 min |
 | Loading/error | Estados de datos remotos | 20 min |
 | Reusabilidad | Evitar markup duplicado | 20 min |
-| Contrato de props | Datos que User04 entrega | 20 min |
+| Contrato de props | Datos que entrega el área de datos | 20 min |
 
 ## Conceptos relacionados
 
@@ -16,7 +16,7 @@ La vista presenta una colección y emite navegación; el store obtiene datos. Un
 
 ## Conceptos en conjunto
 
-Una collection view combina densidad, jerarquía y navegación. La presentación puede mostrar un ID de ruta, pero la autorización real la decide el backend/User04. La UI solo comunica el resultado permitido.
+Una collection view combina densidad, jerarquía y navegación. La presentación puede mostrar un ID de ruta, pero la autorización real la decide el backend; el área de datos la integra. La UI solo comunica el resultado permitido.
 
 ## Qué debes poder demostrar
 
