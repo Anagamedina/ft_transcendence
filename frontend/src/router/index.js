@@ -45,6 +45,15 @@ const routes = [
     path: "/admin/clients",
     component: () => import("../views/admin/ClientsView.vue"),
   },
+  {
+    path: "/admin/clients/:id",
+    component: () => import("../views/admin/ClientDetailView.vue"),
+    props: true, // passes :id to the view as a prop
+  },
+  {
+    path: "/admin/sites",
+    component: () => import("../views/admin/SitesView.vue"),
+  },
 ];
 
 const router = createRouter({
