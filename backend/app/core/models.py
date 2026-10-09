@@ -1,4 +1,4 @@
-# MODELS — importa los siete modelos para que SQLAlchemy los conozca.
+# MODELS — importa los modelos para que SQLAlchemy los conozca.
 """
 Registro de modelos ORM.
 

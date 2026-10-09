@@ -72,7 +72,7 @@ def test_sin_el_registro_falla(  ):
     assert "failed to locate a name" in resultado.stderr
 
 
-def test_estan_los_seis_modelos_con_tabla():
+def test_estan_todos_los_modelos_con_tabla():
     """
     Que no se quede ninguno fuera al añadir uno nuevo.
 
@@ -81,7 +81,7 @@ def test_estan_los_seis_modelos_con_tabla():
     """
     from app.core import models
 
-    esperados = {"Alert", "Organization", "Reading", "Sensor", "Site", "User"}
+    esperados = {"Alert", "Invitation", "Organization", "Reading", "Sensor", "Site", "User"}
 
     assert set(models.__all__) == esperados
     for nombre in esperados:
