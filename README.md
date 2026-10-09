@@ -152,8 +152,8 @@ The root `Makefile` wraps the Compose commands:
 | `make certs`               | Generates a self-signed TLS certificate in `gateway/certs/` only when it does not exist                          |
 | `make build`               | Builds the images without starting them                                                                          |
 | `make sim`                 | Same as `make up` plus the `sim` profile, which starts the sensor simulator                                      |
-| `make demo`                | Starts everything for a full test: `make up`, `make seed`, the simulator and `make smoke`                        |
-| `make seed`                | Loads the demo data inside the running `backend` container; safe to run more than once                           |
+| `make demo`                | Starts everything for a full test: `make up`, `make seed`, the simulator and `make smoke`; warns if `.env` has an old `SIMULATOR_SENSOR_IDS` |
+| `make seed`                | Applies pending migrations, then loads the demo data from the working tree (no rebuild needed); safe to run more than once |
 | `make migrate`             | Applies pending migrations (`alembic upgrade head`)                                                              |
 | `make migration MSG="..."` | Generates a migration with `alembic revision --autogenerate` without applying it; fails without `MSG`            |
 | `make migration-check`     | Fails if the database is unreachable, has pending migrations, or the models drifted from the migrations          |
@@ -172,6 +172,30 @@ after the credentials in `.env` change.
 Certificates live in `gateway/certs/` and are git-ignored. They are mounted
 read-only into the gateway instead of being baked into the image, so a private
 key never reaches a built artefact.
+
+### Demo data
+
+`make seed` (also run by `make demo`) loads `backend/seeds/seed_demo.py`. It is
+idempotent, its dates are relative to the moment it runs, and it refuses to run
+with `ENV=production` because these passwords are public.
+
+| Account | Password | Role |
+|---|---|---|
+| `admin@aquaguard.dev` | `dev-admin-only` | Global admin |
+| `client@aquaguard.dev` | `dev-client-only` | Client of Residencias Alcalá |
+| `hotel@`, `comunidad@`, `abando@aquaguard.dev` | `dev-client-only` | One client per organization |
+| `aguasdelsur@aquaguard.dev` | `dev-client-only` | Disabled (suspended organization) |
+
+- 5 organizations: Residencias Alcalá, Hotel Turia (TRIAL), Comunidad Mallorca
+  401, Polideportivo Abando and Aguas del Sur (SUSPENDED).
+- 6 buildings with floors, basements and real coordinates; 8 sensors spread
+  across floors. `SENS-006` is out of range (its upper threshold is 2.0 bar)
+  and `SENS-007` is offline: it is left out of `SIMULATOR_SENSOR_IDS` on
+  purpose. If your `.env` predates this seed, copy that line from
+  `.env.example`, or the other sensors will show as offline too.
+- 19 alerts over the last 30 days (16 resolved, 3 active), a week of hourly
+  readings, and one pending invitation for `nuevo.gestor@residenciasalcala.es`
+  with the code `AQUAGUARD-DEMO-INVITE`.
 
 ### Run the frontend (temporary script)
 
@@ -433,6 +457,7 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 | Issue 10 — `organizations.name` widened to `String(120)` (matches `OrganizationCreate`) with a case-insensitive unique index on `lower(name)`; seed looks the organization up case-insensitively | [#PR](https://github.com/Anagamedina/ft_transcendence/pull/PR) | A 51–120 character name passed validation and failed in the DB with a 500, and concurrent creates could duplicate names (`Hotel Sol` / `hotel sol`); checked the dev DB for case duplicates first, the migration fails on purpose instead of merging or truncating, and verified `upgrade`/`downgrade`, `make migration-check` (no drift) and `make seed` twice. |
 | Issue 129 — Migration rules (ADR 0004 + `backend/migrations/README.md`) and new columns for the main screens: `organizations` status (TRIAL/ACTIVE/SUSPENDED), trial and contact/billing data; `sites` floors, basements, building type; `sensors.floor`; `users` is_active, last login and terms; `alerts` acknowledged_by/resolved_by → `users` (ON DELETE SET NULL); CHECK that a client always has an organization; `sites.name` and `sensors.name` narrowed from 150 to 120 to match the API schemas | [#PR](https://github.com/Anagamedina/ft_transcendence/pull/PR) | Every new NOT NULL column has a default chosen for existing rows (orgs ACTIVE, 1-floor buildings, ground-floor sensors, active users); checked the dev DB had no clients without organization before adding the CHECK, which fails on purpose instead of assigning one; tests that created such a client now inject a transient user so `get_org_scope` stays covered; verified `upgrade`/`downgrade`/`upgrade` and `make migration-check` (no drift). |
 | Issue 130 — `invitations` table to add users to an existing organization: `code_hash` unique, partial unique index for one pending invitation per (organization, email), email stored lowercase (CHECK), ON DELETE CASCADE from `organizations` and SET NULL from the creating user | [#PR](https://github.com/Anagamedina/ft_transcendence/pull/PR) | Expired invitations still count as pending because a partial index cannot use `now()`: the service (B4) has to revoke the old one before re-inviting; added a lowercase CHECK so `Ana@x.com` cannot bypass the unique index; verified duplicates, re-invite after revoke and the cascade in PostgreSQL, `upgrade`/`downgrade` and `make migration-check` (no drift). |
+| Issue 131 — Demo seed: 5 clients in different states (ACTIVE, TRIAL, SUSPENDED) with contact data, 6 buildings with floors and real coordinates, 8 sensors (one offline, one out of range), 19 alerts over 30 days with who acknowledged/resolved them, a week of readings, demo users and a pending invitation | [#PR](https://github.com/Anagamedina/ft_transcendence/pull/PR) | Idempotent by fixed keys (sensor UUIDs, names, `code_hash`, `uuid5` for alerts and readings) with dates recalculated on every run; the old `Demo` organization is renamed instead of becoming a sixth client; the out-of-range sensor uses a 2.0 bar threshold so the simulator keeps it out of range without new scenarios; stray ACTIVE alerts (alerts never resolve themselves) are resolved so the demo always shows 3; aborts with `ENV=production`; verified `make demo` twice and `make smoke`. |
 
 | Florinda (`flperez-`) | Features/modules                                                                                                                                                                                                                                                             | Pull requests                                                    | Challenges and solutions                                                                                                                                                                                                                                                                                                     |
 |-----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
