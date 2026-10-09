@@ -99,6 +99,17 @@ class Alert(Base):
         nullable=True,
     )
 
+    acknowledged_by: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    resolved_by: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
     sensor: Mapped["Sensor"] = relationship(
         "Sensor",
         back_populates="alerts",

@@ -42,6 +42,12 @@ class Site(Base):
             "longitude IS NULL OR longitude BETWEEN -180 AND 180",
             name="ck_sites_longitude",
         ),
+        CheckConstraint(
+            "building_type IN ('HOTEL', 'COMMUNITY', 'OFFICE', 'SPORTS', 'RESIDENCE', 'INDUSTRIAL', 'OTHER')",
+            name="ck_sites_building_type",
+        ),
+        CheckConstraint("floors >= 0", name="ck_sites_floors"),
+        CheckConstraint("basements >= 0", name="ck_sites_basements"),
     )
 
     # Auto-generated primary key.
@@ -66,6 +72,12 @@ class Site(Base):
     name: Mapped[str] = mapped_column(
         String(150),
         nullable=False,
+    )
+
+    floors: Mapped[int] = mapped_column(server_default="1", nullable=False)
+    basements: Mapped[int] = mapped_column(server_default="0", nullable=False)
+    building_type: Mapped[str] = mapped_column(
+        String(20), server_default="OTHER", nullable=False
     )
 
     # Optional physical address.

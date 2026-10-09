@@ -77,6 +77,8 @@ class Sensor(Base):
         nullable=False,
     )
 
+    floor: Mapped[int] = mapped_column(server_default="0", nullable=False)
+
     # Human-readable sensor name
     name: Mapped[str] = mapped_column(
         String(150),
