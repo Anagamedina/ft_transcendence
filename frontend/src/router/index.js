@@ -18,7 +18,8 @@ const routes = [
     path: "/dashboard",
     component: () => import("../views/client/DashboardView.vue"),
     meta: {
-      requiresAuth: true, //tells the router: "this route requires authentication" so we can not access directly 
+      requiresAuth: true,  //tells the router: "this route requires authentication" so we can not access directly 
+      requiresClient: true,
     },
   },
   {
@@ -40,43 +41,102 @@ const routes = [
   {
     path: "/admin",
     component: () => import("../views/admin/DashboardView.vue"),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+    },
   },
   {
     path: "/admin/clients",
     component: () => import("../views/admin/ClientsView.vue"),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+    },
   },
   {
     path: "/admin/clients/:id",
     component: () => import("../views/admin/ClientDetailView.vue"),
-    props: true, // passes :id to the view as a prop
+    props: true,
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+    },
   },
   {
     path: "/admin/sites",
     component: () => import("../views/admin/SitesView.vue"),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+    },
+  },
+  // Redirects unknown routes to the 404 page
+  {
+  path: "/:pathMatch(.*)*",
+  component: () => import("../views/public/NotFoundView.vue"),
   },
 ];
 
 const router = createRouter({
   history: createWebHistory(),
   routes,
+
   scrollBehavior(to, from, savedPosition) {
     if (savedPosition) {
-      return savedPosition // browser back/forward: restore previous scroll position
+      return savedPosition;
     }
-    return { top: 0 } // any other navigation: scroll to top
+    return { top: 0 };
   },
-})
+});
 
 router.beforeEach(async (to) => {
   const authStore = useAuthStore();
 
-  if (to.meta.requiresAuth) {  //if we try a direct access router checks if authentication is required (protected page), then if user is authenticated
-    await authStore.initializeAuth();
+  const requiresAuth = to.matched.some(
+    (record) => record.meta.requiresAuth
+  );
 
-    if (!authStore.isAuthenticated) {
-      return "/login";
-    }
+  const requiresAdmin = to.matched.some(
+    (record) => record.meta.requiresAdmin
+  );
+
+  const requiresClient = to.matched.some(
+    (record) => record.meta.requiresClient
+  );
+
+  const isAuthPage = ["/login", "/register"].includes(to.path);
+
+  if (requiresAuth || isAuthPage) {
+    await authStore.initializeAuth();
   }
+
+  // Redirect unauthenticated users to the login page.
+  if (requiresAuth && !authStore.isAuthenticated) {
+    return {
+      path: "/login",
+      query: { redirect: to.fullPath },
+    };
+  }
+
+  // Allow only administrators to access admin routes.
+  if (requiresAdmin && !authStore.isAdmin) {
+    return authStore.isAuthenticated
+      ? "/dashboard"
+      : "/login";
+  }
+
+  // Allow only clients to access the client dashboard.
+  if (requiresClient && authStore.isAdmin) {
+    return authStore.isAdmin ? "/admin" : "/login";
+  }
+
+  // Redirect authenticated users away from login and registration pages.
+  if (isAuthPage && authStore.isAuthenticated) {
+    return authStore.isAdmin ? "/admin" : "/dashboard";
+  }
+
+  return true;
 });
 
 export default router;

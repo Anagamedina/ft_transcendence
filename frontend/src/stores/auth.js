@@ -8,6 +8,8 @@ export const useAuthStore = defineStore("auth", () =>{
     const user =ref(null); //ref() is used to create reactive data
     const role =ref(null);
 
+    let initializationPromise = null;
+
     const status = ref("idle");
     const error = ref(null);
     const initialized = ref(false);
@@ -15,6 +17,7 @@ export const useAuthStore = defineStore("auth", () =>{
     //GETTERS
     const isAuthenticated = computed(() => user.value !== null); //computed() is used to create a computed value based on other reactive data
     const isAdmin = computed(() => role.value === "admin"); 
+    const isClient = computed(() => role.value === "client");
    
     //ACTIONS
 
@@ -56,12 +59,18 @@ export const useAuthStore = defineStore("auth", () =>{
 
   async function initializeAuth() {
     if (initialized.value) return;
+    if (initializationPromise) return initializationPromise;
 
-    try {
-      await fetchMe();
-    } finally {
-      initialized.value = true;
-    }
+    initializationPromise = (async () => {
+      try {
+        await fetchMe();
+      } finally {
+        initialized.value = true;
+        initializationPromise = null;
+      }
+    })();
+
+    return initializationPromise;
   }
 
 
@@ -76,6 +85,7 @@ export const useAuthStore = defineStore("auth", () =>{
       role.value = response.data.user.role;
 
       status.value = "success";
+      initialized.value = true;
 
       return user.value;
 
@@ -104,6 +114,7 @@ export const useAuthStore = defineStore("auth", () =>{
       role.value = response.data.user.role;
 
       status.value = "success";
+      initialized.value = true;
 
       return user.value;
 
@@ -140,8 +151,7 @@ export const useAuthStore = defineStore("auth", () =>{
       user.value = null;
       role.value = null;
 
-      // Allow the next navigation to check the session again
-      initialized.value = false;
+      initialized.value = true;
       
       status.value = "idle";
     }
@@ -158,6 +168,7 @@ export const useAuthStore = defineStore("auth", () =>{
     error,
 
     isAdmin,
+    isClient,
     isAuthenticated,
     initialized,
 
