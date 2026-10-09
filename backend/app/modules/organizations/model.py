@@ -15,6 +15,7 @@ class Organization(Base):
     __tablename__ = "organizations"
 
     __table_args__ = (
+        # Same values as OrganizationStatus in the common contract (B0).
         CheckConstraint(
             "status IN ('TRIAL', 'ACTIVE', 'SUSPENDED')",
             name="ck_organizations_status",
@@ -33,17 +34,27 @@ class Organization(Base):
         nullable=False,
     )
 
+    # TRIAL, ACTIVE or SUSPENDED. Existing organizations are ACTIVE.
     status: Mapped[str] = mapped_column(
-        String(20), server_default="ACTIVE", nullable=False
+        String(20),
+        server_default="ACTIVE",
+        nullable=False,
     )
+
+    # Only set for TRIAL organizations created by the public sign-up.
     trial_ends_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
+        DateTime(timezone=True),
+        nullable=True,
     )
+
+    # Contact data shown in the admin views.
     city: Mapped[str | None] = mapped_column(String(120), nullable=True)
     contact_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
-    phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
-    legal_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
-    tax_id: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
+
+    # Billing data.
+    legal_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    tax_id: Mapped[str | None] = mapped_column(String(30), nullable=True)
     billing_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(

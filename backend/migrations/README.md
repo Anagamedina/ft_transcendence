@@ -32,6 +32,35 @@ revisión autogenerada siempre la crea y la revisa una persona.
 4. `make migrate` y después `make migration-check`.
 5. Commitear el modelo y la migración juntos.
 
+## Reglas
+
+Decididas en [ADR 0004](../../docs/decisions/0004-reglas-migraciones.md).
+
+1. **Columna `NOT NULL` nueva en una tabla con datos.** Añadirla con
+   `server_default`, o añadirla nullable, hacer `UPDATE` y después ponerla
+   `NOT NULL`. Si el valor por defecto solo sirve para las filas antiguas, se
+   quita en la misma migración (`alter_column(..., server_default=None)`, como
+   `users.name` en `c4e0b1a3d2f7`). Si es el valor por defecto real del modelo
+   (`organizations.status = 'ACTIVE'`), se queda.
+2. **Cambio de `CHECK` o de enum.** Primero `op.execute("UPDATE ...")` para
+   pasar los valores antiguos a los nuevos, después `drop_constraint` y
+   `create_check_constraint`. Si no hay un valor correcto al que pasarlos, la
+   migración no se los inventa: falla, y un comentario explica la consulta para
+   encontrar las filas (ver `8e879672702c`).
+3. **Una migración por tarea de backend**, con un `MSG` que diga qué cambia
+   (`add site floors`, no `update models`).
+4. **`downgrade()` probado**: `upgrade head`, `downgrade -1` y `upgrade head`
+   otra vez, y `make migration-check` sin drift. Cuando haya CI con PostgreSQL
+   lo hará ella.
+5. **Revisar siempre a mano lo que genera `--autogenerate`** (ver paso 3 del
+   flujo). Además de lo que no detecta, tampoco mira los datos: genera un
+   `NOT NULL` sin valor por defecto o un `CHECK` que las filas actuales no
+   cumplen.
+
+Las restricciones llevan nombre: `ck_<tabla>_<qué>` y
+`fk_<tabla>_<columna>_<tabla destino>`. Sin nombre, PostgreSQL inventa uno y el
+`downgrade` no lo puede borrar.
+
 ## Drift
 
 Hay drift cuando un modelo ya no coincide con lo que dejan las migraciones:

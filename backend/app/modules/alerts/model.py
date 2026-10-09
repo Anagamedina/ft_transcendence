@@ -99,14 +99,25 @@ class Alert(Base):
         nullable=True,
     )
 
+    # Who acknowledged / resolved the alert. NULL if it was automatic or the
+    # user was deleted: the alert history is kept.
     acknowledged_by: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True),
-        ForeignKey("users.id", ondelete="SET NULL"),
+        ForeignKey(
+            "users.id",
+            name="fk_alerts_acknowledged_by_users",
+            ondelete="SET NULL",
+        ),
         nullable=True,
     )
+
     resolved_by: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True),
-        ForeignKey("users.id", ondelete="SET NULL"),
+        ForeignKey(
+            "users.id",
+            name="fk_alerts_resolved_by_users",
+            ondelete="SET NULL",
+        ),
         nullable=True,
     )
 

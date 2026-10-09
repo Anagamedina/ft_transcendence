@@ -28,9 +28,10 @@ class User(Base):
             "role IN ('admin', 'client')",
             name="ck_users_role",
         ),
+        # Only a global admin can live without an organization.
         CheckConstraint(
             "role = 'admin' OR organization_id IS NOT NULL",
-            name="ck_users_client_organization",
+            name="ck_users_client_has_organization",
         ),
     )
 
@@ -71,15 +72,27 @@ class User(Base):
         nullable=False,
     )
 
+    # A disabled user cannot log in. Existing users stay active.
     is_active: Mapped[bool] = mapped_column(
-        Boolean, server_default="true", nullable=False
+        Boolean,
+        server_default="true",
+        nullable=False,
     )
+
     last_login_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
+        DateTime(timezone=True),
+        nullable=True,
     )
-    terms_version: Mapped[str | None] = mapped_column(String(40), nullable=True)
+
+    # Version of the terms accepted at sign-up and when they were accepted.
+    terms_version: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+    )
+
     terms_accepted_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
+        DateTime(timezone=True),
+        nullable=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(
