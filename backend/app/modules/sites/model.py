@@ -76,14 +76,9 @@ class Site(Base):
 
     # Human-readable site name.
     name: Mapped[str] = mapped_column(
-        String(150),
+        # Same max length as SiteBase.name in schemas.py.
+        String(120),
         nullable=False,
-    )
-
-    floors: Mapped[int] = mapped_column(server_default="1", nullable=False)
-    basements: Mapped[int] = mapped_column(server_default="0", nullable=False)
-    building_type: Mapped[str] = mapped_column(
-        String(20), server_default="OTHER", nullable=False
     )
 
     # Optional physical address.
