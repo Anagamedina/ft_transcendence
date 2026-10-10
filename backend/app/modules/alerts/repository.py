@@ -7,11 +7,30 @@ from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.modules.alerts.model import Alert
 from app.modules.sensors.model import Sensor
 from app.modules.sites.model import Site
+from app.shared.utils import matches_text
+
+def _con_jerarquia():
+    """
+    Lo que necesita `AlertService._to_response` para los campos de lectura
+    (B0): sensor, su site y la organización del site.
+
+    `selectinload` y no `joinedload` porque las consultas ya hacen
+    `join(Sensor).join(Site)` para filtrar; así no se duplican los JOIN y
+    cada nivel se carga con una sola consulta para toda la página. Es una
+    función y no una constante: construir la opción configura los mappers,
+    y al importar este módulo aún no están registrados todos los modelos.
+    """
+    return (
+        selectinload(Alert.sensor)
+        .selectinload(Sensor.site)
+        .selectinload(Site.organization)
+    )
+
 
 class AlertRepository:
     def __init__(self, db: Session) -> None:
@@ -51,12 +70,15 @@ class AlertRepository:
         )
         if organization_id is not None:
             query = query.where(Site.organization_id == organization_id)
-        return self.db.scalar(query)
+        return self.db.scalar(query.options(_con_jerarquia()))
 
     def list_by_organization(
             self, organization_id: UUID | None, status: str | None = None,
             sensor_id: UUID | None = None,
             offset: int = 0, limit: int = 100,
+            q: str | None = None,
+            organization_filter: UUID | None = None,
+            site_id: UUID | None = None,
     ) -> tuple[list[Alert], int]:
         if offset < 0 or limit <= 0:
             raise ValueError("Invalid pagination")
@@ -70,10 +92,18 @@ class AlertRepository:
             query = query.where(Alert.status == status)
         if sensor_id is not None:
             query = query.where(Alert.sensor_id == sensor_id)
+        # B0 (Ana): filtros comunes. Se suman al alcance, no lo sustituyen.
+        if organization_filter is not None:
+            query = query.where(Site.organization_id == organization_filter)
+        if site_id is not None:
+            query = query.where(Sensor.site_id == site_id)
+        if q is not None:
+            query = query.where(matches_text(q, Alert.message, Sensor.name))
 
         total = self.db.scalar(select(func.count()).select_from(query.subquery()))
         items = list(self.db.scalars(
-            query.order_by(Alert.created_at.desc()).offset(offset).limit(limit)
+            query.options(_con_jerarquia())
+            .order_by(Alert.created_at.desc()).offset(offset).limit(limit)
         ).all())
         return items, int(total or 0)
 

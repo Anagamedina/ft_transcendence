@@ -16,9 +16,10 @@ from __future__ import annotations
 from uuid import UUID
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.modules.sites.model import Site
+from app.shared.utils import matches_text
 
 
 class SiteRepository:
@@ -30,13 +31,23 @@ class SiteRepository:
         organization_id: UUID | None,
         offset: int = 0,
         limit: int = 100,
+        q: str | None = None,
+        organization_filter: UUID | None = None,
     ) -> tuple[list[Site], int]:
+        """
+        `organization_id` es el alcance de la sesión; `organization_filter`
+        y `q`, los filtros comunes de la B0. Se aplican todos a la vez.
+        """
         if offset < 0 or limit <= 0:
             raise ValueError("Invalid pagination")
 
         query = select(Site)
         if organization_id is not None:
             query = query.where(Site.organization_id == organization_id)
+        if organization_filter is not None:
+            query = query.where(Site.organization_id == organization_filter)
+        if q is not None:
+            query = query.where(matches_text(q, Site.name, Site.address))
 
         total = self.db.scalar(
             select(func.count()).select_from(query.subquery())
@@ -46,7 +57,10 @@ class SiteRepository:
         # para que la paginación no repita ni salte sites con el mismo nombre.
         items = list(
             self.db.scalars(
-                query.order_by(Site.name, Site.id).offset(offset).limit(limit)
+                # La organización de toda la página en una sola consulta,
+                # para `organization_name` (B0).
+                query.options(selectinload(Site.organization))
+                .order_by(Site.name, Site.id).offset(offset).limit(limit)
             ).all()
         )
 

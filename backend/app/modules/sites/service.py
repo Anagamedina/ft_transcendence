@@ -34,16 +34,26 @@ class SiteService:
         self.sites = sites or SiteRepository(db)
 
     def list(
-        self, organization_id: UUID | None, offset: int, limit: int
+        self,
+        organization_id: UUID | None,
+        offset: int,
+        limit: int,
+        q: str | None = None,
+        organization_filter: UUID | None = None,
     ) -> Page[SiteResponse]:
         """
         Sites que puede ver quien pregunta, paginados y ordenados por nombre.
 
         `organization_id` sale siempre de `get_org_scope`: `None` (admin)
-        significa todas las organizaciones.
+        significa todas las organizaciones. `q` busca en nombre y dirección
+        y `organization_filter` es el `?organization_id=` de la B0.
         """
         filas, total = self.sites.list_by_organization(
-            organization_id=organization_id, offset=offset, limit=limit
+            organization_id=organization_id,
+            offset=offset,
+            limit=limit,
+            q=q,
+            organization_filter=organization_filter,
         )
         return Page[SiteResponse](
             items=[self._to_response(f) for f in filas],
@@ -108,10 +118,14 @@ class SiteService:
         La tabla guarda latitud y longitud como `Numeric(9, 6)`, que llegan
         como `Decimal`; el contrato y el mapa las esperan como número JSON.
         Se convierten aquí, respetando el `None` de un site sin coordenadas.
+
+        `organization_name` (B0) llega ya cargado en los listados: el
+        repository usa `selectinload(Site.organization)`.
         """
         return SiteResponse(
             id=site.id,
             organization_id=site.organization_id,
+            organization_name=site.organization.name,
             name=site.name,
             address=site.address,
             latitude=None if site.latitude is None else float(site.latitude),

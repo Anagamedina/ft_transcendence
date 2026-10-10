@@ -44,6 +44,7 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from fastapi import FastAPI
+from pydantic import TypeAdapter
 from pydantic.json_schema import models_json_schema
 
 from app.modules.alerts.schemas import AlertResponse
@@ -58,6 +59,17 @@ from app.modules.readings.schemas import ReadingResponse
 from app.modules.sensors.schemas import SensorCreate, SensorResponse, SensorUpdate
 from app.modules.sites.schemas import SiteCreate, SiteResponse, SiteUpdate
 from app.modules.users.schemas import UserCreate, UserResponse
+from app.shared.enums import (
+    AlertSeverity,
+    AlertState,
+    AlertStatus,
+    AlertType,
+    BuildingType,
+    OrganizationStatus,
+    SensorHealth,
+    SensorStatus,
+    SensorType,
+)
 from app.shared.schemas import Page
 
 # Contratos definidos en la issue #23 cuyas rutas llegan más adelante.
@@ -94,6 +106,23 @@ CONTRACT_MODELS: list[type] = [
 ]
 
 
+# Vocabulario común de la B0 (issue #138). Los enums que ya usa algún
+# modelo saldrían solos, pero `SensorHealth` y `BuildingType` no los usa
+# todavía ninguno (llegan con la B2 y la B3). Se listan todos para que la
+# sección Schemas sea el diccionario completo, use o no cada uno una ruta.
+CONTRACT_ENUMS: list[type] = [
+    OrganizationStatus,
+    BuildingType,
+    SensorType,
+    SensorStatus,
+    SensorHealth,
+    AlertType,
+    AlertSeverity,
+    AlertStatus,
+    AlertState,
+]
+
+
 def _contract_schemas() -> dict[str, Any]:
     """
     Genera las definiciones JSON Schema de los modelos de arriba.
@@ -111,7 +140,10 @@ def _contract_schemas() -> dict[str, Any]:
         [(model, "validation") for model in CONTRACT_MODELS],
         ref_template="#/components/schemas/{model}",
     )
-    return top_level.get("$defs", {})
+    schemas = top_level.get("$defs", {})
+    for enum in CONTRACT_ENUMS:
+        schemas.setdefault(enum.__name__, TypeAdapter(enum).json_schema())
+    return schemas
 
 
 def register_contract_schemas(app: FastAPI) -> None:
