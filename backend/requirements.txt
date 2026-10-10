@@ -11,7 +11,8 @@ pydantic-settings>=2.0,<3.0
 
 #Alembic
 alembic==1.19.1
-
+#Test
+pytest>=8.0,<9.0
 # Auth (issue #26)
 # argon2-cffi: hash de contrasenas. Argon2 es la recomendacion actual
 #   (ganador del Password Hashing Competition). Se usa directo en vez de
