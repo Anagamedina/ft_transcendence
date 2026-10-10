@@ -28,8 +28,8 @@ fi
 if [[ -e "$ENV_FILE" ]]; then
     echo "A .env file already exists at $ENV_FILE"
 else
-    cp -- "$ENV_EXAMPLE" "$ENV_FILE"
-    echo "Created $ENV_FILE from .env.example"
+    make -C "$PROJECT_ROOT" env
+    echo "Created $ENV_FILE from .env.example with random keys"
 fi
 
 echo "Activate the virtual environment with: source .venv/bin/activate"

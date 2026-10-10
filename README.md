@@ -37,20 +37,29 @@ production gateway configuration are being implemented incrementally.
 
 ### Configuration
 
-Copy the example environment file and review its values:
+Create the local environment file:
 
 ```bash
-cp .env.example .env
+make env
 ```
+
+`make env` copies `.env.example` to `.env` and replaces `SECRET_KEY` and
+`INGEST_API_KEY` with random values from `openssl rand -hex 32`, so a clean
+clone never runs with the keys published in the repository. It does nothing
+when `.env` already exists, and `make up` calls it for you. A plain
+`cp .env.example .env` still works for development, but keeps the example keys.
 
 `.env` is local configuration and must never be committed. `.env.example` ships
 with `POSTGRES_HOST=localhost` so that Alembic or uvicorn work when run directly
 on the host. Inside Docker that value is not used: `compose.yaml` overrides it
 with the `database` service name for the backend service.
 
-`SECRET_KEY` ships as `dev-only-change-me`. That exact literal is what
-`backend/app/core/app_config.py` checks to refuse startup when `ENV=production`,
-so do not replace it with another placeholder.
+`SECRET_KEY` ships as `dev-only-change-me` in `.env.example`. That exact literal
+is what `backend/app/core/app_config.py` checks to refuse startup when
+`ENV=production`, so do not replace it with another placeholder.
+
+`COOKIE_SECURE` is `true` because the gateway always serves HTTPS. An `.env`
+created before this change keeps its old `false` until it is edited.
 
 `INGEST_API_KEY` works the same way and ships as `dev-only-ingest-key`. It is the
 key the simulator sends in the `X-Ingest-Key` header with every `POST /api/readings`
@@ -58,6 +67,23 @@ key the simulator sends in the `X-Ingest-Key` header with every `POST /api/readi
 nothing. Backend and simulator read it from the same `.env`, so in development
 they match with no setup. With `ENV=production` the backend refuses to start if
 it is still the example value.
+
+The variables below configure invitations, the trial period, documents and
+backups. `compose.yaml` passes them to the backend with the same defaults, so an
+older `.env` without them still starts:
+
+| Variable                | Default              | Purpose                                         |
+|-------------------------|----------------------|-------------------------------------------------|
+| `PUBLIC_BASE_URL`       | `https://localhost`  | Base of the invitation links                    |
+| `INVITATION_TTL_DAYS`   | `7`                  | Days until an invitation expires                |
+| `TRIAL_DAYS`            | `7`                  | Length of the trial after registering           |
+| `DOCUMENTS_DIR`         | `/data/documents`    | Backend folder where documents are stored       |
+| `MAX_UPLOAD_MB`         | `10`                 | Maximum size of an uploaded document            |
+| `BACKUP_INTERVAL_HOURS` | `24`                 | Hours between automatic backups                 |
+| `BACKUP_KEEP`           | `7`                  | Number of backups kept                          |
+
+The backend receives these values but does not use them yet: the features that
+read them are tracked in their own issues.
 
 Frontend-only configuration is documented in
 [`frontend/.env.example`](frontend/.env.example).
@@ -146,9 +172,9 @@ The root `Makefile` wraps the Compose commands:
 
 | Target                     | Effect                                                                                                                                       |
 |----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
-| `make` / `make up`         | Copies `.env` and generates certificates if missing, then `docker compose up --build -d` and `docker compose ps`                             |
+| `make` / `make up`         | Creates `.env` and generates certificates if missing, then `docker compose up --build -d` and `docker compose ps`                             |
 | `make dev`                 | Same as `make up` plus `compose.dev.yaml`, which publishes PostgreSQL on `127.0.0.1:5432` for Alembic                                        |
-| `make env`                 | Creates `.env` from `.env.example` only when it does not exist                                                                               |
+| `make env`                 | Creates `.env` from `.env.example` with random `SECRET_KEY` and `INGEST_API_KEY`, only when it does not exist                                |
 | `make certs`               | Generates a self-signed TLS certificate in `gateway/certs/` only when it does not exist                                                      |
 | `make build`               | Builds the images without starting them                                                                                                      |
 | `make sim`                 | Same as `make up` plus the `sim` profile, which starts the sensor simulator                                                                  |
@@ -592,8 +618,6 @@ label planned work separately from implemented work.
   internet connection.
 - The gateway serves a production build of the SPA. Frontend development still
   uses the Vite dev server through `./scripts/launch-frontend.sh`.
-- `.env` generation exists twice, as `make env` and as `scripts/create_env`.
-  The team must settle on one.
 - Database models and migration bodies are not implemented yet.
 - The README placeholders must be completed by the team.
 

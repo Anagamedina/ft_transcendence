@@ -20,6 +20,13 @@ services:
     env_file: .env
     environment:
       POSTGRES_HOST: database
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://localhost}
+      INVITATION_TTL_DAYS: ${INVITATION_TTL_DAYS:-7}
+      TRIAL_DAYS: ${TRIAL_DAYS:-7}
+      DOCUMENTS_DIR: ${DOCUMENTS_DIR:-/data/documents}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-10}
+      BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
+      BACKUP_KEEP: ${BACKUP_KEEP:-7}
     expose:
       - "8000"
     depends_on:
