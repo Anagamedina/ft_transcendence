@@ -377,3 +377,13 @@ y se limita a esa línea con un comentario que explica por qué está.
 | `Settings` (Daruny) | ✅ `db: aquaguard · host: localhost` |
 | `AppSettings` (Ana) | ✅ `cors: ['http://localhost:5173']` |
 | Aplicación | ✅ 3 rutas · 32 schemas |
+
+## Lo que se hizo de verdad (repaso del 10-10-2026)
+
+**Issue #22 · cerrada · PR #46** (junto con la #23).
+
+- 8 routers (`auth`, `users`, `sites`, `sensors`, `readings`, `alerts`, `analytics`, `organizations`) reunidos en `api.py` y montados en `main.py` bajo `/api`. Health va aparte, fuera de `api_router`.
+- Errores unificados en `core/exceptions.py`: siempre `{"error": {"code", "message", "details"}}`.
+- Configuración en dos archivos para no pisarse: `core/config.py` (Daruny, `POSTGRES_*`) y `core/app_config.py` (Ana, `SECRET_KEY`, `COOKIE_SECURE`, `CORS_ORIGINS`, `ENV`).
+- `GET /api/health` (sin base de datos) y `GET /api/health/db` (`SELECT 1`). Sus tests llegaron después, en la #30 (PR #109).
+- Arreglo posterior: PR #73, la app registra sus modelos ORM al arrancar (`core/models.py`).

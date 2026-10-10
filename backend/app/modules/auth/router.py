@@ -4,20 +4,17 @@
 Endpoints de autenticación (`/api/auth/...`).
 
 El router se registra desde la issue #22. Los endpoints son de la
-issue #26:
+issue #26, los tres implementados:
 
-    POST /api/auth/register   → pendiente: la tabla `users` no admite
-                                 todavía lo que pide el contrato
-    POST /api/auth/login      → pendiente
-    POST /api/auth/logout     → implementado
+    POST /api/auth/login      → abre la sesión (cookie)
+    POST /api/auth/logout     → la cierra
+    POST /api/auth/register   → hoy solo para el admin, que da de alta
+                                 clientes con `organization_id` (#27).
+                                 Pasa a ser público con la B10 (#140).
 
-El contrato de esos endpoints ya está definido en `schemas.py` y se
-publica en la sección *Schemas* de Swagger (ver `app/openapi.py`), para
-que Lylia pueda construir el `MockAdapter` sin esperar a la #26.
-
-Cuando llegue el momento de implementarlos, hay un reparto que conviene
-respetar: **la cookie de sesión la pone el router, no el service**. Una
-cookie es una cabecera HTTP, y el service por definición no habla HTTP.
+Un reparto que conviene respetar: **la cookie de sesión la pone el
+router, no el service**. Una cookie es una cabecera HTTP, y el service
+por definición no habla HTTP.
 
     service → comprueba las credenciales y devuelve el usuario
     router  → traduce eso a un `Set-Cookie`

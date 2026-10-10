@@ -3,15 +3,16 @@
 """
 Endpoints de analítica (`/api/analytics/...`).
 
-Registrado desde la issue #22, sin rutas todavía. Los KPIs y agregaciones
-son nivel Intermedio (apartado 9.2) y corresponden a la semana 5 del plan:
+Registrado desde la issue #22, sin rutas todavía. Llegan con el
+rediseño:
 
-    GET /api/analytics/overview?from=&to=
-    GET /api/analytics/sensors/{id}?from=&to=
+    GET /api/analytics/overview              → B9 (#144, Ana)
+    GET /api/analytics/alerts/weekly         → B9 (#144, Ana)
+    GET /api/analytics/alerts/top-sensors    → B9 (#144, Ana)
+    rango de fechas y exportación CSV        → B18 (#134, Daruny)
 
-Nombre a fijar cuando se implemente: el documento dice `overview`
-(apartado 9.2) y el diagrama de arquitectura dibuja `kpis`. Manda el
-documento.
+Se usa `overview`, como dice el documento (apartado 9.2), y no `kpis`,
+como dibuja el diagrama de arquitectura.
 """
 
 from __future__ import annotations

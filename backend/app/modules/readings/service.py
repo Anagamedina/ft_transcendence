@@ -14,9 +14,9 @@ Sirve para dos cosas concretas:
    consumidor de WebSocket, sin duplicar reglas.
 2. Se puede probar con Pytest sin levantar la aplicación (issue #30).
 
-Estado: la estructura pertenece a la issue #22 y el contrato a la #23.
-El cuerpo se implementa en la issue #24, y necesita que Daruny entregue el
-modelo `Reading` (issue #13) y su repository (issue #14).
+Implementación: `create` en la issue #24 (con las reglas de alertas de
+la #28) e histórico `list_by_sensor` en la #25. El modelo `Reading` y su
+repository son de Daruny (issues #13 y #14).
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.core.database import transaction
-from app.core.exceptions import ConflictError, NotFoundError, NotImplementedYetError
+from app.core.exceptions import ConflictError, NotFoundError
 from app.modules.alerts.repository import AlertRepository as SqlAlertRepository
 from app.modules.alerts.rules import evaluar_presion
 from app.modules.alerts.schemas import AlertSeverity
@@ -56,9 +56,8 @@ class ReadingService:
     Es lo que permite pasarle en un test uno en memoria y ejercitar todas
     las reglas sin PostgreSQL.
 
-    Los dos son opcionales mientras Daruny no haya entregado la issue #14:
-    el service se puede construir, y sus métodos responden 501 en vez de
-    fallar con un `AttributeError` sobre `None`.
+    Si no se pasan, se usan los de SQLAlchemy, como en `SensorService` y
+    `AlertService`.
     """
 
     def __init__(
@@ -69,18 +68,9 @@ class ReadingService:
         alerts: AlertRepository | None = None,
     ) -> None:
         self.db = db
-        self.readings = readings
-        self.sensors = sensors
-        self.alerts = alerts
-
-    def _require_repositories(self) -> None:
-        """Corta con un 501 explicativo si la persistencia aún no existe."""
-        if self.readings is None or self.sensors is None:
-            raise NotImplementedYetError(
-                "#14",
-                "Los repositories de readings y sensors los entrega Daruny "
-                "en la issue #14.",
-            )
+        self.readings = readings or SqlReadingRepository(db)
+        self.sensors = sensors or SqlSensorRepository(db)
+        self.alerts = alerts or SqlAlertRepository(db)
 
     def create(self, payload: ReadingCreate) -> ReadingResponse:
         """
@@ -91,9 +81,9 @@ class ReadingService:
            específico, porque el interceptor del frontend ramifica por él.
         2. Resolver `measured_at`: el que venga, o el momento actual.
         3. Guardar mediante `self.readings.create(...)`.
-        4. ~~Actualizar `last_seen_at` del sensor.~~ **Fuera de alcance:**
-           esa columna no existe en `sensors/model.py`. Mientras no la
-           añada la issue #13, no hay dónde escribirla.
+        4. No se toca `last_seen_at`: no es una columna, se calcula a
+           partir de las lecturas al responder (issue #25,
+           `sensors/status.py`).
         5. Evaluar los umbrales y abrir o empeorar la alerta si procede
            (issue #28, `_aplicar_reglas`). En la misma transacción que la
            lectura: o se guardan las dos, o ninguna.
@@ -111,13 +101,6 @@ class ReadingService:
         (issue #23) y el esquema de la tabla (issue #13) se acordaron por
         separado, y el service es quien conoce los dos.
         """
-        self._require_repositories()
-        if self.alerts is None:
-            raise NotImplementedYetError(
-                "#28",
-                "Registrar una lectura necesita el repository de alertas "
-                "para evaluar las reglas de presión.",
-            )
 
         sensor = self.sensors.get(payload.sensor_id)
         if sensor is None:
@@ -195,8 +178,6 @@ class ReadingService:
         La consulta la aporta el repository, que mantiene el índice
         `(sensor_id, recorded_at)` que evita recorrer la tabla entera.
         """
-        self._require_repositories()
-
         if self.sensors.get_by_id(sensor_id, organization_id) is None:
             raise NotFoundError(
                 "El sensor indicado no existe.",

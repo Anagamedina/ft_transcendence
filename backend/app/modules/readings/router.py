@@ -10,17 +10,16 @@ documento):
     Simulator → POST /api/readings → FastAPI → Service → Repository → PostgreSQL
 
 **Este router no lleva `prefix`.** Es la excepción entre los ocho, y es
-deliberada: acabará exponiendo dos rutas que cuelgan de árboles distintos.
+deliberada: expone dos rutas que cuelgan de árboles distintos.
 
-    POST /api/readings                       → issue #24 (aquí)
+    POST /api/readings                       → issue #24
     GET  /api/sensors/{sensor_id}/readings   → issue #25 (histórico)
 
 Ambas son "lecturas" y comparten service y schemas, así que viven en el
 mismo módulo; pero la segunda se lee desde un sensor. Con
 `prefix="/readings"` la segunda quedaría en
 `/api/readings/sensors/{id}/readings`, que no es lo que fija el
-documento. Dejándolo sin prefijo desde ahora, la issue #25 solo tiene que
-añadir su ruta, sin reorganizar nada.
+documento.
 
 Obsérvese lo que NO hay en este archivo: ni una consulta, ni una regla, ni
 un `try/except`. El router declara la ruta, FastAPI valida el cuerpo

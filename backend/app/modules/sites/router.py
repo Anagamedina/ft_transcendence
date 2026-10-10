@@ -3,16 +3,13 @@
 """
 Endpoints de emplazamientos (`/api/sites/...`).
 
-Registrado desde la issue #22. Las del nivel Básico son de la issue #29;
-las tres están hechas:
+Implementados en la issue #29 (PR #108); filtros comunes de la B0 (#138):
 
     GET /api/sites
     GET /api/sites/{id}
     GET /api/sites/{id}/sensors
 
-`SiteResponse` y `Page[SiteResponse]` ya están publicados en la sección
-*Schemas* de Swagger, que es lo que necesita Florinda para el mapa
-Leaflet (issue #8) y Lylia para el `MockAdapter`.
+Alta, edición y borrado de sites llegan con la B2 (#139).
 """
 
 from __future__ import annotations

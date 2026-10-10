@@ -24,3 +24,14 @@
 ## Criterio de entrega
 
 Documentar la matriz de permisos y aplicarla en los endpoints actuales. Añadir una prueba negativa por cada recurso crítico, no solo una prueba del caso Admin permitido.
+
+## Lo que se hizo de verdad (repaso del 10-10-2026)
+
+**Issue #27 · cerrada · PR #105.**
+
+- `require_role("admin")` en `shared/dependencies.py` (antes lanzaba 501).
+- `get_org_scope` / `OrgScope` (decisión de Ana, 28-09): **admin → `None` = todas las organizaciones**; cliente → su organización; cliente sin organización → 403.
+- Regla para todo el backend: ningún router pasa `user.organization_id` directamente a una consulta; el alcance sale solo de `get_org_scope`.
+- El alta de un cliente exige `organization_id` (antes heredaba la del admin, y un admin global creaba clientes sin organización).
+- Un recurso de otra organización responde **404**, no 403, para no confirmar que el id existe.
+- Desde la B0 (#138): los filtros `?organization_id=` **estrechan** este alcance, nunca lo amplían.
