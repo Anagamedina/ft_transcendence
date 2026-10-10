@@ -309,3 +309,13 @@ Los 32: `AlertResponse`, `AlertSeverity`, `AlertStatus`, `AlertType`,
 
 3. **Tipo de los identificadores.** El contrato usa `UUID` en todos los
    schemas. Confirmar que los modelos lo usan como clave primaria.
+
+## Lo que se hizo de verdad (repaso del 10-10-2026)
+
+**Issue #23 · cerrada · PR #46** (junto con la #22).
+
+- Schemas Pydantic de todos los módulos, con `ApiModel` (salida, `from_attributes`) y `ApiRequest` (entrada, `extra="forbid"` y recorte de espacios) en `shared/schemas.py`.
+- `Page[T]` genérico: `{items, total, page, page_size, pages}`.
+- `app/openapi.py` publica en Swagger los schemas que aún no tenían ruta, para que el frontend montara su `MockAdapter` sin esperar.
+- Decisiones abiertas que se cerraron después: `details` del error es una **lista** de `{field, message, type}`; `acknowledged_at` en alertas **sí** existe (columna de Daruny); la fecha de medida se guarda como `recorded_at`.
+- Ampliado en la B0 (#138, PR #180): enums compartidos en `shared/enums.py` y publicados en Swagger.

@@ -16,12 +16,12 @@ Las tres reglas del MVP (apartado 1.2):
     presión > max_pressure del sensor   → HIGH_PRESSURE
     last_seen_at demasiado antiguo      → SENSOR_OFFLINE
 
-Las dos primeras se evalúan al recibir una lectura. La tercera no: se
-dispara por **ausencia** de datos, así que necesita algo que la compruebe
-periódicamente. Es una diferencia importante de diseño y se resuelve en la
-issue #28.
+Las dos primeras se evalúan al recibir una lectura (`alerts/rules.py`). La
+tercera no: se dispara por **ausencia** de datos, así que la comprueba
+cada minuto una tarea de fondo (`alerts/offline.py`, arrancada desde
+`main.py`).
 
-Implementación: issue #28.
+Implementación: issue #28 (PRs #78, #98 y #118).
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.core.database import transaction
-from app.core.exceptions import ConflictError, NotFoundError, NotImplementedYetError
+from app.core.exceptions import ConflictError, NotFoundError
 from app.modules.alerts.repository import AlertRepository
 from app.modules.alerts.schemas import AlertResponse, AlertState
 from app.shared.dependencies import DbSession

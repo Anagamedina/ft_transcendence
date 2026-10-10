@@ -231,3 +231,15 @@ Esa es la ventaja del `Protocol` de
 [`shared/protocols.py`](../01-fastapi-modular/04-implementacion.md): su
 repository no tiene que heredar de nada ni importar nada nuestro — le
 basta con tener un `add(...)` con esa firma.
+
+## Lo que se hizo de verdad (repaso del 10-10-2026)
+
+**Issue #24 · cerrada · PR #72.** Ampliada por la #106 (PR #116).
+
+- `POST /api/readings`: lectura válida → 201; sensor desconocido → 404 `SENSOR_NOT_FOUND`; presión fuera de rango o campo desconocido → 422. Una lectura rechazada no deja nada en la base.
+- El contrato habla de `pressure` / `measured_at` y la tabla de `value` / `recorded_at`: la traducción la hace el service.
+- **Idempotente por `id`:** si el simulador reintenta con el mismo `id`, se devuelve la lectura guardada sin duplicarla ni reevaluar alertas.
+- Desde la #28 evalúa las reglas de presión en la misma transacción que la lectura.
+- **#106 (PR #116):** exige la cabecera `X-Ingest-Key` (valor `INGEST_API_KEY`), comparada con `secrets.compare_digest`. Sin ella → 401.
+- El criterio «el simulador puede usarlo» quedó aplazado al cerrar la issue (aún no existía el simulador). Hoy se cumple: `simulator/app/client.py` manda la clave.
+- Limpieza del 10-10-2026: quitado el antiguo 501 «falta la #14», que ya no se podía ejecutar.

@@ -3,18 +3,15 @@
 """
 Lógica de usuarios.
 
-En el nivel Básico de la API (apartado 9.1) solo hay un endpoint de
-usuarios: `GET /api/me`. El CRUD completo es nivel Intermedio y pertenece
-al módulo «Advanced permissions» del plan de 14 puntos.
-
-Implementación: issue #26.
+Hoy solo hay `GET /api/me` (issue #26). La gestión de usuarios
+(listar, editar, activar y desactivar) llega con la B6 (#141), y `PATCH
+/api/me` y el cambio de contraseña con la B8 (#144).
 """
 
 from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import NotImplementedYetError
 from app.modules.users.model import User
 from app.modules.users.schemas import UserResponse
 from app.shared.dependencies import DbSession

@@ -27,3 +27,14 @@ No invalidar sesión, almacenar tokens sin expiración, confundir 401/403, revel
 ## Criterio de entrega
 
 Documentar el mecanismo elegido, flags, expiración y comportamiento de logout para que User04 pueda integrarlo sin implementar una segunda estrategia en frontend.
+
+## Lo que se hizo de verdad (repaso del 10-10-2026)
+
+**Issue #26 · cerrada · PRs #75 y #79.**
+
+- **PR #75:** hash Argon2, sesión en cookie `httpOnly` firmada (ADR `docs/decisions/0001-auth-cookie.md`) y `POST /api/auth/logout`.
+- **PR #79:** `POST /api/auth/login`, `POST /api/auth/register` y `GET /api/me`. Debían entrar en la #75, pero el commit se subió 11 minutos después del merge y se quedó fuera; se aplicó con cherry-pick.
+- **El login no delata qué cuentas existen:** con un email inexistente se verifica igualmente contra un hash ficticio, para que tarde lo mismo.
+- `get_current_user` lee el usuario de la base en cada petición: un cambio de rol o una baja se aplica en la siguiente petición, sin esperar a un nuevo login.
+- `register` es hoy **solo para el admin** (alta de clientes con `organization_id`, desde la #27). Pasa a ser público con la **B10 (#140)**.
+- PR #114 (de la #30): arreglado un test del token manipulado que fallaba 1 de cada 20 veces.

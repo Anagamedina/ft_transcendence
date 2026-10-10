@@ -1,6 +1,6 @@
-# OPENAPI — publica los contratos de la issue #23 que aún no tienen ruta.
+# OPENAPI — publica los contratos que todavía no usa ninguna ruta.
 """
-Contratos sin ruta (issue #23).
+Contratos sin ruta (issue #23, ampliado en la B0 #138).
 
 --------------------------------------------------------------------
 EL PROBLEMA
@@ -10,33 +10,35 @@ endpoints registrados y publica los schemas que aparecen en sus
 `response_model` y sus cuerpos. Un schema que no use ninguna ruta no sale
 en el documento.
 
-Eso choca con la situación real del proyecto. La issue #23 pide definir el
-contrato de Auth, Sensors, Readings y Alerts, y que «Swagger/OpenAPI
-muestre los contratos principales» para que el frontend pueda basarse en
-ellos. Pero las rutas de Auth, Sensors, Sites y Alerts pertenecen a las
-issues #25 a #29, que aún no están hechas.
+Eso chocaba con cómo trabaja el equipo: el contrato se fija antes que el
+endpoint, para que el frontend construya sus mocks sin esperar. Pasó con
+la issue #23, cuando Auth, Sensors, Sites y Alerts aún no tenían rutas
+(llegaron en las #25 a #29), y vuelve a pasar con el rediseño: por
+ejemplo `OrganizationResponse` antes de la B1, o `SensorHealth` antes de
+la B3.
 
 Sin esto habría que elegir entre dos cosas malas:
 
   a) Publicar rutas que no funcionan, solo para que salgan sus schemas.
-  b) Dejar a Lylia sin contrato hasta la semana 3, e inventarse el
-     `MockAdapter` — que es exactamente el fallo que el documento avisa
-     en el apartado 10: si el mock devuelve `data` y la API devuelve
-     `items`, todo funciona tres semanas y se rompe el día de integrar.
+  b) Dejar al frontend sin contrato e inventarse el `MockAdapter` — que
+     es exactamente el fallo que el documento avisa en el apartado 10:
+     si el mock devuelve `data` y la API devuelve `items`, todo funciona
+     tres semanas y se rompe el día de integrar.
 
 --------------------------------------------------------------------
 LA SOLUCIÓN
 --------------------------------------------------------------------
-Se inyectan los schemas directamente en `components.schemas` del
-documento OpenAPI, sin declarar ninguna ruta. Resultado:
+Se inyectan los schemas (y los enums de la B0) directamente en
+`components.schemas` del documento OpenAPI, sin declarar ninguna ruta.
+Resultado:
 
-  - Swagger muestra **solo** las rutas que de verdad existen (#22 y #24).
+  - Swagger muestra **solo** las rutas que de verdad existen.
   - La sección **Schemas** de esa misma página lista el contrato
     completo, del que el frontend puede copiar los ejemplos.
 
-Cuando la issue #29 publique `GET /api/sites`, su schema ya estará en el
-documento y no cambiará de forma: solo pasará a tener una ruta que lo
-use.
+Cuando una ruta nueva usa uno de estos schemas, no cambia de forma: solo
+pasa a tener una ruta que lo use, y FastAPI lo publica por su cuenta (ver
+el `setdefault` de `register_contract_schemas`).
 """
 
 from __future__ import annotations
@@ -72,7 +74,10 @@ from app.shared.enums import (
 )
 from app.shared.schemas import Page
 
-# Contratos definidos en la issue #23 cuyas rutas llegan más adelante.
+# Contratos definidos en la issue #23. La mayoría ya tienen ruta y saldrían
+# solos; se mantienen en la lista porque no estorban (manda la versión de
+# la ruta). Siguen sin ruta: `UserCreate` (B6), `OrganizationCreate` y
+# `OrganizationResponse` (B1), `SiteCreate` y `SiteUpdate` (B2).
 #
 # Los `Page[...]` se listan explícitamente porque `Page` es genérico:
 # `Page[SensorResponse]` y `Page[AlertResponse]` son dos schemas distintos
@@ -85,7 +90,7 @@ CONTRACT_MODELS: list[type] = [
     MessageResponse,
     UserCreate,
     UserResponse,
-    # Organizaciones — nivel Intermedio
+    # Organizaciones — rutas en la B1 (#139)
     OrganizationCreate,
     OrganizationResponse,
     # Sites — issue #29

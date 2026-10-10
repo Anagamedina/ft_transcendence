@@ -31,3 +31,10 @@ Ejecutar varias veces, revisar artefactos de fallo y confirmar que la prueba no 
 ## Evidencia para el PR
 
 Indicar comando, navegador/contexto, duración aproximada y artefactos disponibles cuando una prueba falla.
+
+## Lo que se hizo de verdad (repaso del 10-10-2026)
+
+**Issue #41 · cerrada · PR #127 (Eduardo).** No era una issue de Ana; estas notas son de apoyo.
+
+- Playwright en `e2e/tests/`: `login.spec.js`, `register.spec.js`, `navigation.spec.js` y `roles.spec.js`.
+- **Afecta a la B10 (#140):** `register.spec.js` espera hoy que el registro sea solo para el admin. Al hacer público el registro hay que actualizarlo.

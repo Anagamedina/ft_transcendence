@@ -8,7 +8,8 @@ El site es el nivel donde se ancla el aislamiento por organización: tiene
 esta capa recibe el alcance que calcula `get_org_scope` (issue #27):
 `None` para un admin, que ve todas, o la organización de un cliente.
 
-Implementación: issue #29. `list`, `get` y `list_sensors` están hechos.
+Implementación: issue #29 (`list`, `get` y `list_sensors`); filtros y
+`organization_name` de la B0 (#138). Alta, edición y borrado: B2 (#139).
 """
 
 from __future__ import annotations

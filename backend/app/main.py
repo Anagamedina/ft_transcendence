@@ -194,8 +194,8 @@ def create_app() -> FastAPI:
     app.include_router(health.router, prefix="/api")
     app.include_router(api_router, prefix="/api")
 
-    # Publica en OpenAPI los schemas de la issue #23 que todavía no tienen
-    # ruta. Ver `app/openapi.py`.
+    # Publica en OpenAPI los schemas y enums del contrato que todavía no
+    # usa ninguna ruta. Ver `app/openapi.py`.
     register_contract_schemas(app)
 
     return app

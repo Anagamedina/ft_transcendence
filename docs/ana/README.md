@@ -1,8 +1,9 @@
 # Documentación de issues de Ana
 
-Backend API y lógica de negocio. Corresponde a las 9 issues definidas en
+Backend API y lógica de negocio. Dos tandas: las 9 issues de
 [`scripts/create_ana_issues.sh`](../../scripts/create_ana_issues.sh)
-(GitHub #22 a #30). Cada carpeta contiene:
+(GitHub #22 a #30, todas hechas) y las del rediseño de pantallas (B0 a
+B17, GitHub #138 a #150). Cada carpeta contiene:
 
 - `01-issue.md`: contexto, objetivo, límites, dependencias y aceptación.
 - `02-conceptos.md`: conceptos aislados y relacionados, con tiempo de aprendizaje.
@@ -85,13 +86,18 @@ Según el apartado 8.1 del documento de arquitectura:
 | `router.py`, `service.py`, `schemas.py` | **Ana** |
 | `model.py`, `repository.py`, `database.py`, migraciones, seeds | **Daruny** |
 
-## Decisiones abiertas
+## Decisiones tomadas
 
-| Con | Qué | Cuándo cierra |
+Las que estaban abiertas al empezar la primera tanda, ya cerradas:
+
+| Con | Qué | Cómo quedó |
 |---|---|---|
-| Daruny | `measured_at` además de `created_at` en `readings` | Antes de la 1ª migración (#12, #13) |
-| Daruny | `acknowledged_at` en `alerts` | Antes de la 1ª migración (#13, #18) |
-| Lylia | `details` del error: ¿lista u objeto? | Antes del interceptor (#32) |
+| Daruny | Fecha de medida en `readings` | Columna `recorded_at` (el contrato la llama `measured_at`), además de `created_at` |
+| Daruny | `acknowledged_at` en `alerts` | Existe. Desde la B0 la respuesta trae también `state` calculado |
+| Lylia | `details` del error: ¿lista u objeto? | Lista de `{field, message, type}`, o `null` |
+
+Cada carpeta tiene al final de su `04-implementacion.md` una sección
+**«Lo que se hizo de verdad»** con las PRs y las decisiones finales.
 
 ## Orden recomendado
 

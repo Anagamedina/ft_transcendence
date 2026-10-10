@@ -3,13 +3,11 @@
 """
 Endpoints de usuarios.
 
-El único endpoint del nivel Básico es de la issue #26, ya implementado:
-
-    GET /api/me
+Hoy solo `GET /api/me` (issue #26).
 
 Nótese que es `/api/me` y no `/api/users/me` (apartado 9.1 del
-documento). Por eso este router no llevará `prefix` cuando se implemente:
-el prefijo `/users` solo aparecerá con el CRUD del nivel Intermedio.
+documento). Por eso este router no lleva `prefix`: el prefijo `/users`
+aparecerá con la gestión de usuarios de la B6 (#141).
 
 `UserResponse` ya está publicado en la sección *Schemas* de Swagger.
 """
