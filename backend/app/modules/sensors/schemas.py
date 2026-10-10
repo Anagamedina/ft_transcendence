@@ -26,11 +26,13 @@ mudo. Por eso el campo está en el sensor y no en las lecturas.
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
 from uuid import UUID
 
 from pydantic import Field, field_validator, model_validator
 
+# SensorType y SensorStatus viven en shared/enums.py (B0); se reexportan
+# desde aquí porque el resto del código ya los importa de este módulo.
+from app.shared.enums import SensorStatus, SensorType
 from app.shared.schemas import ApiModel, ApiRequest
 
 # Límite físico del rango de medida que aceptamos para un sensor de
@@ -43,37 +45,6 @@ from app.shared.schemas import ApiModel, ApiRequest
 # cambiarlo también allí con una migración.
 PRESSURE_MIN_BAR = 0.0
 PRESSURE_MAX_BAR = 25.0
-
-
-class SensorType(str, Enum):
-    """
-    Magnitud que mide el sensor.
-
-    El documento fija la presión como medición principal y el caudal como
-    opcional (apartado 1.2). El MVP y el simulador trabajan con PRESSURE;
-    FLOW queda declarado para no tener que cambiar el contrato después.
-    """
-
-    PRESSURE = "PRESSURE"
-    FLOW = "FLOW"
-
-
-class SensorStatus(str, Enum):
-    """
-    Estado operativo del sensor.
-
-    El documento nombra el campo `status` pero no fija sus valores. Se
-    propone el mínimo que hace falta para la alerta SENSOR_OFFLINE:
-
-    - `ONLINE`   → ha enviado lecturas dentro de la ventana esperada.
-    - `OFFLINE`  → lleva demasiado tiempo sin enviar (issue #28).
-
-    Lo calcula el backend a partir de `last_seen_at`; no es un campo que
-    el cliente pueda escribir.
-    """
-
-    ONLINE = "ONLINE"
-    OFFLINE = "OFFLINE"
 
 
 class SensorBase(ApiRequest):
@@ -213,6 +184,14 @@ class SensorUpdate(ApiRequest):
 class SensorResponse(ApiModel):
     id: UUID
     site_id: UUID
+    # Campos de lectura (B0): para que las listas pinten el edificio y el
+    # cliente sin pedirlos aparte.
+    site_name: str = Field(description="Nombre del edificio.")
+    organization_id: UUID = Field(description="Organización del edificio.")
+    organization_name: str = Field(description="Nombre de la organización.")
+    floor: int = Field(
+        description="Planta donde está el sensor. 0 es la baja; negativo, sótano."
+    )
     external_id: str = Field(
         description="Etiqueta del aparato físico (`SENS-001`), única en su site."
     )

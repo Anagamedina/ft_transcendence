@@ -22,6 +22,7 @@ from uuid import UUID
 
 from pydantic import Field
 
+from app.shared.enums import OrganizationStatus
 from app.shared.schemas import ApiModel, ApiRequest
 
 
@@ -36,11 +37,20 @@ class OrganizationCreate(ApiRequest):
 
 class OrganizationResponse(ApiModel):
     """
-    Campos según el documento de arquitectura (apartado 5):
-    `id`, `name`, `created_at`. Nada más — el CRUD de organizaciones
-    pertenece al nivel Intermedio de la API (apartado 9.2).
+    Campos según el documento de arquitectura (apartado 5): `id`, `name`,
+    `created_at`. La B0 añade `status` y `trial_ends_at`, que ya están en
+    la tabla (D1) y que necesitan la lista de clientes y Mi cuenta.
+
+    Contacto, facturación y contadores llegan con la B1.
     """
 
     id: UUID
     name: str
+    status: OrganizationStatus = Field(
+        description="TRIAL (prueba de 7 días), ACTIVE o SUSPENDED."
+    )
+    trial_ends_at: datetime | None = Field(
+        default=None,
+        description="Fin de la prueba, en UTC. Solo en organizaciones TRIAL.",
+    )
     created_at: datetime = Field(description="Alta de la organización, en UTC.")

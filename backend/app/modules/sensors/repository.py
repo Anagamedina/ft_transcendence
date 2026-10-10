@@ -6,11 +6,24 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.modules.readings.model import Reading
 from app.modules.sensors.model import Sensor
 from app.modules.sites.model import Site
+from app.shared.utils import matches_text
+
+
+def _con_jerarquia():
+    """
+    Site y organización de cada sensor, para los campos de lectura de
+    `SensorResponse` (B0). Una consulta por nivel para toda la página.
+
+    Es una función y no una constante: construir la opción configura los
+    mappers, y al importar este módulo aún no están registrados todos los
+    modelos (`Reading`).
+    """
+    return selectinload(Sensor.site).selectinload(Site.organization)
 
 
 class SensorRepository:
@@ -22,6 +35,9 @@ class SensorRepository:
         organization_id: UUID | None,
         offset: int = 0,
         limit: int = 100,
+        q: str | None = None,
+        organization_filter: UUID | None = None,
+        site_id: UUID | None = None,
     ) -> tuple[list[Sensor], int]:
         if offset < 0 or limit <= 0:
             raise ValueError("Invalid pagination")
@@ -31,6 +47,15 @@ class SensorRepository:
         query = select(Sensor).join(Site)
         if organization_id is not None:
             query = query.where(Site.organization_id == organization_id)
+        # B0 (Ana): filtros comunes. Se suman al alcance, no lo sustituyen.
+        if organization_filter is not None:
+            query = query.where(Site.organization_id == organization_filter)
+        if site_id is not None:
+            query = query.where(Sensor.site_id == site_id)
+        if q is not None:
+            query = query.where(
+                matches_text(q, Sensor.name, Sensor.external_id, Sensor.location)
+            )
 
         total = self.db.scalar(
             select(func.count()).select_from(query.subquery())
@@ -40,7 +65,8 @@ class SensorRepository:
             self.db.scalars(
                 # #25 (Ana): por nombre, como los sites; el id desempata para
                 # que la paginación no repita ni salte sensores.
-                query.order_by(Sensor.name, Sensor.id).offset(offset).limit(limit)
+                query.options(_con_jerarquia())
+                .order_by(Sensor.name, Sensor.id).offset(offset).limit(limit)
             ).all()
         )
 
@@ -56,7 +82,7 @@ class SensorRepository:
         query = select(Sensor).join(Site).where(Sensor.id == sensor_id)
         if organization_id is not None:
             query = query.where(Site.organization_id == organization_id)
-        return self.db.scalar(query)
+        return self.db.scalar(query.options(_con_jerarquia()))
 
     def last_seen_by_sensor(self, sensor_ids: list[UUID]) -> dict[UUID, datetime]:
         """
@@ -93,7 +119,8 @@ class SensorRepository:
         total = self.db.scalar(select(func.count()).select_from(query.subquery()))
         items = list(
             self.db.scalars(
-                query.order_by(Sensor.name, Sensor.id).offset(offset).limit(limit)
+                query.options(_con_jerarquia())
+                .order_by(Sensor.name, Sensor.id).offset(offset).limit(limit)
             ).all()
         )
         return items, int(total or 0)

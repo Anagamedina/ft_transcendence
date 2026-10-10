@@ -101,6 +101,24 @@ de aquí, no inventarlos.
 * Listados paginados con `?page=&page_size=`, envueltos en
   `{items, total, page, page_size, pages}`.
 
+### Contrato común (B0, issue #138)
+
+* **Enums compartidos** (sección *Schemas*): `OrganizationStatus`
+  (TRIAL / ACTIVE / SUSPENDED), `BuildingType`, `SensorStatus`
+  (ONLINE / OFFLINE), `SensorHealth` (OK / WARNING / CRITICAL / OFFLINE),
+  `AlertStatus` (el guardado: ACTIVE / RESOLVED) y `AlertState` (el de las
+  pantallas: ACTIVE / ACKNOWLEDGED / RESOLVED). La excepción es el rol del
+  usuario, que va en minúsculas: `admin` / `client`.
+* **Filtros comunes** en los listados: `?q=` busca texto sin distinguir
+  mayúsculas (vacío = sin filtro); `organization_id`, `site_id` y
+  `sensor_id` dejan solo lo de ese recurso. Estrechan lo que la sesión ya
+  permite ver, nunca lo amplían: un cliente que pida otra organización
+  recibe una lista vacía.
+* **Campos de lectura**: junto a cada id llega su nombre
+  (`organization_name`, `site_name`, `sensor_name`) y, en sensores y
+  alertas, la planta (`floor`: 0 es la baja, negativo es sótano). Son solo
+  de lectura: no se envían al crear ni al editar.
+
 ### Formato de error
 
 Todos los errores, sin excepción, tienen esta forma:
@@ -113,13 +131,12 @@ Todos los errores, sin excepción, tienen esta forma:
 con él. `message` es para personas y puede reescribirse o traducirse sin
 romper nada. `details` es una lista de fallos por campo, o `null`.
 
-### Qué hay publicado ahora mismo
+### Contratos sin ruta todavía
 
-Solo las rutas de las issues **#22** (health) y **#24** (`POST
-/api/readings`). Los contratos del resto de módulos —Auth, Users, Sites,
-Sensors, Alerts— están definidos y visibles en la sección **Schemas** de
-esta página, para que el frontend pueda construir el `MockAdapter` contra
-ellos; sus rutas se publicarán en las issues #25 a #29.
+Algunos schemas aparecen en la sección **Schemas** aunque ninguna ruta los
+use aún (por ejemplo `OrganizationResponse` o `SensorHealth`), para que el
+frontend pueda construir sus mocks contra ellos antes de que se publique
+el endpoint.
 """
 
 

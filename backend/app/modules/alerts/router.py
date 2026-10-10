@@ -36,7 +36,14 @@ from fastapi import APIRouter, Depends, Query, status
 
 from app.modules.alerts.schemas import AlertResponse, AlertStatus
 from app.modules.alerts.service import AlertService, get_alert_service
-from app.shared.dependencies import OrgScope, Pagination
+from app.shared.dependencies import (
+    OrganizationIdFilter,
+    OrgScope,
+    Pagination,
+    Search,
+    SensorIdFilter,
+    SiteIdFilter,
+)
 from app.shared.schemas import Page, error_response
 
 router = APIRouter(prefix="/alerts", tags=["Alerts"])
@@ -67,7 +74,10 @@ _NO_ENCONTRADA = error_response(
         "las organizaciones.\n\n"
         "Los dos filtros son los que usa el panel: `status` para ver solo "
         "las activas, que es la vista por defecto de quien atiende, y "
-        "`sensor_id` para entrar desde el detalle de un sensor."
+        "`sensor_id` para entrar desde el detalle de un sensor.\n\n"
+        "Filtros comunes: `q` busca en el mensaje y el nombre del sensor; "
+        "`organization_id` y `site_id` dejan solo las de un cliente o un "
+        "edificio."
     ),
     responses={**_NO_AUTORIZADO},
 )
@@ -75,14 +85,14 @@ def list_alerts(
     service: AlertSvc,
     scope: OrgScope,
     pagination: Pagination,
+    q: Search,
     status_filtro: Annotated[
         AlertStatus | None,
         Query(alias="status", description="Deja solo las alertas en ese estado."),
     ] = None,
-    sensor_id: Annotated[
-        UUID | None,
-        Query(description="Deja solo las alertas de ese sensor."),
-    ] = None,
+    sensor_id: SensorIdFilter = None,
+    organization_id: OrganizationIdFilter = None,
+    site_id: SiteIdFilter = None,
 ) -> Page[AlertResponse]:
     # La organización sale de la sesión (`OrgScope`), nunca de la query: si
     # viniera de fuera, cualquiera pediría las alertas de otro cliente.
@@ -92,6 +102,9 @@ def list_alerts(
         limit=pagination.limit,
         status=status_filtro.value if status_filtro else None,
         sensor_id=sensor_id,
+        q=q,
+        organization_filter=organization_id,
+        site_id=site_id,
     )
 
 
