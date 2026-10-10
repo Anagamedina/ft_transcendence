@@ -1,0 +1,137 @@
+import json
+import threading
+import uuid
+
+import httpx
+
+from app.client import ReadingsClient
+from app.main import build_reading
+
+INGEST_KEY = "test-ingest-key"
+READING = {"sensor_id": "6f1c8a2e-6b3d-4f9a-9c21-0b7e5d3a9d4b", "pressure": 3.42, "measured_at": "2026-09-16T10:00:00Z"}
+
+
+def _client(handler, max_retries=2):
+    calls = []
+
+    def recording_handler(request):
+        calls.append(request)
+        return handler(request)
+
+    client = ReadingsClient(
+        "http://backend:8000", INGEST_KEY, 1, max_retries, retry_delay_seconds=0,
+        transport=httpx.MockTransport(recording_handler),
+    )
+    return client, calls
+
+
+def test_posts_reading_to_contract_path():
+    client, calls = _client(lambda request: httpx.Response(201, json={}))
+    assert client.send(READING) is True
+    assert calls[0].method == "POST"
+    assert calls[0].url.path == "/api/readings"
+    assert calls[0].read() == httpx.Request("POST", "/", json=READING).read()
+
+
+def test_sends_ingest_key_header():
+    client, calls = _client(lambda request: httpx.Response(201, json={}))
+    assert client.send(READING) is True
+    assert calls[0].headers["X-Ingest-Key"] == INGEST_KEY
+
+
+def test_ingest_key_header_is_sent_on_every_retry():
+    responses = iter([httpx.Response(503), httpx.Response(201, json={})])
+    client, calls = _client(lambda request: next(responses))
+    assert client.send(READING) is True
+    assert [call.headers["X-Ingest-Key"] for call in calls] == [INGEST_KEY, INGEST_KEY]
+
+
+def test_rejected_ingest_key_is_not_retried():
+    client, calls = _client(lambda request: httpx.Response(401), max_retries=3)
+    assert client.send(READING) is False
+    assert len(calls) == 1
+
+
+def test_health_check_does_not_send_ingest_key():
+    client, calls = _client(lambda request: httpx.Response(200))
+    assert client.wait_until_ready(threading.Event(), poll_interval=0, timeout=1) is True
+    assert "X-Ingest-Key" not in calls[0].headers
+
+
+def test_client_errors_are_not_retried():
+    for status in (404, 422, 501):
+        client, calls = _client(lambda request, status=status: httpx.Response(status))
+        assert client.send(READING) is False
+        assert len(calls) == 1
+
+
+def test_unavailable_backend_is_retried_then_dropped():
+    client, calls = _client(lambda request: httpx.Response(503), max_retries=2)
+    assert client.send(READING) is False
+    assert len(calls) == 3
+
+
+def test_network_error_recovers_on_retry():
+    responses = iter([httpx.ConnectError("refused"), httpx.Response(201, json={})])
+
+    def handler(request):
+        outcome = next(responses)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    client, calls = _client(handler)
+    assert client.send(READING) is True
+    assert len(calls) == 2
+
+
+def test_retries_reuse_the_same_reading_id():
+    reading = build_reading("6f1c8a2e-6b3d-4f9a-9c21-0b7e5d3a9d4b", 3.42)
+    responses = iter([httpx.ReadTimeout("timeout"), httpx.Response(504), httpx.Response(201, json={})])
+
+    def handler(request):
+        outcome = next(responses)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    client, calls = _client(handler)
+    assert client.send(reading) is True
+    assert len(calls) == 3
+    assert {json.loads(call.read())["id"] for call in calls} == {reading["id"]}
+
+
+def test_each_reading_gets_its_own_id():
+    first = build_reading("6f1c8a2e-6b3d-4f9a-9c21-0b7e5d3a9d4b", 3.42)
+    second = build_reading("6f1c8a2e-6b3d-4f9a-9c21-0b7e5d3a9d4b", 3.42)
+    assert uuid.UUID(first["id"]) != uuid.UUID(second["id"])
+
+
+def test_wait_until_ready_returns_true_once_health_db_is_up():
+    responses = iter([httpx.Response(503), httpx.Response(200)])
+    client, calls = _client(lambda request: next(responses))
+
+    ready = client.wait_until_ready(threading.Event(), poll_interval=0, timeout=1)
+
+    assert ready is True
+    assert [call.url.path for call in calls] == ["/api/health/db", "/api/health/db"]
+
+
+def test_wait_until_ready_gives_up_after_timeout():
+    client, calls = _client(lambda request: httpx.Response(503))
+
+    ready = client.wait_until_ready(threading.Event(), poll_interval=0, timeout=0.05)
+
+    assert ready is False
+    assert len(calls) >= 1
+
+
+def test_wait_until_ready_stops_immediately_when_stop_is_set():
+    client, calls = _client(lambda request: httpx.Response(503))
+    stop = threading.Event()
+    stop.set()
+
+    ready = client.wait_until_ready(stop, poll_interval=0, timeout=1)
+
+    assert ready is False
+    assert calls == []

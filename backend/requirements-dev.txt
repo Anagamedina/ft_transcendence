@@ -1,0 +1,4 @@
+# Dev/test dependencies. Not installed in production images.
+-r requirements.txt
+
+pytest>=8.0,<9.0
