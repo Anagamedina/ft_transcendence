@@ -16,8 +16,13 @@ SEED        := $(COMPOSE) run --rm --no-deps \
 
 all: up
 
+# Never overwrites an existing .env. A new one gets random keys instead of the
+# example ones, so a clean clone does not run with secrets published in the repo.
 env:
-	@test -f .env || cp .env.example .env
+	@test -f .env || sed \
+		-e "s|^SECRET_KEY=.*|SECRET_KEY=$$(openssl rand -hex 32)|" \
+		-e "s|^INGEST_API_KEY=.*|INGEST_API_KEY=$$(openssl rand -hex 32)|" \
+		.env.example > .env
 
 # The demo needs the sensor list of .env.example: an older .env leaves the
 # new sensors without simulated readings, so they show as offline.
