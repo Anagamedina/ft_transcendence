@@ -33,6 +33,7 @@ from app.modules.readings.model import Reading
 from app.modules.sensors.model import Sensor
 from app.modules.sites.model import Site
 from app.modules.users.model import User
+from app.shared.dependencies import get_current_user
 
 # Las únicas rutas que se pueden llamar sin sesión, y por qué.
 RUTAS_PUBLICAS = {
@@ -114,7 +115,6 @@ def datos(engine):
             "admin_global": _usuario(session, "global@aquaguard.dev", "admin", None),
             "admin_de_a": _usuario(session, "admin-a@aquaguard.dev", "admin", a["org"].id),
             "cliente_a": _usuario(session, "cliente-a@aquaguard.dev", "client", a["org"].id),
-            "cliente_sin_org": _usuario(session, "huerfano@aquaguard.dev", "client", None),
         }
         session.commit()
         return {"a": a, "b": b, **usuarios}
@@ -136,6 +136,23 @@ def client(engine):
 
 def _entrar(client, user):
     client.cookies.set(SESSION_COOKIE, create_session_token(user.id))
+
+
+def _entrar_sin_organizacion():
+    """
+    Un cliente sin organización ya no se puede guardar: lo impide
+    `ck_users_client_has_organization`. `get_org_scope` lo sigue cortando por
+    si acaso, así que se prueba con un usuario que nunca llega a la base.
+    """
+    huerfano = User(
+        id=uuid4(),
+        organization_id=None,
+        email="huerfano@aquaguard.dev",
+        name="huerfano",
+        password_hash="da-igual-aqui",
+        role="client",
+    )
+    app.dependency_overrides[get_current_user] = lambda: huerfano
 
 
 def _ids_de_alertas(respuesta):
@@ -263,7 +280,7 @@ def test_un_cliente_sin_organizacion_no_ve_nada(client, datos, url):
     El caso peligroso: `None` significa «todas» para un admin. Si se colara
     para un cliente, vería los datos de todos. `get_org_scope` lo corta.
     """
-    _entrar(client, datos["cliente_sin_org"])
+    _entrar_sin_organizacion()
 
     respuesta = client.get(url.format(sensor=datos["a"]["sensor"].id))
 

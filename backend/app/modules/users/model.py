@@ -7,6 +7,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -26,6 +27,11 @@ class User(Base):
         CheckConstraint(
             "role IN ('admin', 'client')",
             name="ck_users_role",
+        ),
+        # Only a global admin can live without an organization.
+        CheckConstraint(
+            "role = 'admin' OR organization_id IS NOT NULL",
+            name="ck_users_client_has_organization",
         ),
     )
 
@@ -64,6 +70,29 @@ class User(Base):
     role: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
+    )
+
+    # A disabled user cannot log in. Existing users stay active.
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        server_default="true",
+        nullable=False,
+    )
+
+    last_login_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    # Version of the terms accepted at sign-up and when they were accepted.
+    terms_version: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+    )
+
+    terms_accepted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(

@@ -11,6 +11,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Integer,
     Numeric,
     String,
     Text,
@@ -79,7 +80,8 @@ class Sensor(Base):
 
     # Human-readable sensor name
     name: Mapped[str] = mapped_column(
-        String(150),
+        # Same max length as SensorBase.name in schemas.py.
+        String(120),
         nullable=False,
     )
 
@@ -87,6 +89,13 @@ class Sensor(Base):
     location: Mapped[str | None] = mapped_column(
         String(120),
         nullable=True,
+    )
+
+    # Floor of the building: 0 is the ground floor, negative are basements
+    floor: Mapped[int] = mapped_column(
+        Integer,
+        server_default="0",
+        nullable=False,
     )
 
     # Measured magnitude: PRESSURE or FLOW
