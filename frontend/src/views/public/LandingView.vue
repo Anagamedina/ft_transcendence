@@ -71,6 +71,26 @@
         </div>
       </div>
     </section>
+
+    <!-- How it works: three steps -->
+    <section id="metodo" class="bg-aqua-50 px-6 py-14 md:px-20">
+      <div class="max-w-6xl mx-auto flex flex-col gap-7">
+        <h2 class="text-3xl font-bold text-aqua-900 text-center">Cómo funciona</h2>
+        <ol class="grid gap-5 md:grid-cols-3">
+          <li
+            v-for="(step, index) in howItWorks"
+            :key="step.title"
+            class="bg-white border border-aqua-100 rounded-xl p-6 flex flex-col gap-2"
+          >
+            <p class="text-xs font-bold uppercase tracking-widest text-aqua-600">
+              Paso {{ index + 1 }}
+            </p>
+            <h3 class="text-lg font-bold text-aqua-900">{{ step.title }}</h3>
+            <p class="text-slate-600">{{ step.text }}</p>
+          </li>
+        </ol>
+      </div>
+    </section>
   </PublicLayout>
 </template>
 
@@ -92,4 +112,20 @@ const statusStyles = {
   warning: { row: "bg-amber-50", dot: "bg-warning", label: "aviso" },
   critical: { row: "bg-red-50", dot: "bg-danger", label: "alerta" },
 };
+
+// Steps shown in the "How it works" section
+const howItWorks = [
+  {
+    title: "Te registras y pruebas gratis",
+    text: "Creas tu cuenta, eliges el distrito de tu edificio y empiezas 7 días de prueba.",
+  },
+  {
+    title: "Instalamos sensores por planta",
+    text: "Un sensor de presión en cada punto crítico, de los sótanos a la cubierta.",
+  },
+  {
+    title: "Te avisamos al momento",
+    text: "Si la presión sale de su rango (0–25 bar), se abre una alerta en tu panel.",
+  },
+];
 </script>
