@@ -1,17 +1,8 @@
 """
 purge_organization (D9, issue #133).
 
-Every test runs twice: on SQLite (foreign keys on) and on PostgreSQL. The
-PostgreSQL run creates a throwaway database next to the dev one, builds the
-schema there and drops it at the end; the dev data is never touched. It is
-skipped when PostgreSQL is not reachable (tests run outside Docker), so run
-it inside the stack:
-
-    docker compose run --rm --no-deps -v "$PWD/backend:/src" \\
-        --entrypoint sh backend -c "cd /src && python -m pytest tests/integration"
-
-The schema comes from the models (create_all). It matches the migrations
-because `make migration-check` fails on any drift.
+Every test runs twice, on SQLite and on a throwaway PostgreSQL database:
+see the `engine` fixture in conftest.py.
 """
 
 from __future__ import annotations
@@ -21,14 +12,11 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import create_engine, event, func, select, text
-from sqlalchemy.engine import make_url
-from sqlalchemy.exc import OperationalError
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core import models  # noqa: F401 - registers the ORM models
-from app.core.config import settings
-from app.core.database import Base, transaction
+from app.core.database import transaction
 from app.modules.alerts.model import Alert
 from app.modules.documents.model import Document
 from app.modules.invitations.model import Invitation
@@ -41,56 +29,6 @@ from app.modules.users.model import User
 
 NOW = datetime.now(timezone.utc)
 READINGS_PER_SENSOR = 50
-
-
-# ---------------------------------------------------------
-# Engines
-# ---------------------------------------------------------
-def _sqlite_engine():
-    engine = create_engine("sqlite+pysqlite:///:memory:")
-
-    @event.listens_for(engine, "connect")
-    def _foreign_keys_on(dbapi_connection, _record):
-        dbapi_connection.execute("PRAGMA foreign_keys=ON")
-
-    Base.metadata.create_all(engine)
-    return engine, lambda: engine.dispose()
-
-
-def _postgres_engine():
-    admin = create_engine(
-        settings.DATABASE_URL,
-        isolation_level="AUTOCOMMIT",
-        connect_args={"connect_timeout": 3},
-    )
-    try:
-        admin.connect().close()
-    except OperationalError:
-        admin.dispose()
-        pytest.skip("PostgreSQL is not reachable; run the tests inside the stack")
-
-    name = f"aquaguard_test_purge_{uuid.uuid4().hex[:8]}"
-    with admin.connect() as connection:
-        connection.execute(text(f'CREATE DATABASE "{name}"'))
-    engine = create_engine(make_url(settings.DATABASE_URL).set(database=name))
-    Base.metadata.create_all(engine)
-
-    def _drop():
-        engine.dispose()
-        with admin.connect() as connection:
-            connection.execute(text(f'DROP DATABASE "{name}" WITH (FORCE)'))
-        admin.dispose()
-
-    return engine, _drop
-
-
-@pytest.fixture(params=["sqlite", "postgresql"])
-def engine(request):
-    engine, cleanup = (
-        _sqlite_engine() if request.param == "sqlite" else _postgres_engine()
-    )
-    yield engine
-    cleanup()
 
 
 # ---------------------------------------------------------
