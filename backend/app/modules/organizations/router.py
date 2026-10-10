@@ -4,11 +4,11 @@
 Endpoints de organizaciones (`/api/organizations/...`).
 
 El router se registra desde la issue #22 pero **todavía no declara
-ninguna ruta**: el CRUD de organizaciones es nivel Intermedio
-(apartado 9.2) y pertenece al módulo «Organization system» del plan de
-14 puntos.
+ninguna ruta**: llegan con la B1 (#139, que incluye la #121) — listar,
+ver, crear y editar organizaciones, suspender, reactivar y la prueba de
+7 días.
 
-Se deja creado, y no se pospone el archivo entero, por dos motivos:
+Se dejó creado desde el principio, y no al llegar la B1, por dos motivos:
 queda registrado en `api.py` desde el principio, de modo que añadir el
 primer endpoint no toca el arranque de la aplicación; y quien lea el
 código ve los ocho módulos del apartado 8.2, no seis, con el estado de

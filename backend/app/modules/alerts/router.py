@@ -1,17 +1,16 @@
-    # ROUTER — alerts
+# ROUTER — alerts
 # Capa HTTP fina: valida schemas → llama service → responde.
 # AlertService: reglas, acknowledge, resolve (transacciones).
 """
 Endpoints de alertas (`/api/alerts/...`).
 
-Registrado desde la issue #22, **sin rutas todavía**. Las del nivel
-Básico son de la issue #28:
+Implementados en la issue #28 (PR #78); filtros comunes de la B0 (#138):
 
     GET   /api/alerts
     PATCH /api/alerts/{id}/acknowledge
     PATCH /api/alerts/{id}/resolve
 
-Dos decisiones ya tomadas para cuando se implementen:
+Dos decisiones de diseño:
 
 **PATCH y no POST.** Es lo que fija el apartado 9.1 del documento. (El
 diagrama de arquitectura dibuja `POST .../resolve` y omite

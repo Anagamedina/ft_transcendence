@@ -3,13 +3,16 @@
 """
 Endpoints de analítica (`/api/analytics/...`).
 
-Registrado desde la issue #22. Los KPIs y agregaciones son nivel
-Intermedio (apartado 9.2):
+Registrado desde la issue #22, sin rutas todavía. Llegan con el
+rediseño:
 
-    GET /api/analytics/overview?from=&to=        B9 (Ana), pendiente
-    GET /api/analytics/alerts/weekly?from=&to=   B9 (Ana), pendiente
-    GET /api/analytics/export?format=csv&from=&to=   B18, implementado
+    GET /api/analytics/overview              → B9 (#144, Ana)
+    GET /api/analytics/alerts/weekly         → B9 (#144, Ana)
+    GET /api/analytics/alerts/top-sensors    → B9 (#144, Ana)
+    rango de fechas y exportación CSV        → B18 (#134, Daruny)
 
+Se usa `overview`, como dice el documento (apartado 9.2), y no `kpis`,
+como dibuja el diagrama de arquitectura.
 El periodo de los tres sale de la dependencia compartida `DateRange`
 (shared/dependencies.py): últimos 30 días por defecto y 422 si `from >= to`.
 Cuando se implemente B9, `overview` y `weekly` solo tienen que recibir

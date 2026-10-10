@@ -462,12 +462,23 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 
 ### Ana (`anamedin`)
 
-| Issue | Contribution                                        | Status               |
-|-------|-----------------------------------------------------|----------------------|
-| 01    | FastAPI modular architecture and health checks      | Implemented          |
-| 02    | Pydantic schemas and OpenAPI contract               | Implemented          |
-| 03    | `POST /api/readings` contract and service structure | In progress          |
-| 04    | script new issues                                   | In progress to check |
+| Issue | Contribution                                                                                   | Pull requests        | Status      |
+|-------|------------------------------------------------------------------------------------------------|----------------------|-------------|
+| #22   | FastAPI modular architecture (8 routers), unified error format and health checks              | #46                  | Implemented |
+| #23   | Pydantic schemas and OpenAPI contract, including schemas published before their routes        | #46                  | Implemented |
+| #24   | `POST /api/readings`: stores the reading, idempotent by `id`, evaluates alert rules            | #72                  | Implemented |
+| #25   | `GET /api/sensors`, `GET /api/sensors/{id}` and reading history; `OFFLINE` after 5 minutes     | #77, #113            | Implemented |
+| #26   | Register, login, logout and `GET /api/me`: Argon2 hashing, signed httpOnly session cookie      | #75, #79             | Implemented |
+| #27   | Roles and per-organization isolation (`require_role`, `get_org_scope`)                         | #105                 | Implemented |
+| #28   | Alerts: list, acknowledge, resolve; `LOW_PRESSURE`/`HIGH_PRESSURE` and `SENSOR_OFFLINE` rules   | #78, #98, #118       | Implemented |
+| #29   | Sites, sensors of a site, sensor create and edit                                               | #108, #115           | Implemented |
+| #30   | Pytest coverage of critical routes                                                             | #109, #114           | Implemented |
+| #106  | `POST /api/readings` requires the simulator key (`X-Ingest-Key`)                               | #116                 | Implemented |
+| #138  | B0 common contract: shared enums, `q`/`organization_id`/`site_id` filters, `*_name` fields     | #180                 | Implemented |
+| —     | List of the redesign issues (B0–B18) and their mocks                                           | #124                 | Implemented |
+| —     | Cleanup: outdated comments, dead 501 code, notes in `docs/ana/` brought up to date             | #181                 | In review   |
+
+Notes for each issue, with diagrams and the decisions taken, are in [`docs/ana/`](docs/ana/).
 
 
 ### Daruny (`dasalaza`)

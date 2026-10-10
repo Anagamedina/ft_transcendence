@@ -10,9 +10,9 @@ una empresa. Es además la **unidad de aislamiento** de todo el sistema.
 
 Todo cuelga de ella, y esa cadena es lo que permite responder a la
 pregunta "¿puede este usuario ver esta lectura?" subiendo por las
-relaciones hasta la organización. El aislamiento efectivo se implementa en
-la issue #27; el contrato ya lo refleja exponiendo `organization_id` en
-los recursos que dependen de él.
+relaciones hasta la organización. El aislamiento lo aplica
+`get_org_scope` (issue #27), y el contrato lo refleja exponiendo
+`organization_id` en los recursos que dependen de ella.
 """
 
 from __future__ import annotations
