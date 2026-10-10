@@ -82,6 +82,15 @@ class Organization(Base):
         back_populates="organization",
     )
 
+    # Organization.invitations <-> Invitation.organization
+    # passive_deletes: the database deletes them (ON DELETE CASCADE); the ORM
+    # does not load them or try to set organization_id to NULL.
+    invitations: Mapped[list["Invitation"]] = relationship(
+        "Invitation",
+        back_populates="organization",
+        passive_deletes=True,
+    )
+
 
 # Names are unique ignoring case: "Hotel Sol" and "hotel sol" collide.
 # Declared after the class so the expression can reference the column.
