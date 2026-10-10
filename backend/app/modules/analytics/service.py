@@ -28,8 +28,19 @@ from app.shared.dependencies import DbSession
 UTF8_BOM = "\ufeff"
 
 
-def _bar(value: Decimal | None) -> str:
-    return "" if value is None else f"{value:.3f}"
+PRESSURE_COLUMNS = ("pressure_min", "pressure_avg", "pressure_max")
+
+
+def _pressure(value: Decimal | None) -> Decimal | None:
+    return None if value is None else round(value, 3)
+
+
+def _csv_row(row: dict) -> dict:
+    """Pressures with 3 decimals, and empty (not "None") without readings."""
+    return {
+        **row,
+        **{c: "" if row[c] is None else f"{row[c]:.3f}" for c in PRESSURE_COLUMNS},
+    }
 
 
 class AnalyticsService:
@@ -38,7 +49,11 @@ class AnalyticsService:
 
     def export_rows(
         self, organization_id: UUID | None, start: datetime, end: datetime
-    ) -> list[dict[str, str | int]]:
+    ) -> list[dict]:
+        """
+        One row per sensor and day, with real types: counts as int,
+        pressures as Decimal or None. Shared by the CSV and JSON formats.
+        """
         readings = {
             (r.sensor_id, r.day): r
             for r in self.repository.readings_by_sensor_and_day(organization_id, start, end)
@@ -65,9 +80,9 @@ class AnalyticsService:
                     "sensor_name": sensor.name,
                     "unit": sensor.unit,
                     "readings_count": reading.count if reading else 0,
-                    "pressure_min": _bar(reading.minimum if reading else None),
-                    "pressure_avg": _bar(reading.average if reading else None),
-                    "pressure_max": _bar(reading.maximum if reading else None),
+                    "pressure_min": _pressure(reading.minimum if reading else None),
+                    "pressure_avg": _pressure(reading.average if reading else None),
+                    "pressure_max": _pressure(reading.maximum if reading else None),
                     "alerts_total": alert.total if alert else 0,
                     "alerts_critical": alert.critical if alert else 0,
                     "alerts_resolved": alert.resolved if alert else 0,
@@ -85,7 +100,7 @@ class AnalyticsService:
         buffer.write(UTF8_BOM)
         writer = csv.DictWriter(buffer, fieldnames=EXPORT_COLUMNS, lineterminator="\n")
         writer.writeheader()
-        writer.writerows(self.export_rows(organization_id, start, end))
+        writer.writerows(_csv_row(r) for r in self.export_rows(organization_id, start, end))
         return buffer.getvalue()
 
 
