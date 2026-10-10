@@ -8,9 +8,11 @@
     <Header title="AquaGuard · Admin">
       <template #actions>
         <button
-          class="bg-white text-aqua-600 px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 transition shrink-0"
+          @click="handleLogout"
+          :disabled="authStore.status === 'loading'"
+          class="bg-white text-aqua-600 px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 transition shrink-0 disabled:opacity-50"
         >
-          Cerrar sesión
+          {{ authStore.status === 'loading' ? 'Cerrando sesión...' : 'Cerrar sesión' }}
         </button>
       </template>
     </Header>
@@ -40,4 +42,16 @@ const adminNav = [
   { label: "Sensores", icon: "droplet", disabled: true },
   { label: "Alertas", icon: "alert", disabled: true },
 ];
+
+import { useRouter } from "vue-router";
+import { useAuthStore } from "../stores/auth";
+
+const router = useRouter();
+const authStore = useAuthStore();
+
+async function handleLogout() {
+  await authStore.logout();
+  await router.replace("/login");
+}
+
 </script>

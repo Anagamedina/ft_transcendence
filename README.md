@@ -460,6 +460,7 @@ development without a running backend by implementing a mock adapter with the sa
   authentication flow using Auth services, Auth Store, handled loading/error 
   states and prevented double submission. Authentication was tested with the MockAdapter 
   while the backend was not yet available.|                                              |
+  Route guards and role-based navigation | Implemented protected routes using Vue Router navigation guards and Pinia authentication state. Added role-based access control for client and admin dashboards, redirects for unauthorized access, session initialization, and a custom 404 page for unknown routes. | #174 | Ensured that unauthenticated users cannot access protected pages and that authenticated users are redirected according to their roles. Centralized authentication checks in the router and handled unknown routes with a dedicated Not Found view. |
 
 | Eduardo (`egalindo`) | Features/modules             | Pull requests | Challenges and solutions |
 |----------------------|------------------------------|---------------|--------------------------|

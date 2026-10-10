@@ -99,12 +99,14 @@
 
 
 <script setup>
+
 import { computed, reactive, onMounted } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "../../stores/auth.js";
 import PublicLayout from "../../layouts/PublicLayout.vue";
 
 const router = useRouter();
+const route = useRoute();
 const authStore = useAuthStore();
 
 const form = reactive({
@@ -118,11 +120,10 @@ const errorMessage = computed(() => {
   return authStore.error?.message ?? null;
 });
 
-
 async function handleSubmit() {
-  if (isLoading.value) {
-    return;
-  }
+  if (isLoading.value) return;
+
+  authStore.clearError();
 
   try {
     await authStore.login({
@@ -130,11 +131,24 @@ async function handleSubmit() {
       password: form.password,
     });
 
-    await authStore.fetchMe();
+    // Redirect users to their originally requested page when possible.
+    const redirect = route.query.redirect;
+    const isSafeRedirect =
+      typeof redirect === "string" &&
+      redirect.startsWith("/") &&
+      !redirect.startsWith("//");
 
-    router.push("/dashboard");
+    if (isSafeRedirect) {
+      await router.replace(redirect);
+      return;
+    }
+
+    // Redirect users to the home page matching their role.
+    await router.replace(
+      authStore.isAdmin ? "/admin" : "/dashboard"
+    );
   } catch (error) {
-    // L'erreur est déjà gérée par le Auth Store.
+    // The authentication store already handles login errors.
   }
 }
 

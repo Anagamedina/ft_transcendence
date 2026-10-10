@@ -10,12 +10,3 @@ const api = axios.create({ //creamos nuestro propio cliente HTTP Axios
 })
 
 export default api
-
-/*
-export class AppError {
-  constructor(message, status = null, code = null) {
-    this.message = message; // Message lisible pour l'utilisateur
-    this.status = status;   // HTTP code (ex: 404, 500)
-    this.code = code;       // Code d'erreur métier propre à votre API (ex: 'PASSWORD_TOO_WEAK')
-  }
-}*/
