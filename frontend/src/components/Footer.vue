@@ -14,6 +14,9 @@
         <router-link to="/terms" class="hover:text-aqua-200 transition"
           >Términos de Servicio</router-link
         >
+        <router-link to="/status" class="hover:text-aqua-200 transition"
+          >Estado del servicio</router-link
+        >
       </nav>
     </div>
   </footer>

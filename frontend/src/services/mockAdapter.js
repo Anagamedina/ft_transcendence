@@ -4,6 +4,7 @@ import { alerts } from './fixtures/alerts.js'
 import { readings } from './fixtures/readings.js'
 import { sensors } from './fixtures/sensors.js'
 import { sites } from './fixtures/sites.js'
+import { systemStatus } from './fixtures/status.js'
 
 // Mock users used for authentication tests.
 const mockUser = [
@@ -72,6 +73,14 @@ const mockAdapter = {
         data: {
           user: toPublicUser(currentUser),
         },
+        status: 200,
+      })
+    }
+
+    // Get the public status page data.
+    if (url === '/api/status') {
+      return Promise.resolve({
+        data: systemStatus,
         status: 200,
       })
     }

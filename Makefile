@@ -12,7 +12,7 @@ SEED        := $(COMPOSE) run --rm --no-deps \
 	-v $(CURDIR)/backend/seeds:/app/seeds:ro \
 	--entrypoint python backend -m seeds.seed_demo
 
-.PHONY: all env check-sim-env certs up dev sim demo seed migrate migration migration-check down build logs ps clean fclean re smoke
+.PHONY: all env check-sim-env certs up dev sim demo seed migrate migration migration-check down build logs ps clean fclean re smoke backup backups restore
 
 all: up
 
@@ -75,6 +75,15 @@ migration-check:
 
 smoke:
 	@sh scripts/smoke.sh
+
+backup:
+	$(COMPOSE) exec -T backup backup.sh
+
+backups:
+	@$(COMPOSE) exec -T backup sh -c 'ls -lh /backups | tail -n +2'
+
+restore:
+	@sh scripts/restore.sh "$(FILE)"
 
 down:
 	$(COMPOSE) --profile sim down

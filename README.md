@@ -90,14 +90,16 @@ Frontend-only configuration is documented in
 
 ### Run the stack
 
-The Compose stack declares four services on the `aquaguard` network. `database`,
-`backend` and `gateway` start by default; `simulator` sits behind the `sim`
-Compose profile until its image is complete, so a plain start never fails on it.
+The Compose stack declares five services on the `aquaguard` network. `database`,
+`backend`, `gateway` and `backup` start by default; `simulator` sits behind the
+`sim` Compose profile, so a plain start never fails on it.
 
 `gateway` is the only service published to the host. It terminates TLS on 443,
 redirects 80 to 443, serves the compiled Vue SPA, and proxies `/api/` and `/ws/`
 to `backend:8000` over the internal network. `backend` and `database` are not
-reachable from the host at all.
+reachable from the host at all. `backup` writes a compressed `pg_dump` to the
+`backups_data` volume on a schedule; see
+[Health checks, status page and backups](#health-checks-status-page-and-backups).
 
 ```bash
 make up
@@ -132,8 +134,8 @@ make smoke
 
 It runs `docker compose up -d --wait` for `database`, `backend` and `gateway`,
 which starts any of them that is stopped and waits up to 60 seconds for all
-three to report `healthy`. Then it checks both health endpoints, the HTTP to
-HTTPS redirect and the SPA, sends a reading through `POST /api/readings`, and
+three to report `healthy`. Then it checks both health endpoints, `/api/status`,
+the HTTP to HTTPS redirect and the SPA, sends a reading through `POST /api/readings`, and
 confirms it was stored in PostgreSQL. The test reading is deleted afterwards.
 When the simulator is running (`make sim`), it also checks that its readings
 reach the database, unless its scenario is `offline`, which sends none on
@@ -184,11 +186,14 @@ The root `Makefile` wraps the Compose commands:
 | `make migration MSG="..."` | Generates a migration with `alembic revision --autogenerate` without applying it; fails without `MSG`                                        |
 | `make migration-check`     | Fails if the database is unreachable, has pending migrations, or the models drifted from the migrations                                      |
 | `make smoke`               | Smoke test of the stack: health, gateway, and a reading stored end to end; fails with a non-zero code                                        |
+| `make backup`              | Runs one database backup now, in addition to the automatic ones                                                                              |
+| `make backups`             | Lists the backups kept in the `backups_data` volume                                                                                          |
+| `make restore FILE=...`    | Restores the database from one of those backups; see [`docs/disaster-recovery.md`](docs/disaster-recovery.md)                                |
 | `make down`                | Stops the containers, simulator included, and keeps the PostgreSQL volume                                                                    |
 | `make logs`                | Follows the logs of every running service                                                                                                    |
 | `make ps`                  | Shows service status                                                                                                                         |
 | `make clean`               | `down --remove-orphans`, simulator included                                                                                                  |
-| `make fclean`              | `down -v --remove-orphans`, simulator included, which deletes the PostgreSQL volume                                                          |
+| `make fclean`              | `down -v --remove-orphans`, simulator included, which deletes the PostgreSQL volume and the backups                                          |
 | `make re`                  | `fclean` followed by `up`, a start from scratch                                                                                              |
 
 `make fclean` destroys the database volume. PostgreSQL only creates its user on
@@ -198,6 +203,66 @@ after the credentials in `.env` change.
 Certificates live in `gateway/certs/` and are git-ignored. They are mounted
 read-only into the gateway instead of being baked into the image, so a private
 key never reaches a built artefact.
+
+### Health checks, status page and backups
+
+This is the DevOps minor module "health check and status page system with
+automated backups and disaster recovery procedures".
+
+**Health checks.** Every service has one, and `docker compose ps` shows the
+result:
+
+| Service     | Check                                                                    |
+|-------------|--------------------------------------------------------------------------|
+| `database`  | `pg_isready` against the configured user and database                    |
+| `backend`   | `GET /api/health` (liveness, does not touch PostgreSQL)                  |
+| `gateway`   | `GET https://localhost/api/health` through Nginx                         |
+| `simulator` | Its heartbeat file was updated recently                                  |
+| `backup`    | A backup newer than `BACKUP_INTERVAL_HOURS` exists in the volume         |
+
+`GET /api/health/db` is the readiness endpoint, and `make smoke` checks the
+whole stack end to end.
+
+**Status page.** <https://localhost/status> is public and linked from the
+footer. It shows one state per component (operational, degraded or down) and
+the time of the last check. It reads `GET /api/status`, which returns no
+sensitive data and always answers 200, also when the database is down:
+
+| Component   | Operational when                              | Otherwise                                        |
+|-------------|-----------------------------------------------|--------------------------------------------------|
+| `backend`   | The request is answered                       | Down: the page shows it when the request fails   |
+| `database`  | `SELECT 1` works                              | Down                                             |
+| `simulator` | A reading arrived in the last 5 minutes       | Down, with the time of the last reading          |
+| `backup`    | The last backup is newer than two intervals   | Degraded if older, down if there is none         |
+
+```bash
+curl -k https://localhost/api/status
+```
+
+**Automatic backups.** The `backup` service runs `pg_dump` compressed with gzip
+every `BACKUP_INTERVAL_HOURS` (24 by default) and keeps the last `BACKUP_KEEP`
+(7 by default) in the `backups_data` volume, named
+`aquaguard-YYYYMMDD-HHMMSS.sql.gz` in UTC. A dump is written under a temporary
+name and renamed only when it finishes, so an interrupted backup is never
+listed. Restarting the stack does not create an extra backup.
+
+```bash
+make backup      # one backup now
+make backups     # list them
+```
+
+**Disaster recovery.** `make restore FILE=<name>` loads a backup in a single
+transaction, so a failed restore leaves the database as it was:
+
+```bash
+make backups
+make restore FILE=aquaguard-20261010-194544.sql.gz
+make smoke
+```
+
+The full procedure, with the result of the end-to-end test (database volume
+deleted, backup restored, `make smoke` passing), is in
+[`docs/disaster-recovery.md`](docs/disaster-recovery.md).
 
 ### Demo data
 
@@ -335,6 +400,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the detailed design.
 ├── frontend/      Vue application and client-side services
 ├── gateway/       Nginx and TLS configuration
 ├── simulator/     Deterministic sensor-data simulator
+├── backup/        Scheduled PostgreSQL backups
 ├── docs/          Architecture, API, decisions, and implementation notes
 ├── scripts/       Project-management and automation scripts
 ├── compose.yaml   Local service orchestration
@@ -384,6 +450,7 @@ data types, and relationships once the schema is implemented.
 | Compose orchestration (network, volume, profiles)                                                      | Implemented | Eduardo      | `make up` then `make ps`                                                                                                                                                                                                                                                                                                                 |
 | Nginx gateway: HTTPS, HTTP redirect, SPA, `/api` and `/ws` proxy                                       | Implemented | Eduardo      | `curl -I http://localhost` returns 301, `curl -k https://localhost/api/health` returns 200                                                                                                                                                                                                                                               |
 | Sensor simulator (`simulator/`): normal, low, high and offline scenarios                               | Implemented | Eduardo      | `cd simulator && pytest` (33 tests); `make up && make seed && make sim`. The seed creates the sensors listed in `.env.example`, so readings persist via `POST /api/readings` (#24) with no manual setup; waits for `/api/health/db` before sending, exposes its own container `HEALTHCHECK`, and demo users get real Argon2 hashes (#89) |
+| Status page, automatic backups and disaster recovery (`/status`, `make backup`, `make restore`) | Implemented | Eduardo | `make up`, open <https://localhost/status>; `make backup && make backups`; `make restore FILE=<name> && make smoke`. `cd backend && python3 -m pytest -q tests/test_status.py` (10 tests) |
 | Health checks and smoke test (`make smoke`)                                                            | Implemented | Eduardo      | `make up && make seed && make smoke`; with `make sim` it also checks the simulator -> API -> database flow                                                                                                                                                                                                                               |
 | Authentication: register, login, logout and `GET /api/me`                                              | Implemented | Ana          | `cd backend && python3 -m pytest -q` (289 tests), or `curl -k -c c.txt -X POST https://localhost/api/auth/login -H 'Content-Type: application/json' -d '{"email":"...","password":"..."}'` then `curl -k -b c.txt https://localhost/api/me`                                                                                              |
 | Permissions: `admin` sees every organization, `client` only its own, 401/403                           | Implemented | Ana          | `cd backend && python3 -m pytest -q tests/test_permisos.py`. Registering a client now requires `organization_id`. How the simulator authenticates on `POST /api/readings` is still open                                                                                                                                                  |
@@ -452,9 +519,10 @@ the team's current AquaGuard plan, based on the product architecture document.
 - Every claimed module must include tests, a reproducible demo path, and the
   responsible contributors in this section.
 
-The DevOps health/status system is a separate 1-point candidate and should be
-tracked as a bonus or additional module after the planned 14 points are
-complete. Major modules are worth 2 points and minor modules are worth 1 point.
+The DevOps health/status system (health checks, status page, automated backups
+and disaster recovery, 1 point) is implemented and described in
+[Health checks, status page and backups](#health-checks-status-page-and-backups).
+It is tracked as a bonus or additional module on top of the planned 14 points. Major modules are worth 2 points and minor modules are worth 1 point.
 
 ## Team information
 
@@ -568,6 +636,8 @@ development without a running backend by implementing a mock adapter with the sa
 | 09                   | Docker Compose stack         | Implemented   |
 | 10                   | Nginx gateway and HTTPS      | Implemented   |
 | 11                   | Health checks and smoke test | Implemented   |
+| 14                   | Environment variables and generated keys | Implemented   |
+| 15                   | Status page, backups and disaster recovery | Implemented   |
 
 ## Resources
 
@@ -619,6 +689,9 @@ label planned work separately from implemented work.
 - The gateway serves a production build of the SPA. Frontend development still
   uses the Vite dev server through `./scripts/launch-frontend.sh`.
 - Database models and migration bodies are not implemented yet.
+- Backups live in a Docker volume on the same host as the database. They
+  survive the loss of the database volume, but not the loss of the host or
+  `make fclean`; `docs/disaster-recovery.md` explains how to copy them out.
 - The README placeholders must be completed by the team.
 
 ## License
