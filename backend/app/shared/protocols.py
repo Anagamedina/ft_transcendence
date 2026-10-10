@@ -143,11 +143,20 @@ class SensorRepository(Protocol):
         ...
 
     def list_by_organization(
-        self, organization_id: UUID | None, offset: int, limit: int
+        self,
+        organization_id: UUID | None,
+        offset: int,
+        limit: int,
+        q: str | None = None,
+        organization_filter: UUID | None = None,
+        site_id: UUID | None = None,
     ) -> tuple[list[Any], int]:
         """
         Sensores de esa organización, o de todas con `None` (admin), por
         nombre. Devuelve la página y el total. Issue #25.
+
+        `q`, `organization_filter` y `site_id` son los filtros comunes de
+        la B0; se suman al alcance de `organization_id`.
         """
         ...
 

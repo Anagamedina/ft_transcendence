@@ -1,39 +1,85 @@
-// MOCK ADAPTER — responses adhering to the same OpenAPI contract (Week 1 parallel).
+// MOCK ADAPTER — responses adhering to the same OpenAPI contract (Week 1 parallel)
 
 import { alerts } from './fixtures/alerts.js'
 import { readings } from './fixtures/readings.js'
 import { sensors } from './fixtures/sensors.js'
 import { sites } from './fixtures/sites.js'
 
+// Mock users used for authentication tests.
+const mockUser = [
+  {
+    id: "99999999-9999-4999-8999-999999999999",
+    email: "test@example.com",
+    name: "Mock Admin",
+    role: "admin",
+    organization_id: null,
+    created_at: "2026-08-01T08:00:00Z",
+    password: "123",
+  },
+  {
+    id: "88888888-8888-4888-8888-888888888888",
+    email: "client@example.com",
+    name: "Mock Client",
+    role: "client",
+    organization_id: null,
+    created_at: "2026-08-01T08:00:00Z",
+    password: "123",
+  },
+]
 
-const mockUser = { //fictitious user, used when the frontend requests "GET /api/me"
-  id: '99999999-9999-4999-8999-999999999999',
-  email: 'mock@example.com',
-  name: 'Mock User',
-  role: 'admin',
-  organization_id: null,
-  created_at: '2026-08-01T08:00:00Z',
+let currentUser = null
+
+const MOCK_SESSION_KEY = "aquaguard_mock_user_id";
+
+function restoreMockUser() {
+  const userId = localStorage.getItem(MOCK_SESSION_KEY);
+
+  currentUser = mockUser.find((user) => user.id === userId) ?? null;
 }
 
-let isAuthenticated = false
+restoreMockUser();
+
+// Remove the password before returning a user to the frontend.
+function toPublicUser(user) {
+  if (!user) return null
+
+  const { password, ...publicUser } = user
+  return publicUser
+}
 
 /*
-We create an object that
-has the same methods as httpAdapter.
-It returns a promise
-that is already resolved, with the data we want,
-to replicate the behavior of the real adapter.
-*/
+ * The mock adapter exposes the same methods as httpAdapter.
+ * Each method returns a Promise to simulate an HTTP response.
+ */
 
 const mockAdapter = {
+  // GET requests
   get(url, config = {}) {
     console.log('[MOCK GET]', url, config)
 
-    // Get all sites
-    if (url === '/api/sites') { //= endpoint
-      return Promise.resolve({ // = "Create a Promise (that is already resolved) with the value below"
+    // Get the currently authenticated user.
+    if (url === '/api/me') {
+      if (!currentUser) {
+        return Promise.reject({
+          status: 401,
+          code: 'UNAUTHORIZED',
+          message: 'Authentication required.',
+          details: null,
+        })
+      }
+
+      return Promise.resolve({
         data: {
-          // Paginated response: current page, number of items, and total pages
+          user: toPublicUser(currentUser),
+        },
+        status: 200,
+      })
+    }
+
+    // Get all sites.
+    if (url === '/api/sites') {
+      return Promise.resolve({
+        data: {
           items: sites,
           total: sites.length,
           page: 1,
@@ -44,7 +90,7 @@ const mockAdapter = {
       })
     }
 
-    // Get all sensors
+    // Get all sensors.
     if (url === '/api/sensors') {
       return Promise.resolve({
         data: {
@@ -58,23 +104,25 @@ const mockAdapter = {
       })
     }
 
-    // Get sensors belonging to a specific site
-    if (url.startsWith('/api/sites/') && url.endsWith('/sensors')) {
+    // Get sensors belonging to a specific site.
+    if (
+      url.startsWith('/api/sites/') &&
+      url.endsWith('/sensors')
+    ) {
       const siteId = url.split('/')[3]
-
-      const site = sites.find((site) => site.id === siteId) //searching the site in the array
+      const site = sites.find((site) => site.id === siteId)
 
       if (!site) {
         return Promise.reject({
           status: 404,
           code: 'SITE_NOT_FOUND',
-          message: 'Site not found',
+          message: 'Site not found.',
           details: null,
         })
       }
 
-      const siteSensors = sensors.filter( //Keeps only the elements that meet this condition
-        (sensor) => sensor.site_id === siteId 
+      const siteSensors = sensors.filter(
+        (sensor) => sensor.site_id === siteId
       )
 
       return Promise.resolve({
@@ -89,17 +137,16 @@ const mockAdapter = {
       })
     }
 
-    // Get a specific site
+    // Get a specific site.
     if (url.startsWith('/api/sites/')) {
       const id = url.split('/')[3]
-
       const site = sites.find((site) => site.id === id)
 
       if (!site) {
         return Promise.reject({
           status: 404,
           code: 'SITE_NOT_FOUND',
-          message: 'Site not found',
+          message: 'Site not found.',
           details: null,
         })
       }
@@ -110,20 +157,21 @@ const mockAdapter = {
       })
     }
 
-    // Get readings belonging to a specific sensor
+    // Get readings belonging to a specific sensor.
     if (
       url.startsWith('/api/sensors/') &&
       url.endsWith('/readings')
     ) {
       const sensorId = url.split('/')[3]
-
-      const sensor = sensors.find((sensor) => sensor.id === sensorId)
+      const sensor = sensors.find(
+        (sensor) => sensor.id === sensorId
+      )
 
       if (!sensor) {
         return Promise.reject({
           status: 404,
           code: 'SENSOR_NOT_FOUND',
-          message: 'Sensor not found',
+          message: 'Sensor not found.',
           details: null,
         })
       }
@@ -144,17 +192,18 @@ const mockAdapter = {
       })
     }
 
-    // Get a specific sensor
+    // Get a specific sensor.
     if (url.startsWith('/api/sensors/')) {
-      const id = url.split('/')[3] // splits the url string at every "/", retrieves the 4th element, and stores it in the variable
-
-      const sensor = sensors.find((sensor) => sensor.id === id)
+      const id = url.split('/')[3]
+      const sensor = sensors.find(
+        (sensor) => sensor.id === id
+      )
 
       if (!sensor) {
         return Promise.reject({
           status: 404,
           code: 'SENSOR_NOT_FOUND',
-          message: 'Sensor not found',
+          message: 'Sensor not found.',
           details: null,
         })
       }
@@ -165,7 +214,7 @@ const mockAdapter = {
       })
     }
 
-    // Get all alerts
+    // Get all alerts.
     if (url === '/api/alerts') {
       return Promise.resolve({
         data: {
@@ -179,26 +228,7 @@ const mockAdapter = {
       })
     }
 
-    // Get the currently authenticated user
-    if (url === '/api/me') {
-      if (!isAuthenticated) {
-        return Promise.reject({
-          status: 401,
-          code: 'UNAUTHORIZED',
-          message: 'Authentication required.',
-          details: null,
-        })
-      }
-
-      return Promise.resolve({
-        data: {
-          user: mockUser,
-        },
-        status: 200,
-      })
-    }
-
-    // Unknown endpoint
+    // Handle unknown endpoints.
     return Promise.reject({
       status: 404,
       code: 'UNKNOWN_ENDPOINT',
@@ -207,6 +237,7 @@ const mockAdapter = {
     })
   },
 
+  // POST requests
   post(url, data = {}, config = {}) {
     if (url.startsWith('/api/auth/')) {
       console.log('[MOCK POST]', url)
@@ -214,25 +245,74 @@ const mockAdapter = {
       console.log('[MOCK POST]', url, data, config)
     }
 
-    // Register
+    // Register a new mock client.
     if (url === '/api/auth/register') {
-      
-      isAuthenticated = true
+      const email = data.email
+
+      if (
+        typeof email !== 'string' ||
+        !email.trim()
+      ) {
+        return Promise.reject({
+          status: 422,
+          code: 'VALIDATION_ERROR',
+          message: 'A valid email is required.',
+          details: null,
+        })
+      }
+
+      if (mockUser.some((user) => user.email === email)) {
+        return Promise.reject({
+          status: 409,
+          code: 'EMAIL_ALREADY_EXISTS',
+          message: 'This email is already registered.',
+          details: null,
+        })
+      }
+
+      if (
+        typeof data.password !== 'string' ||
+        !data.password
+      ) {
+        return Promise.reject({
+          status: 422,
+          code: 'VALIDATION_ERROR',
+          message: 'A password is required.',
+          details: null,
+        })
+      }
+
+      const newUser = {
+        id: crypto.randomUUID(),
+        email,
+        name: data.name || 'Mock Client',
+        role: 'client',
+        organization_id: null,
+        created_at: new Date().toISOString(),
+        password: data.password,
+      }
+
+      mockUser.push(newUser);
+      currentUser = newUser;
+      localStorage.setItem(MOCK_SESSION_KEY, user.id);
 
       return Promise.resolve({
         data: {
-          user: mockUser,
+          user: toPublicUser(currentUser),
         },
         status: 201,
       })
     }
 
-    // Login
+    // Log in a mock user.
     if (url === '/api/auth/login') {
-      if (
-        data.email !== 'test@example.com' ||
-        data.password !== '123'
-      ) {
+      const user = mockUser.find(
+        (item) =>
+          item.email === data.email &&
+          item.password === data.password
+      )
+
+      if (!user) {
         return Promise.reject({
           status: 401,
           code: 'INVALID_CREDENTIALS',
@@ -241,19 +321,21 @@ const mockAdapter = {
         })
       }
 
-      isAuthenticated = true
+      currentUser = user;
+      localStorage.setItem(MOCK_SESSION_KEY, user.id);
 
       return Promise.resolve({
         data: {
-          user: mockUser,
+          user: toPublicUser(currentUser),
         },
         status: 200,
       })
     }
 
-    // Logout
+    // Log out the current mock user.
     if (url === '/api/auth/logout') {
-      isAuthenticated = false
+      currentUser = null;
+      localStorage.removeItem(MOCK_SESSION_KEY);
 
       return Promise.resolve({
         data: {
@@ -263,7 +345,7 @@ const mockAdapter = {
       })
     }
 
-    // Create a reading
+    // Create a reading.
     if (url === '/api/readings') {
       const sensor = sensors.find(
         (sensor) => sensor.id === data.sensor_id
@@ -273,23 +355,26 @@ const mockAdapter = {
         return Promise.reject({
           status: 404,
           code: 'SENSOR_NOT_FOUND',
-          message: 'Sensor not found',
+          message: 'Sensor not found.',
           details: null,
         })
       }
 
-      if (data.pressure < 0 || data.pressure > 25) {
+      if (
+        data.pressure < 0 ||
+        data.pressure > 25
+      ) {
         return Promise.reject({
-            status: 422,
-            code: 'VALIDATION_ERROR',
-            message: 'Invalid request.',
-            details: [
+          status: 422,
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid request.',
+          details: [
             {
-                field: 'pressure',
-                message: 'Pressure must be between 0 and 25 bar.',
-                type: 'value_error',
+              field: 'pressure',
+              message: 'Pressure must be between 0 and 25 bar.',
+              type: 'value_error',
             },
-            ],
+          ],
         })
       }
 
@@ -298,19 +383,19 @@ const mockAdapter = {
         sensor_id: data.sensor_id,
         pressure: data.pressure,
         measured_at:
-          data.measured_at ?? new Date().toISOString(), // = If value on the left is null or undefined, then use the one on the right
+          data.measured_at ?? new Date().toISOString(),
         created_at: new Date().toISOString(),
       }
 
-      readings.push(reading) //= Add `reading` to the end of the `readings` array
-      
+      readings.push(reading)
+
       return Promise.resolve({
         data: reading,
-        status: 201, // = created with succes
+        status: 201,
       })
     }
 
-    // Create a sensor
+    // Create a sensor.
     if (url === '/api/sensors') {
       const site = sites.find(
         (site) => site.id === data.site_id
@@ -320,7 +405,7 @@ const mockAdapter = {
         return Promise.reject({
           status: 404,
           code: 'SITE_NOT_FOUND',
-          message: 'Site not found',
+          message: 'Site not found.',
           details: null,
         })
       }
@@ -331,18 +416,18 @@ const mockAdapter = {
         data.max_pressure < 0 ||
         data.max_pressure > 25 ||
         data.min_pressure >= data.max_pressure
-        ) {
+      ) {
         return Promise.reject({
-            status: 422,
-            code: 'VALIDATION_ERROR',
-            message: 'Invalid request.',
-            details: [
+          status: 422,
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid request.',
+          details: [
             {
-                field: 'min_pressure',
-                message: 'min_pressure must be lower than max_pressure.',
-                type: 'value_error',
+              field: 'min_pressure',
+              message: 'min_pressure must be lower than max_pressure.',
+              type: 'value_error',
             },
-            ],
+          ],
         })
       }
 
@@ -367,29 +452,31 @@ const mockAdapter = {
       })
     }
 
-   // Unknown endpoint
-     return Promise.reject({
-        status: 404,
-        code: 'UNKNOWN_ENDPOINT',
-        message: 'Mock endpoint not found.',
-        details: null,
+    // Handle unknown endpoints.
+    return Promise.reject({
+      status: 404,
+      code: 'UNKNOWN_ENDPOINT',
+      message: 'Mock endpoint not found.',
+      details: null,
     })
   },
 
+  // PATCH requests
   patch(url, data = {}, config = {}) {
     console.log('[MOCK PATCH]', url, data, config)
 
-    // Acknowledge an alert
+    // Acknowledge an alert.
     if (url.endsWith('/acknowledge')) {
       const id = url.split('/')[3]
-
-      const alert = alerts.find((alert) => alert.id === id)
+      const alert = alerts.find(
+        (alert) => alert.id === id
+      )
 
       if (!alert) {
         return Promise.reject({
           status: 404,
           code: 'ALERT_NOT_FOUND',
-          message: 'Alert not found',
+          message: 'Alert not found.',
           details: null,
         })
       }
@@ -402,17 +489,18 @@ const mockAdapter = {
       })
     }
 
-    // Resolve an alert
+    // Resolve an alert.
     if (url.endsWith('/resolve')) {
       const id = url.split('/')[3]
-
-      const alert = alerts.find((alert) => alert.id === id)
+      const alert = alerts.find(
+        (alert) => alert.id === id
+      )
 
       if (!alert) {
         return Promise.reject({
           status: 404,
           code: 'ALERT_NOT_FOUND',
-          message: 'Alert not found',
+          message: 'Alert not found.',
           details: null,
         })
       }
@@ -426,13 +514,12 @@ const mockAdapter = {
       })
     }
 
-    // Update a sensor
+    // Update a sensor.
     if (
       url.startsWith('/api/sensors/') &&
       !url.endsWith('/readings')
     ) {
       const id = url.split('/')[3]
-
       const sensor = sensors.find(
         (sensor) => sensor.id === id
       )
@@ -441,41 +528,37 @@ const mockAdapter = {
         return Promise.reject({
           status: 404,
           code: 'SENSOR_NOT_FOUND',
-          message: 'Sensor not found',
+          message: 'Sensor not found.',
           details: null,
         })
       }
 
       if (
         (data.min_pressure !== undefined &&
-            (data.min_pressure < 0 || data.min_pressure > 25)) ||
+          (data.min_pressure < 0 ||
+            data.min_pressure > 25)) ||
         (data.max_pressure !== undefined &&
-            (data.max_pressure < 0 || data.max_pressure > 25)) ||
-        (
-            data.min_pressure !== undefined &&
-            data.max_pressure !== undefined &&
-            data.min_pressure >= data.max_pressure
-        ) ||
-        (
-            data.min_pressure !== undefined &&
-            data.max_pressure === undefined &&
-            data.min_pressure >= sensor.max_pressure
-        ) ||
-        (
-            data.max_pressure !== undefined &&
-            data.min_pressure === undefined &&
-            data.max_pressure <= sensor.min_pressure
-        )
-        ) {
+          (data.max_pressure < 0 ||
+            data.max_pressure > 25)) ||
+        (data.min_pressure !== undefined &&
+          data.max_pressure !== undefined &&
+          data.min_pressure >= data.max_pressure) ||
+        (data.min_pressure !== undefined &&
+          data.max_pressure === undefined &&
+          data.min_pressure >= sensor.max_pressure) ||
+        (data.max_pressure !== undefined &&
+          data.min_pressure === undefined &&
+          data.max_pressure <= sensor.min_pressure)
+      ) {
         return Promise.reject({
-            status: 422,
-            code: 'VALIDATION_ERROR',
-            message: 'Invalid request.',
-            details: [
+          status: 422,
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid request.',
+          details: [
             {
-                field: 'min_pressure',
-                message: 'min_pressure must be lower than max_pressure.',
-                type: 'value_error',
+              field: 'min_pressure',
+              message: 'min_pressure must be lower than max_pressure.',
+              type: 'value_error',
             },
           ],
         })
@@ -502,15 +585,16 @@ const mockAdapter = {
       })
     }
 
-    // Unknown endpoint
+    // Handle unknown endpoints.
     return Promise.reject({
       status: 404,
       code: 'UNKNOWN_ENDPOINT',
-      message: 'Mock endpoint not found',
+      message: 'Mock endpoint not found.',
       details: null,
     })
   },
 
+  // DELETE requests
   delete(url, config = {}) {
     console.log('[MOCK DELETE]', url, config)
 

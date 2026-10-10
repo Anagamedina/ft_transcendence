@@ -15,28 +15,33 @@ Backend API y lógica de negocio. Corresponde a las 9 issues definidas en
 |---|---|---|
 | [01-fastapi-modular](01-fastapi-modular/) | #22 | ✅ Hecha — arranca, 8 routers, errores unificados |
 | [02-schemas-openapi](02-schemas-openapi/) | #23 | ✅ Hecha — 32 schemas en OpenAPI |
-| [03-post-readings](03-post-readings/) | #24 | ⏸ Estructura y contrato listos; **bloqueada por la #14** (repository de Daruny) |
-| [04-get-sensors-history](04-get-sensors-history/) | #25 | Pendiente |
-| [05-auth](05-auth/) | #26 | Pendiente |
-| [06-permissions-tenant](06-permissions-tenant/) | #27 | Pendiente |
-| [07-alert-rules](07-alert-rules/) | #28 | Pendiente |
-| [08-sites-sensors](08-sites-sensors/) | #29 | Pendiente |
-| [09-critical-tests](09-critical-tests/) | #30 | Pendiente |
+| [03-post-readings](03-post-readings/) | #24 | ✅ Hecha — más la clave del simulador `X-Ingest-Key` (#106) |
+| [04-get-sensors-history](04-get-sensors-history/) | #25 | ✅ Hecha — GET sensores y histórico de lecturas |
+| [05-auth](05-auth/) | #26 | ✅ Hecha — registro, login, logout y /api/me con cookie |
+| [06-permissions-tenant](06-permissions-tenant/) | #27 | ✅ Hecha — `require_role`, aislamiento por organización |
+| [07-alert-rules](07-alert-rules/) | #28 | ✅ Hecha — LOW/HIGH_PRESSURE, SENSOR_OFFLINE, listar/reconocer/resolver |
+| [08-sites-sensors](08-sites-sensors/) | #29 | ✅ Hecha — sites, sensores de un site, alta y edición |
+| [09-critical-tests](09-critical-tests/) | #30 | ✅ Hecha — tests de health, token y rutas críticas |
 
-### Lo que hay publicado hoy
+### Segunda tanda: rediseño de pantallas (creada el 2026-10-08)
 
-```
-GET  /api/health        · liveness, sin base de datos      (#22)
-GET  /api/health/db     · readiness, SELECT 1              (#22)
-POST /api/readings      · contrato listo, 501 hasta la #14 (#24)
-GET  /api/docs          · Swagger
-GET  /api/openapi.json  · el contrato (#23)
-```
+| Carpeta | Issue | Prio | Qué | Depende de | Estado |
+|---|---|---|---|---|---|
+| [12-contrato-comun-b0](12-contrato-comun-b0/) | #138 | P1 | B0 — Enums, filtros, paginación, campos `*_name` | — | ✅ Hecha en rama `ana/138-contrato-comun` (falta PR) |
+| — | #139 | P1 | B1+B2+B3 — Organizaciones, edificios, sensores con health (absorbe #121) | B0, D0-D2 ✅ | Pendiente |
+| — | #143 | P1 | B7 — Series de 7 días para gráficas | — | Pendiente (paralelo) |
+| — | #140 | P1 | B10 — Registro público con prueba de 7 días | B0, B1, I0 (#151) | Pendiente |
+| — | #142 | P1 | B5 — Alertas: filtros, ACKNOWLEDGED, quién actuó | B0, B3 | Pendiente |
+| — | #141 | P1 | B4+B6 — Invitaciones y gestión de usuarios | B1, B10, D3 (#130), I0 | Pendiente |
+| — | #144 | P1 | B8+B9 — Mi cuenta y KPIs | B5, B6 | Pendiente |
+| — | #146 | P2 | B12 — Prueba caducada: solo lectura | B10 | Pendiente |
+| — | #145 | P2 | B16 — Eliminar organización | D9 (#133) | Pendiente |
+| — | #147 | P2 | B11 — Documentos por edificio | D4 (#132) | Pendiente |
+| — | #148 | P2 | B13 — OpenAPI completo con ejemplos | todo lo anterior | Pendiente |
+| — | #149 | P3 | B15 — Exportar mis datos / baja | — | Pendiente |
+| — | #150 | P3 | B14+B17 — Suscripción y búsqueda global (opcional) | — | Pendiente |
 
-Los contratos de Auth, Users, Sites, Sensors y Alerts están definidos y
-visibles en la sección **Schemas** de Swagger aunque sus rutas aún no
-existan, para que el frontend pueda construir el `MockAdapter` sin
-esperar. Ver [`app/openapi.py`](../../backend/app/openapi.py).
+Orden: B0 → B1+B2+B3 (con B7 en paralelo) → B10 → B5 → B4+B6 → B8+B9 → P2 → P3.
 
 ## Cómo levantarlo
 

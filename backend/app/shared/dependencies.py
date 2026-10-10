@@ -21,6 +21,7 @@ Lo que hay implementado y lo que no:
 
 - `get_db`             → implementado (reexportado de `core.database`, de Daruny).
 - `PaginationParams`   → implementado.
+-  Filtros comunes      → `Search` (`?q=`) y `*IdFilter`, issue #138 (B0).
 - `DateRangeParams`    → implementado en la issue #134 (B18).
 - `get_current_user`   → implementado en la issue #26.
 - `require_role`       → implementado en la issue #27.
@@ -54,6 +55,11 @@ __all__ = [
     "DbSession",
     "PaginationParams",
     "Pagination",
+    "get_search",
+    "Search",
+    "OrganizationIdFilter",
+    "SiteIdFilter",
+    "SensorIdFilter",
     "DateRangeParams",
     "DateRange",
     "get_current_user",
@@ -191,6 +197,50 @@ def _as_utc(moment: datetime) -> datetime:
 
 
 DateRange = Annotated[DateRangeParams, Depends(DateRangeParams)]
+
+
+# ---------------------------------------------------------
+# FILTROS COMUNES — issue #138 (B0)
+# ---------------------------------------------------------
+# Todos los listados usan los mismos nombres: `?q=` para buscar y
+# `organization_id`, `site_id`, `sensor_id` donde tengan sentido.
+#
+# **Los filtros por id se suman al alcance de la sesión, no lo sustituyen.**
+# El repository filtra por `OrgScope` Y por `organization_id`: un admin lo
+# usa para ver un cliente concreto; un cliente que pida otra organización
+# recibe una lista vacía, nunca datos ajenos.
+def get_search(
+    q: Annotated[
+        str | None,
+        Query(
+            max_length=100,
+            description=(
+                "Texto a buscar, sin distinguir mayúsculas. Vacío o solo "
+                "espacios es como no enviarlo."
+            ),
+        ),
+    ] = None,
+) -> str | None:
+    """`q` recortado; `None` si no hay nada que buscar."""
+    if q is None:
+        return None
+    q = q.strip()
+    return q or None
+
+
+Search = Annotated[str | None, Depends(get_search)]
+
+OrganizationIdFilter = Annotated[
+    UUID | None,
+    Query(
+        description=(
+            "Deja solo lo de esa organización. Un cliente solo ve la suya: "
+            "con otra, la lista sale vacía."
+        )
+    ),
+]
+SiteIdFilter = Annotated[UUID | None, Query(description="Deja solo lo de ese edificio.")]
+SensorIdFilter = Annotated[UUID | None, Query(description="Deja solo lo de ese sensor.")]
 
 
 # ---------------------------------------------------------

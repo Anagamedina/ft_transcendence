@@ -55,7 +55,13 @@ class SensorService:
         self.sensors = sensors or SqlSensorRepository(db)
 
     def list(
-        self, organization_id: UUID | None, offset: int, limit: int
+        self,
+        organization_id: UUID | None,
+        offset: int,
+        limit: int,
+        q: str | None = None,
+        organization_filter: UUID | None = None,
+        site_id: UUID | None = None,
     ) -> Page[SensorResponse]:
         """
         Sensores visibles para el usuario, paginados y por nombre. Issue #25.
@@ -63,9 +69,17 @@ class SensorService:
         `organization_id` sale de `get_org_scope`: `None` (admin) son todas
         las organizaciones. Se listan también los inactivos: el contrato no
         tiene `is_active` y el admin tiene que verlos (Ana, 03-10-2026).
+
+        `q` busca en nombre, `external_id` y ubicación; `organization_filter`
+        y `site_id` son los filtros comunes de la B0.
         """
         filas, total = self.sensors.list_by_organization(
-            organization_id=organization_id, offset=offset, limit=limit
+            organization_id=organization_id,
+            offset=offset,
+            limit=limit,
+            q=q,
+            organization_filter=organization_filter,
+            site_id=site_id,
         )
         ultimas = self.sensors.last_seen_by_sensor([f.id for f in filas])
         ahora = datetime.now(timezone.utc)
@@ -217,12 +231,20 @@ def sensor_a_respuesta(
     Algunos motores (sqlite en los tests) devuelven las fechas sin zona
     horaria; se tratan como UTC, que es como se guardan, para poder
     compararlas con `ahora`.
+
+    Los campos de lectura (B0) suben por `sensor → site → organization`;
+    en los listados el repository los trae en bloque (`selectinload`).
     """
     if ultima_lectura is not None and ultima_lectura.tzinfo is None:
         ultima_lectura = ultima_lectura.replace(tzinfo=timezone.utc)
+    site = sensor.site
     return SensorResponse(
         id=sensor.id,
         site_id=sensor.site_id,
+        site_name=site.name,
+        organization_id=site.organization_id,
+        organization_name=site.organization.name,
+        floor=sensor.floor,
         external_id=sensor.external_id,
         name=sensor.name,
         location=sensor.location,

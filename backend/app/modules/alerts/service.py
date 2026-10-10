@@ -35,7 +35,7 @@ from sqlalchemy.orm import Session
 from app.core.database import transaction
 from app.core.exceptions import ConflictError, NotFoundError, NotImplementedYetError
 from app.modules.alerts.repository import AlertRepository
-from app.modules.alerts.schemas import AlertResponse
+from app.modules.alerts.schemas import AlertResponse, AlertState
 from app.shared.dependencies import DbSession
 from app.shared.schemas import Page
 
@@ -52,6 +52,9 @@ class AlertService:
         limit: int,
         status: str | None = None,
         sensor_id: UUID | None = None,
+        q: str | None = None,
+        organization_filter: UUID | None = None,
+        site_id: UUID | None = None,
     ) -> Page[AlertResponse]:
         """
         Alertas de la organización, paginadas.
@@ -63,6 +66,9 @@ class AlertService:
         `organization_id` sale siempre de `get_org_scope`: sin él,
         cualquiera vería las alertas de otro cliente. `None` significa
         «todas las organizaciones», y solo se da para un admin (issue #27).
+
+        `q` busca en el mensaje y el nombre del sensor; `organization_filter`
+        y `site_id` son los filtros comunes de la B0.
         """
         filas, total = self.alerts.list_by_organization(
             organization_id=organization_id,
@@ -70,6 +76,9 @@ class AlertService:
             sensor_id=sensor_id,
             offset=offset,
             limit=limit,
+            q=q,
+            organization_filter=organization_filter,
+            site_id=site_id,
         )
         return Page[AlertResponse](
             items=[self._to_response(f) for f in filas],
@@ -153,14 +162,28 @@ class AlertService:
         que la tabla guarda como `alert_type`. Es el mismo desajuste de
         vocabulario que ya se traduce en readings, y se resuelve donde
         toca — en el service, que conoce los dos lados.
+
+        Los campos de lectura (B0) suben por `alerta → sensor → site →
+        organization`. En los listados el repository ya los trae en bloque
+        (`selectinload`), así que aquí no se hace una consulta por alerta.
+        `state` se calcula con `AlertState.derive`.
         """
+        sensor = alerta.sensor
+        site = sensor.site
         return AlertResponse(
             id=alerta.id,
             sensor_id=alerta.sensor_id,
+            sensor_name=sensor.name,
+            site_id=site.id,
+            site_name=site.name,
+            organization_id=site.organization_id,
+            organization_name=site.organization.name,
+            floor=sensor.floor,
             type=alerta.alert_type,
             severity=alerta.severity,
             message=alerta.message,
             status=alerta.status,
+            state=AlertState.derive(alerta.status, alerta.acknowledged_at),
             created_at=alerta.created_at,
             acknowledged_at=alerta.acknowledged_at,
             resolved_at=alerta.resolved_at,

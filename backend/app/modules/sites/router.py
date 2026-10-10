@@ -25,7 +25,12 @@ from fastapi import APIRouter, Depends, status
 from app.modules.sensors.schemas import SensorResponse
 from app.modules.sites.schemas import SiteResponse
 from app.modules.sites.service import SiteService, get_site_service
-from app.shared.dependencies import OrgScope, Pagination
+from app.shared.dependencies import (
+    OrganizationIdFilter,
+    OrgScope,
+    Pagination,
+    Search,
+)
 from app.shared.schemas import Page, error_response
 
 router = APIRouter(prefix="/sites", tags=["Sites"])
@@ -49,18 +54,27 @@ _NO_AUTORIZADO = {
     summary="Listar sites",
     description=(
         "Sites de tu organización, paginados y ordenados por nombre. Un "
-        "admin ve los de todas las organizaciones."
+        "admin ve los de todas las organizaciones.\n\n"
+        "`q` busca en el nombre y la dirección. `organization_id` deja solo "
+        "los de un cliente (útil para el admin)."
     ),
     responses={**_NO_AUTORIZADO},
 )
 def list_sites(
-    service: SiteSvc, scope: OrgScope, pagination: Pagination
+    service: SiteSvc,
+    scope: OrgScope,
+    pagination: Pagination,
+    q: Search,
+    organization_id: OrganizationIdFilter = None,
 ) -> Page[SiteResponse]:
-    # La organización sale de la sesión (`OrgScope`), nunca de la query.
+    # El alcance sale de la sesión (`OrgScope`), nunca de la query.
+    # `organization_id` solo estrecha ese alcance, no lo amplía.
     return service.list(
         organization_id=scope,
         offset=pagination.offset,
         limit=pagination.limit,
+        q=q,
+        organization_filter=organization_id,
     )
 
 

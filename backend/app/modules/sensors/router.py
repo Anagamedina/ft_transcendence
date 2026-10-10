@@ -31,7 +31,14 @@ from fastapi import APIRouter, Depends, status
 
 from app.modules.sensors.schemas import SensorCreate, SensorResponse, SensorUpdate
 from app.modules.sensors.service import SensorService, get_sensor_service
-from app.shared.dependencies import OrgScope, Pagination, require_role
+from app.shared.dependencies import (
+    OrganizationIdFilter,
+    OrgScope,
+    Pagination,
+    Search,
+    SiteIdFilter,
+    require_role,
+)
 from app.shared.schemas import Page, error_response
 
 router = APIRouter(prefix="/sensors", tags=["Sensors"])
@@ -58,18 +65,30 @@ _NO_AUTORIZADO = {
         "admin ve los de todas las organizaciones.\n\n"
         "`status` y `last_seen_at` se calculan a partir de las lecturas: un "
         "sensor está `OFFLINE` si lleva más de 5 minutos sin mandar ninguna "
-        "o no ha mandado nunca."
+        "o no ha mandado nunca.\n\n"
+        "`q` busca en el nombre, la etiqueta (`external_id`) y la ubicación. "
+        "`organization_id` y `site_id` dejan solo los de un cliente o un "
+        "edificio."
     ),
     responses={**_NO_AUTORIZADO},
 )
 def list_sensors(
-    service: SensorSvc, scope: OrgScope, pagination: Pagination
+    service: SensorSvc,
+    scope: OrgScope,
+    pagination: Pagination,
+    q: Search,
+    organization_id: OrganizationIdFilter = None,
+    site_id: SiteIdFilter = None,
 ) -> Page[SensorResponse]:
-    # La organización sale de la sesión (`OrgScope`), nunca de la query.
+    # El alcance sale de la sesión (`OrgScope`), nunca de la query.
+    # `organization_id` y `site_id` solo lo estrechan.
     return service.list(
         organization_id=scope,
         offset=pagination.offset,
         limit=pagination.limit,
+        q=q,
+        organization_filter=organization_id,
+        site_id=site_id,
     )
 
 

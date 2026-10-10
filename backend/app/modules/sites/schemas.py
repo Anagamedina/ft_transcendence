@@ -90,6 +90,9 @@ class SiteResponse(ApiModel):
 
     id: UUID
     organization_id: UUID = Field(description="Organización propietaria del site.")
+    organization_name: str = Field(
+        description="Nombre de la organización. Campo de lectura (B0)."
+    )
     name: str
     address: str | None = None
     latitude: float | None = None
