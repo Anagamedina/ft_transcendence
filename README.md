@@ -144,26 +144,26 @@ The simulator is still being integrated into Compose.
 
 The root `Makefile` wraps the Compose commands:
 
-| Target                     | Effect                                                                                                           |
-|----------------------------|------------------------------------------------------------------------------------------------------------------|
-| `make` / `make up`         | Copies `.env` and generates certificates if missing, then `docker compose up --build -d` and `docker compose ps` |
-| `make dev`                 | Same as `make up` plus `compose.dev.yaml`, which publishes PostgreSQL on `127.0.0.1:5432` for Alembic            |
-| `make env`                 | Creates `.env` from `.env.example` only when it does not exist                                                   |
-| `make certs`               | Generates a self-signed TLS certificate in `gateway/certs/` only when it does not exist                          |
-| `make build`               | Builds the images without starting them                                                                          |
-| `make sim`                 | Same as `make up` plus the `sim` profile, which starts the sensor simulator                                      |
+| Target                     | Effect                                                                                                                                       |
+|----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
+| `make` / `make up`         | Copies `.env` and generates certificates if missing, then `docker compose up --build -d` and `docker compose ps`                             |
+| `make dev`                 | Same as `make up` plus `compose.dev.yaml`, which publishes PostgreSQL on `127.0.0.1:5432` for Alembic                                        |
+| `make env`                 | Creates `.env` from `.env.example` only when it does not exist                                                                               |
+| `make certs`               | Generates a self-signed TLS certificate in `gateway/certs/` only when it does not exist                                                      |
+| `make build`               | Builds the images without starting them                                                                                                      |
+| `make sim`                 | Same as `make up` plus the `sim` profile, which starts the sensor simulator                                                                  |
 | `make demo`                | Starts everything for a full test: `make up`, `make seed`, the simulator and `make smoke`; warns if `.env` has an old `SIMULATOR_SENSOR_IDS` |
-| `make seed`                | Applies pending migrations, then loads the demo data from the working tree (no rebuild needed); safe to run more than once |
-| `make migrate`             | Applies pending migrations (`alembic upgrade head`)                                                              |
-| `make migration MSG="..."` | Generates a migration with `alembic revision --autogenerate` without applying it; fails without `MSG`            |
-| `make migration-check`     | Fails if the database is unreachable, has pending migrations, or the models drifted from the migrations          |
-| `make smoke`               | Smoke test of the stack: health, gateway, and a reading stored end to end; fails with a non-zero code            |
-| `make down`                | Stops the containers, simulator included, and keeps the PostgreSQL volume                                        |
-| `make logs`                | Follows the logs of every running service                                                                        |
-| `make ps`                  | Shows service status                                                                                             |
-| `make clean`               | `down --remove-orphans`, simulator included                                                                      |
-| `make fclean`              | `down -v --remove-orphans`, simulator included, which deletes the PostgreSQL volume                              |
-| `make re`                  | `fclean` followed by `up`, a start from scratch                                                                  |
+| `make seed`                | Applies pending migrations, then loads the demo data from the working tree (no rebuild needed); safe to run more than once                   |
+| `make migrate`             | Applies pending migrations (`alembic upgrade head`)                                                                                          |
+| `make migration MSG="..."` | Generates a migration with `alembic revision --autogenerate` without applying it; fails without `MSG`                                        |
+| `make migration-check`     | Fails if the database is unreachable, has pending migrations, or the models drifted from the migrations                                      |
+| `make smoke`               | Smoke test of the stack: health, gateway, and a reading stored end to end; fails with a non-zero code                                        |
+| `make down`                | Stops the containers, simulator included, and keeps the PostgreSQL volume                                                                    |
+| `make logs`                | Follows the logs of every running service                                                                                                    |
+| `make ps`                  | Shows service status                                                                                                                         |
+| `make clean`               | `down --remove-orphans`, simulator included                                                                                                  |
+| `make fclean`              | `down -v --remove-orphans`, simulator included, which deletes the PostgreSQL volume                                                          |
+| `make re`                  | `fclean` followed by `up`, a start from scratch                                                                                              |
 
 `make fclean` destroys the database volume. PostgreSQL only creates its user on
 the first initialisation of that volume, so this is also the command to run
@@ -462,21 +462,21 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 
 ### Ana (`anamedin`)
 
-| Issue | Contribution                                                                                   | Pull requests        | Status      |
-|-------|------------------------------------------------------------------------------------------------|----------------------|-------------|
-| #22   | FastAPI modular architecture (8 routers), unified error format and health checks              | #46                  | Implemented |
-| #23   | Pydantic schemas and OpenAPI contract, including schemas published before their routes        | #46                  | Implemented |
-| #24   | `POST /api/readings`: stores the reading, idempotent by `id`, evaluates alert rules            | #72                  | Implemented |
-| #25   | `GET /api/sensors`, `GET /api/sensors/{id}` and reading history; `OFFLINE` after 5 minutes     | #77, #113            | Implemented |
-| #26   | Register, login, logout and `GET /api/me`: Argon2 hashing, signed httpOnly session cookie      | #75, #79             | Implemented |
-| #27   | Roles and per-organization isolation (`require_role`, `get_org_scope`)                         | #105                 | Implemented |
-| #28   | Alerts: list, acknowledge, resolve; `LOW_PRESSURE`/`HIGH_PRESSURE` and `SENSOR_OFFLINE` rules   | #78, #98, #118       | Implemented |
-| #29   | Sites, sensors of a site, sensor create and edit                                               | #108, #115           | Implemented |
-| #30   | Pytest coverage of critical routes                                                             | #109, #114           | Implemented |
-| #106  | `POST /api/readings` requires the simulator key (`X-Ingest-Key`)                               | #116                 | Implemented |
-| #138  | B0 common contract: shared enums, `q`/`organization_id`/`site_id` filters, `*_name` fields     | #180                 | Implemented |
-| —     | List of the redesign issues (B0–B18) and their mocks                                           | #124                 | Implemented |
-| —     | Cleanup: outdated comments, dead 501 code, notes in `docs/ana/` brought up to date             | #181                 | In review   |
+| Issue | Contribution                                                                                  | Pull requests  | Status      |
+|-------|-----------------------------------------------------------------------------------------------|----------------|-------------|
+| #22   | FastAPI modular architecture (8 routers), unified error format and health checks              | #46            | Implemented |
+| #23   | Pydantic schemas and OpenAPI contract, including schemas published before their routes        | #46            | Implemented |
+| #24   | `POST /api/readings`: stores the reading, idempotent by `id`, evaluates alert rules           | #72            | Implemented |
+| #25   | `GET /api/sensors`, `GET /api/sensors/{id}` and reading history; `OFFLINE` after 5 minutes    | #77, #113      | Implemented |
+| #26   | Register, login, logout and `GET /api/me`: Argon2 hashing, signed httpOnly session cookie     | #75, #79       | Implemented |
+| #27   | Roles and per-organization isolation (`require_role`, `get_org_scope`)                        | #105           | Implemented |
+| #28   | Alerts: list, acknowledge, resolve; `LOW_PRESSURE`/`HIGH_PRESSURE` and `SENSOR_OFFLINE` rules | #78, #98, #118 | Implemented |
+| #29   | Sites, sensors of a site, sensor create and edit                                              | #108, #115     | Implemented |
+| #30   | Pytest coverage of critical routes                                                            | #109, #114     | Implemented |
+| #106  | `POST /api/readings` requires the simulator key (`X-Ingest-Key`)                              | #116           | Implemented |
+| #138  | B0 common contract: shared enums, `q`/`organization_id`/`site_id` filters, `*_name` fields    | #180           | Implemented |
+| —     | List of the redesign issues (B0–B18) and their mocks                                          | #124           | Implemented |
+| —     | Cleanup: outdated comments, dead 501 code, notes in `docs/ana/` brought up to date            | #181           | In review   |
 
 Notes for each issue, with diagrams and the decisions taken, are in [`docs/ana/`](docs/ana/).
 
