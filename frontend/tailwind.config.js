@@ -5,17 +5,19 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Colores brand AquaGuard (turquesa/azul) - acordados con el equipo
+        // AquaGuard brand colors (turquoise/blue), agreed with the team
         aqua: {
-          50: '#f0fafb',      // Fondo muy claro (backgrounds claros)
-          100: '#d4f0f7',     // Fondo claro (secondary backgrounds)
-          200: '#a8e1f0',     // Texto/acentos claros sobre fondos oscuros (accesible)
-          400: '#06b6d4',     // Turquesa (accents, iconos, bordes sobre fondo claro)
-          600: '#0369a1',     // Azul primary (Header, botones principales)
-          800: '#0f3a5f',     // Azul oscuro intermedio (hover sobre Sidebar/Footer)
-          900: '#0c2340',     // Azul marino oscuro (fondo Sidebar/Footer)
+          50: '#f0fafb',      // Very light background
+          100: '#d4f0f7',     // Light background, borders on light surfaces
+          200: '#a8e1f0',     // Light text/accents on dark backgrounds (accessible)
+          400: '#06b6d4',     // Turquoise: accents, icons, borders on light backgrounds
+          500: '#0891b2',     // Mid turquoise: hover and secondary accents
+          600: '#0369a1',     // Primary blue: header, main buttons
+          700: '#075985',     // Dark blue: body links and text on light backgrounds
+          800: '#0f3a5f',     // Mid dark blue: hover on Sidebar/Footer
+          900: '#0c2340',     // Dark navy: Sidebar/Footer background, titles
         },
-        // Colores de estado (para alertas y feedback)
+        // Status colors (alerts and feedback)
         success: '#10b981',
         warning: '#f59e0b',
         danger: '#ef4444',
