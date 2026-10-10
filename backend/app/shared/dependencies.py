@@ -21,6 +21,7 @@ Lo que hay implementado y lo que no:
 
 - `get_db`             → implementado (reexportado de `core.database`, de Daruny).
 - `PaginationParams`   → implementado.
+- `DateRangeParams`    → implementado en la issue #134 (B18).
 - `get_current_user`   → implementado en la issue #26.
 - `require_role`       → implementado en la issue #27.
 - `get_org_scope`      → implementado en la issue #27.
@@ -30,6 +31,7 @@ Lo que hay implementado y lo que no:
 from __future__ import annotations
 
 import secrets
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 from uuid import UUID
 
@@ -38,7 +40,11 @@ from sqlalchemy.orm import Session
 
 from app.core.app_config import app_settings
 from app.core.database import get_db
-from app.core.exceptions import ForbiddenError, UnauthorizedError
+from app.core.exceptions import (
+    DomainValidationError,
+    ForbiddenError,
+    UnauthorizedError,
+)
 from app.core.security import SESSION_COOKIE, read_session_token
 from app.modules.users.model import User
 from app.modules.users.repository import UserRepository
@@ -48,6 +54,8 @@ __all__ = [
     "DbSession",
     "PaginationParams",
     "Pagination",
+    "DateRangeParams",
+    "DateRange",
     "get_current_user",
     "CurrentUser",
     "require_role",
@@ -108,6 +116,81 @@ class PaginationParams:
 
 
 Pagination = Annotated[PaginationParams, Depends(PaginationParams)]
+
+
+# ---------------------------------------------------------
+# RANGO DE FECHAS — issue #134 (B18)
+# ---------------------------------------------------------
+class DateRangeParams:
+    """
+    `?from=&to=` compartido por la analítica (overview, alerts/weekly,
+    export).
+
+        @router.get("/overview")
+        def overview(rango: DateRange): ...   # rango.start, rango.end
+
+    - Sin parámetros: los últimos `DEFAULT_DAYS` días hasta ahora.
+    - Solo `from`: desde ahí hasta ahora. Solo `to`: los 30 días anteriores.
+    - Una fecha sin zona horaria se toma como UTC, para que `2026-10-01`
+      signifique lo mismo para todos.
+    - 422 si `from >= to` o si el rango pasa de `MAX_DAYS`: sin tope, un
+      `?from=2000-01-01` recorre la tabla de lecturas entera. Un formato que
+      no es fecha ya lo rechaza FastAPI, también con 422.
+
+    El intervalo es semiabierto, [start, end): `created_at >= start AND
+    created_at < end`, para que dos rangos seguidos no cuenten dos veces el
+    mismo instante.
+    """
+
+    DEFAULT_DAYS = 30
+    MAX_DAYS = 366
+
+    def __init__(
+        self,
+        start: Annotated[
+            datetime | None,
+            Query(
+                alias="from",
+                description="Inicio del periodo (ISO 8601). Por defecto, 30 días antes de `to`.",
+            ),
+        ] = None,
+        end: Annotated[
+            datetime | None,
+            Query(
+                alias="to",
+                description="Fin del periodo, sin incluir (ISO 8601). Por defecto, ahora.",
+            ),
+        ] = None,
+    ) -> None:
+        end = _as_utc(end) if end is not None else datetime.now(timezone.utc)
+        start = (
+            _as_utc(start)
+            if start is not None
+            else end - timedelta(days=self.DEFAULT_DAYS)
+        )
+        if start >= end:
+            raise DomainValidationError(
+                "`from` tiene que ser anterior a `to`.",
+                details={"field": "from", "message": "Debe ser anterior a `to`."},
+                code="INVALID_DATE_RANGE",
+            )
+        if end - start > timedelta(days=self.MAX_DAYS):
+            raise DomainValidationError(
+                f"El periodo no puede pasar de {self.MAX_DAYS} días.",
+                details={"field": "from", "message": f"Máximo {self.MAX_DAYS} días."},
+                code="INVALID_DATE_RANGE",
+            )
+        self.start = start
+        self.end = end
+
+
+def _as_utc(moment: datetime) -> datetime:
+    if moment.tzinfo is None:
+        return moment.replace(tzinfo=timezone.utc)
+    return moment.astimezone(timezone.utc)
+
+
+DateRange = Annotated[DateRangeParams, Depends(DateRangeParams)]
 
 
 # ---------------------------------------------------------
