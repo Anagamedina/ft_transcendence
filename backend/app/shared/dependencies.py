@@ -42,6 +42,7 @@ from app.core.database import get_db
 from app.core.exceptions import ForbiddenError, UnauthorizedError
 from app.core.security import SESSION_COOKIE, read_session_token
 from app.modules.users.model import User
+from app.shared.enums import OrganizationStatus
 from app.modules.users.repository import UserRepository
 
 __all__ = [
@@ -56,6 +57,7 @@ __all__ = [
     "SensorIdFilter",
     "get_current_user",
     "CurrentUser",
+    "ensure_account_enabled",
     "require_role",
     "get_org_scope",
     "OrgScope",
@@ -203,7 +205,28 @@ def get_current_user(request: Request, db: DbSession) -> User:
     if user is None:
         raise UnauthorizedError("La sesión no es válida.")
 
+    # Una sesión abierta antes de suspender la organización deja de servir
+    # en la siguiente petición, no a las 8 horas cuando caduque la cookie.
+    ensure_account_enabled(user)
     return user
+
+
+def ensure_account_enabled(user: User) -> None:
+    """
+    Corta con 403 `ACCOUNT_DISABLED` si la organización del usuario está
+    suspendida (B1). La usan el login y `get_current_user`.
+
+    El admin no se bloquea: gestiona todas las organizaciones, y suspender
+    la suya no debe dejar la plataforma sin nadie que pueda reactivarla.
+    La B6 (#141) añadirá aquí los usuarios desactivados (`is_active`).
+    """
+    if user.role == "admin" or user.organization is None:
+        return
+    if user.organization.status == OrganizationStatus.SUSPENDED.value:
+        raise ForbiddenError(
+            "Tu organización está suspendida. Contacta con AquaGuard para reactivarla.",
+            code="ACCOUNT_DISABLED",
+        )
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]

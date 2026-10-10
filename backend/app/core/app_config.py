@@ -98,6 +98,11 @@ class AppSettings(BaseSettings):
     # coinciden sin configurar nada.
     INGEST_API_KEY: str = "dev-only-ingest-key"
 
+    # Días de prueba de una organización TRIAL: los que da el registro
+    # público (B10) y los que suma «ampliar prueba» (B1). Lo pide la I0 en
+    # el .env; el valor por defecto es el del producto.
+    TRIAL_DAYS: int = 7
+
     # Orígenes que el navegador tiene permitido usar para llamar a la API,
     # separados por comas. Vite sirve el frontend en el puerto 5173.
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
