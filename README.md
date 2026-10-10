@@ -197,6 +197,33 @@ with `ENV=production` because these passwords are public.
   readings, and one pending invitation for `nuevo.gestor@residenciasalcala.es`
   with the code `AQUAGUARD-DEMO-INVITE`.
 
+### Analytics export
+
+`GET /api/analytics/export?format=csv&from=&to=` downloads a CSV
+(`Content-Disposition: attachment`) with one row per sensor and day that had
+readings or alerts in the period. A client only gets its organization; an
+admin gets all of them.
+
+- `from` is included and `to` excluded (ISO 8601; a date without time zone is
+  UTC). Default: the last 30 days. Maximum: 366 days.
+- `422 INVALID_DATE_RANGE` if `from >= to` or the period is too long;
+  `422 VALIDATION_ERROR` for a malformed date or a `format` other than `csv`.
+- The same `from`/`to` dependency (`DateRange` in `app/shared/dependencies.py`)
+  is meant for `overview` and `alerts/weekly` once B9 exists.
+
+| Column | Content |
+|---|---|
+| `date` | Day, `YYYY-MM-DD`, in UTC |
+| `organization`, `site` | Current names |
+| `sensor_id`, `sensor_external_id`, `sensor_name` | Sensor UUID, manufacturer id and name |
+| `unit` | Unit of the three pressure columns |
+| `readings_count` | Readings received that day |
+| `pressure_min`, `pressure_avg`, `pressure_max` | Pressure that day, 3 decimals; empty without readings |
+| `alerts_total` | Alerts created that day |
+| `alerts_critical`, `alerts_resolved` | Of those, how many are CRITICAL and how many are resolved |
+
+The file starts with a UTF-8 BOM so Excel shows accents correctly.
+
 ### Run the frontend (temporary script)
 
 There is no `Makefile` target for the frontend yet. The dev server can be
@@ -460,6 +487,7 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 | Issue 131 — Demo seed: 5 clients in different states (ACTIVE, TRIAL, SUSPENDED) with contact data, 6 buildings with floors and real coordinates, 8 sensors (one offline, one out of range), 19 alerts over 30 days with who acknowledged/resolved them, a week of readings, demo users and a pending invitation | [#PR](https://github.com/Anagamedina/ft_transcendence/pull/PR) | Idempotent by fixed keys (sensor UUIDs, names, `code_hash`, `uuid5` for alerts and readings) with dates recalculated on every run; the old `Demo` organization is renamed instead of becoming a sixth client; the out-of-range sensor uses a 2.0 bar threshold so the simulator keeps it out of range without new scenarios; stray ACTIVE alerts (alerts never resolve themselves) are resolved so the demo always shows 3; aborts with `ENV=production`; verified `make demo` twice and `make smoke`. |
 | Issue 132 — `documents` table with the metadata of each building's files: `kind` CHECK (PLAN/REPORT/INVOICE/PHOTO/OTHER), `size` in bytes (`BigInteger`, CHECK ≥ 0), unique `storage_key`, index on `(site_id, created_at)`, ON DELETE CASCADE from `sites` and `organizations` and SET NULL from the uploader | [#PR](https://github.com/Anagamedina/ft_transcendence/pull/PR) | Only metadata: the file lives in the storage under `storage_key`, which is unique so two rows cannot delete each other's file; the CASCADE from `organizations` never fires on its own because `sites.organization_id` is RESTRICT, so documents go away with their sites; verified `upgrade`/`downgrade`/`upgrade`, `make migration-check` (no drift) and the cascade in PostgreSQL. |
 | Issue 133 — `purge_organization(db, id)` in `organizations/purge.py`: deletes an organization and all its data (readings → alerts → sensors → documents → sites → invitations → users → organization) in one transaction, returning the counts per table | [#PR](https://github.com/Anagamedina/ft_transcendence/pull/PR) | Foreign keys stay RESTRICT so a stray DELETE cannot wipe data; each table is deleted explicitly with one set-based statement (readings are never loaded into Python); organization, sites and sensors are locked first so a reading arriving mid-purge waits instead of breaking it; admins attached to the organization are detached, not deleted; tests run on SQLite and on a throwaway PostgreSQL database, plus a dry run on the dev data (5,094 readings in 48 ms, rolled back). |
+| Issue 134 (B18) — Analytics date range and CSV export: shared `DateRange` dependency (`from`/`to`, last 30 days by default, 422 if `from >= to` or over 366 days) and `GET /api/analytics/export?format=csv` with readings aggregated per sensor and day plus that day's alerts, scoped by `OrgScope`, downloaded via `Content-Disposition` | [#PR](https://github.com/Anagamedina/ft_transcendence/pull/PR) | B9 does not exist yet, so `overview` and `alerts/weekly` are not touched: they only need `rango: DateRange` once Ana adds them; everything is aggregated in SQL (GROUP BY), never row by row; one table mixing readings and alerts so it opens directly in a spreadsheet; tests run on SQLite and on a throwaway PostgreSQL database (the `engine` fixture moved to `tests/integration/conftest.py`), and the download was checked through the gateway as client and admin. |
 
 | Florinda (`flperez-`) | Features/modules                                                                                                                                                                                                                                                             | Pull requests                                                    | Challenges and solutions                                                                                                                                                                                                                                                                                                     |
 |-----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
