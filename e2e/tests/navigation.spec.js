@@ -8,7 +8,7 @@ test('an anonymous visitor is sent to login from a private route', async ({ page
 
 test('public pages open without a session', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByRole('link', { name: 'Iniciar sesión' }).first()).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Entrar' }).first()).toBeVisible()
   await page.goto('/privacy')
   await expect(page).toHaveURL('/privacy')
   await page.goto('/terms')
