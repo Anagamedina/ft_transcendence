@@ -66,6 +66,13 @@ class SiteRepository:
 
         return items, int(total or 0)
 
+    def create(self, **campos) -> Site:
+        """Alta de site. La usa el alta de organización con `first_site` (B1)."""
+        site = Site(**campos)
+        self.db.add(site)
+        self.db.flush()
+        return site
+
     def get_by_id(
         self,
         site_id: UUID,

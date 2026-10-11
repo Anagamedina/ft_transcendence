@@ -76,8 +76,8 @@ from app.shared.schemas import Page
 
 # Contratos definidos en la issue #23. La mayoría ya tienen ruta y saldrían
 # solos; se mantienen en la lista porque no estorban (manda la versión de
-# la ruta). Siguen sin ruta: `UserCreate` (B6), `OrganizationCreate` y
-# `OrganizationResponse` (B1), `SiteCreate` y `SiteUpdate` (B2).
+# la ruta). Siguen sin ruta: `UserCreate` (B6), y `SiteCreate` y
+# `SiteUpdate` (B2).
 #
 # Los `Page[...]` se listan explícitamente porque `Page` es genérico:
 # `Page[SensorResponse]` y `Page[AlertResponse]` son dos schemas distintos
@@ -90,7 +90,7 @@ CONTRACT_MODELS: list[type] = [
     MessageResponse,
     UserCreate,
     UserResponse,
-    # Organizaciones — rutas en la B1 (#139)
+    # Organizaciones — B1 (#139)
     OrganizationCreate,
     OrganizationResponse,
     # Sites — issue #29

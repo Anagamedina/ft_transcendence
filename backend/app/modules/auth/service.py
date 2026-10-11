@@ -22,7 +22,7 @@ from app.modules.auth.schemas import LoginRequest, RegisterRequest
 from app.modules.organizations.repository import OrganizationRepository
 from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import UserResponse
-from app.shared.dependencies import DbSession
+from app.shared.dependencies import DbSession, ensure_account_enabled
 
 
 # Huella de una contraseña que no es de nadie. Se calcula una vez al cargar
@@ -120,6 +120,11 @@ class AuthService:
             # Mismo mensaje que arriba, y a propósito: «ese email no
             # existe» le regala a quien lo intenta media respuesta.
             raise UnauthorizedError("Email o contraseña incorrectos.")
+
+        # Después de comprobar la contraseña, no antes: «tu organización
+        # está suspendida» solo se le dice a quien ya ha demostrado ser el
+        # dueño de la cuenta (B1).
+        ensure_account_enabled(usuario)
 
         # Único momento en que tenemos la contraseña en claro, y por tanto
         # el único en que se puede rehacer la huella si los parámetros de
