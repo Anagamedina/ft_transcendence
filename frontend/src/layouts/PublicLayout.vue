@@ -1,21 +1,23 @@
 <template>
   <div class="min-h-screen flex flex-col">
-    <Header :title="headerTitle">
+    <Header :title="headerTitle" light>
       <template #actions>
-        <div class="flex flex-wrap gap-2">
+        <nav aria-label="Navegación principal" class="flex gap-2">
           <RouterLink
             to="/login"
-            class="bg-white text-aqua-600 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-semibold hover:bg-gray-100 transition text-xs sm:text-sm"
+            class="border border-aqua-600 text-aqua-600 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-aqua-50 transition"
+            exact-active-class="ring-2 ring-offset-2 ring-aqua-600"
           >
-            Iniciar sesión
+            Entrar
           </RouterLink>
           <RouterLink
-            to="/register"
-            class="border border-white text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-semibold hover:bg-white/10 transition text-xs sm:text-sm"
+            to="/prueba"
+            class="bg-aqua-600 text-white px-4 py-2 rounded-lg font-semibold text-sm hover:bg-aqua-700 transition"
+            exact-active-class="ring-2 ring-offset-2 ring-aqua-600"
           >
-            Registrarse
+            Prueba 7 días
           </RouterLink>
-        </div>
+        </nav>
       </template>
     </Header>
 
