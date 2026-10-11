@@ -11,7 +11,7 @@ alta, edición y borrado en la B2 (#139):
     GET    /api/sites/{id}/sensors   → con sesión
     POST   /api/sites                → solo admin
     PATCH  /api/sites/{id}           → solo admin
-    DELETE /api/sites/{id}           → solo admin, si no tiene sensores
+    DELETE /api/sites/{id}           → solo admin, si no tiene sensores ni documentos
 """
 
 from __future__ import annotations
@@ -191,8 +191,9 @@ def update_site(site_id: UUID, payload: SiteUpdate, service: SiteSvc) -> SiteRes
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Borrar un site",
     description=(
-        "Solo admin, y solo si el edificio no tiene sensores: con sensores se "
-        "perderían sus lecturas y alertas."
+        "Solo admin, y solo si el edificio está vacío: con sensores se "
+        "perderían sus lecturas y alertas, y con documentos, los documentos "
+        "y sus ficheros."
     ),
     dependencies=[Depends(require_role("admin"))],
     responses={
@@ -200,7 +201,8 @@ def update_site(site_id: UUID, payload: SiteUpdate, service: SiteSvc) -> SiteRes
         **_NO_EXISTE,
         **error_response(
             status.HTTP_409_CONFLICT,
-            "El edificio tiene sensores (`SITE_HAS_SENSORS`).",
+            "El edificio tiene sensores (`SITE_HAS_SENSORS`) o documentos "
+            "(`SITE_HAS_DOCUMENTS`).",
         ),
     },
 )

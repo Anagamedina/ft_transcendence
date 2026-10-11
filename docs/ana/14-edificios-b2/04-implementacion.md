@@ -30,6 +30,17 @@ Rama: `ana/139-b2-edificios` (sale de la B1, `ana/139-b1-organizaciones`).
 | Borrar con sensores | 409 | Se perderían lecturas y alertas; borrar todo es la B16 |
 | Nombre repetido | Exacto y por cliente | Mismo criterio que `uq_sites_organization_name` |
 
+## Revisión de la PR #194 (Daruny, 11-10-2026)
+
+| Qué pidió | Qué se ha hecho |
+|---|---|
+| Borrar un edificio borra sus documentos sin avisar (`documents.site_id` es `ON DELETE CASCADE`) | `SiteRepository.has_documents` y 409 `SITE_HAS_DOCUMENTS` en `DELETE`, con test. El CASCADE se queda para la B16 |
+| `delete()` contaba sensores con `counts()` (2 consultas) | `has_sensors`, con un `EXISTS` |
+| `counts()` comparaba con texto | Usa `AlertStatus` y `AlertSeverity` |
+
+Florinda pidió además el distrito del edificio (#168, #169): la columna la
+hace Daruny y el backend va en esta misma PR cuando esté.
+
 ## Pendiente
 
 | Dónde | Qué |

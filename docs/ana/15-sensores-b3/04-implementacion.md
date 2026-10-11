@@ -29,7 +29,7 @@ Rama: `ana/139-b3-sensores` (sale de la B2, `ana/139-b2-edificios`).
      mover un sensor mientras se quitan plantas (422) y dar de alta un
      sensor mientras se borra el edificio (404 y no un 500). Sin el
      bloqueo fallan los dos.
-   - Suite: 485 passed, 30 skipped sin PostgreSQL; 511 passed, 4 skipped
+   - Suite: 486 passed, 30 skipped sin PostgreSQL; 512 passed, 4 skipped
      con PostgreSQL.
 
 ## Decisiones (Ana, 11-10-2026)
