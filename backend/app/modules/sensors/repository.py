@@ -2,16 +2,66 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, exists, func, not_, or_, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.modules.alerts.model import Alert
 from app.modules.readings.model import Reading
 from app.modules.sensors.model import Sensor
+from app.modules.sensors.status import OFFLINE_TRAS
 from app.modules.sites.model import Site
+from app.shared.enums import AlertSeverity, AlertStatus, SensorHealth
 from app.shared.utils import matches_text
+
+
+@dataclass(frozen=True)
+class SensorLive:
+    """
+    Lo que se sabe de un sensor por sus lecturas y alertas (B3): la base de
+    `status`, `last_seen_at`, `last_value` y `health` en `SensorResponse`.
+    Sin lecturas ni alertas, todo vacío.
+    """
+
+    last_seen_at: datetime | None = None
+    last_value: Decimal | None = None
+    open_severities: frozenset[str] = frozenset()
+
+
+def _filtro_salud(salud: SensorHealth, ahora: datetime):
+    """
+    `?health=` en SQL (B3). Es la regla de `calcular_salud`
+    (`sensors/status.py`) escrita como condición, para que el filtro se
+    aplique antes de paginar y `total` cuente solo los que cumplen.
+    """
+    ultima = (
+        select(func.max(Reading.created_at))
+        .where(Reading.sensor_id == Sensor.id)
+        .scalar_subquery()
+    )
+    offline = or_(ultima.is_(None), ultima < ahora - OFFLINE_TRAS)
+
+    def con_alerta(severidad: AlertSeverity):
+        return exists(
+            select(Alert.id).where(
+                Alert.sensor_id == Sensor.id,
+                Alert.status == AlertStatus.ACTIVE.value,
+                Alert.severity == severidad.value,
+            )
+        )
+
+    critica = con_alerta(AlertSeverity.CRITICAL)
+    aviso = con_alerta(AlertSeverity.WARNING)
+    return {
+        SensorHealth.OFFLINE: offline,
+        SensorHealth.CRITICAL: and_(not_(offline), critica),
+        SensorHealth.WARNING: and_(not_(offline), not_(critica), aviso),
+        SensorHealth.OK: and_(not_(offline), not_(critica), not_(aviso)),
+    }[salud]
 
 
 def _con_jerarquia():
@@ -38,9 +88,17 @@ class SensorRepository:
         q: str | None = None,
         organization_filter: UUID | None = None,
         site_id: UUID | None = None,
+        health: SensorHealth | None = None,
+        ahora: datetime | None = None,
     ) -> tuple[list[Sensor], int]:
+        """
+        `health` (B3) necesita `ahora`, el mismo instante con el que el
+        service calcula la salud de la respuesta.
+        """
         if offset < 0 or limit <= 0:
             raise ValueError("Invalid pagination")
+        if health is not None and ahora is None:
+            raise ValueError("health necesita ahora")
 
         # #27 (Ana): organization_id=None significa TODAS las organizaciones
         # (admin). Lo decide `get_org_scope` en shared/dependencies.py.
@@ -56,6 +114,8 @@ class SensorRepository:
             query = query.where(
                 matches_text(q, Sensor.name, Sensor.external_id, Sensor.location)
             )
+        if health is not None:
+            query = query.where(_filtro_salud(health, ahora))
 
         total = self.db.scalar(
             select(func.count()).select_from(query.subquery())
@@ -104,6 +164,75 @@ class SensorRepository:
             .group_by(Reading.sensor_id)
         ).all()
         return {sensor_id: ultima for sensor_id, ultima in filas}
+
+    # Añadidos por Ana para la B3 (#139).
+    def live(self, sensor_ids: list[UUID]) -> dict[UUID, SensorLive]:
+        """
+        Última lectura y alertas abiertas de varios sensores: dos consultas
+        para toda la página, no dos por sensor.
+
+        La última lectura es la última que **llegó** (`created_at`), la
+        misma que da `last_seen_at`; así `last_value` y `last_seen_at`
+        hablan siempre de la misma lectura. Las alertas abiertas son las
+        `ACTIVE`, reconocidas o no.
+        """
+        if not sensor_ids:
+            return {}
+
+        orden = func.row_number().over(
+            partition_by=Reading.sensor_id,
+            order_by=(Reading.created_at.desc(), Reading.id.desc()),
+        ).label("orden")
+        ultimas = (
+            select(Reading.sensor_id, Reading.created_at, Reading.value, orden)
+            .where(Reading.sensor_id.in_(sensor_ids))
+            .subquery()
+        )
+        lecturas = {
+            sensor_id: (cuando, valor)
+            for sensor_id, cuando, valor in self.db.execute(
+                select(ultimas.c.sensor_id, ultimas.c.created_at, ultimas.c.value)
+                .where(ultimas.c.orden == 1)
+            ).all()
+        }
+
+        severidades: dict[UUID, set[str]] = {}
+        for sensor_id, severidad in self.db.execute(
+            select(Alert.sensor_id, Alert.severity)
+            .where(
+                Alert.sensor_id.in_(sensor_ids),
+                Alert.status == AlertStatus.ACTIVE.value,
+            )
+            .group_by(Alert.sensor_id, Alert.severity)
+        ).all():
+            severidades.setdefault(sensor_id, set()).add(severidad)
+
+        return {
+            sid: SensorLive(
+                last_seen_at=lecturas.get(sid, (None, None))[0],
+                last_value=lecturas.get(sid, (None, None))[1],
+                open_severities=frozenset(severidades.get(sid, ())),
+            )
+            for sid in sensor_ids
+        }
+
+    def get_for_update(self, sensor_id: UUID) -> Sensor | None:
+        """
+        El sensor con su fila bloqueada hasta el final de la transacción
+        (B3). Para editarlo: dos PATCH a la vez van uno detrás de otro, y el
+        segundo compara sus umbrales con los que dejó el primero.
+
+        Solo bloquea el sensor: `selectinload` trae el site y la
+        organización en consultas aparte, sin bloqueo. El site lo bloquea
+        aparte quien vaya a cambiar la planta.
+        """
+        return self.db.scalar(
+            select(Sensor)
+            .where(Sensor.id == sensor_id)
+            .options(_con_jerarquia())
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
 
     # Añadidos por Ana para la #29 (partes B y C).
     def list_by_site(

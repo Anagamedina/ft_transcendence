@@ -101,12 +101,10 @@ class SiteService:
 
         sensores = SensorRepository(self.db)
         filas, total = sensores.list_by_site(site_id, offset=offset, limit=limit)
-        ultimas = sensores.last_seen_by_sensor([f.id for f in filas])
+        vivos = sensores.live([f.id for f in filas])
         ahora = datetime.now(timezone.utc)
         return Page[SensorResponse](
-            items=[
-                sensor_a_respuesta(f, ultimas.get(f.id), ahora) for f in filas
-            ],
+            items=[sensor_a_respuesta(f, vivos.get(f.id), ahora) for f in filas],
             total=total,
             page=offset // limit + 1,
             page_size=limit,
@@ -146,10 +144,12 @@ class SiteService:
         **Quitar plantas no puede dejar sensores fuera del edificio.** Si un
         sensor está en la planta 5 y el edificio pasa a tener 3 plantas, se
         responde 422 `FLOOR_OUT_OF_SITE`: hay que mover antes el sensor.
-        """
-        site = self._visible(site_id, None)
-        cambios = payload.model_dump(exclude_unset=True)
 
+        El site se lee bloqueado (B3): mientras se comprueban las plantas,
+        ningún sensor puede darse de alta ni moverse en este edificio, porque
+        esas operaciones también bloquean el site.
+        """
+        cambios = payload.model_dump(exclude_unset=True)
         for campo, codigo in (("name", "INVALID_NAME"), ("floors", "INVALID_FLOORS"),
                               ("basements", "INVALID_FLOORS"),
                               ("building_type", "INVALID_BUILDING_TYPE")):
@@ -157,22 +157,6 @@ class SiteService:
                 raise DomainValidationError(
                     f"`{campo}` no puede quedar vacío.", code=codigo
                 )
-        if "name" in cambios:
-            self._nombre_libre(site.organization_id, cambios["name"], exclude_id=site.id)
-
-        plantas = cambios.get("floors", site.floors)
-        sotanos = cambios.get("basements", site.basements)
-        ocupadas = self.sites.sensor_floor_range(site.id)
-        if ocupadas is not None:
-            mas_baja, mas_alta = ocupadas
-            if mas_baja < -sotanos or mas_alta > plantas - 1:
-                raise DomainValidationError(
-                    f"Hay sensores entre la planta {mas_baja} y la {mas_alta}: "
-                    f"con {plantas} plantas y {sotanos} sótanos quedarían fuera "
-                    "del edificio. Muévelos antes.",
-                    code="FLOOR_OUT_OF_SITE",
-                )
-
         if "building_type" in cambios:
             cambios["building_type"] = cambios["building_type"].value
         for coordenada in ("latitude", "longitude"):
@@ -181,11 +165,30 @@ class SiteService:
 
         try:
             with transaction(self.db):
+                site = self._bloqueado(site_id)
+                if "name" in cambios:
+                    self._nombre_libre(
+                        site.organization_id, cambios["name"], exclude_id=site.id
+                    )
+
+                plantas = cambios.get("floors", site.floors)
+                sotanos = cambios.get("basements", site.basements)
+                ocupadas = self.sites.sensor_floor_range(site.id)
+                if ocupadas is not None:
+                    mas_baja, mas_alta = ocupadas
+                    if mas_baja < -sotanos or mas_alta > plantas - 1:
+                        raise DomainValidationError(
+                            f"Hay sensores entre la planta {mas_baja} y la {mas_alta}: "
+                            f"con {plantas} plantas y {sotanos} sótanos quedarían fuera "
+                            "del edificio. Muévelos antes.",
+                            code="FLOOR_OUT_OF_SITE",
+                        )
                 site = self.sites.update(site, **cambios)
         except IntegrityError as exc:
             if "name" in cambios:
+                organizacion = self._visible(site_id, None).organization_id
                 self._nombre_libre(
-                    site.organization_id, cambios["name"], exclude_id=site_id, causa=exc
+                    organizacion, cambios["name"], exclude_id=site_id, causa=exc
                 )
             raise
         return self._respuesta(site)
@@ -195,14 +198,17 @@ class SiteService:
         Borra un edificio **solo si no tiene sensores** (409
         `SITE_HAS_SENSORS`). Con sensores se perderían sus lecturas y
         alertas; borrar un cliente entero con todo lo suyo es la B16.
+
+        Bloquea el site (B3): un alta de sensor que llegue a la vez espera,
+        y cuando entra ve que el edificio ya no existe (404).
         """
-        site = self._visible(site_id, None)
-        if self.sites.counts([site.id])[site.id].sensors > 0:
-            raise ConflictError(
-                "El edificio tiene sensores. Quítalos o muévelos antes de borrarlo.",
-                code="SITE_HAS_SENSORS",
-            )
         with transaction(self.db):
+            site = self._bloqueado(site_id)
+            if self.sites.counts([site.id])[site.id].sensors > 0:
+                raise ConflictError(
+                    "El edificio tiene sensores. Quítalos o muévelos antes de borrarlo.",
+                    code="SITE_HAS_SENSORS",
+                )
             self.sites.delete(site)
 
     # ---------------------------------------------------------
@@ -218,6 +224,13 @@ class SiteService:
         frontend.
         """
         site = self.sites.get_by_id(site_id, organization_id)
+        if site is None:
+            raise NotFoundError("El site indicado no existe.", code="SITE_NOT_FOUND")
+        return site
+
+    def _bloqueado(self, site_id: UUID) -> Site:
+        """El site bloqueado hasta el final de la transacción, o 404."""
+        site = self.sites.get_for_update(site_id)
         if site is None:
             raise NotFoundError("El site indicado no existe.", code="SITE_NOT_FOUND")
         return site
