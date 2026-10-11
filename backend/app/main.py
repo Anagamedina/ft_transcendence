@@ -33,7 +33,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import api_router
-from app.core import health
+from app.core import health, status
 
 # Se importa por su efecto, no por lo que exporta: registra los modelos ORM
 # en SQLAlchemy. Sin esta línea, las relaciones que se declaran por nombre
@@ -192,6 +192,7 @@ def create_app() -> FastAPI:
     # Health va aparte de api_router: no es un módulo de negocio, y su
     # ruta debe seguir estable aunque la API cambie de versión.
     app.include_router(health.router, prefix="/api")
+    app.include_router(status.router, prefix="/api")
     app.include_router(api_router, prefix="/api")
 
     # Publica en OpenAPI los schemas y enums del contrato que todavía no

@@ -146,3 +146,12 @@ class Site(Base):
         "Sensor",
         back_populates="site",
     )
+
+    # Site.documents <-> Document.site
+    # passive_deletes: the database deletes them (ON DELETE CASCADE); the ORM
+    # does not load them or try to set site_id to NULL.
+    documents: Mapped[list["Document"]] = relationship(
+        "Document",
+        back_populates="site",
+        passive_deletes=True,
+    )
