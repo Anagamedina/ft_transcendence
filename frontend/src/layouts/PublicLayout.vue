@@ -24,8 +24,7 @@
     <main class="flex-1 flex flex-col">
       <slot />
     </main>
-
-    <Footer dark />
+    <Footer light />
   </div>
 </template>
 
