@@ -76,8 +76,7 @@ from app.shared.schemas import Page
 
 # Contratos definidos en la issue #23. La mayoría ya tienen ruta y saldrían
 # solos; se mantienen en la lista porque no estorban (manda la versión de
-# la ruta). Siguen sin ruta: `UserCreate` (B6), y `SiteCreate` y
-# `SiteUpdate` (B2).
+# la ruta). Sigue sin ruta `UserCreate`, hasta la B6.
 #
 # Los `Page[...]` se listan explícitamente porque `Page` es genérico:
 # `Page[SensorResponse]` y `Page[AlertResponse]` son dos schemas distintos
