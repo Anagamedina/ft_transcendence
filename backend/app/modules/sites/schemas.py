@@ -21,71 +21,106 @@ from uuid import UUID
 
 from pydantic import Field
 
+from app.shared.enums import BuildingType, SiteStatus
 from app.shared.schemas import ApiModel, ApiRequest
+
+# Límites razonables para un edificio. La tabla solo exige `floors >= 1` y
+# `basements >= 0` (CHECK `ck_sites_floors`); el tope evita un 3000 por
+# error de tecleo, que dejaría el selector de plantas del frontend inmanejable.
+FLOORS_MAX = 200
+BASEMENTS_MAX = 20
 
 
 class SiteBase(ApiRequest):
+    """
+    Datos de un edificio. Lo usan el alta de site y el `first_site` del
+    alta de organización (B1).
+    """
+
     name: str = Field(
         min_length=1,
         max_length=120,
-        description="Nombre del emplazamiento.",
-        examples=["Depósito Norte"],
+        description="Nombre del edificio. No se repite dentro del mismo cliente.",
+        examples=["Torre Diagonal"],
     )
     address: str | None = Field(
         default=None,
         max_length=255,
         description="Dirección postal, si se conoce.",
-        examples=["Camino del Depósito, 4"],
+        examples=["Avinguda Diagonal, 100, Barcelona"],
     )
     latitude: float | None = Field(
         default=None,
         ge=-90,
         le=90,
         description="Latitud en grados decimales (WGS84).",
-        examples=[38.0138],
+        examples=[41.4036],
     )
     longitude: float | None = Field(
         default=None,
         ge=-180,
         le=180,
         description="Longitud en grados decimales (WGS84).",
-        examples=[-1.1301],
+        examples=[2.2135],
+    )
+    floors: int = Field(
+        default=1,
+        ge=1,
+        le=FLOORS_MAX,
+        description="Plantas sobre rasante, contando la baja. Un bajo sin pisos es 1.",
+        examples=[6],
+    )
+    basements: int = Field(
+        default=0,
+        ge=0,
+        le=BASEMENTS_MAX,
+        description="Sótanos.",
+        examples=[2],
+    )
+    building_type: BuildingType = Field(
+        default=BuildingType.OTHER, description="Tipo de edificio."
     )
 
 
 class SiteCreate(SiteBase):
     """
-    Alta de site.
+    Alta de site (solo admin, B2).
 
-    `organization_id` NO se acepta en el cuerpo: se deduce de la sesión
-    (issue #27). Si el cliente pudiera enviarlo, cualquiera podría crear
-    sites dentro de la organización de otro simplemente cambiando el
-    identificador del JSON.
-
-    `POST /api/sites` es de nivel Intermedio (apartado 9.2 del documento),
-    así que el schema queda definido pero la ruta no se publica todavía;
-    la creará la issue #29.
+    Lleva `organization_id` porque quien da de alta es el admin, que no
+    tiene organización propia: tiene que decir de qué cliente es el
+    edificio. Un cliente no puede llamar a esta ruta (403), así que no
+    puede usar el campo para crear edificios en otra organización.
     """
+
+    organization_id: UUID = Field(description="Cliente al que pertenece el edificio.")
 
 
 class SiteUpdate(ApiRequest):
-    """Modificación parcial: todos los campos opcionales. Issue #29."""
+    """
+    Modificación parcial (solo admin, B2). No se puede cambiar de cliente:
+    mover un edificio movería también sus sensores y su histórico a otra
+    organización.
+    """
 
     name: str | None = Field(default=None, min_length=1, max_length=120)
     address: str | None = Field(default=None, max_length=255)
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
+    floors: int | None = Field(default=None, ge=1, le=FLOORS_MAX)
+    basements: int | None = Field(default=None, ge=0, le=BASEMENTS_MAX)
+    building_type: BuildingType | None = None
 
 
 class SiteResponse(ApiModel):
     """
-    Campos según el documento de arquitectura (apartado 5):
-    `id`, `organization_id`, `name`, `address`, `latitude`, `longitude`,
-    `created_at`.
+    Campos según el documento de arquitectura (apartado 5): `id`,
+    `organization_id`, `name`, `address`, `latitude`, `longitude`,
+    `created_at`. La B0 añadió `organization_name`; la B2, las plantas, el
+    tipo y dos campos calculados.
 
-    No se añade un `sensor_count`: la regla 5.1 del documento pide no
-    duplicar datos derivados, y el número de sensores de un site se
-    obtiene con `GET /api/sites/{id}/sensors`.
+    `sensor_count` y `status` no se guardan (regla 5.1 del documento: no
+    duplicar datos derivados): se calculan al responder con una consulta
+    `GROUP BY` para toda la página.
     """
 
     id: UUID
@@ -97,4 +132,12 @@ class SiteResponse(ApiModel):
     address: str | None = None
     latitude: float | None = None
     longitude: float | None = None
+    floors: int = Field(description="Plantas sobre rasante, contando la baja.")
+    basements: int = Field(description="Sótanos.")
+    building_type: BuildingType
+    sensor_count: int = Field(default=0, description="Sensores instalados.")
+    status: SiteStatus = Field(
+        default=SiteStatus.OK,
+        description="CRITICAL / WARNING según sus alertas abiertas; OK si no tiene.",
+    )
     created_at: datetime

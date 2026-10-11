@@ -23,8 +23,8 @@ Estados **guardados** frente a estados **calculados**:
   `OrganizationStatus`, `BuildingType`, `SensorType`, `AlertType`,
   `AlertSeverity`, `AlertStatus`. Si se cambia uno, hay que cambiar su
   CHECK con una migración (Daruny).
-- Calculados al responder, nunca se guardan: `SensorStatus`,
-  `SensorHealth`, `AlertState`.
+- Calculados al responder, nunca se guardan: `SiteStatus`,
+  `SensorStatus`, `SensorHealth`, `AlertState`.
 """
 
 from __future__ import annotations
@@ -53,7 +53,7 @@ class OrganizationStatus(str, Enum):
 # EDIFICIOS
 # ---------------------------------------------------------
 class BuildingType(str, Enum):
-    """Tipo de edificio. CHECK `ck_sites_building_type`. Lo usa la B2."""
+    """Tipo de edificio. CHECK `ck_sites_building_type`. B2."""
 
     HOTEL = "HOTEL"
     COMMUNITY = "COMMUNITY"
@@ -62,6 +62,24 @@ class BuildingType(str, Enum):
     RESIDENCE = "RESIDENCE"
     INDUSTRIAL = "INDUSTRIAL"
     OTHER = "OTHER"
+
+
+class SiteStatus(str, Enum):
+    """
+    Estado de un edificio, calculado con sus alertas abiertas (B2).
+
+    - `CRITICAL` → algún sensor tiene una alerta CRITICAL sin resolver.
+    - `WARNING`  → solo tiene alertas WARNING sin resolver.
+    - `OK`       → ninguna alerta abierta.
+
+    Decidido por Ana el 10-10-2026. Es el mismo criterio con el que el mapa
+    colorea los marcadores. Un sensor desconectado ya abre una alerta
+    `SENSOR_OFFLINE` CRITICAL, así que también cuenta.
+    """
+
+    OK = "OK"
+    WARNING = "WARNING"
+    CRITICAL = "CRITICAL"
 
 
 # ---------------------------------------------------------

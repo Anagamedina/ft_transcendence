@@ -15,16 +15,21 @@ Implementación: issue #29 (`list`, `get` y `list_sensors`); filtros y
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from decimal import Decimal
 from uuid import UUID
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import NotFoundError
+from app.core.database import transaction
+from app.core.exceptions import ConflictError, DomainValidationError, NotFoundError
+from app.modules.organizations.repository import OrganizationRepository
 from app.modules.sensors.repository import SensorRepository
 from app.modules.sensors.schemas import SensorResponse
 from app.modules.sensors.service import sensor_a_respuesta
-from app.modules.sites.repository import SiteRepository
-from app.modules.sites.schemas import SiteResponse
+from app.modules.sites.model import Site
+from app.modules.sites.repository import SiteCounts, SiteRepository
+from app.modules.sites.schemas import SiteCreate, SiteResponse, SiteUpdate
 from app.shared.dependencies import DbSession
 from app.shared.schemas import Page
 
@@ -56,8 +61,9 @@ class SiteService:
             q=q,
             organization_filter=organization_filter,
         )
+        contadores = self.sites.counts([f.id for f in filas])
         return Page[SiteResponse](
-            items=[self._to_response(f) for f in filas],
+            items=[_to_response(f, contadores[f.id]) for f in filas],
             total=total,
             page=offset // limit + 1,
             page_size=limit,
@@ -72,13 +78,7 @@ class SiteService:
         real. El código `SITE_NOT_FOUND` es el que ya usa el mock del
         frontend.
         """
-        site = self.sites.get_by_id(site_id, organization_id)
-        if site is None:
-            raise NotFoundError(
-                "El site indicado no existe.",
-                code="SITE_NOT_FOUND",
-            )
-        return self._to_response(site)
+        return self._respuesta(self._visible(site_id, organization_id))
 
     def list_sensors(
         self, site_id: UUID, organization_id: UUID | None, offset: int, limit: int
@@ -97,8 +97,7 @@ class SiteService:
         `GET /api/sensors`: se reutiliza su conversión y su cálculo de
         estado, con la última lectura de toda la página en una consulta.
         """
-        if self.sites.get_by_id(site_id, organization_id) is None:
-            raise NotFoundError("El site indicado no existe.", code="SITE_NOT_FOUND")
+        self._visible(site_id, organization_id)
 
         sensores = SensorRepository(self.db)
         filas, total = sensores.list_by_site(site_id, offset=offset, limit=limit)
@@ -113,26 +112,179 @@ class SiteService:
             page_size=limit,
         )
 
-    @staticmethod
-    def _to_response(site) -> SiteResponse:
+    # ---------------------------------------------------------
+    # ALTA, EDICIÓN Y BORRADO — solo admin (B2). Lo exige el router.
+    # ---------------------------------------------------------
+    def create(self, payload: SiteCreate) -> SiteResponse:
         """
-        La tabla guarda latitud y longitud como `Numeric(9, 6)`, que llegan
-        como `Decimal`; el contrato y el mapa las esperan como número JSON.
-        Se convierten aquí, respetando el `None` de un site sin coordenadas.
+        Alta de edificio en un cliente.
 
-        `organization_name` (B0) llega ya cargado en los listados: el
-        repository usa `selectinload(Site.organization)`.
+        El nombre no se repite dentro del mismo cliente (restricción
+        `uq_sites_organization_name`): se mira antes para dar un 409 claro,
+        y la restricción lo garantiza aunque dos altas lleguen a la vez.
         """
-        return SiteResponse(
-            id=site.id,
-            organization_id=site.organization_id,
-            organization_name=site.organization.name,
-            name=site.name,
-            address=site.address,
-            latitude=None if site.latitude is None else float(site.latitude),
-            longitude=None if site.longitude is None else float(site.longitude),
-            created_at=site.created_at,
-        )
+        if OrganizationRepository(self.db).get_by_id(payload.organization_id) is None:
+            raise NotFoundError(
+                "La organización indicada no existe.", code="ORGANIZATION_NOT_FOUND"
+            )
+        self._nombre_libre(payload.organization_id, payload.name)
+
+        try:
+            with transaction(self.db):
+                site = self.sites.create(
+                    organization_id=payload.organization_id, **site_campos(payload)
+                )
+        except IntegrityError as exc:
+            self._nombre_libre(payload.organization_id, payload.name, causa=exc)
+            raise
+        return self._respuesta(site)
+
+    def update(self, site_id: UUID, payload: SiteUpdate) -> SiteResponse:
+        """
+        Modificación parcial (`exclude_unset`).
+
+        **Quitar plantas no puede dejar sensores fuera del edificio.** Si un
+        sensor está en la planta 5 y el edificio pasa a tener 3 plantas, se
+        responde 422 `FLOOR_OUT_OF_SITE`: hay que mover antes el sensor.
+        """
+        site = self._visible(site_id, None)
+        cambios = payload.model_dump(exclude_unset=True)
+
+        for campo, codigo in (("name", "INVALID_NAME"), ("floors", "INVALID_FLOORS"),
+                              ("basements", "INVALID_FLOORS"),
+                              ("building_type", "INVALID_BUILDING_TYPE")):
+            if campo in cambios and cambios[campo] is None:
+                raise DomainValidationError(
+                    f"`{campo}` no puede quedar vacío.", code=codigo
+                )
+        if "name" in cambios:
+            self._nombre_libre(site.organization_id, cambios["name"], exclude_id=site.id)
+
+        plantas = cambios.get("floors", site.floors)
+        sotanos = cambios.get("basements", site.basements)
+        ocupadas = self.sites.sensor_floor_range(site.id)
+        if ocupadas is not None:
+            mas_baja, mas_alta = ocupadas
+            if mas_baja < -sotanos or mas_alta > plantas - 1:
+                raise DomainValidationError(
+                    f"Hay sensores entre la planta {mas_baja} y la {mas_alta}: "
+                    f"con {plantas} plantas y {sotanos} sótanos quedarían fuera "
+                    "del edificio. Muévelos antes.",
+                    code="FLOOR_OUT_OF_SITE",
+                )
+
+        if "building_type" in cambios:
+            cambios["building_type"] = cambios["building_type"].value
+        for coordenada in ("latitude", "longitude"):
+            if coordenada in cambios:
+                cambios[coordenada] = _decimal(cambios[coordenada])
+
+        try:
+            with transaction(self.db):
+                site = self.sites.update(site, **cambios)
+        except IntegrityError as exc:
+            if "name" in cambios:
+                self._nombre_libre(
+                    site.organization_id, cambios["name"], exclude_id=site_id, causa=exc
+                )
+            raise
+        return self._respuesta(site)
+
+    def delete(self, site_id: UUID) -> None:
+        """
+        Borra un edificio **solo si no tiene sensores** (409
+        `SITE_HAS_SENSORS`). Con sensores se perderían sus lecturas y
+        alertas; borrar un cliente entero con todo lo suyo es la B16.
+        """
+        site = self._visible(site_id, None)
+        if self.sites.counts([site.id])[site.id].sensors > 0:
+            raise ConflictError(
+                "El edificio tiene sensores. Quítalos o muévelos antes de borrarlo.",
+                code="SITE_HAS_SENSORS",
+            )
+        with transaction(self.db):
+            self.sites.delete(site)
+
+    # ---------------------------------------------------------
+    # AUXILIARES
+    # ---------------------------------------------------------
+    def _visible(self, site_id: UUID, organization_id: UUID | None) -> Site:
+        """
+        El site, si existe y es visible para quien pregunta.
+
+        Un site de otra organización responde lo mismo que uno que no
+        existe: decir «existe pero no es tuyo» ya confirma que ese id es
+        real. El código `SITE_NOT_FOUND` es el que ya usa el mock del
+        frontend.
+        """
+        site = self.sites.get_by_id(site_id, organization_id)
+        if site is None:
+            raise NotFoundError("El site indicado no existe.", code="SITE_NOT_FOUND")
+        return site
+
+    def _nombre_libre(
+        self,
+        organization_id: UUID,
+        nombre: str,
+        exclude_id: UUID | None = None,
+        causa: Exception | None = None,
+    ) -> None:
+        if self.sites.name_taken(organization_id, nombre, exclude_id=exclude_id):
+            raise ConflictError(
+                "Ese cliente ya tiene un edificio con ese nombre.",
+                code="SITE_NAME_TAKEN",
+            ) from causa
+
+    def _respuesta(self, site: Site) -> SiteResponse:
+        return _to_response(site, self.sites.counts([site.id])[site.id])
+
+
+def site_campos(datos) -> dict:
+    """
+    Columnas de un site a partir de un `SiteBase` (alta de site y
+    `first_site` del alta de organización). Las coordenadas pasan a
+    `Decimal` (`Numeric(9, 6)`) y el tipo de edificio, a su valor.
+    """
+    return {
+        "name": datos.name,
+        "address": datos.address,
+        "latitude": _decimal(datos.latitude),
+        "longitude": _decimal(datos.longitude),
+        "floors": datos.floors,
+        "basements": datos.basements,
+        "building_type": datos.building_type.value,
+    }
+
+
+def _decimal(valor: float | None) -> Decimal | None:
+    return None if valor is None else Decimal(str(valor))
+
+
+def _to_response(site: Site, contadores: SiteCounts) -> SiteResponse:
+    """
+    La tabla guarda latitud y longitud como `Numeric(9, 6)`, que llegan
+    como `Decimal`; el contrato y el mapa las esperan como número JSON.
+    Se convierten aquí, respetando el `None` de un site sin coordenadas.
+
+    `organization_name` (B0) llega ya cargado en los listados: el
+    repository usa `selectinload(Site.organization)`. `sensor_count` y
+    `status` (B2) salen de `SiteRepository.counts`.
+    """
+    return SiteResponse(
+        id=site.id,
+        organization_id=site.organization_id,
+        organization_name=site.organization.name,
+        name=site.name,
+        address=site.address,
+        latitude=None if site.latitude is None else float(site.latitude),
+        longitude=None if site.longitude is None else float(site.longitude),
+        floors=site.floors,
+        basements=site.basements,
+        building_type=site.building_type,
+        sensor_count=contadores.sensors,
+        status=contadores.status,
+        created_at=site.created_at,
+    )
 
 
 def get_site_service(db: DbSession) -> SiteService:
