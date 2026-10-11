@@ -1,5 +1,5 @@
-
 <template>
+  <AdminLayout>
   <section class="space-y-6">
     <header class="flex flex-wrap items-start justify-between gap-4">
       <div>
@@ -19,49 +19,85 @@
       </button>
     </header>
 
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
       <div class="rounded-xl border border-slate-200 bg-white p-4">
-        <p class="text-sm text-slate-500">Total</p>
-        <p class="mt-1 text-2xl font-semibold">{{ alerts.length }}</p>
+        <p class="text-sm text-slate-500">Sin reconocer</p>
+        <p class="mt-1 text-2xl font-semibold">{{ pendingCount }}</p>
       </div>
       <div class="rounded-xl border border-slate-200 bg-white p-4">
-        <p class="text-sm text-slate-500">Activas</p>
-        <p class="mt-1 text-2xl font-semibold">{{ activeCount }}</p>
+        <p class="text-sm text-slate-500">Reconocidas</p>
+        <p class="mt-1 text-2xl font-semibold">{{ acknowledgedCount }}</p>
       </div>
       <div class="rounded-xl border border-slate-200 bg-white p-4">
-        <p class="text-sm text-slate-500">Críticas</p>
+        <p class="text-sm text-slate-500">Críticas abiertas</p>
         <p class="mt-1 text-2xl font-semibold">{{ criticalCount }}</p>
       </div>
+      <div class="rounded-xl border border-slate-200 bg-white p-4">
+        <p class="text-sm text-slate-500">Resueltas</p>
+        <p class="mt-1 text-2xl font-semibold">{{ resolvedCount }}</p>
+      </div>
+    </div>
+
+    <div
+      v-if="sensorRanking.length > 0"
+      class="rounded-xl border border-slate-200 bg-white p-4"
+    >
+      <h2 class="text-sm font-semibold text-slate-800">Sensores con más alertas</h2>
+      <ol class="mt-3 divide-y divide-slate-100 text-sm">
+        <li
+          v-for="(sensor, index) in sensorRanking"
+          :key="sensor.id"
+          class="flex items-center gap-3 py-2"
+        >
+          <span class="w-5 text-slate-400">{{ index + 1 }}</span>
+          <span class="min-w-0 flex-1 truncate text-slate-800">
+            {{ sensor.name }}
+            <span class="text-slate-500">· {{ sensor.site }}</span>
+          </span>
+          <span class="font-semibold text-slate-900">{{ sensor.total }}</span>
+        </li>
+      </ol>
     </div>
 
     <div class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 md:flex-row">
       <input
         v-model.trim="search"
         type="search"
-        placeholder="Buscar por mensaje o sensor..."
+        placeholder="Buscar por mensaje, sensor o cliente..."
         aria-label="Buscar alertas"
         class="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
       />
 
       <select
-        v-model="statusFilter"
+        v-model="clientFilter"
+        aria-label="Filtrar por cliente"
+        class="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+      >
+        <option value="ALL">Todos los clientes</option>
+        <option v-for="client in clients" :key="client.id" :value="client.id">
+          {{ client.name }}
+        </option>
+      </select>
+
+      <select
+        v-model="stateFilter"
         aria-label="Filtrar por estado"
         class="rounded-lg border border-slate-300 px-3 py-2 text-sm"
       >
         <option value="ALL">Todos los estados</option>
-        <option value="ACTIVE">Activas</option>
+        <option value="ACTIVE">Sin reconocer</option>
+        <option value="ACKNOWLEDGED">Reconocidas</option>
         <option value="RESOLVED">Resueltas</option>
       </select>
 
       <select
         v-model="severityFilter"
-        aria-label="Filtrar por severidad"
+        aria-label="Filtrar por gravedad"
         class="rounded-lg border border-slate-300 px-3 py-2 text-sm"
       >
-        <option value="ALL">Todas las severidades</option>
+        <option value="ALL">Todas las gravedades</option>
         <option value="CRITICAL">Crítica</option>
         <option value="WARNING">Advertencia</option>
-        <option value="INFO">Informativa</option>
       </select>
 
       <button
@@ -142,9 +178,9 @@
         <thead class="bg-slate-50 text-slate-600">
           <tr>
             <th scope="col" class="px-4 py-3 font-medium">Alerta</th>
-            <th scope="col" class="px-4 py-3 font-medium">Tipo</th>
+            <th scope="col" class="px-4 py-3 font-medium">Cliente</th>
             <th scope="col" class="px-4 py-3 font-medium">Sensor</th>
-            <th scope="col" class="px-4 py-3 font-medium">Severidad</th>
+            <th scope="col" class="px-4 py-3 font-medium">Gravedad</th>
             <th scope="col" class="px-4 py-3 font-medium">Estado</th>
             <th scope="col" class="px-4 py-3 font-medium">Fecha</th>
             <th scope="col" class="px-4 py-3 font-medium">Acciones</th>
@@ -152,14 +188,16 @@
         </thead>
         <tbody class="divide-y divide-slate-100">
           <tr v-for="alert in filteredAlerts" :key="alert.id">
-            <td class="min-w-64 px-4 py-3 text-slate-800">
+            <td class="min-w-48 px-4 py-3 text-slate-800">
               {{ alert.message || '—' }}
+              <span class="block text-xs text-slate-400">{{ alert.type }}</span>
             </td>
-            <td class="whitespace-nowrap px-4 py-3 text-slate-600">
-              {{ alert.type || '—' }}
+            <td class="px-4 py-3 text-slate-600">
+              {{ alert.organization_name || '—' }}
             </td>
-            <td class="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-600">
-              {{ sensorName(alert.sensor_id) }}
+            <td class="px-4 py-3 text-slate-600">
+              {{ alert.sensor_name || '—' }}
+              <span class="block text-xs text-slate-400">{{ alert.site_name }}</span>
             </td>
             <td class="whitespace-nowrap px-4 py-3">
               <span
@@ -170,7 +208,7 @@
               </span>
             </td>
             <td class="whitespace-nowrap px-4 py-3 text-slate-600">
-              {{ alert.status === 'ACTIVE' ? 'Activa' : alert.status === 'RESOLVED' ? 'Resuelta' : alert.status || '—' }}
+              {{ stateLabel(alert.state) }}
             </td>
             <td class="whitespace-nowrap px-4 py-3 text-slate-600">
               {{ formatDate(alert.created_at) }}
@@ -178,13 +216,13 @@
             <td class="whitespace-nowrap px-4 py-3">
               <div class="flex flex-wrap gap-2">
                 <button
-                  v-if="alert.status === 'ACTIVE' && !alert.acknowledged_at"
+                  v-if="alert.state === 'ACTIVE'"
                   type="button"
                   class="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium hover:bg-slate-50 disabled:opacity-50"
                   :disabled="busyAlertId === alert.id"
                   @click="acknowledge(alert.id)"
                 >
-                  Acusar recibo
+                  Reconocer
                 </button>
                 <button
                   v-if="alert.status === 'ACTIVE'"
@@ -212,18 +250,19 @@
       </p>
     </div>
   </section>
+  </AdminLayout>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import AdminLayout from '../../layouts/AdminLayout.vue'
 import { useAlertsStore } from '../../stores/alerts.js'
-import { useSensorsStore } from '../../stores/sensors.js'
 
 const alertStore = useAlertsStore()
-const sensorStore = useSensorsStore()
 
 const search = ref('')
-const statusFilter = ref('ALL')
+const clientFilter = ref('ALL')
+const stateFilter = ref('ALL')
 const severityFilter = ref('ALL')
 const busyAlertId = ref(null)
 const actionError = ref('')
@@ -231,10 +270,17 @@ const actionError = ref('')
 const alerts = computed(() => alertStore.alerts)
 const status = computed(() => alertStore.status)
 const error = computed(() => alertStore.error)
-const sensors = computed(() => sensorStore.sensors)
 
-const activeCount = computed(
-  () => alerts.value.filter((alert) => alert.status === 'ACTIVE').length
+const pendingCount = computed(
+  () => alerts.value.filter((alert) => alert.state === 'ACTIVE').length
+)
+
+const acknowledgedCount = computed(
+  () => alerts.value.filter((alert) => alert.state === 'ACKNOWLEDGED').length
+)
+
+const resolvedCount = computed(
+  () => alerts.value.filter((alert) => alert.state === 'RESOLVED').length
 )
 
 const criticalCount = computed(
@@ -243,6 +289,38 @@ const criticalCount = computed(
   ).length
 )
 
+const clients = computed(() => {
+  const names = new Map()
+
+  for (const alert of alerts.value) {
+    names.set(alert.organization_id, alert.organization_name)
+  }
+
+  return [...names]
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+})
+
+const sensorRanking = computed(() => {
+  const sensors = new Map()
+
+  for (const alert of alerts.value) {
+    const sensor = sensors.get(alert.sensor_id) || {
+      id: alert.sensor_id,
+      name: alert.sensor_name,
+      site: alert.site_name,
+      total: 0,
+    }
+
+    sensor.total += 1
+    sensors.set(alert.sensor_id, sensor)
+  }
+
+  return [...sensors.values()]
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 5)
+})
+
 const filteredAlerts = computed(() => {
   const query = search.value.toLocaleLowerCase()
 
@@ -250,21 +328,26 @@ const filteredAlerts = computed(() => {
     const matchesSearch = [
       alert.message,
       alert.type,
-      alert.sensor_id,
-      sensorName(alert.sensor_id),
+      alert.sensor_name,
+      alert.site_name,
+      alert.organization_name,
     ].some((value) =>
       String(value ?? '').toLocaleLowerCase().includes(query)
     )
 
-    const matchesStatus =
-      statusFilter.value === 'ALL' ||
-      alert.status === statusFilter.value
+    const matchesClient =
+      clientFilter.value === 'ALL' ||
+      alert.organization_id === clientFilter.value
+
+    const matchesState =
+      stateFilter.value === 'ALL' ||
+      alert.state === stateFilter.value
 
     const matchesSeverity =
       severityFilter.value === 'ALL' ||
       alert.severity === severityFilter.value
 
-    return matchesSearch && matchesStatus && matchesSeverity
+    return matchesSearch && matchesClient && matchesState && matchesSeverity
   })
 })
 
@@ -276,16 +359,6 @@ async function loadAlerts() {
   }
 }
 
-async function loadSensors() {
-  if (sensorStore.status === 'success') return
-
-  try {
-    await sensorStore.fetchSensors()
-  } catch {
-    // Sensor names fall back to their IDs if loading fails.
-  }
-}
-
 async function acknowledge(id) {
   busyAlertId.value = id
   actionError.value = ''
@@ -293,7 +366,7 @@ async function acknowledge(id) {
   try {
     await alertStore.acknowledgeAlert(id)
   } catch (err) {
-    actionError.value = err?.message || 'No se pudo acusar recibo de la alerta.'
+    actionError.value = err?.message || 'No se pudo reconocer la alerta.'
   } finally {
     busyAlertId.value = null
   }
@@ -314,20 +387,25 @@ async function resolve(id) {
 
 function resetFilters() {
   search.value = ''
-  statusFilter.value = 'ALL'
+  clientFilter.value = 'ALL'
+  stateFilter.value = 'ALL'
   severityFilter.value = 'ALL'
 }
 
-function sensorName(id) {
-  const sensor = sensors.value.find((item) => item.id === id)
-  return sensor?.name || id || '—'
+function stateLabel(state) {
+  const labels = {
+    ACTIVE: 'Sin reconocer',
+    ACKNOWLEDGED: 'Reconocida',
+    RESOLVED: 'Resuelta',
+  }
+
+  return labels[state] || state || '—'
 }
 
 function severityLabel(severity) {
   const labels = {
     CRITICAL: 'Crítica',
     WARNING: 'Advertencia',
-    INFO: 'Informativa',
   }
 
   return labels[severity] || severity || '—'
@@ -337,7 +415,6 @@ function severityClass(severity) {
   const classes = {
     CRITICAL: 'bg-red-100 text-red-800',
     WARNING: 'bg-amber-100 text-amber-800',
-    INFO: 'bg-blue-100 text-blue-800',
   }
 
   return classes[severity] || 'bg-slate-100 text-slate-700'
@@ -358,6 +435,5 @@ function formatDate(value) {
 
 onMounted(() => {
   loadAlerts()
-  loadSensors()
 })
 </script>
