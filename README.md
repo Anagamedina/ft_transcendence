@@ -79,6 +79,7 @@ older `.env` without them still starts:
 | `TRIAL_DAYS`            | `7`                  | Length of the trial after registering           |
 | `DOCUMENTS_DIR`         | `/data/documents`    | Backend folder where documents are stored       |
 | `MAX_UPLOAD_MB`         | `10`                 | Maximum size of an uploaded document            |
+| `PUBLIC_RATE_LIMIT`     | `5r/m`               | Per-IP limit on login, register and invitations |
 | `BACKUP_INTERVAL_HOURS` | `24`                 | Hours between automatic backups                 |
 | `BACKUP_KEEP`           | `7`                  | Number of backups kept                          |
 
@@ -95,8 +96,14 @@ The Compose stack declares five services on the `aquaguard` network. `database`,
 `sim` Compose profile, so a plain start never fails on it.
 
 `gateway` is the only service published to the host. It terminates TLS on 443,
-redirects 80 to 443, serves the compiled Vue SPA, and proxies `/api/` and `/ws/`
-to `backend:8000` over the internal network. `backend` and `database` are not
+redirects 80 to 443, serves the compiled Vue SPA, and proxies `/api/` to
+`backend:8000` over the internal network. It adds the security headers (HSTS,
+`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`) to every HTTPS
+response and limits `/api/auth/login`, `/api/auth/register` and
+`/api/invitations/by-code/` to `PUBLIC_RATE_LIMIT` requests per IP, answering
+429 in the API error format beyond that. The Playwright suite logs in more
+often than that, so run it against a stack started with
+`PUBLIC_RATE_LIMIT=1000r/m make up`. `backend` and `database` are not
 reachable from the host at all. `backup` writes a compressed `pg_dump` to the
 `backups_data` volume on a schedule; see
 [Health checks, status page and backups](#health-checks-status-page-and-backups).
@@ -193,7 +200,7 @@ The root `Makefile` wraps the Compose commands:
 | `make logs`                | Follows the logs of every running service                                                                                                    |
 | `make ps`                  | Shows service status                                                                                                                         |
 | `make clean`               | `down --remove-orphans`, simulator included                                                                                                  |
-| `make fclean`              | `down -v --remove-orphans`, simulator included, which deletes the PostgreSQL volume and the backups                                          |
+| `make fclean`              | `down -v --remove-orphans`, simulator included, which deletes the PostgreSQL volume, the backups and the uploaded documents                  |
 | `make re`                  | `fclean` followed by `up`, a start from scratch                                                                                              |
 
 `make fclean` destroys the database volume. PostgreSQL only creates its user on
@@ -375,7 +382,7 @@ See [`backend/migrations/README.md`](backend/migrations/README.md) for details.
 
 ```text
 Browser -> Nginx gateway -> Vue frontend
-                         -> /api and /ws -> FastAPI backend -> PostgreSQL
+                         -> /api -> FastAPI backend -> PostgreSQL
 Simulator -> readings API -> FastAPI backend
 ```
 
@@ -451,7 +458,7 @@ data types, and relationships once the schema is implemented.
 | Backend liveness endpoint (`GET /api/health`)                                                          | Implemented | TBD          | `curl -k https://localhost/api/health`                                                                                                                                                                                                                                                                                                   |
 | Database readiness endpoint (`GET /api/health/db`)                                                     | Implemented | TBD          | `curl -k https://localhost/api/health/db`                                                                                                                                                                                                                                                                                                |
 | Compose orchestration (network, volume, profiles)                                                      | Implemented | Eduardo      | `make up` then `make ps`                                                                                                                                                                                                                                                                                                                 |
-| Nginx gateway: HTTPS, HTTP redirect, SPA, `/api` and `/ws` proxy                                       | Implemented | Eduardo      | `curl -I http://localhost` returns 301, `curl -k https://localhost/api/health` returns 200                                                                                                                                                                                                                                               |
+| Nginx gateway: HTTPS, HTTP redirect, SPA, `/api` proxy, security headers, rate limit on public forms   | Implemented | Eduardo      | `curl -I http://localhost` returns 301, `curl -k https://localhost/api/health` returns 200                                                                                                                                                                                                                                               |
 | Sensor simulator (`simulator/`): normal, low, high and offline scenarios                               | Implemented | Eduardo      | `cd simulator && pytest` (33 tests); `make up && make seed && make sim`. The seed creates the sensors listed in `.env.example`, so readings persist via `POST /api/readings` (#24) with no manual setup; waits for `/api/health/db` before sending, exposes its own container `HEALTHCHECK`, and demo users get real Argon2 hashes (#89) |
 | Status page, automatic backups and disaster recovery (`/status`, `make backup`, `make restore`) | Implemented | Eduardo | `make up`, open <https://localhost/status>; `make backup && make backups`; `make restore FILE=<name> && make smoke`. `cd backend && python3 -m pytest -q tests/test_status.py` (10 tests) |
 | Health checks and smoke test (`make smoke`)                                                            | Implemented | Eduardo      | `make up && make seed && make smoke`; with `make sim` it also checks the simulator -> API -> database flow                                                                                                                                                                                                                               |
