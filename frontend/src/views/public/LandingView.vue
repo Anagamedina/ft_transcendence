@@ -116,6 +116,82 @@
         </ul>
       </div>
     </section>
+
+    <!-- Alert lifecycle: active, acknowledged, resolved -->
+    <section id="alertas" class="bg-aqua-50 px-6 pb-14 md:px-20">
+      <div
+        class="max-w-6xl mx-auto bg-white border border-aqua-100 rounded-xl p-7 grid gap-8 items-center md:grid-cols-[1fr_1.3fr]"
+      >
+        <div class="flex flex-col gap-2">
+          <h2 class="text-2xl font-bold text-aqua-900">Alertas que se cierran</h2>
+          <p class="text-slate-600">
+            Cada alerta pasa por tres estados y queda registrado quién actuó y
+            cuánto tardó.
+          </p>
+        </div>
+        <ol class="flex flex-wrap items-center gap-2.5" aria-label="Estados de una alerta">
+          <li class="flex items-center gap-2.5">
+            <span class="px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-800">
+              Activa
+            </span>
+            <span class="text-slate-500" aria-hidden="true">→</span>
+          </li>
+          <li class="flex items-center gap-2.5">
+            <span class="px-3 py-1 rounded-full text-sm font-semibold bg-amber-100 text-amber-800">
+              Reconocida
+            </span>
+            <span class="text-slate-500" aria-hidden="true">→</span>
+          </li>
+          <li>
+            <span class="px-3 py-1 rounded-full text-sm font-semibold bg-emerald-100 text-emerald-800">
+              Resuelta
+            </span>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- Roles: what the AquaGuard team and the client can do -->
+    <section id="roles" class="bg-white px-6 py-14 md:px-20">
+      <div class="max-w-3xl mx-auto flex flex-col gap-6">
+        <h2 class="text-3xl font-bold text-aqua-900 text-center">Quién puede hacer qué</h2>
+        <div class="overflow-x-auto border border-slate-200 rounded-xl">
+          <table class="w-full text-left text-sm sm:text-base">
+            <thead class="bg-aqua-50 text-aqua-800">
+              <tr>
+                <th scope="col" class="px-3 sm:px-4 py-3">Acción</th>
+                <th scope="col" class="px-3 sm:px-4 py-3 text-center">Equipo AquaGuard</th>
+                <th scope="col" class="px-3 sm:px-4 py-3 text-center">Cliente</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="permission in permissions"
+                :key="permission.action"
+                class="border-t border-slate-200"
+              >
+                <th scope="row" class="px-3 sm:px-4 py-3 font-normal">{{ permission.action }}</th>
+                <td class="px-3 sm:px-4 py-3 text-center">{{ permission.team }}</td>
+                <td class="px-3 sm:px-4 py-3 text-center">{{ permission.client }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Final call to action -->
+    <section class="bg-aqua-50 px-6 py-14 md:px-20 text-center flex flex-col items-center gap-4">
+      <div class="water-drop mb-4" aria-hidden="true"></div>
+      <h2 class="text-3xl font-bold text-aqua-900">¿Tu edificio está en Barcelona?</h2>
+      <p class="text-slate-600">Pruébalo 7 días gratis. Si te convence, activamos tu cuenta.</p>
+      <RouterLink
+        to="/prueba"
+        class="bg-aqua-600 text-white font-semibold px-6 py-3.5 rounded-lg hover:bg-aqua-700 transition"
+      >
+        Empezar la prueba
+      </RouterLink>
+    </section>
   </PublicLayout>
 </template>
 
@@ -167,4 +243,46 @@ const districts = [
   "Sant Andreu",
   "Sant Martí",
 ];
+
+// Permissions table shown in the "Who can do what" section
+const permissions = [
+  { action: "Dar de alta clientes, edificios y sensores", team: "Sí", client: "—" },
+  { action: "Ajustar los umbrales de presión", team: "Sí", client: "—" },
+  { action: "Invitar usuarios a una organización", team: "Sí", client: "—" },
+  { action: "Ver edificios, sensores y lecturas", team: "Todos", client: "Los suyos" },
+  { action: "Reconocer y resolver alertas", team: "Sí", client: "Sí" },
+  { action: "Subir y descargar documentos", team: "Sí", client: "Sí" },
+];
 </script>
+
+<style scoped>
+/* Decorative floating drop for the final call to action */
+.water-drop {
+  width: 96px;
+  height: 96px;
+  background: linear-gradient(135deg, #ffffff 0%, #a5f3fc 45%, #0369a1 100%);
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(135deg);
+  box-shadow:
+    inset -6px -6px 14px rgba(255, 255, 255, 0.4),
+    6px 6px 18px rgba(3, 105, 161, 0.3);
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: rotate(135deg) translateY(0);
+  }
+  50% {
+    transform: rotate(135deg) translateY(-10px);
+  }
+}
+
+/* Respect users who disable animations in their system settings */
+@media (prefers-reduced-motion: reduce) {
+  .water-drop {
+    animation: none;
+  }
+}
+</style>
