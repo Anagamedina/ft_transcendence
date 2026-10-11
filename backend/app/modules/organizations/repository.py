@@ -50,6 +50,25 @@ class OrganizationRepository:
         return self.db.get(Organization, organization_id)
 
     # Añadidos por Ana para la B1 (#139).
+    def get_for_update(self, organization_id: UUID) -> Organization | None:
+        """
+        La organización con su fila bloqueada (`SELECT … FOR UPDATE`) hasta
+        el commit o el rollback de la transacción en curso.
+
+        Es para los cambios de estado: otra petición que quiera cambiar la
+        misma organización espera aquí y, cuando entra, lee el estado ya
+        cambiado. `populate_existing` hace que el objeto se rellene con lo
+        que devuelve la consulta aunque la sesión ya lo tuviera cargado; si
+        no, se validaría con datos viejos. SQLite no tiene `FOR UPDATE` y
+        lo ignora.
+        """
+        return self.db.scalar(
+            select(Organization)
+            .where(Organization.id == organization_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+
     def list(
         self,
         offset: int = 0,

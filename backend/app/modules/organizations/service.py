@@ -28,6 +28,13 @@ Decisiones de Ana (10-10-2026):
 - **El alta acepta `first_site`, no `first_user`**: los usuarios llegan
   por invitación (B4), y así el admin nunca conoce la contraseña de un
   cliente.
+
+Cada cambio de estado lee la organización con su fila bloqueada
+(`SELECT … FOR UPDATE`) en la misma transacción que valida y guarda. Sin
+eso, una activación que leyó TRIAL justo antes de una suspensión la
+dejaba en ACTIVE, y dos ampliaciones a la vez sumaban solo una vez los
+días (revisión de la PR #191). Los tests de concurrencia están en
+`tests/integration/test_organizations_concurrency.py`, contra PostgreSQL.
 """
 
 from __future__ import annotations
@@ -167,24 +174,32 @@ class OrganizationService:
         poder entrar (login y sesiones abiertas, ver `auth`) hasta que se
         reactive.
         """
-        organizacion = self._existente(organization_id)
-        if organizacion.status == OrganizationStatus.SUSPENDED.value:
-            raise ConflictError(
-                "La organización ya estaba suspendida.",
-                code="ORGANIZATION_ALREADY_SUSPENDED",
+        with transaction(self.db):
+            organizacion = self._bloqueada(organization_id)
+            if organizacion.status == OrganizationStatus.SUSPENDED.value:
+                raise ConflictError(
+                    "La organización ya estaba suspendida.",
+                    code="ORGANIZATION_ALREADY_SUSPENDED",
+                )
+            self.organizations.update(
+                organizacion, status=OrganizationStatus.SUSPENDED.value
             )
-        return self._cambiar(organizacion, status=OrganizationStatus.SUSPENDED.value)
+        return self._respuesta(organizacion)
 
     def reactivate(self, organization_id: UUID) -> OrganizationResponse:
-        organizacion = self._existente(organization_id)
-        if organizacion.status != OrganizationStatus.SUSPENDED.value:
-            raise ConflictError(
-                "Solo se puede reactivar una organización suspendida.",
-                code="ORGANIZATION_NOT_SUSPENDED",
+        with transaction(self.db):
+            organizacion = self._bloqueada(organization_id)
+            if organizacion.status != OrganizationStatus.SUSPENDED.value:
+                raise ConflictError(
+                    "Solo se puede reactivar una organización suspendida.",
+                    code="ORGANIZATION_NOT_SUSPENDED",
+                )
+            estaba_en_prueba = organizacion.trial_ends_at is not None
+            nuevo = (
+                OrganizationStatus.TRIAL if estaba_en_prueba else OrganizationStatus.ACTIVE
             )
-        estaba_en_prueba = organizacion.trial_ends_at is not None
-        nuevo = OrganizationStatus.TRIAL if estaba_en_prueba else OrganizationStatus.ACTIVE
-        return self._cambiar(organizacion, status=nuevo.value)
+            self.organizations.update(organizacion, status=nuevo.value)
+        return self._respuesta(organizacion)
 
     def extend_trial(
         self, organization_id: UUID, ahora: datetime | None = None
@@ -195,14 +210,17 @@ class OrganizationService:
         `ahora` se puede pasar desde fuera para probarlo sin depender del
         reloj.
         """
-        organizacion = self._en_prueba(organization_id)
         ahora = ahora or datetime.now(timezone.utc)
-        fin = _utc(organizacion.trial_ends_at)
-        desde = fin if fin is not None and fin > ahora else ahora
-        return self._cambiar(
-            organizacion,
-            trial_ends_at=desde + timedelta(days=app_settings.TRIAL_DAYS),
-        )
+        with transaction(self.db):
+            organizacion = self._bloqueada(organization_id)
+            _comprobar_en_prueba(organizacion)
+            fin = _utc(organizacion.trial_ends_at)
+            desde = fin if fin is not None and fin > ahora else ahora
+            self.organizations.update(
+                organizacion,
+                trial_ends_at=desde + timedelta(days=app_settings.TRIAL_DAYS),
+            )
+        return self._respuesta(organizacion)
 
     def activate(self, organization_id: UUID) -> OrganizationResponse:
         """
@@ -210,10 +228,13 @@ class OrganizationService:
         organización sin fin de prueba es una que no está en prueba, y es
         lo que usa `reactivate` para decidir a qué estado vuelve.
         """
-        organizacion = self._en_prueba(organization_id)
-        return self._cambiar(
-            organizacion, status=OrganizationStatus.ACTIVE.value, trial_ends_at=None
-        )
+        with transaction(self.db):
+            organizacion = self._bloqueada(organization_id)
+            _comprobar_en_prueba(organizacion)
+            self.organizations.update(
+                organizacion, status=OrganizationStatus.ACTIVE.value, trial_ends_at=None
+            )
+        return self._respuesta(organizacion)
 
     # ---------------------------------------------------------
     # AUXILIARES
@@ -227,12 +248,18 @@ class OrganizationService:
             )
         return organizacion
 
-    def _en_prueba(self, organization_id: UUID) -> Organization:
-        organizacion = self._existente(organization_id)
-        if organizacion.status != OrganizationStatus.TRIAL.value:
-            raise ConflictError(
-                "La organización no está en prueba.",
-                code="ORGANIZATION_NOT_IN_TRIAL",
+    def _bloqueada(self, organization_id: UUID) -> Organization:
+        """
+        La organización bloqueada hasta el final de la transacción. Así
+        leer, validar y cambiar el estado es un solo paso: dos cambios a la
+        vez sobre la misma organización van uno detrás de otro, y el
+        segundo valida contra lo que dejó el primero.
+        """
+        organizacion = self.organizations.get_for_update(organization_id)
+        if organizacion is None:
+            raise NotFoundError(
+                "La organización indicada no existe.",
+                code="ORGANIZATION_NOT_FOUND",
             )
         return organizacion
 
@@ -247,11 +274,6 @@ class OrganizationService:
                 "Ya hay una organización con ese nombre.",
                 code="ORGANIZATION_NAME_TAKEN",
             ) from causa
-
-    def _cambiar(self, organizacion: Organization, **campos) -> OrganizationResponse:
-        with transaction(self.db):
-            organizacion = self.organizations.update(organizacion, **campos)
-        return self._respuesta(organizacion)
 
     def _respuesta(self, organizacion: Organization) -> OrganizationResponse:
         contadores = self.organizations.counts([organizacion.id])
@@ -276,11 +298,26 @@ def _decimal(valor: float | None) -> Decimal | None:
     return None if valor is None else Decimal(str(valor))
 
 
+def _comprobar_en_prueba(organizacion: Organization) -> None:
+    if organizacion.status != OrganizationStatus.TRIAL.value:
+        raise ConflictError(
+            "La organización no está en prueba.",
+            code="ORGANIZATION_NOT_IN_TRIAL",
+        )
+
+
 def _utc(valor: datetime | None) -> datetime | None:
-    """sqlite (tests) devuelve fechas sin zona; se guardan en UTC."""
-    if valor is not None and valor.tzinfo is None:
+    """
+    La fecha en UTC. sqlite (tests) la devuelve sin zona, y se guarda en
+    UTC; PostgreSQL, en la zona de la sesión. Hay que pasarla a UTC antes
+    de sumar días: en `Europe/Madrid`, sumar 7 días por encima del cambio
+    de hora movería el fin de la prueba una hora.
+    """
+    if valor is None:
+        return None
+    if valor.tzinfo is None:
         return valor.replace(tzinfo=timezone.utc)
-    return valor
+    return valor.astimezone(timezone.utc)
 
 
 def _to_response(
