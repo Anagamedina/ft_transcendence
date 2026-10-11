@@ -79,6 +79,7 @@ older `.env` without them still starts:
 | `TRIAL_DAYS`            | `7`                  | Length of the trial after registering           |
 | `DOCUMENTS_DIR`         | `/data/documents`    | Backend folder where documents are stored       |
 | `MAX_UPLOAD_MB`         | `10`                 | Maximum size of an uploaded document            |
+| `PUBLIC_RATE_LIMIT`     | `5r/m`               | Per-IP limit on login, register and invitations |
 | `BACKUP_INTERVAL_HOURS` | `24`                 | Hours between automatic backups                 |
 | `BACKUP_KEEP`           | `7`                  | Number of backups kept                          |
 
@@ -95,8 +96,14 @@ The Compose stack declares five services on the `aquaguard` network. `database`,
 `sim` Compose profile, so a plain start never fails on it.
 
 `gateway` is the only service published to the host. It terminates TLS on 443,
-redirects 80 to 443, serves the compiled Vue SPA, and proxies `/api/` and `/ws/`
-to `backend:8000` over the internal network. `backend` and `database` are not
+redirects 80 to 443, serves the compiled Vue SPA, and proxies `/api/` to
+`backend:8000` over the internal network. It adds the security headers (HSTS,
+`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`) to every HTTPS
+response and limits `/api/auth/login`, `/api/auth/register` and
+`/api/invitations/by-code/` to `PUBLIC_RATE_LIMIT` requests per IP, answering
+429 in the API error format beyond that. The Playwright suite logs in more
+often than that, so run it against a stack started with
+`PUBLIC_RATE_LIMIT=1000r/m make up`. `backend` and `database` are not
 reachable from the host at all. `backup` writes a compressed `pg_dump` to the
 `backups_data` volume on a schedule; see
 [Health checks, status page and backups](#health-checks-status-page-and-backups).
@@ -193,7 +200,7 @@ The root `Makefile` wraps the Compose commands:
 | `make logs`                | Follows the logs of every running service                                                                                                    |
 | `make ps`                  | Shows service status                                                                                                                         |
 | `make clean`               | `down --remove-orphans`, simulator included                                                                                                  |
-| `make fclean`              | `down -v --remove-orphans`, simulator included, which deletes the PostgreSQL volume and the backups                                          |
+| `make fclean`              | `down -v --remove-orphans`, simulator included, which deletes the PostgreSQL volume, the backups and the uploaded documents                  |
 | `make re`                  | `fclean` followed by `up`, a start from scratch                                                                                              |
 
 `make fclean` destroys the database volume. PostgreSQL only creates its user on
@@ -375,7 +382,7 @@ See [`backend/migrations/README.md`](backend/migrations/README.md) for details.
 
 ```text
 Browser -> Nginx gateway -> Vue frontend
-                         -> /api and /ws -> FastAPI backend -> PostgreSQL
+                         -> /api -> FastAPI backend -> PostgreSQL
 Simulator -> readings API -> FastAPI backend
 ```
 
@@ -451,7 +458,7 @@ data types, and relationships once the schema is implemented.
 | Backend liveness endpoint (`GET /api/health`)                                                          | Implemented | TBD          | `curl -k https://localhost/api/health`                                                                                                                                                                                                                                                                                                   |
 | Database readiness endpoint (`GET /api/health/db`)                                                     | Implemented | TBD          | `curl -k https://localhost/api/health/db`                                                                                                                                                                                                                                                                                                |
 | Compose orchestration (network, volume, profiles)                                                      | Implemented | Eduardo      | `make up` then `make ps`                                                                                                                                                                                                                                                                                                                 |
-| Nginx gateway: HTTPS, HTTP redirect, SPA, `/api` and `/ws` proxy                                       | Implemented | Eduardo      | `curl -I http://localhost` returns 301, `curl -k https://localhost/api/health` returns 200                                                                                                                                                                                                                                               |
+| Nginx gateway: HTTPS, HTTP redirect, SPA, `/api` proxy, security headers, rate limit on public forms   | Implemented | Eduardo      | `curl -I http://localhost` returns 301, `curl -k https://localhost/api/health` returns 200                                                                                                                                                                                                                                               |
 | Sensor simulator (`simulator/`): normal, low, high and offline scenarios                               | Implemented | Eduardo      | `cd simulator && pytest` (33 tests); `make up && make seed && make sim`. The seed creates the sensors listed in `.env.example`, so readings persist via `POST /api/readings` (#24) with no manual setup; waits for `/api/health/db` before sending, exposes its own container `HEALTHCHECK`, and demo users get real Argon2 hashes (#89) |
 | Status page, automatic backups and disaster recovery (`/status`, `make backup`, `make restore`) | Implemented | Eduardo | `make up`, open <https://localhost/status>; `make backup && make backups`; `make restore FILE=<name> && make smoke`. `cd backend && python3 -m pytest -q tests/test_status.py` (10 tests) |
 | Health checks and smoke test (`make smoke`)                                                            | Implemented | Eduardo      | `make up && make seed && make smoke`; with `make sim` it also checks the simulator -> API -> database flow                                                                                                                                                                                                                               |
@@ -474,19 +481,21 @@ contributors, and a reproducible verification method.
 
 The project must reach at least 14 validated points. The following selection is
 the team's current AquaGuard plan, based on the product architecture document.
+It adds up to 13: the real-time module (WebSockets, 2 points) was dropped from
+the plan, so one more point still has to be assigned.
 
 | Category           | Module                                          | Type  | Points | Status                          | Contributors                          |
 |--------------------|-------------------------------------------------|-------|-------:|---------------------------------|---------------------------------------|
 | Web                | Frontend and backend frameworks (Vue + FastAPI) | Major |      2 | In progress - not yet countable | Ana, Florinda, Lylia, Daruny, Eduardo |
 | Web                | ORM (SQLAlchemy)                                | Minor |      1 | In progress - not yet countable | Daruny                                |
-| Web                | Real-time features (WebSockets)                 | Major |      2 | Planned                         | Ana, Lylia, Daruny, Eduardo           |
 | User Management    | Advanced permissions                            | Major |      2 | Planned                         | Ana, Daruny, Lylia                    |
 | User Management    | Organization system                             | Major |      2 | Planned                         | Ana, Daruny                           |
 | Data and Analytics | Advanced analytics dashboard                    | Major |      2 | Planned                         | Ana, Daruny, Florinda, Lylia          |
 | Web                | Advanced search                                 | Minor |      1 | Planned                         | Ana, Daruny, Florinda, Lylia          |
 | Data and Analytics | Data export and import                          | Minor |      1 | Planned                         | Ana, Daruny, Florinda, Lylia          |
 | Web                | Notification system                             | Minor |      1 | Planned                         | Ana, Daruny, Florinda, Lylia          |
-|                    | **Planned total**                               |       | **14** |                                 |                                       |
+| DevOps             | Health checks, status page and backups          | Minor |      1 | Implemented                     | Eduardo                               |
+|                    | **Planned total**                               |       | **13** |                                 |                                       |
 
 ### Module implementation plan
 
@@ -494,21 +503,21 @@ the team's current AquaGuard plan, based on the product architecture document.
   the SPA and modular backend foundations.
 - **ORM:** SQLAlchemy maps the domain models to PostgreSQL and isolates database
   access behind repositories.
-- **Real-time features:** WebSockets will broadcast new readings and alerts and
-  handle connection and disconnection events. This depends on the REST flow
-  being stable first.
 - **Advanced permissions:** Users will have roles and different CRUD actions or
   views according to their permissions.
 - **Organization system:** Organizations will own members, sites, and related
   actions with tenant isolation.
 - **Advanced analytics dashboard:** The Admin area will provide interactive
-  charts, KPIs, date ranges, filters, real-time updates, and export support.
+  charts, KPIs, date ranges, filters, periodic refresh, and export support.
 - **Advanced search:** Search will include filters, sorting, and pagination for
   sites, sensors, alerts, and related data.
 - **Data export and import:** The project will provide validated CSV/JSON export
   and import flows, including simple bulk operations where applicable.
 - **Notification system:** Relevant creation, update, and deletion events will
   generate user-facing notifications.
+- **Health checks, status page and backups:** Every service has a health check,
+  `/status` shows the state of each component, and the database is backed up
+  on a schedule with a tested restore procedure.
 
 ### Dependencies and validation evidence
 
@@ -516,8 +525,7 @@ the team's current AquaGuard plan, based on the product architecture document.
   Vue.
 - Authentication, roles, and organization isolation are prerequisites for the
   permissions and organization modules.
-- Readings and alerts must be persisted before real-time broadcasting and
-  analytics can be demonstrated.
+- Readings and alerts must be persisted before analytics can be demonstrated.
 - Advanced search and export/import depend on stable domain endpoints and
   validated data contracts.
 - Every claimed module must include tests, a reproducible demo path, and the
@@ -526,7 +534,8 @@ the team's current AquaGuard plan, based on the product architecture document.
 The DevOps health/status system (health checks, status page, automated backups
 and disaster recovery, 1 point) is implemented and described in
 [Health checks, status page and backups](#health-checks-status-page-and-backups).
-It is tracked as a bonus or additional module on top of the planned 14 points. Major modules are worth 2 points and minor modules are worth 1 point.
+It counts towards the planned total above. Major modules are worth 2 points and
+minor modules are worth 1 point.
 
 ## Team information
 
@@ -635,6 +644,7 @@ development without a running backend by implementing a mock adapter with the sa
   states and prevented double submission. Authentication was tested with the MockAdapter 
   while the backend was not yet available.|                                              |
   Route guards and role-based navigation | Implemented protected routes using Vue Router navigation guards and Pinia authentication state. Added role-based access control for client and admin dashboards, redirects for unauthorized access, session initialization, and a custom 404 page for unknown routes. | #174 | Ensured that unauthenticated users cannot access protected pages and that authenticated users are redirected according to their roles. Centralized authentication checks in the router and handled unknown routes with a dedicated Not Found view. |
+  | Admin Sensors and Alerts views |# |Implemented Admin views to display sensors and alerts, with basic filtering and loading, error, and empty states. Connected the views to the existing Pinia stores and API services, and enabled navigation from the Admin sidebar. | #XXX | Reused the existing Services/Stores architecture and MockAdapter fixtures to develop and test the views without requiring a running backend. Kept data-fetching logic separate from presentation components and verified sensor and alert retrieval using mocked API responses. 
 
 | Eduardo (`egalindo`) | Features/modules             | Pull requests | Challenges and solutions |
 |----------------------|------------------------------|---------------|--------------------------|

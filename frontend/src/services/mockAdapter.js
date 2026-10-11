@@ -102,6 +102,8 @@ const mockAdapter = {
 
     // Get all sensors.
     if (url === '/api/sensors') {
+      // Temporary test: simulate a slow API response
+      //await new Promise((resolve) => setTimeout(resolve, 2000));  
       return Promise.resolve({
         data: {
           items: sensors,
@@ -330,7 +332,7 @@ const mockAdapter = {
 
       mockUser.push(newUser);
       currentUser = newUser;
-      localStorage.setItem(MOCK_SESSION_KEY, user.id);
+      localStorage.setItem(MOCK_SESSION_KEY, newUser.id);
 
       return Promise.resolve({
         data: {

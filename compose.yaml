@@ -32,6 +32,7 @@ services:
       - "8000"
     volumes:
       - backups_data:/backups:ro
+      - documents_data:${DOCUMENTS_DIR:-/data/documents}
     depends_on:
       database:
         condition: service_healthy
@@ -86,6 +87,8 @@ services:
       context: .
       dockerfile: gateway/Dockerfile
     restart: unless-stopped
+    environment:
+      PUBLIC_RATE_LIMIT: ${PUBLIC_RATE_LIMIT:-5r/m}
     volumes:
       - ./gateway/certs:/etc/nginx/certs:ro
     ports:
@@ -104,6 +107,7 @@ services:
 volumes:
   postgres_data:
   backups_data:
+  documents_data:
 
 networks:
   aquaguard:
