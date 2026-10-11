@@ -481,19 +481,21 @@ contributors, and a reproducible verification method.
 
 The project must reach at least 14 validated points. The following selection is
 the team's current AquaGuard plan, based on the product architecture document.
+It adds up to 13: the real-time module (WebSockets, 2 points) was dropped from
+the plan, so one more point still has to be assigned.
 
 | Category           | Module                                          | Type  | Points | Status                          | Contributors                          |
 |--------------------|-------------------------------------------------|-------|-------:|---------------------------------|---------------------------------------|
 | Web                | Frontend and backend frameworks (Vue + FastAPI) | Major |      2 | In progress - not yet countable | Ana, Florinda, Lylia, Daruny, Eduardo |
 | Web                | ORM (SQLAlchemy)                                | Minor |      1 | In progress - not yet countable | Daruny                                |
-| Web                | Real-time features (WebSockets)                 | Major |      2 | Planned                         | Ana, Lylia, Daruny, Eduardo           |
 | User Management    | Advanced permissions                            | Major |      2 | Planned                         | Ana, Daruny, Lylia                    |
 | User Management    | Organization system                             | Major |      2 | Planned                         | Ana, Daruny                           |
 | Data and Analytics | Advanced analytics dashboard                    | Major |      2 | Planned                         | Ana, Daruny, Florinda, Lylia          |
 | Web                | Advanced search                                 | Minor |      1 | Planned                         | Ana, Daruny, Florinda, Lylia          |
 | Data and Analytics | Data export and import                          | Minor |      1 | Planned                         | Ana, Daruny, Florinda, Lylia          |
 | Web                | Notification system                             | Minor |      1 | Planned                         | Ana, Daruny, Florinda, Lylia          |
-|                    | **Planned total**                               |       | **14** |                                 |                                       |
+| DevOps             | Health checks, status page and backups          | Minor |      1 | Implemented                     | Eduardo                               |
+|                    | **Planned total**                               |       | **13** |                                 |                                       |
 
 ### Module implementation plan
 
@@ -501,21 +503,21 @@ the team's current AquaGuard plan, based on the product architecture document.
   the SPA and modular backend foundations.
 - **ORM:** SQLAlchemy maps the domain models to PostgreSQL and isolates database
   access behind repositories.
-- **Real-time features:** WebSockets will broadcast new readings and alerts and
-  handle connection and disconnection events. This depends on the REST flow
-  being stable first.
 - **Advanced permissions:** Users will have roles and different CRUD actions or
   views according to their permissions.
 - **Organization system:** Organizations will own members, sites, and related
   actions with tenant isolation.
 - **Advanced analytics dashboard:** The Admin area will provide interactive
-  charts, KPIs, date ranges, filters, real-time updates, and export support.
+  charts, KPIs, date ranges, filters, periodic refresh, and export support.
 - **Advanced search:** Search will include filters, sorting, and pagination for
   sites, sensors, alerts, and related data.
 - **Data export and import:** The project will provide validated CSV/JSON export
   and import flows, including simple bulk operations where applicable.
 - **Notification system:** Relevant creation, update, and deletion events will
   generate user-facing notifications.
+- **Health checks, status page and backups:** Every service has a health check,
+  `/status` shows the state of each component, and the database is backed up
+  on a schedule with a tested restore procedure.
 
 ### Dependencies and validation evidence
 
@@ -523,8 +525,7 @@ the team's current AquaGuard plan, based on the product architecture document.
   Vue.
 - Authentication, roles, and organization isolation are prerequisites for the
   permissions and organization modules.
-- Readings and alerts must be persisted before real-time broadcasting and
-  analytics can be demonstrated.
+- Readings and alerts must be persisted before analytics can be demonstrated.
 - Advanced search and export/import depend on stable domain endpoints and
   validated data contracts.
 - Every claimed module must include tests, a reproducible demo path, and the
@@ -533,7 +534,8 @@ the team's current AquaGuard plan, based on the product architecture document.
 The DevOps health/status system (health checks, status page, automated backups
 and disaster recovery, 1 point) is implemented and described in
 [Health checks, status page and backups](#health-checks-status-page-and-backups).
-It is tracked as a bonus or additional module on top of the planned 14 points. Major modules are worth 2 points and minor modules are worth 1 point.
+It counts towards the planned total above. Major modules are worth 2 points and
+minor modules are worth 1 point.
 
 ## Team information
 
