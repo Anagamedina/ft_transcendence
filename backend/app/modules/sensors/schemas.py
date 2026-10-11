@@ -32,7 +32,7 @@ from pydantic import Field, field_validator, model_validator
 
 # SensorType y SensorStatus viven en shared/enums.py (B0); se reexportan
 # desde aquí porque el resto del código ya los importa de este módulo.
-from app.shared.enums import SensorStatus, SensorType
+from app.shared.enums import SensorHealth, SensorStatus, SensorType
 from app.shared.schemas import ApiModel, ApiRequest
 
 # Límite físico del rango de medida que aceptamos para un sensor de
@@ -134,15 +134,25 @@ class SensorCreate(SensorBase):
         description="Unidad de medida. Si no se envía, `bar`.",
         examples=["bar"],
     )
+    floor: int = Field(
+        default=0,
+        description=(
+            "Planta donde se instala (B3). 0 es la baja; negativo, sótano. "
+            "Tiene que existir en el edificio: entre `-basements` y "
+            "`floors - 1`, o 422 `FLOOR_OUT_OF_SITE`."
+        ),
+        examples=[2],
+    )
 
 
 class SensorUpdate(ApiRequest):
     """
     Modificación parcial (`PATCH /api/sensors/{id}`, issue #29).
 
-    No incluye `status` ni `last_seen_at`: los mantiene el backend a
-    partir de las lecturas recibidas. Si el cliente pudiera escribirlos,
-    podría marcar como ONLINE un sensor que lleva días mudo.
+    No incluye `status`, `health`, `last_seen_at` ni `last_value`: los
+    calcula el backend a partir de las lecturas y las alertas. Si el
+    cliente pudiera escribirlos, podría marcar como ONLINE un sensor que
+    lleva días mudo.
     """
 
     name: str | None = Field(default=None, min_length=1, max_length=120)
@@ -152,6 +162,13 @@ class SensorUpdate(ApiRequest):
     )
     max_pressure: float | None = Field(
         default=None, ge=PRESSURE_MIN_BAR, le=PRESSURE_MAX_BAR
+    )
+    floor: int | None = Field(
+        default=None,
+        description=(
+            "Mover el sensor de planta (B3). Misma regla que en el alta: "
+            "entre `-basements` y `floors - 1` de su edificio."
+        ),
     )
 
     @field_validator("name")
@@ -202,11 +219,26 @@ class SensorResponse(ApiModel):
     min_pressure: float = Field(description="Umbral inferior en bar.")
     max_pressure: float = Field(description="Umbral superior en bar.")
     status: SensorStatus = Field(description="Estado operativo calculado.")
+    health: SensorHealth = Field(
+        description=(
+            "Salud calculada (B3): `OFFLINE` si lleva más de 5 minutos sin "
+            "lecturas; si no, `CRITICAL` o `WARNING` según sus alertas sin "
+            "resolver, y `OK` si no tiene ninguna."
+        )
+    )
     last_seen_at: datetime | None = Field(
         default=None,
         description=(
             "Última vez que se recibió una lectura de este sensor, en UTC. "
             "Nulo si nunca ha enviado ninguna."
         ),
+    )
+    last_value: float | None = Field(
+        default=None,
+        description=(
+            "Valor de esa misma última lectura, en `unit` (B3). Nulo si "
+            "nunca ha enviado ninguna."
+        ),
+        examples=[3.4],
     )
     created_at: datetime

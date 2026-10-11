@@ -96,6 +96,24 @@ class SiteRepository:
             query = query.where(Site.organization_id == organization_id)
         return self.db.scalar(query)
 
+    def get_for_update(self, site_id: UUID) -> Site | None:
+        """
+        El site con su fila bloqueada (`SELECT … FOR UPDATE`) hasta el
+        commit o el rollback (B3, #139).
+
+        Lo usan las operaciones que comprueban plantas: editar el edificio y
+        dar de alta o mover un sensor. Todas bloquean el site, así que van
+        una detrás de otra y ninguna valida contra plantas que otra está
+        cambiando. `populate_existing` rellena el objeto con lo que devuelve
+        la consulta aunque la sesión ya lo tuviera cargado. SQLite lo ignora.
+        """
+        return self.db.scalar(
+            select(Site)
+            .where(Site.id == site_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+
     # Añadidos por Ana para la B2 (#139).
     def counts(self, site_ids: list[UUID]) -> dict[UUID, SiteCounts]:
         """
