@@ -1,6 +1,7 @@
 // MOCK ADAPTER — responses adhering to the same OpenAPI contract (Week 1 parallel)
 
 import { alerts } from './fixtures/alerts.js'
+import { dailyRows } from './fixtures/analytics.js'
 import { readings } from './fixtures/readings.js'
 import { sensors } from './fixtures/sensors.js'
 import { sites } from './fixtures/sites.js'
@@ -224,6 +225,32 @@ const mockAdapter = {
           page_size: Math.max(alerts.length, 1),
           pages: alerts.length === 0 ? 0 : 1,
         },
+        status: 200,
+      })
+    }
+
+    // Analytics export (F19): JSON rows for the charts or a CSV Blob.
+    if (url === '/api/analytics/export') {
+      const { format = 'csv', from, to } = config.params ?? {}
+      const end = to ? new Date(to) : new Date()
+      const start = from ? new Date(from) : new Date(end.getTime() - 30 * 86400000)
+      if (start >= end) {
+        return Promise.reject({
+          status: 422,
+          code: 'INVALID_DATE_RANGE',
+          message: '`from` tiene que ser anterior a `to`.',
+          details: null,
+        })
+      }
+      const rows = dailyRows(start, end)
+      if (format === 'json') {
+        return Promise.resolve({ data: rows, status: 200 })
+      }
+      const header = Object.keys(rows[0] ?? { date: '' })
+      const csv = [header.join(','), ...rows.map((r) => header.map((k) => r[k] ?? '').join(','))].join('\n')
+      return Promise.resolve({
+        data: new Blob([csv], { type: 'text/csv' }),
+        headers: { 'content-disposition': 'attachment; filename="aquaguard-analytics-mock.csv"' },
         status: 200,
       })
     }
