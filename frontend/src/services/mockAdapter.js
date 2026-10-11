@@ -23,7 +23,7 @@ const mockUser = [
     email: "client@example.com",
     name: "Mock Client",
     role: "client",
-    organization_id: null,
+    organization_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     created_at: "2026-08-01T08:00:00Z",
     password: "123",
   },
@@ -49,6 +49,85 @@ function toPublicUser(user) {
   return publicUser
 }
 
+function authError() {
+  return {
+    status: 401,
+    code: "UNAUTHORIZED",
+    message: "Authentication required.",
+    details: null,
+  };
+}
+
+function forbiddenError() {
+  return {
+    status: 403,
+    code: "FORBIDDEN",
+    message: "You do not have access to this resource.",
+    details: null,
+  };
+}
+
+function validationError(field, message) {
+  return {
+    status: 422,
+    code: "VALIDATION_ERROR",
+    message: "Invalid request.",
+    details: [
+      {
+        field,
+        message,
+        type: "value_error",
+      },
+    ],
+  };
+}
+
+function getAccessibleSites() {
+  if (!currentUser) return []
+
+  if (currentUser.role === "admin") {
+    return sites
+  }
+
+  if (
+    currentUser.role !== "client" ||
+    !currentUser.organization_id
+  ) {
+    return []
+  }
+
+  return sites.filter(
+    (site) =>
+      site.organization_id === currentUser.organization_id
+  )
+}
+
+function getAccessibleSensors() {
+  const siteIds = new Set(
+    getAccessibleSites().map((site) => site.id)
+  )
+
+  return sensors.filter((sensor) =>
+    siteIds.has(sensor.site_id)
+  )
+}
+
+function canAccessSensor(sensorId) {
+  return getAccessibleSensors().some(
+    (sensor) => sensor.id === sensorId
+  )
+}
+
+function getAccessibleAlerts() {
+  const sensorIds = new Set(
+    getAccessibleSensors().map((sensor) => sensor.id)
+  )
+
+  return alerts.filter((alert) =>
+    sensorIds.has(alert.sensor_id)
+  )
+}
+
 /*
  * The mock adapter exposes the same methods as httpAdapter.
  * Each method returns a Promise to simulate an HTTP response.
@@ -62,12 +141,7 @@ const mockAdapter = {
     // Get the currently authenticated user.
     if (url === '/api/me') {
       if (!currentUser) {
-        return Promise.reject({
-          status: 401,
-          code: 'UNAUTHORIZED',
-          message: 'Authentication required.',
-          details: null,
-        })
+        return Promise.reject(authError())
       }
 
       return Promise.resolve({
@@ -87,31 +161,43 @@ const mockAdapter = {
     }
 
     // Get all sites.
-    if (url === '/api/sites') {
+    if (url === "/api/sites") {
+      if (!currentUser) {
+        return Promise.reject(authError());
+      }
+
+      const items = getAccessibleSites();
+
       return Promise.resolve({
         data: {
-          items: sites,
-          total: sites.length,
+          items,
+          total: items.length,
           page: 1,
-          page_size: Math.max(sites.length, 1),
-          pages: sites.length === 0 ? 0 : 1,
+          page_size: Math.max(items.length, 1),
+          pages: items.length === 0 ? 0 : 1,
         },
         status: 200,
-      })
+      });
     }
 
     // Get all sensors.
-    if (url === '/api/sensors') {
+    if (url === "/api/sensors") {
+      if (!currentUser) {
+        return Promise.reject(authError());
+      }
+
+      const items = getAccessibleSensors();
+
       return Promise.resolve({
         data: {
-          items: sensors,
-          total: sensors.length,
+          items,
+          total: items.length,
           page: 1,
-          page_size: Math.max(sensors.length, 1),
-          pages: sensors.length === 0 ? 0 : 1,
+          page_size: Math.max(items.length, 1),
+          pages: items.length === 0 ? 0 : 1,
         },
         status: 200,
-      })
+      });
     }
 
     // Get sensors belonging to a specific site.
@@ -119,6 +205,10 @@ const mockAdapter = {
       url.startsWith('/api/sites/') &&
       url.endsWith('/sensors')
     ) {
+      if (!currentUser) {
+        return Promise.reject(authError())
+      }
+
       const siteId = url.split('/')[3]
       const site = sites.find((site) => site.id === siteId)
 
@@ -129,6 +219,14 @@ const mockAdapter = {
           message: 'Site not found.',
           details: null,
         })
+      }
+
+      const accessibleSite = getAccessibleSites().some(
+        (accessibleSite) => accessibleSite.id === siteId
+      )
+
+      if (!accessibleSite) {
+        return Promise.reject(forbiddenError())
       }
 
       const siteSensors = sensors.filter(
@@ -149,6 +247,10 @@ const mockAdapter = {
 
     // Get a specific site.
     if (url.startsWith('/api/sites/')) {
+      if (!currentUser) {
+        return Promise.reject(authError())
+      }
+
       const id = url.split('/')[3]
       const site = sites.find((site) => site.id === id)
 
@@ -159,6 +261,14 @@ const mockAdapter = {
           message: 'Site not found.',
           details: null,
         })
+      }
+
+      const accessibleSite = getAccessibleSites().some(
+        (accessibleSite) => accessibleSite.id === id
+      )
+
+      if (!accessibleSite) {
+        return Promise.reject(forbiddenError())
       }
 
       return Promise.resolve({
@@ -172,6 +282,10 @@ const mockAdapter = {
       url.startsWith('/api/sensors/') &&
       url.endsWith('/readings')
     ) {
+      if (!currentUser) {
+        return Promise.reject(authError())
+      }
+
       const sensorId = url.split('/')[3]
       const sensor = sensors.find(
         (sensor) => sensor.id === sensorId
@@ -184,6 +298,10 @@ const mockAdapter = {
           message: 'Sensor not found.',
           details: null,
         })
+      }
+
+      if (!canAccessSensor(sensorId)) {
+        return Promise.reject(forbiddenError())
       }
 
       const sensorReadings = readings.filter(
@@ -204,6 +322,10 @@ const mockAdapter = {
 
     // Get a specific sensor.
     if (url.startsWith('/api/sensors/')) {
+      if (!currentUser) {
+        return Promise.reject(authError())
+      }
+
       const id = url.split('/')[3]
       const sensor = sensors.find(
         (sensor) => sensor.id === id
@@ -218,6 +340,10 @@ const mockAdapter = {
         })
       }
 
+      if (!canAccessSensor(id)) {
+        return Promise.reject(forbiddenError())
+      }
+
       return Promise.resolve({
         data: sensor,
         status: 200,
@@ -225,25 +351,45 @@ const mockAdapter = {
     }
 
     // Get all alerts.
-    if (url === '/api/alerts') {
+    if (url === "/api/alerts") {
+      if (!currentUser) {
+        return Promise.reject(authError());
+      }
+
+      const items = getAccessibleAlerts().map((alert) => ({
+        ...alert,
+      }));
+
       return Promise.resolve({
         data: {
-          items: alerts.map((alert) => ({ ...alert })),
-          total: alerts.length,
+          items,
+          total: items.length,
           page: 1,
-          page_size: Math.max(alerts.length, 1),
-          pages: alerts.length === 0 ? 0 : 1,
+          page_size: Math.max(items.length, 1),
+          pages: items.length === 0 ? 0 : 1,
         },
         status: 200,
-      })
+      });
     }
 
     // Analytics export (F19): JSON rows for the charts or a CSV Blob.
     if (url === '/api/analytics/export') {
+      if (!currentUser) {
+        return Promise.reject(authError())
+      }
+
       const { format = 'csv', from, to } = config.params ?? {}
+
       const end = to ? new Date(to) : new Date()
-      const start = from ? new Date(from) : new Date(end.getTime() - 30 * 86400000)
-      if (start >= end) {
+      const start = from
+        ? new Date(from)
+        : new Date(end.getTime() - 30 * 86400000)
+
+      if (
+        Number.isNaN(start.getTime()) ||
+        Number.isNaN(end.getTime()) ||
+        start >= end
+      ) {
         return Promise.reject({
           status: 422,
           code: 'INVALID_DATE_RANGE',
@@ -251,15 +397,40 @@ const mockAdapter = {
           details: null,
         })
       }
+
       const rows = dailyRows(start, end)
+
       if (format === 'json') {
-        return Promise.resolve({ data: rows, status: 200 })
+        return Promise.resolve({
+          data: rows,
+          status: 200,
+        })
       }
+
+      if (format !== 'csv') {
+        return Promise.reject({
+          status: 422,
+          code: 'INVALID_FORMAT',
+          message: 'Format must be csv or json.',
+          details: null,
+        })
+      }
+
       const header = Object.keys(rows[0] ?? { date: '' })
-      const csv = [header.join(','), ...rows.map((r) => header.map((k) => r[k] ?? '').join(','))].join('\n')
+
+      const csv = [
+        header.join(','),
+        ...rows.map((r) =>
+          header.map((k) => r[k] ?? '').join(',')
+        ),
+      ].join('\n')
+
       return Promise.resolve({
         data: new Blob([csv], { type: 'text/csv' }),
-        headers: { 'content-disposition': 'attachment; filename="aquaguard-analytics-mock.csv"' },
+        headers: {
+          'content-disposition':
+            'attachment; filename="aquaguard-analytics-mock.csv"',
+        },
         status: 200,
       })
     }
@@ -283,12 +454,12 @@ const mockAdapter = {
 
     // Register a new mock client.
     if (url === '/api/auth/register') {
-      const email = data.email
+      const email =
+        typeof data.email === 'string'
+          ? data.email.trim()
+          : ''
 
-      if (
-        typeof email !== 'string' ||
-        !email.trim()
-      ) {
+      if (!email) {
         return Promise.reject({
           status: 422,
           code: 'VALIDATION_ERROR',
@@ -297,7 +468,11 @@ const mockAdapter = {
         })
       }
 
-      if (mockUser.some((user) => user.email === email)) {
+      if (
+        mockUser.some(
+          (user) => user.email.toLowerCase() === email.toLowerCase()
+        )
+      ) {
         return Promise.reject({
           status: 409,
           code: 'EMAIL_ALREADY_EXISTS',
@@ -330,7 +505,7 @@ const mockAdapter = {
 
       mockUser.push(newUser);
       currentUser = newUser;
-      localStorage.setItem(MOCK_SESSION_KEY, user.id);
+      localStorage.setItem(MOCK_SESSION_KEY, newUser.id);
 
       return Promise.resolve({
         data: {
@@ -383,6 +558,10 @@ const mockAdapter = {
 
     // Create a reading.
     if (url === '/api/readings') {
+      if (!currentUser) {
+        return Promise.reject(authError())
+      }
+
       const sensor = sensors.find(
         (sensor) => sensor.id === data.sensor_id
       )
@@ -396,30 +575,49 @@ const mockAdapter = {
         })
       }
 
+      if (!canAccessSensor(data.sensor_id)) {
+        return Promise.reject(forbiddenError())
+      }
+
       if (
+        typeof data.pressure !== 'number' ||
+        !Number.isFinite(data.pressure) ||
         data.pressure < 0 ||
         data.pressure > 25
       ) {
-        return Promise.reject({
-          status: 422,
-          code: 'VALIDATION_ERROR',
-          message: 'Invalid request.',
-          details: [
-            {
-              field: 'pressure',
-              message: 'Pressure must be between 0 and 25 bar.',
-              type: 'value_error',
-            },
-          ],
-        })
+        return Promise.reject(
+          validationError(
+            'pressure',
+            'Pressure must be a number between 0 and 25 bar.'
+          )
+        )
+      }
+
+      let measuredAt = new Date().toISOString()
+
+      if (data.measured_at !== undefined) {
+        const parsedDate = new Date(data.measured_at)
+
+        if (
+          typeof data.measured_at !== 'string' ||
+          Number.isNaN(parsedDate.getTime())
+        ) {
+          return Promise.reject(
+            validationError(
+              'measured_at',
+              'measured_at must be a valid date.'
+            )
+          )
+        }
+
+        measuredAt = parsedDate.toISOString()
       }
 
       const reading = {
         id: crypto.randomUUID(),
         sensor_id: data.sensor_id,
         pressure: data.pressure,
-        measured_at:
-          data.measured_at ?? new Date().toISOString(),
+        measured_at: measuredAt,
         created_at: new Date().toISOString(),
       }
 
@@ -433,6 +631,10 @@ const mockAdapter = {
 
     // Create a sensor.
     if (url === '/api/sensors') {
+      if (!currentUser) {
+        return Promise.reject(authError())
+      }
+
       const site = sites.find(
         (site) => site.id === data.site_id
       )
@@ -447,30 +649,45 @@ const mockAdapter = {
       }
 
       if (
+        !getAccessibleSites().some(
+          (accessibleSite) => accessibleSite.id === data.site_id
+        )
+      ) {
+        return Promise.reject(forbiddenError())
+      }
+
+      if (
+        typeof data.name !== 'string' ||
+        !data.name.trim()
+      ) {
+        return Promise.reject(
+          validationError('name', 'A sensor name is required.')
+        )
+      }
+
+      if (
+        typeof data.min_pressure !== 'number' ||
+        !Number.isFinite(data.min_pressure) ||
+        typeof data.max_pressure !== 'number' ||
+        !Number.isFinite(data.max_pressure) ||
         data.min_pressure < 0 ||
         data.min_pressure > 25 ||
         data.max_pressure < 0 ||
         data.max_pressure > 25 ||
         data.min_pressure >= data.max_pressure
       ) {
-        return Promise.reject({
-          status: 422,
-          code: 'VALIDATION_ERROR',
-          message: 'Invalid request.',
-          details: [
-            {
-              field: 'min_pressure',
-              message: 'min_pressure must be lower than max_pressure.',
-              type: 'value_error',
-            },
-          ],
-        })
+        return Promise.reject(
+          validationError(
+            'min_pressure',
+            'Pressure limits must be numbers between 0 and 25, with min_pressure lower than max_pressure.'
+          )
+        )
       }
 
       const sensor = {
         id: crypto.randomUUID(),
         site_id: data.site_id,
-        name: data.name,
+        name: data.name.trim(),
         location: data.location ?? null,
         sensor_type: data.sensor_type ?? 'PRESSURE',
         min_pressure: data.min_pressure,
@@ -502,7 +719,11 @@ const mockAdapter = {
     console.log('[MOCK PATCH]', url, data, config)
 
     // Acknowledge an alert.
-    if (url.endsWith('/acknowledge')) {
+    if (url.startsWith('/api/alerts/') && url.endsWith('/acknowledge')) {
+      if (!currentUser) {
+        return Promise.reject(authError())
+      }
+
       const id = url.split('/')[3]
       const alert = alerts.find(
         (alert) => alert.id === id
@@ -517,6 +738,14 @@ const mockAdapter = {
         })
       }
 
+      if (
+        !getAccessibleAlerts().some(
+          (accessibleAlert) => accessibleAlert.id === id
+        )
+      ) {
+        return Promise.reject(forbiddenError())
+      }
+
       alert.acknowledged_at = new Date().toISOString()
 
       return Promise.resolve({
@@ -526,7 +755,11 @@ const mockAdapter = {
     }
 
     // Resolve an alert.
-    if (url.endsWith('/resolve')) {
+    if (url.startsWith('/api/alerts/') && url.endsWith('/resolve')) {
+      if (!currentUser) {
+        return Promise.reject(authError())
+      }
+
       const id = url.split('/')[3]
       const alert = alerts.find(
         (alert) => alert.id === id
@@ -539,6 +772,14 @@ const mockAdapter = {
           message: 'Alert not found.',
           details: null,
         })
+      }
+
+      if (
+        !getAccessibleAlerts().some(
+          (accessibleAlert) => accessibleAlert.id === id
+        )
+      ) {
+        return Promise.reject(forbiddenError())
       }
 
       alert.status = 'RESOLVED'
@@ -555,6 +796,10 @@ const mockAdapter = {
       url.startsWith('/api/sensors/') &&
       !url.endsWith('/readings')
     ) {
+      if (!currentUser) {
+        return Promise.reject(authError())
+      }
+
       const id = url.split('/')[3]
       const sensor = sensors.find(
         (sensor) => sensor.id === id
@@ -569,40 +814,83 @@ const mockAdapter = {
         })
       }
 
+      if (!canAccessSensor(id)) {
+        return Promise.reject(forbiddenError())
+      }
+
+      // Validate pressure values only when they are provided.
       if (
-        (data.min_pressure !== undefined &&
-          (data.min_pressure < 0 ||
-            data.min_pressure > 25)) ||
-        (data.max_pressure !== undefined &&
-          (data.max_pressure < 0 ||
-            data.max_pressure > 25)) ||
-        (data.min_pressure !== undefined &&
+        (
+          data.min_pressure !== undefined &&
+          (
+            typeof data.min_pressure !== 'number' ||
+            !Number.isFinite(data.min_pressure) ||
+            data.min_pressure < 0 ||
+            data.min_pressure > 25
+          )
+        ) ||
+        (
           data.max_pressure !== undefined &&
-          data.min_pressure >= data.max_pressure) ||
-        (data.min_pressure !== undefined &&
-          data.max_pressure === undefined &&
-          data.min_pressure >= sensor.max_pressure) ||
-        (data.max_pressure !== undefined &&
-          data.min_pressure === undefined &&
-          data.max_pressure <= sensor.min_pressure)
+          (
+            typeof data.max_pressure !== 'number' ||
+            !Number.isFinite(data.max_pressure) ||
+            data.max_pressure < 0 ||
+            data.max_pressure > 25
+          )
+        )
       ) {
-        return Promise.reject({
-          status: 422,
-          code: 'VALIDATION_ERROR',
-          message: 'Invalid request.',
-          details: [
-            {
-              field: 'min_pressure',
-              message: 'min_pressure must be lower than max_pressure.',
-              type: 'value_error',
-            },
-          ],
-        })
+        return Promise.reject(
+          validationError(
+            'min_pressure',
+            'Pressure limits must be numbers between 0 and 25.'
+          )
+        )
+      }
+
+      const nextMin =
+        data.min_pressure !== undefined
+          ? data.min_pressure
+          : sensor.min_pressure
+
+      const nextMax =
+        data.max_pressure !== undefined
+          ? data.max_pressure
+          : sensor.max_pressure
+
+      if (nextMin >= nextMax) {
+        return Promise.reject(
+          validationError(
+            'min_pressure',
+            'min_pressure must be lower than max_pressure.'
+          )
+        )
+      }
+
+      if (
+        data.name !== undefined &&
+        (
+          typeof data.name !== 'string' ||
+          !data.name.trim()
+        )
+      ) {
+        return Promise.reject(
+          validationError('name', 'Sensor name cannot be empty.')
+        )
+      }
+
+      if (
+        data.location !== undefined &&
+        data.location !== null &&
+        typeof data.location !== 'string'
+      ) {
+        return Promise.reject(
+          validationError('location', 'Location must be a string or null.')
+        )
       }
 
       Object.assign(sensor, {
         ...(data.name !== undefined && {
-          name: data.name,
+          name: data.name.trim(),
         }),
         ...(data.location !== undefined && {
           location: data.location,
@@ -645,27 +933,27 @@ const mockAdapter = {
 
 export default mockAdapter
 
-/*Here is exactly what the services tell us the MockAdapter must support: :
+/*
+Here is exactly what the services tell us the MockAdapter must support:
 
-Domaine	Méthode	Endpoint
-Auth	POST	/api/auth/register
-Auth	POST	/api/auth/login
-Auth	POST	/api/auth/logout
-Auth	GET	/api/me
-Sites	GET	/api/sites
-Sites	GET	/api/sites/{id}
-Sites	GET	/api/sites/{id}/sensors
-Sensors	GET	/api/sensors
-Sensors	GET	/api/sensors/{id}
-Sensors	POST	/api/sensors
-Sensors	PATCH	/api/sensors/{id}
-Readings	POST	/api/readings
-Readings	GET	/api/sensors/{id}/readings
-Alerts	GET	/api/alerts
-Alerts	PATCH	/api/alerts/{id}/acknowledge
-Alerts	PATCH	/api/alerts/{id}/resolve
+Domaine       Méthode   Endpoint
+Auth          POST      /api/auth/register
+Auth          POST      /api/auth/login
+Auth          POST      /api/auth/logout
+Auth          GET       /api/me
+Sites         GET       /api/sites
+Sites         GET       /api/sites/{id}
+Sites         GET       /api/sites/{id}/sensors
+Sensors       GET       /api/sensors
+Sensors       GET       /api/sensors/{id}
+Sensors       POST      /api/sensors
+Sensors       PATCH     /api/sensors/{id}
+Readings      POST      /api/readings
+Readings      GET       /api/sensors/{id}/readings
+Alerts        GET       /api/alerts
+Alerts        PATCH     /api/alerts/{id}/acknowledge
+Alerts        PATCH     /api/alerts/{id}/resolve
 */
-
 
 /*
 All endpoints work the same way; GET request essentially does this:

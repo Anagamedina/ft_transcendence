@@ -16,11 +16,17 @@ const routes = [
   },
   {
     path: "/dashboard",
-    component: () => import("../views/client/DashboardView.vue"),
+    component: () => import("../layouts/ClientLayout.vue"),
     meta: {
-      requiresAuth: true,  //tells the router: "this route requires authentication" so we can not access directly 
+      requiresAuth: true,
       requiresClient: true,
     },
+    children: [
+      {
+        path: "",
+        component: () => import("../views/client/DashboardView.vue"),
+      },
+    ],
   },
   {
     path: "/privacy",
@@ -131,7 +137,7 @@ router.beforeEach(async (to) => {
   }
 
   // Allow only clients to access the client dashboard.
-  if (requiresClient && authStore.isAdmin) {
+  if (requiresClient && !authStore.isClient) {
     return authStore.isAdmin ? "/admin" : "/login";
   }
 
