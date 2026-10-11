@@ -42,7 +42,7 @@
         v-for="client in clients"
         :key="client.id"
         :title="client.name"
-        :description="sitesLabel(client.sites_count)"
+        :description="sitesLabel(client.site_count)"
         button-text="Ver sites"
         @click="$emit('select', client)"
       />
@@ -57,7 +57,7 @@ import ErrorState from './ErrorState.vue'
 import EmptyState from './EmptyState.vue'
 
 defineProps({
-  // Each client: { id, name, created_at, sites_count? }
+  // Each client: { id, name, created_at, site_count? }
   clients: { type: Array, default: () => [] },
   loading: { type: Boolean, default: false },
   error: { type: String, default: '' },
@@ -67,7 +67,7 @@ defineProps({
 
 defineEmits(['select', 'retry', 'update:search'])
 
-// Builds the card description; sites_count is optional until the API provides it
+// Builds the card description; site_count is optional until the API provides it
 function sitesLabel(count) {
   if (count === undefined) return ''
   return count === 1 ? '1 site' : `${count} sites`
