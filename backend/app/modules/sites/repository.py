@@ -16,13 +16,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import exists, func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.modules.alerts.model import Alert
+from app.modules.documents.model import Document
 from app.modules.sensors.model import Sensor
 from app.modules.sites.model import Site
-from app.shared.enums import SiteStatus
+from app.shared.enums import AlertSeverity, AlertStatus, SiteStatus
 from app.shared.utils import matches_text
 
 
@@ -114,15 +115,18 @@ class SiteRepository:
         for site_id, severidad in self.db.execute(
             select(Sensor.site_id, Alert.severity)
             .join(Alert, Alert.sensor_id == Sensor.id)
-            .where(Sensor.site_id.in_(site_ids), Alert.status == "ACTIVE")
+            .where(
+                Sensor.site_id.in_(site_ids),
+                Alert.status == AlertStatus.ACTIVE.value,
+            )
             .group_by(Sensor.site_id, Alert.severity)
         ).all():
             con_alertas.setdefault(site_id, set()).add(severidad)
 
         def estado(severidades: set[str]) -> SiteStatus:
-            if "CRITICAL" in severidades:
+            if AlertSeverity.CRITICAL.value in severidades:
                 return SiteStatus.CRITICAL
-            if "WARNING" in severidades:
+            if AlertSeverity.WARNING.value in severidades:
                 return SiteStatus.WARNING
             return SiteStatus.OK
 
@@ -133,6 +137,23 @@ class SiteRepository:
             )
             for sid in site_ids
         }
+
+    def has_sensors(self, site_id: UUID) -> bool:
+        """True si el site tiene algún sensor. `EXISTS`: no hace falta contarlos."""
+        return bool(self.db.scalar(select(exists().where(Sensor.site_id == site_id))))
+
+    def has_documents(self, site_id: UUID) -> bool:
+        """
+        True si el site tiene algún documento.
+
+        Hace falta mirarlo a mano: `documents.site_id` es `ON DELETE
+        CASCADE`, así que la base de datos borraría los documentos sin avisar
+        (revisión de la PR #194). El CASCADE se queda para la B16, que borra
+        un cliente entero con todo lo suyo.
+        """
+        return bool(
+            self.db.scalar(select(exists().where(Document.site_id == site_id)))
+        )
 
     def name_taken(
         self, organization_id: UUID, name: str, exclude_id: UUID | None = None

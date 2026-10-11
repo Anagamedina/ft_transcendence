@@ -192,15 +192,25 @@ class SiteService:
 
     def delete(self, site_id: UUID) -> None:
         """
-        Borra un edificio **solo si no tiene sensores** (409
-        `SITE_HAS_SENSORS`). Con sensores se perderían sus lecturas y
-        alertas; borrar un cliente entero con todo lo suyo es la B16.
+        Borra un edificio **solo si está vacío**. Se perdería algo si no:
+
+        - Con sensores, sus lecturas y alertas: 409 `SITE_HAS_SENSORS`.
+        - Con documentos, los documentos y sus ficheros: 409
+          `SITE_HAS_DOCUMENTS` (revisión de la PR #194). La tabla los
+          borraría en cascada sin avisar.
+
+        Borrar un cliente entero con todo lo suyo es la B16.
         """
         site = self._visible(site_id, None)
-        if self.sites.counts([site.id])[site.id].sensors > 0:
+        if self.sites.has_sensors(site.id):
             raise ConflictError(
                 "El edificio tiene sensores. Quítalos o muévelos antes de borrarlo.",
                 code="SITE_HAS_SENSORS",
+            )
+        if self.sites.has_documents(site.id):
+            raise ConflictError(
+                "El edificio tiene documentos. Bórralos antes de borrar el edificio.",
+                code="SITE_HAS_DOCUMENTS",
             )
         with transaction(self.db):
             self.sites.delete(site)

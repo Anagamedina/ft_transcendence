@@ -16,6 +16,7 @@ from app.core.database import Base, get_db
 from app.core.security import SESSION_COOKIE, create_session_token
 from app.main import app
 from app.modules.alerts.model import Alert
+from app.modules.documents.model import Document
 from app.modules.organizations.model import Organization
 from app.modules.sensors.model import Sensor
 from app.modules.sites.model import Site
@@ -350,6 +351,27 @@ def test_borrar_un_edificio_con_sensores_da_409(admin, datos):
     assert respuesta.status_code == 409
     assert _codigo(respuesta) == "SITE_HAS_SENSORS"
     assert admin.get(f"/api/sites/{datos['torre'].id}").status_code == 200
+
+
+def test_borrar_un_edificio_con_documentos_da_409_y_no_los_borra(admin, datos, engine):
+    """
+    `documents.site_id` es ON DELETE CASCADE: sin esta comprobación, borrar
+    el edificio se llevaría sus documentos sin avisar (revisión de la #194).
+    """
+    with Session(engine) as s:
+        s.add(Document(organization_id=datos["sol"].id, site_id=datos["vacio"].id,
+                       kind="PLAN", filename="plano.pdf",
+                       content_type="application/pdf", size=1024,
+                       storage_key="sol/vacio/plano.pdf"))
+        s.commit()
+
+    respuesta = admin.delete(f"/api/sites/{datos['vacio'].id}")
+
+    assert respuesta.status_code == 409
+    assert _codigo(respuesta) == "SITE_HAS_DOCUMENTS"
+    assert admin.get(f"/api/sites/{datos['vacio'].id}").status_code == 200
+    with Session(engine) as s:
+        assert s.scalar(select(Document.filename)) == "plano.pdf"
 
 
 def test_borrar_un_site_que_no_existe_da_404(admin, datos):
