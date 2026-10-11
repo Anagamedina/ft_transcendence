@@ -10,6 +10,7 @@ La vista `admin/AlertsView.vue` ya existía desde la #38 (Lylia): tabla, búsque
 
 * `frontend/src/views/admin/AlertsView.vue`: se renderiza dentro de `AdminLayout`, filtro por cliente, estado de tres valores, cuatro contadores, ranking de sensores y columna de cliente.
 * `frontend/src/layouts/AdminLayout.vue`: carga las alertas si ninguna vista lo ha hecho y pasa el número de alertas abiertas a la entrada "Alertas" del menú.
+* `frontend/src/views/admin/SensorsView.vue`: se renderiza dentro de `AdminLayout`.
 * `frontend/src/components/Sidebar.vue`: campo opcional `badge` en cada entrada.
 * `frontend/src/stores/alerts.js`: getter `openCount` y protección contra dos cargas a la vez.
 * `frontend/src/services/alerts.service.js`: pide `page_size=100`.
@@ -55,6 +56,6 @@ La vista `admin/AlertsView.vue` ya existía desde la #38 (Lylia): tabla, búsque
 
 * **`AlertRow` no existe todavía** (F3, #188). La fila sigue escrita dentro de la vista; cuando exista el componente, se sustituye.
 * **Contadores y ranking se calculan sobre las 100 alertas más recientes.** Los totales exactos llegarán con los KPIs de B9 (#144).
-* **La #152 (AdminLayout) está cerrada pero incompleta.** Esta issue cubre el contador de alertas y mete la vista de alertas en el layout. Siguen fuera `SensorsView`, que no usa `AdminLayout`, y las entradas "Usuarios" y "Mi cuenta" del menú.
+* **La #152 (AdminLayout) está cerrada pero incompleta.** Esta issue cubre el contador de alertas y mete las vistas de alertas y de sensores en el layout. Siguen fuera las entradas "Usuarios" y "Mi cuenta" del menú, que llegan con la #157.
 * La suite de Playwright da el mismo resultado que en `develop`: 4 OK, 7 fallos y 3 omitidos.
 * La prueba en el navegador reconoció y resolvió una alerta real de la base de desarrollo.
