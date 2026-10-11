@@ -24,8 +24,10 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 
-from app.modules.analytics.schemas import EXPORT_COLUMNS, ExportFormat
+from app.modules.analytics.schemas import EXPORT_COLUMNS, DailyRow, ExportFormat
 from app.modules.analytics.service import AnalyticsService, get_analytics_service
 from app.shared.dependencies import DateRange, OrgScope
 from app.shared.schemas import error_response
@@ -44,11 +46,22 @@ AnalyticsSvc = Annotated[AnalyticsService, Depends(get_analytics_service)]
         "de tu organización; un admin exporta todas.\n\n"
         "Periodo: `from` incluido, `to` excluido; por defecto, los últimos "
         "30 días. Máximo 366 días.\n\n"
-        f"Columnas: `{'`, `'.join(EXPORT_COLUMNS)}`."
+        f"Columnas: `{'`, `'.join(EXPORT_COLUMNS)}`.\n\n"
+        "Con `format=json` devuelve las mismas filas como lista JSON "
+        "(presiones como número o `null`), sin descarga: es lo que usa el "
+        "panel de analítica para los gráficos."
     ),
     response_class=Response,
     responses={
-        200: {"content": {"text/csv": {}}, "description": "El archivo CSV."},
+        200: {
+            "content": {
+                "text/csv": {},
+                "application/json": {
+                    "schema": {"type": "array", "items": DailyRow.model_json_schema()}
+                },
+            },
+            "description": "El archivo CSV, o las filas en JSON con `format=json`.",
+        },
         **error_response(status.HTTP_401_UNAUTHORIZED, "No hay sesión (`UNAUTHORIZED`)."),
         **error_response(
             status.HTTP_403_FORBIDDEN,
@@ -66,9 +79,15 @@ def export(
     rango: DateRange,
     formato: Annotated[
         ExportFormat,
-        Query(alias="format", description="Formato del archivo. Solo `csv`."),
+        Query(alias="format", description="`csv` (descarga) o `json` (para el panel)."),
     ] = ExportFormat.CSV,
 ) -> Response:
+    if formato is ExportFormat.JSON:
+        filas = service.export_rows(scope, rango.start, rango.end)
+        return JSONResponse(
+            jsonable_encoder([DailyRow.model_validate(f) for f in filas])
+        )
+
     contenido = service.export_csv(scope, rango.start, rango.end)
     nombre = (
         f"aquaguard-analytics_{rango.start:%Y-%m-%d}_{rango.end:%Y-%m-%d}.csv"

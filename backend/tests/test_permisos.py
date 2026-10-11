@@ -39,6 +39,7 @@ from app.shared.dependencies import get_current_user
 RUTAS_PUBLICAS = {
     ("GET", "/api/health"),  # liveness de Docker
     ("GET", "/api/health/db"),  # readiness de Docker
+    ("GET", "/api/status"),  # página de estado, pública a propósito (#154)
     ("POST", "/api/auth/login"),  # es como se consigue la sesión
     ("POST", "/api/auth/logout"),  # salir tiene que funcionar siempre
 }

@@ -5,12 +5,39 @@
 from __future__ import annotations
 
 from enum import Enum
+from uuid import UUID
+
+from pydantic import BaseModel
 
 
 class ExportFormat(str, Enum):
-    """Solo CSV: el PDF es opcional y queda fuera de la B18."""
+    """
+    `csv` descarga el archivo. `json` devuelve las mismas filas para que el
+    panel (F19) dibuje los gráficos sin parsear CSV. El PDF queda fuera.
+    """
 
     CSV = "csv"
+    JSON = "json"
+
+
+class DailyRow(BaseModel):
+    """Una fila de la exportación en JSON: mismas columnas que el CSV."""
+
+    date: str
+    organization: str
+    site: str
+    sensor_id: UUID
+    sensor_external_id: str
+    sensor_name: str
+    unit: str
+    readings_count: int
+    # null when the sensor sent no readings that day
+    pressure_min: float | None
+    pressure_avg: float | None
+    pressure_max: float | None
+    alerts_total: int
+    alerts_critical: int
+    alerts_resolved: int
 
 
 # Columnas del CSV, en orden. Son parte del contrato con el frontend (F19):

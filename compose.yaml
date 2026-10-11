@@ -20,8 +20,18 @@ services:
     env_file: .env
     environment:
       POSTGRES_HOST: database
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://localhost}
+      INVITATION_TTL_DAYS: ${INVITATION_TTL_DAYS:-7}
+      TRIAL_DAYS: ${TRIAL_DAYS:-7}
+      DOCUMENTS_DIR: ${DOCUMENTS_DIR:-/data/documents}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-10}
+      BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
+      BACKUP_KEEP: ${BACKUP_KEEP:-7}
+      BACKUPS_DIR: /backups
     expose:
       - "8000"
+    volumes:
+      - backups_data:/backups:ro
     depends_on:
       database:
         condition: service_healthy
@@ -31,6 +41,31 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  backup:
+    build:
+      context: ./backup
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      PGHOST: database
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
+      BACKUP_KEEP: ${BACKUP_KEEP:-7}
+    volumes:
+      - backups_data:/backups
+    depends_on:
+      database:
+        condition: service_healthy
+    networks: [aquaguard]
+    healthcheck:
+      test: ["CMD-SHELL", "find /backups -name 'aquaguard-*.sql.gz' -mmin -$$((BACKUP_INTERVAL_HOURS * 60 + 5)) | grep -q ."]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
 
   simulator:
     profiles: ["sim"]
@@ -68,6 +103,7 @@ services:
 
 volumes:
   postgres_data:
+  backups_data:
 
 networks:
   aquaguard:
