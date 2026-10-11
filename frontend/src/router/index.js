@@ -86,6 +86,18 @@ const routes = [
   path: "/:pathMatch(.*)*",
   component: () => import("../views/public/NotFoundView.vue"),
   },
+  {
+    path: '/admin/sensors',
+    name: 'AdminSensors',
+    component: () => import("../views/admin/SensorsView.vue"),
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: '/admin/alerts',
+    name: 'AdminAlerts',
+    component: () => import("../views/admin/AlertsView.vue"),
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
 ];
 
 const router = createRouter({

@@ -39,8 +39,8 @@ const adminNav = [
   { label: "Dashboard", to: "/admin", icon: "bar-chart", exact: true },
   { label: "Clientes", to: "/admin/clients", icon: "users" },
   { label: "Sites", to: "/admin/sites", icon: "building" },
-  { label: "Sensores", icon: "droplet", disabled: true },
-  { label: "Alertas", icon: "alert", disabled: true },
+  { label: "Sensores", to: "/admin/sensors", icon: "droplet" },
+  { label: "Alertas", to: "/admin/alerts", icon: "alert" },
 ];
 
 import { useRouter } from "vue-router";
