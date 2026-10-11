@@ -34,20 +34,29 @@ import Header from "../components/Header.vue";
 import Sidebar from "../components/Sidebar.vue";
 import Footer from "../components/Footer.vue";
 
-// Admin menu. Sensors and alerts have no admin route yet (data area, #38)
-const adminNav = [
+import { computed, onMounted } from "vue";
+import { useRouter } from "vue-router";
+import { useAuthStore } from "../stores/auth";
+import { useAlertsStore } from "../stores/alerts";
+
+const router = useRouter();
+const authStore = useAuthStore();
+const alertsStore = useAlertsStore();
+
+// Admin menu. The alerts entry shows how many alerts are still open.
+const adminNav = computed(() => [
   { label: "Dashboard", to: "/admin", icon: "bar-chart", exact: true },
   { label: "Clientes", to: "/admin/clients", icon: "users" },
   { label: "Sites", to: "/admin/sites", icon: "building" },
   { label: "Sensores", to: "/admin/sensors", icon: "droplet" },
-  { label: "Alertas", to: "/admin/alerts", icon: "alert" },
-];
+  { label: "Alertas", to: "/admin/alerts", icon: "alert", badge: alertsStore.openCount },
+]);
 
-import { useRouter } from "vue-router";
-import { useAuthStore } from "../stores/auth";
-
-const router = useRouter();
-const authStore = useAuthStore();
+// Pages that do not load the alerts themselves still need the counter.
+onMounted(async () => {
+  if (alertsStore.status !== "idle") return;
+  try { await alertsStore.fetchAlerts() } catch { /* handled via alertsStore.error */ }
+});
 
 async function handleLogout() {
   await authStore.logout();

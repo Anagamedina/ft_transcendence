@@ -2,7 +2,7 @@ import adapter from './adapter.js'
 
 const alertService = {
   getAlerts() {
-    return adapter.get('/api/alerts')
+    return adapter.get('/api/alerts', { params: { page_size: 100 } })
   },
 
   acknowledgeAlert(id) { //Indicates to the system that the alert has been acknowledged
