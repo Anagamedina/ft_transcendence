@@ -1,0 +1,15 @@
+#!/bin/sh
+# Sourced by the nginx entrypoint before 20-envsubst-on-templates.sh fills
+# nginx.conf. The template can only substitute variables, not add numbers,
+# so the body limit is computed here from MAX_UPLOAD_MB: 1 MB more covers the
+# multipart headers and boundaries, so a file of exactly MAX_UPLOAD_MB reaches
+# the backend instead of getting 413.
+
+case "${MAX_UPLOAD_MB:-}" in
+    '' | *[!0-9]*)
+        echo "18-upload-limit.envsh: MAX_UPLOAD_MB must be a whole number of MB, got '${MAX_UPLOAD_MB:-}'" >&2
+        exit 1
+        ;;
+esac
+
+export CLIENT_MAX_BODY_SIZE="$((MAX_UPLOAD_MB + 1))m"
