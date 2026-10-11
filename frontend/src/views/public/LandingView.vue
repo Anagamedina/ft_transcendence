@@ -39,7 +39,7 @@
           <div class="flex justify-between items-center gap-3">
             <strong class="text-aqua-900">Hotel Diagonal Mar · Sant Martí</strong>
             <span
-              class="px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-800"
+              class="shrink-0 whitespace-nowrap px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-800"
             >
               1 alerta
             </span>
@@ -91,6 +91,31 @@
         </ol>
       </div>
     </section>
+
+    <!-- Coverage: the ten districts of Barcelona -->
+    <section id="cobertura" class="bg-aqua-50 px-6 pt-2 pb-14 md:px-20">
+      <div class="max-w-6xl mx-auto grid gap-10 items-center md:grid-cols-2">
+        <div class="flex flex-col gap-3">
+          <h2 class="text-3xl font-bold text-aqua-900">
+            Damos servicio en los 10 distritos de Barcelona
+          </h2>
+          <p class="text-slate-600">
+            Nuestro equipo técnico trabaja solo en la ciudad, así que llegamos
+            rápido cuando hay una alerta.
+          </p>
+        </div>
+        <ul class="grid grid-cols-2 gap-2" aria-label="Distritos">
+          <li
+            v-for="district in districts"
+            :key="district"
+            class="bg-white border border-aqua-100 rounded-xl px-3.5 py-2.5 flex items-center gap-2.5 text-sm"
+          >
+            <span class="w-2 h-2 rounded-full bg-aqua-400" aria-hidden="true"></span>
+            {{ district }}
+          </li>
+        </ul>
+      </div>
+    </section>
   </PublicLayout>
 </template>
 
@@ -127,5 +152,19 @@ const howItWorks = [
     title: "Te avisamos al momento",
     text: "Si la presión sale de su rango (0–25 bar), se abre una alerta en tu panel.",
   },
+];
+
+// Barcelona districts covered by the service
+const districts = [
+  "Ciutat Vella",
+  "Eixample",
+  "Sants-Montjuïc",
+  "Les Corts",
+  "Sarrià-Sant Gervasi",
+  "Gràcia",
+  "Horta-Guinardó",
+  "Nou Barris",
+  "Sant Andreu",
+  "Sant Martí",
 ];
 </script>
