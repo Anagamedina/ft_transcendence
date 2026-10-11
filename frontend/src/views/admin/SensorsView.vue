@@ -2,6 +2,7 @@
 
 -->
 <template>
+  <AdminLayout>
   <section class="space-y-6">
     <header class="flex flex-wrap items-start justify-between gap-4">
       <div>
@@ -187,10 +188,12 @@
       </p>
     </div>
   </section>
+  </AdminLayout>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import AdminLayout from '../../layouts/AdminLayout.vue'
 import { useSensorsStore } from '../../stores/sensors.js'
 
 const sensorStore = useSensorsStore()

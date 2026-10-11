@@ -40,7 +40,6 @@ días (revisión de la PR #191). Los tests de concurrencia están en
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
@@ -60,6 +59,7 @@ from app.modules.organizations.schemas import (
     OrganizationUpdate,
 )
 from app.modules.sites.repository import SiteRepository
+from app.modules.sites.service import site_campos
 from app.shared.dependencies import DbSession
 from app.shared.enums import OrganizationStatus
 from app.shared.schemas import Page
@@ -124,13 +124,9 @@ class OrganizationService:
                     name=nombre, status=OrganizationStatus.ACTIVE.value, **datos
                 )
                 if payload.first_site is not None:
-                    site = payload.first_site
                     SiteRepository(self.db).create(
                         organization_id=organizacion.id,
-                        name=site.name,
-                        address=site.address,
-                        latitude=_decimal(site.latitude),
-                        longitude=_decimal(site.longitude),
+                        **site_campos(payload.first_site),
                     )
         except IntegrityError as exc:
             # Dos altas con el mismo nombre a la vez: las dos pasan la
@@ -291,11 +287,6 @@ def _nombre_valido(nombre: str) -> str:
             "El nombre no puede estar vacío.", code="INVALID_NAME"
         )
     return nombre
-
-
-def _decimal(valor: float | None) -> Decimal | None:
-    """Coordenadas: el contrato usa número y la tabla `Numeric(9, 6)`."""
-    return None if valor is None else Decimal(str(valor))
 
 
 def _comprobar_en_prueba(organizacion: Organization) -> None:

@@ -14,9 +14,14 @@ export const useAlertsStore = defineStore("alerts", () =>{
     //GETTERS
 
     const alertCount = computed(() => alerts.value.length);
+    const openCount = computed(
+        () => alerts.value.filter((alert) => alert.status === "ACTIVE").length
+    );
 
     //ACTIONS
     async function fetchAlerts() {
+        if (status.value === "loading") return alerts.value;
+
         status.value = "loading";
         error.value = null;
 
@@ -101,6 +106,7 @@ export const useAlertsStore = defineStore("alerts", () =>{
         status,
         error,
         alertCount,
+        openCount,
 
         fetchAlerts,
         acknowledgeAlert,

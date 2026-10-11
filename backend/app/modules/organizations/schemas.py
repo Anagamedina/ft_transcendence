@@ -22,7 +22,7 @@ from uuid import UUID
 
 from pydantic import EmailStr, Field
 
-from app.modules.sites.schemas import SiteCreate
+from app.modules.sites.schemas import SiteBase
 from app.shared.enums import OrganizationStatus
 from app.shared.schemas import ApiModel, ApiRequest
 
@@ -72,7 +72,7 @@ class OrganizationCreate(OrganizationContact):
         description="Nombre de la organización. No puede estar vacío ni repetirse (sin distinguir mayúsculas).",
         examples=["Hotel Diagonal Mar"],
     )
-    first_site: SiteCreate | None = Field(
+    first_site: SiteBase | None = Field(
         default=None,
         description=(
             "Primer edificio del cliente, opcional. Se crea en la misma "

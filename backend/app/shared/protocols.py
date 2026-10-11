@@ -150,14 +150,28 @@ class SensorRepository(Protocol):
         q: str | None = None,
         organization_filter: UUID | None = None,
         site_id: UUID | None = None,
+        health: Any | None = None,
+        ahora: datetime | None = None,
     ) -> tuple[list[Any], int]:
         """
         Sensores de esa organización, o de todas con `None` (admin), por
         nombre. Devuelve la página y el total. Issue #25.
 
         `q`, `organization_filter` y `site_id` son los filtros comunes de
-        la B0; se suman al alcance de `organization_id`.
+        la B0; `health` (con su `ahora`), el de la B3. Se suman al alcance
+        de `organization_id`.
         """
+        ...
+
+    def live(self, sensor_ids: list[UUID]) -> dict[UUID, Any]:
+        """
+        Última lectura y gravedades de las alertas abiertas de cada sensor
+        (B3), para `status`, `health`, `last_seen_at` y `last_value`.
+        """
+        ...
+
+    def get_for_update(self, sensor_id: UUID) -> Any | None:
+        """El sensor bloqueado hasta el final de la transacción (B3)."""
         ...
 
     def last_seen_by_sensor(self, sensor_ids: list[UUID]) -> dict[UUID, datetime]:
