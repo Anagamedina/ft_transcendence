@@ -31,6 +31,10 @@ curl -skf https://localhost/api/health/db > /dev/null \
 	|| fail "/api/health/db does not respond. Check: docker compose logs backend database"
 ok "/api/health/db responds"
 
+curl -skf https://localhost/api/status | grep -q '"name":"backup"' \
+	|| fail "/api/status does not respond. Check: docker compose logs backend"
+ok "/api/status responds"
+
 curl -sI http://localhost/ | grep -q "301" \
 	|| fail "HTTP does not redirect to HTTPS. Check: docker compose logs gateway"
 ok "HTTP redirects to HTTPS"

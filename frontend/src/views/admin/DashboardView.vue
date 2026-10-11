@@ -17,6 +17,7 @@ import SitesSummary from '../../components/SitesSummary.vue'
 import SensorsSummary from '../../components/SensorsSummary.vue'
 import AlertsSummary from '../../components/AlertsSummary.vue'
 import Modal from '../../components/Modal.vue'
+import AnalyticsPanel from '../../components/AnalyticsPanel.vue'
 // TODO: temporary mock data until the sites store exists (Services/Stores area).
 // Replace with the store, e.g. `sitesStore.sites`, and delete this import.
 import { sites as mockSites } from '../../services/fixtures/sites'
@@ -141,6 +142,9 @@ const criticalSites = computed(() => sitesForMap.value.filter((s) => s.alertLeve
     <Modal :show="showMap" title="Mapa de sites · Barcelona" size="xl" @close="showMap = false">
       <SitesMap :sites="sitesForMap" height="70vh" />
     </Modal>
+
+    <!-- F19: charts, date range, CSV export and auto refresh -->
+    <AnalyticsPanel />
 
     <AlertsSummary
       :alerts="activeAlertList"

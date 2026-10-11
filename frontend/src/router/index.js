@@ -31,6 +31,10 @@ const routes = [
     component: () => import("../views/public/TermsView.vue"),
   },
   {
+    path: "/status",
+    component: () => import("../views/public/StatusView.vue"),
+  },
+  {
     path: "/test",
     component: () => import("../views/public/TestView.vue"),
   },
@@ -75,6 +79,18 @@ const routes = [
   {
   path: "/:pathMatch(.*)*",
   component: () => import("../views/public/NotFoundView.vue"),
+  },
+  {
+    path: '/admin/sensors',
+    name: 'AdminSensors',
+    component: () => import("../views/admin/SensorsView.vue"),
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: '/admin/alerts',
+    name: 'AdminAlerts',
+    component: () => import("../views/admin/AlertsView.vue"),
+    meta: { requiresAuth: true, requiresAdmin: true },
   },
 ];
 
