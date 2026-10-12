@@ -1,168 +1,328 @@
 <!-- CLIENT DASHBOARD — sensores propios, alertas. -->
 
 <template>
-  <div class="min-h-screen bg-gray-100 p-6">
-    <div class="max-w-7xl mx-auto">
-
-      <!-- Header -->
-      <h1 class="text-3xl font-bold text-gray-900 mb-6">
+  <div class="mx-auto max-w-7xl space-y-8">
+    <header>
+      <h1 class="text-3xl font-bold text-gray-900">
         Panel de control
       </h1>
+      <p class="mt-2 text-sm text-gray-600">
+        Estado de los sensores y alertas de tu organización.
+      </p>
+    </header>
 
+    <!-- Auth / organization -->
+    <section
+      v-if="!authStore.user?.organization_id"
+      class="rounded-xl border border-amber-200 bg-amber-50 p-5"
+      role="status"
+    >
+      <h2 class="font-semibold text-amber-900">
+        Organización no disponible
+      </h2>
+      <p class="mt-1 text-sm text-amber-800">
+        Tu perfil no está asociado a una organización.
+        Contacta con el administrador.
+      </p>
+    </section>
 
-      <!-- ==================== SENSORS ==================== -->
-
-      <section class="mt-8">
-
-        <h2 class="text-2xl font-bold text-gray-900 mb-4">
-          Sensores
-        </h2>
-
-        <div v-if="sensorStore.status === 'loading'">
-          Cargando sensores...
-        </div>
-
-        <div v-else-if="sensorStore.error">
-          Error al cargar los sensores.
-        </div>
-
-        <div v-else-if="sensorStore.sensors.length === 0">
-          No hay sensores.
-        </div>
-
-        <div
-          v-else
-          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-        >
-
-          <div
-            v-for="sensor in sensorStore.sensors"
-            :key="sensor.id"
-            class="bg-white rounded-xl shadow p-6"
+    <template v-else>
+      <!-- Independent loading/error states -->
+      <section>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <KPICard
+            label="Sensores"
+            :value="sensorStore.status === 'success'
+              ? sensorStore.sensorCount
+              : '—'"
           >
+            <template #icon>
+              <AppIcon name="droplet" />
+            </template>
+          </KPICard>
 
-            <h3 class="text-xl font-semibold text-gray-900">
-              {{ sensor.name }}
-            </h3>
-
-            <p class="text-gray-500 text-sm mt-2">
-              Estado: {{ sensor.status }}
-            </p>
-
-          </div>
-
+          <KPICard
+            label="Alertas activas"
+            :value="alertsStore.status === 'success'
+              ? activeAlertCount
+              : '—'"
+          >
+            <template #icon>
+              <AppIcon name="alert" />
+            </template>
+          </KPICard>
         </div>
-
       </section>
 
-      <!-- ==================== ALERTS ==================== -->
-
-      <section class="mt-8">
-
-        <h2 class="text-2xl font-bold text-gray-900 mb-4">
-          Alertas
-        </h2>
-
-        <div v-if="alertsStore.status === 'loading'">
-          Cargando alertas...
-        </div>
-
-        <div v-else-if="alertsStore.error">
-          Error al cargar las alertas.
-        </div>
-
-        <div v-else-if="alertsStore.alerts.length === 0">
-          No hay alertas.
-        </div>
-
-        <div v-else class="space-y-4">
-
-          <div
-            v-for="alert in alertsStore.alerts"
-            :key="alert.id"
-            class="bg-white rounded-xl shadow p-4"
-          >
-
-            <h3 class="font-semibold text-gray-900">
-              {{ alert.message }}
-            </h3>
-
-            <p class="text-sm text-gray-500 mt-1">
-              Estado: {{ alert.status }}
-            </p>
-
-            <!-- Alert actions -->
-            <div class="flex gap-3 mt-4">
-
-              <!-- Acknowledge -->
-              <button
-                v-if="!alert.acknowledged_at && alert.status !== 'RESOLVED'"
-                type="button"
-                @click="alertsStore.acknowledgeAlert(alert.id)"
-                class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600"
-              >
-                Acusar recibo
-              </button>
-
-              <!-- Resolve -->
-              <button
-                v-if="alert.status !== 'RESOLVED'"
-                type="button"
-                @click="alertsStore.resolveAlert(alert.id)"
-                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                Resolver
-              </button>
-
-            </div>
-
-          </div>
-
-        </div>
-
+      <section id="sensors">
+        <SensorsSummary
+          :sensors="sensorStore.sensors"
+          :status="sensorStore.status"
+          :error="sensorStore.error"
+          @retry="loadSensors"
+        />
       </section>
 
-    </div>
+      <section id="alerts">
+        <AlertsSummary
+          :alerts="activeAlerts"
+          :status="alertsStore.status"
+          :error="alertsStore.error"
+          @retry="loadAlerts"
+        />
+      </section>
+
+      <!-- Reading history -->
+      <section id="history" class="rounded-xl border border-gray-200 bg-white p-5 shadow-md">
+        <h2 class="mb-4 text-lg font-bold text-gray-800">
+          Histórico de lecturas
+        </h2>
+
+        <LoadingState
+          v-if="historyStatus === 'loading'"
+          message="Cargando histórico…"
+          compact
+        />
+
+        <ErrorState
+          v-else-if="historyStatus === 'error'"
+          title="No se ha podido cargar el histórico"
+          :message="historyError"
+          @retry="loadHistory"
+          compact
+        />
+
+        <EmptyState
+          v-else-if="historyStatus === 'empty'"
+          title="No hay lecturas disponibles"
+          message="Las lecturas aparecerán aquí cuando tus sensores registren datos."
+          icon="bar-chart"
+          compact
+        />
+
+        <div v-else-if="historyStatus === 'success'" class="overflow-x-auto">
+          <p
+            v-if="historyWarning"
+            class="mt-3 text-sm text-amber-700"
+            role="status"
+            >
+            {{ historyWarning }}
+          </p>
+          <table class="w-full text-left text-sm">
+            <thead>
+              <tr class="border-b border-gray-200 text-gray-500">
+                <th class="px-3 py-3">Sensor</th>
+                <th class="px-3 py-3">Presión</th>
+                <th class="px-3 py-3">Fecha</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="reading in history"
+                :key="reading.id"
+                class="border-b border-gray-100"
+              >
+                <td class="px-3 py-3">
+                  {{ sensorName(reading.sensor_id) }}
+                </td>
+                <td class="px-3 py-3">
+                  {{ reading.pressure }} bar
+                </td>
+                <td class="px-3 py-3">
+                  {{ formatDate(reading.measured_at) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p v-else class="text-sm text-gray-500">
+          Selecciona un sensor para consultar su histórico.
+        </p>
+      </section>
+
+      <!-- Profile -->
+      <section id="profile" class="rounded-xl border border-gray-200 bg-white p-5 shadow-md">
+        <h2 class="mb-4 text-lg font-bold text-gray-800">
+          Mi perfil
+        </h2>
+
+        <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <dt class="text-sm text-gray-500">Nombre</dt>
+            <dd class="font-medium text-gray-900">
+              {{ authStore.user?.name || 'No disponible' }}
+            </dd>
+          </div>
+          <div>
+            <dt class="text-sm text-gray-500">Correo electrónico</dt>
+            <dd class="font-medium text-gray-900">
+              {{ authStore.user?.email || 'No disponible' }}
+            </dd>
+          </div>
+          <div>
+            <dt class="text-sm text-gray-500">Organización</dt>
+            <dd class="font-medium text-gray-900">
+              {{ authStore.user?.organization_id }}
+            </dd>
+          </div>
+        </dl>
+      </section>
+    </template>
   </div>
 </template>
 
-
 <script setup>
-import { onMounted } from "vue";
-import { useRouter } from "vue-router";
+import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 
-import { useAuthStore } from "../../stores/auth";
-import { useSensorsStore } from "../../stores/sensors";
-import { useAlertsStore } from "../../stores/alerts";
+import { useAuthStore } from '../../stores/auth'
+import { useSensorsStore } from '../../stores/sensors'
+import { useAlertsStore } from '../../stores/alerts'
+import readingService from '../../services/reading.service.js'
 
-const router = useRouter();
+import AppIcon from '../../components/AppIcon.vue'
+import KPICard from '../../components/KPICard.vue'
+import SensorsSummary from '../../components/SensorsSummary.vue'
+import AlertsSummary from '../../components/AlertsSummary.vue'
+import LoadingState from '../../components/LoadingState.vue'
+import ErrorState from '../../components/ErrorState.vue'
+import EmptyState from '../../components/EmptyState.vue'
 
-const authStore = useAuthStore();
-const sensorStore = useSensorsStore();
-const alertsStore = useAlertsStore();
+const authStore = useAuthStore()
+const sensorStore = useSensorsStore()
+const alertsStore = useAlertsStore()
 
+const history = ref([])
+const historyStatus = ref('idle')
+const historyError = ref(null)
+const historyWarning = ref(null)
 
-async function handleLogout() {
-  await authStore.logout();
+let cancelled = false
 
-  router.push("/login");
+const activeAlerts = computed(() =>
+  alertsStore.alerts.filter(
+    alert => alert.status !== 'RESOLVED'
+  )
+)
+
+const activeAlertCount = computed(() => activeAlerts.value.length)
+
+function sensorName(sensorId) {
+  return sensorStore.sensors.find(sensor => sensor.id === sensorId)?.name
+    || 'Sensor'
 }
 
+function formatDate(value) {
+  if (!value) return '—'
 
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+
+  return date.toLocaleString('es-ES')
+}
+
+async function loadSensors() {
+  try {
+    await sensorStore.fetchSensors()
+  } catch {
+    // The store exposes the error state to SensorsSummary.
+  }
+}
+
+async function loadAlerts() {
+  try {
+    await alertsStore.fetchAlerts()
+  } catch {
+    // The store exposes the error state to AlertsSummary.
+  }
+}
+
+async function loadHistory() {
+  historyWarning.value = null
+
+  if (cancelled) return
+
+  history.value = []
+  historyError.value = null
+
+  if (sensorStore.status !== 'success') {
+    historyStatus.value =
+      sensorStore.status === 'error' ? 'error' : 'idle'
+
+    historyError.value =
+      sensorStore.status === 'error'
+        ? 'No se pueden consultar las lecturas porque no se han podido cargar los sensores.'
+        : null
+
+    return
+  }
+
+  const sensorIds = sensorStore.sensors.map(sensor => sensor.id)
+
+  if (!sensorIds.length) {
+    historyStatus.value = 'empty'
+    return
+  }
+
+  historyStatus.value = 'loading'
+
+  // Chaque capteur est chargé indépendamment.
+  const results = await Promise.allSettled(
+    sensorIds.map(sensorId =>
+      readingService.getSensorReadings(sensorId)
+    )
+  )
+
+  if (cancelled) return
+
+  const successful = results
+    .filter(result => result.status === 'fulfilled')
+    .flatMap(result => result.value.data.items || [])
+    .sort(
+      (a, b) =>
+        new Date(b.measured_at) - new Date(a.measured_at)
+    )
+
+  const failedCount = results.filter(
+    result => result.status === 'rejected'
+  ).length
+
+  history.value = successful
+
+  // Tous les capteurs ont échoué.
+  if (failedCount === results.length) {
+    historyStatus.value = 'error'
+    historyError.value =
+      'No se pudo cargar el histórico de ningún sensor.'
+    return
+  }
+
+  if (failedCount > 0) {
+    historyStatus.value = successful.length ? 'success' : 'error'
+
+    historyWarning.value =
+      `${failedCount} sensor(es) no han podido proporcionar su historial.`
+
+    if (!successful.length) {
+      historyError.value =
+        'No se ha podido recuperar ninguna lectura.'
+    }
+
+    return
+  }
+
+  historyStatus.value =
+    successful.length ? 'success' : 'empty'
+}
 onMounted(async () => {
+  await Promise.all([loadSensors(), loadAlerts()])
 
-  // charging both resources separetly so if sensors fail, alerts can still be loaded
-  try {
-    await sensorStore.fetchSensors();
-  } catch (error) {
-    console.error("Error cargando sensores:", error);
+  if (!cancelled) {
+    await loadHistory()
   }
+})
 
-  try {
-    await alertsStore.fetchAlerts();
-  } catch (error) {
-    console.error("Error cargando alertas:", error);
-  }
-
-});
+onBeforeUnmount(() => {
+  cancelled = true
+})
 </script>

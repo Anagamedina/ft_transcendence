@@ -182,6 +182,8 @@ const mockAdapter = {
 
     // Get all sensors.
     if (url === "/api/sensors") {
+      // Temporary test: simulate a slow API response
+      //await new Promise((resolve) => setTimeout(resolve, 2000));  
       if (!currentUser) {
         return Promise.reject(authError());
       }

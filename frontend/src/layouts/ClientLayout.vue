@@ -11,9 +11,9 @@
           @click="handleLogout"
         >
           {{
-            authStore.status === "loading"
-              ? "Cerrando sesión..."
-              : "Cerrar sesión"
+            authStore.status === 'loading'
+              ? 'Cerrando sesión...'
+              : 'Cerrar sesión'
           }}
         </button>
       </template>
@@ -25,9 +25,9 @@
         :items="sidebarItems"
       />
 
-      <main class="flex-1 overflow-y-auto bg-slate-50 p-6">
-            <RouterView />
-        </main>
+      <main class="min-w-0 flex-1 overflow-y-auto bg-slate-50 p-6">
+        <RouterView />
+      </main>
     </div>
 
     <Footer />
@@ -35,47 +35,26 @@
 </template>
 
 <script setup>
-import { useRouter, RouterView } from "vue-router";
-import { useAuthStore } from "../stores/auth";
+import { useRouter, RouterView } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
 
-import Header from "../components/Header.vue";
-import Sidebar from "../components/Sidebar.vue";
-import Footer from "../components/Footer.vue";
+import Header from '../components/Header.vue'
+import Sidebar from '../components/Sidebar.vue'
+import Footer from '../components/Footer.vue'
 
-const router = useRouter();
-const authStore = useAuthStore();
+const router = useRouter()
+const authStore = useAuthStore()
 
 const sidebarItems = [
-  {
-    label: "Dashboard",
-    icon: "dashboard",
-    to: "/dashboard",
-    exact: true,
-  },
-  {
-    label: "Capteurs",
-    icon: "sensors",
-    to: "/sensors",
-  },
-  {
-    label: "History",
-    icon: "history",
-    to: "/history",
-  },
-  {
-    label: "Alertas",
-    icon: "alerts",
-    to: "/alerts",
-  },
-  {
-    label: "Perfil",
-    icon: "profile",
-    to: "/profile",
-  },
-];
+  { label: 'Dashboard', to: '/dashboard', icon: 'bar-chart'},
+  { label: 'Sensores', to: '/dashboard#sensors', icon: 'droplet'},
+  { label: 'Historico', to: '/dashboard#history' },
+  { label: 'Alertas', to: '/dashboard#alerts', icon: 'alert'},
+  { label: 'Perfil', to: '/dashboard#profile' },
+]
 
 async function handleLogout() {
-  await authStore.logout();
-  await router.replace("/login");
+  await authStore.logout()
+  await router.replace('/login')
 }
 </script>
