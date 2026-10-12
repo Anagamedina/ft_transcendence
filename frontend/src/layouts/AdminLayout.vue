@@ -17,10 +17,10 @@
       </template>
     </Header>
 
-    <div class="flex flex-1 overflow-hidden">
+    <div class="flex flex-1">
       <Sidebar appName="Admin" :items="adminNav" />
 
-      <main class="flex-1 overflow-y-auto bg-slate-100 p-6">
+      <main class="flex-1 min-w-0 bg-slate-100 p-6">
         <slot />
       </main>
     </div>
