@@ -42,7 +42,8 @@ Pendiente: que Daruny incluya ambas columnas en el modelo `Reading`
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
+from enum import Enum
 from uuid import UUID
 
 from pydantic import Field
@@ -134,3 +135,50 @@ class ReadingResponse(ApiModel):
     created_at: datetime = Field(
         description="Cuándo se registró en el backend, en UTC."
     )
+
+
+# ---------------------------------------------------------
+# SERIE PARA GRÁFICAS — B7 (#143)
+# ---------------------------------------------------------
+class SeriesBucket(str, Enum):
+    """Tamaño de cada tramo de la serie. Lista cerrada: cada valor es un `?bucket=`."""
+
+    M15 = "15m"
+    M30 = "30m"
+    H1 = "1h"
+    H2 = "2h"
+    H6 = "6h"
+    H12 = "12h"
+    D1 = "1d"
+
+    @property
+    def duration(self) -> timedelta:
+        cantidad, unidad = int(self.value[:-1]), self.value[-1]
+        unidades = {"m": "minutes", "h": "hours", "d": "days"}
+        return timedelta(**{unidades[unidad]: cantidad})
+
+
+class SeriesPoint(ApiModel):
+    """Un tramo de la serie: cuándo empieza y la presión media, mínima y máxima."""
+
+    t: datetime = Field(description="Inicio del tramo, en UTC.")
+    avg: float = Field(description="Presión media del tramo, en bar.")
+    min: float = Field(description="Presión mínima del tramo, en bar.")
+    max: float = Field(description="Presión máxima del tramo, en bar.")
+
+
+class ReadingSeriesResponse(ApiModel):
+    """
+    Serie de presión de un sensor para la gráfica (B7). Trae los umbrales
+    del sensor para dibujar la banda permitida. Los tramos sin lecturas no
+    salen: la gráfica los deja como hueco.
+    """
+
+    sensor_id: UUID
+    unit: str = Field(description="Unidad de las presiones (`bar`).")
+    min_pressure: float = Field(description="Umbral inferior del sensor.")
+    max_pressure: float = Field(description="Umbral superior del sensor.")
+    bucket: SeriesBucket
+    from_: datetime = Field(alias="from", description="Inicio del periodo, en UTC.")
+    to: datetime = Field(description="Fin del periodo (sin incluir), en UTC.")
+    points: list[SeriesPoint]

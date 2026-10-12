@@ -21,21 +21,26 @@ repository son de Daruny (issues #13 y #14).
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
 from app.core.database import transaction
-from app.core.exceptions import ConflictError, NotFoundError
+from app.core.exceptions import ConflictError, DomainValidationError, NotFoundError
 from app.modules.alerts.repository import AlertRepository as SqlAlertRepository
 from app.modules.alerts.rules import evaluar_presion
 from app.modules.alerts.schemas import AlertSeverity
 from app.modules.readings.repository import (
     ReadingRepository as SqlReadingRepository,
 )
-from app.modules.readings.schemas import ReadingCreate, ReadingResponse
+from app.modules.readings.schemas import (
+    ReadingCreate,
+    ReadingResponse,
+    ReadingSeriesResponse,
+    SeriesBucket,
+)
 from app.modules.sensors.repository import (
     SensorRepository as SqlSensorRepository,
 )
@@ -46,6 +51,19 @@ from app.shared.protocols import (
     SensorRepository,
 )
 from app.shared.schemas import Page
+
+
+# B7: tope de puntos de una serie (7 días a 15 min son 672).
+MAX_SERIES_POINTS = 1000
+
+
+def _as_utc(moment: datetime | None) -> datetime | None:
+    """Una fecha sin zona horaria se toma como UTC, como en la analítica."""
+    if moment is None:
+        return None
+    if moment.tzinfo is None:
+        return moment.replace(tzinfo=timezone.utc)
+    return moment.astimezone(timezone.utc)
 
 
 class ReadingService:
@@ -160,9 +178,16 @@ class ReadingService:
         organization_id: UUID | None,
         offset: int,
         limit: int,
+        start: datetime | None = None,
+        end: datetime | None = None,
+        newest_first: bool = True,
     ) -> Page[ReadingResponse]:
         """
         Histórico de un sensor, paginado y ordenado por fecha de medida.
+
+        B7: por defecto de la más reciente a la más antigua, que es lo que
+        pinta una tabla de histórico; `start` y `end` lo limitan a
+        [start, end). Una fecha sin zona horaria se toma como UTC.
 
         `organization_id` sale siempre de `get_org_scope`, nunca de lo que
         mande quien llama: sin él, cualquiera que acierte el id de un sensor
@@ -184,11 +209,23 @@ class ReadingService:
                 code="SENSOR_NOT_FOUND",
             )
 
+        start = _as_utc(start)
+        end = _as_utc(end)
+        if start is not None and end is not None and start >= end:
+            raise DomainValidationError(
+                "`from` tiene que ser anterior a `to`.",
+                details={"field": "from", "message": "Debe ser anterior a `to`."},
+                code="INVALID_DATE_RANGE",
+            )
+
         filas, total = self.readings.list_by_sensor(
             sensor_id=sensor_id,
             organization_id=organization_id,
             offset=offset,
             limit=limit,
+            start=start,
+            end=end,
+            newest_first=newest_first,
         )
 
         # `Page` se expresa en páginas y el repository en filas saltadas.
@@ -199,6 +236,64 @@ class ReadingService:
             total=total,
             page=offset // limit + 1,
             page_size=limit,
+        )
+
+    def series(
+        self,
+        sensor_id: UUID,
+        organization_id: UUID | None,
+        days: int,
+        bucket: SeriesBucket,
+        ahora: datetime | None = None,
+    ) -> ReadingSeriesResponse:
+        """
+        Serie de presión de los últimos `days` días en tramos de `bucket`
+        (B7), con los umbrales del sensor para la banda permitida.
+
+        Mismo alcance que el histórico: un sensor de otra organización da
+        404. La agregación (media, mínimo y máximo por tramo) la hace
+        PostgreSQL con `date_bin`, así que viajan como mucho
+        `MAX_SERIES_POINTS` filas y no miles de lecturas.
+        """
+        sensor = self.sensors.get_by_id(sensor_id, organization_id)
+        if sensor is None:
+            raise NotFoundError(
+                "El sensor indicado no existe.",
+                code="SENSOR_NOT_FOUND",
+            )
+        periodo = timedelta(days=days)
+        if periodo / bucket.duration > MAX_SERIES_POINTS:
+            raise DomainValidationError(
+                f"Con ese `bucket` salen más de {MAX_SERIES_POINTS} puntos; "
+                "usa uno mayor o menos días.",
+                details={"field": "bucket", "message": "Demasiados puntos."},
+                code="TOO_MANY_POINTS",
+            )
+
+        end = ahora or datetime.now(timezone.utc)
+        start = end - periodo
+        puntos = self.readings.series_by_sensor(
+            sensor_id, start, end, bucket.duration
+        )
+        return ReadingSeriesResponse.model_validate(
+            {
+                "sensor_id": sensor.id,
+                "unit": sensor.unit,
+                "min_pressure": float(sensor.low_threshold),
+                "max_pressure": float(sensor.high_threshold),
+                "bucket": bucket,
+                "from": start,
+                "to": end,
+                "points": [
+                    {
+                        "t": t,
+                        "avg": round(float(media), 3),
+                        "min": float(minimo),
+                        "max": float(maximo),
+                    }
+                    for t, media, minimo, maximo in puntos
+                ],
+            }
         )
 
     @classmethod
