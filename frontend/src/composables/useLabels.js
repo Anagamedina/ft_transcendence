@@ -48,7 +48,7 @@ const LABELS = {
     CRITICAL: { text: 'Crítica', tone: 'danger' },
   },
   AlertState: {
-    ACTIVE: { text: 'Activa', tone: 'danger' },
+    ACTIVE: { text: 'Sin reconocer', tone: 'danger' },
     ACKNOWLEDGED: { text: 'Reconocida', tone: 'info' },
     RESOLVED: { text: 'Resuelta', tone: 'success' },
   },
