@@ -9,6 +9,7 @@
 import { ref, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import AdminLayout from '../../layouts/AdminLayout.vue'
+import Tabs from '../../components/Tabs.vue'
 import SitesSummary from '../../components/SitesSummary.vue'
 import EmptyState from '../../components/EmptyState.vue'
 import ClientActions from '../../components/ClientActions.vue'
@@ -54,7 +55,7 @@ function formatDate(isoDate) {
 }
 
 // ---------------------------------------------------------------------------
-// Tabs (WAI-ARIA tabs pattern: arrow keys move between tabs)
+// Tabs: the Tabs component handles the keyboard and the ARIA attributes
 // ---------------------------------------------------------------------------
 const TABS = [
   { key: 'sites', label: 'Edificios' },
@@ -65,26 +66,6 @@ const TABS = [
 ]
 
 const activeTab = ref('sites')
-const tabButtons = ref([])
-
-function selectTab(index) {
-  activeTab.value = TABS[index].key
-  nextTick(() => tabButtons.value[index]?.focus())
-}
-
-// Left/Right go to the previous/next tab (wrapping around), Home/End to the first/last
-function onTabKeydown(event, index) {
-  const last = TABS.length - 1
-  const moves = {
-    ArrowRight: index === last ? 0 : index + 1,
-    ArrowLeft: index === 0 ? last : index - 1,
-    Home: 0,
-    End: last,
-  }
-  if (!(event.key in moves)) return
-  event.preventDefault()
-  selectTab(moves[event.key])
-}
 
 // ---------------------------------------------------------------------------
 // Datos tab: contact and billing fields, "—" when empty
@@ -233,184 +214,131 @@ const INPUT_CLASS =
           {{ feedback }}
         </p>
 
-        <!-- Tabs: only the active one is in the Tab order; arrows move between them -->
-        <div class="overflow-x-auto">
-          <div role="tablist" aria-label="Secciones del cliente" class="flex min-w-max gap-1 border-b-2 border-gray-200">
-            <button
-              v-for="(tab, index) in TABS"
-              :id="`tab-${tab.key}`"
-              :key="tab.key"
-              :ref="(el) => (tabButtons[index] = el)"
-              type="button"
-              role="tab"
-              :aria-selected="activeTab === tab.key"
-              :aria-controls="`panel-${tab.key}`"
-              :tabindex="activeTab === tab.key ? 0 : -1"
-              class="-mb-0.5 border-b-2 px-4 py-2.5 text-base"
-              :class="
-                activeTab === tab.key
-                  ? 'border-aqua-600 font-bold text-aqua-600'
-                  : 'border-transparent text-gray-600 hover:text-aqua-600'
-              "
-              @click="selectTab(index)"
-              @keydown="onTabKeydown($event, index)"
-            >
-              {{ tab.label }}
-            </button>
-          </div>
-        </div>
+        <Tabs v-model="activeTab" :tabs="TABS" label="Secciones del cliente">
+          <!-- Edificios -->
+          <template #sites>
+            <SitesSummary :sites="clientSites" />
+          </template>
 
-        <!-- Edificios -->
-        <div
-          v-if="activeTab === 'sites'"
-          id="panel-sites"
-          role="tabpanel"
-          aria-labelledby="tab-sites"
-          tabindex="0"
-        >
-          <SitesSummary :sites="clientSites" />
-        </div>
-
-        <!-- Usuarios -->
-        <div
-          v-else-if="activeTab === 'users'"
-          id="panel-users"
-          role="tabpanel"
-          aria-labelledby="tab-users"
-          tabindex="0"
-          class="space-y-4"
-        >
-          <EmptyState
-            v-if="clientUsers.length === 0"
-            title="Este cliente aún no tiene usuarios"
-            message="Invita a alguien de su equipo con el formulario de abajo."
-            icon="users"
-            compact
-          />
-          <div v-else class="overflow-x-auto rounded-xl border border-gray-200 bg-white">
-            <table class="w-full min-w-[520px] text-sm">
-              <caption class="sr-only">Usuarios de {{ client.name }}</caption>
-              <thead class="bg-gray-50 text-left text-gray-600">
-                <tr>
-                  <th scope="col" class="px-4 py-3 font-semibold">Nombre</th>
-                  <th scope="col" class="px-4 py-3 font-semibold">Email</th>
-                  <th scope="col" class="px-4 py-3 font-semibold">Alta</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="user in clientUsers" :key="user.id" class="border-t border-gray-200">
-                  <th scope="row" class="px-4 py-3 text-left font-semibold text-gray-800">{{ user.name }}</th>
-                  <td class="px-4 py-3 text-gray-700">{{ user.email }}</td>
-                  <td class="whitespace-nowrap px-4 py-3 text-gray-600">{{ formatDate(user.created_at) }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <section
-            v-if="pendingInvitations.length > 0"
-            class="space-y-2 rounded-xl border border-gray-200 bg-white p-5"
-            aria-labelledby="pending-title"
-          >
-            <h2 id="pending-title" class="font-bold text-gray-900">Invitaciones pendientes</h2>
-            <ul class="space-y-1 text-sm text-gray-700">
-              <li v-for="invitation in pendingInvitations" :key="invitation.id">
-                {{ invitation.email }} · caduca el {{ formatDate(invitation.expires_at) }}
-              </li>
-            </ul>
-          </section>
-
-          <!-- Invite form: creates an invitation (B4) and shows the link to send -->
-          <section class="space-y-4 rounded-xl border border-gray-200 bg-white p-5" aria-labelledby="invite-title">
-            <h2 id="invite-title" class="font-bold text-gray-900">Invitar usuario</h2>
-            <form novalidate class="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end" @submit.prevent="onInvite">
-              <div class="flex flex-col gap-1">
-                <label for="invite-name" class="text-sm font-semibold text-gray-700">Nombre</label>
-                <input id="invite-name" v-model="invite.name" type="text" autocomplete="name" :class="INPUT_CLASS" />
+          <!-- Usuarios -->
+          <template #users>
+            <div class="space-y-4">
+              <EmptyState
+                v-if="clientUsers.length === 0"
+                title="Este cliente aún no tiene usuarios"
+                message="Invita a alguien de su equipo con el formulario de abajo."
+                icon="users"
+                compact
+              />
+              <div v-else class="overflow-x-auto rounded-xl border border-gray-200 bg-white">
+                <table class="w-full min-w-[520px] text-sm">
+                  <caption class="sr-only">Usuarios de {{ client.name }}</caption>
+                  <thead class="bg-gray-50 text-left text-gray-600">
+                    <tr>
+                      <th scope="col" class="px-4 py-3 font-semibold">Nombre</th>
+                      <th scope="col" class="px-4 py-3 font-semibold">Email</th>
+                      <th scope="col" class="px-4 py-3 font-semibold">Alta</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="user in clientUsers" :key="user.id" class="border-t border-gray-200">
+                      <th scope="row" class="px-4 py-3 text-left font-semibold text-gray-800">{{ user.name }}</th>
+                      <td class="px-4 py-3 text-gray-700">{{ user.email }}</td>
+                      <td class="whitespace-nowrap px-4 py-3 text-gray-600">{{ formatDate(user.created_at) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
-              <div class="flex flex-col gap-1">
-                <label for="invite-email" class="text-sm font-semibold text-gray-700">
-                  Email <span aria-hidden="true">*</span>
-                </label>
-                <input
-                  id="invite-email"
-                  ref="inviteEmailInput"
-                  v-model="invite.email"
-                  type="email"
-                  required
-                  autocomplete="email"
-                  :class="INPUT_CLASS"
-                  :aria-invalid="Boolean(inviteError)"
-                  :aria-describedby="inviteError ? 'invite-email-error' : undefined"
-                />
-              </div>
-              <button
-                type="submit"
-                class="min-h-10 rounded-lg bg-aqua-600 px-4 text-sm font-semibold text-white hover:bg-aqua-700"
+
+              <section
+                v-if="pendingInvitations.length > 0"
+                class="space-y-2 rounded-xl border border-gray-200 bg-white p-5"
+                aria-labelledby="pending-title"
               >
-                Crear invitación
-              </button>
-              <p v-if="inviteError" id="invite-email-error" class="text-sm text-red-700 sm:col-span-3">
-                {{ inviteError }}
-              </p>
-            </form>
+                <h2 id="pending-title" class="font-bold text-gray-900">Invitaciones pendientes</h2>
+                <ul class="space-y-1 text-sm text-gray-700">
+                  <li v-for="invitation in pendingInvitations" :key="invitation.id">
+                    {{ invitation.email }} · caduca el {{ formatDate(invitation.expires_at) }}
+                  </li>
+                </ul>
+              </section>
 
-            <div v-if="lastInvitation" class="space-y-2 border-t border-gray-200 pt-4">
-              <p class="text-sm text-gray-700">Envía este enlace a {{ lastInvitation.email }} para que active su cuenta.</p>
-              <InviteLinkCopy :link="lastInvitation.link" :expires-at="lastInvitation.expires_at" />
+              <!-- Invite form: creates an invitation (B4) and shows the link to send -->
+              <section class="space-y-4 rounded-xl border border-gray-200 bg-white p-5" aria-labelledby="invite-title">
+                <h2 id="invite-title" class="font-bold text-gray-900">Invitar usuario</h2>
+                <form novalidate class="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end" @submit.prevent="onInvite">
+                  <div class="flex flex-col gap-1">
+                    <label for="invite-name" class="text-sm font-semibold text-gray-700">Nombre</label>
+                    <input id="invite-name" v-model="invite.name" type="text" autocomplete="name" :class="INPUT_CLASS" />
+                  </div>
+                  <div class="flex flex-col gap-1">
+                    <label for="invite-email" class="text-sm font-semibold text-gray-700">
+                      Email <span aria-hidden="true">*</span>
+                    </label>
+                    <input
+                      id="invite-email"
+                      ref="inviteEmailInput"
+                      v-model="invite.email"
+                      type="email"
+                      required
+                      autocomplete="email"
+                      :class="INPUT_CLASS"
+                      :aria-invalid="Boolean(inviteError)"
+                      :aria-describedby="inviteError ? 'invite-email-error' : undefined"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    class="min-h-10 rounded-lg bg-aqua-600 px-4 text-sm font-semibold text-white hover:bg-aqua-700"
+                  >
+                    Crear invitación
+                  </button>
+                  <p v-if="inviteError" id="invite-email-error" class="text-sm text-red-700 sm:col-span-3">
+                    {{ inviteError }}
+                  </p>
+                </form>
+
+                <div v-if="lastInvitation" class="space-y-2 border-t border-gray-200 pt-4">
+                  <p class="text-sm text-gray-700">Envía este enlace a {{ lastInvitation.email }} para que active su cuenta.</p>
+                  <InviteLinkCopy :link="lastInvitation.link" :expires-at="lastInvitation.expires_at" />
+                </div>
+              </section>
             </div>
-          </section>
-        </div>
+          </template>
 
-        <!-- Documentos: arrives with the documents API (B11) and its components (F14) -->
-        <div
-          v-else-if="activeTab === 'documents'"
-          id="panel-documents"
-          role="tabpanel"
-          aria-labelledby="tab-documents"
-          tabindex="0"
-        >
-          <EmptyState
-            title="Todavía no hay documentos"
-            message="Aquí aparecerán los planos, informes y facturas de sus edificios."
-            icon="building"
-          />
-        </div>
+          <!-- Documentos: arrives with the documents API (B11) and its components (F14) -->
+          <template #documents>
+            <EmptyState
+              title="Todavía no hay documentos"
+              message="Aquí aparecerán los planos, informes y facturas de sus edificios."
+              icon="building"
+            />
+          </template>
 
-        <!-- Datos -->
-        <div
-          v-else-if="activeTab === 'data'"
-          id="panel-data"
-          role="tabpanel"
-          aria-labelledby="tab-data"
-          tabindex="0"
-          class="rounded-xl border border-gray-200 bg-white p-5"
-        >
-          <dl class="grid gap-x-8 gap-y-4 sm:grid-cols-2">
-            <div v-for="field in dataFields" :key="field.label">
-              <dt class="text-sm text-gray-600">{{ field.label }}</dt>
-              <dd class="font-semibold text-gray-900 break-words">{{ field.value || '—' }}</dd>
+          <!-- Datos -->
+          <template #data>
+            <div class="rounded-xl border border-gray-200 bg-white p-5">
+              <dl class="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+                <div v-for="field in dataFields" :key="field.label">
+                  <dt class="text-sm text-gray-600">{{ field.label }}</dt>
+                  <dd class="font-semibold text-gray-900 break-words">{{ field.value || '—' }}</dd>
+                </div>
+              </dl>
             </div>
-          </dl>
-        </div>
+          </template>
 
-        <!-- Acciones -->
-        <div
-          v-else
-          id="panel-actions"
-          role="tabpanel"
-          aria-labelledby="tab-actions"
-          tabindex="0"
-        >
-          <ClientActions
-            :client="client"
-            @extend="onExtend"
-            @activate="onActivate"
-            @suspend="onSuspend"
-            @reactivate="onReactivate"
-            @delete="onDelete"
-          />
-        </div>
+          <!-- Acciones -->
+          <template #actions>
+            <ClientActions
+              :client="client"
+              @extend="onExtend"
+              @activate="onActivate"
+              @suspend="onSuspend"
+              @reactivate="onReactivate"
+              @delete="onDelete"
+            />
+          </template>
+        </Tabs>
       </template>
     </div>
   </AdminLayout>

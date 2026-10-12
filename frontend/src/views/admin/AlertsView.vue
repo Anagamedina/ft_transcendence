@@ -1,229 +1,140 @@
+<!--
+  ADMIN ALERTS VIEW
+  All alerts with counters, the sensors with most alerts and a DataTable
+  (search, client / state / severity filters, pagination). Each row is an
+  AlertRow; this view calls the store when a row asks to acknowledge or resolve.
+-->
+
 <template>
   <AdminLayout>
-  <section class="space-y-6">
-    <header class="flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-900">Alertas</h1>
-        <p class="mt-1 text-sm text-slate-500">
-          Consulta y gestiona las alertas de los sensores.
-        </p>
-      </div>
+    <section class="space-y-6">
+      <header class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-900">Alertas</h1>
+          <p class="mt-1 text-sm text-slate-500">
+            Consulta y gestiona las alertas de los sensores.
+          </p>
+        </div>
 
-      <button
-        type="button"
-        class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50"
-        :disabled="status === 'loading'"
-        @click="loadAlerts"
-      >
-        Actualizar
-      </button>
-    </header>
-
-    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-      <div class="rounded-xl border border-slate-200 bg-white p-4">
-        <p class="text-sm text-slate-500">Sin reconocer</p>
-        <p class="mt-1 text-2xl font-semibold">{{ pendingCount }}</p>
-      </div>
-      <div class="rounded-xl border border-slate-200 bg-white p-4">
-        <p class="text-sm text-slate-500">Reconocidas</p>
-        <p class="mt-1 text-2xl font-semibold">{{ acknowledgedCount }}</p>
-      </div>
-      <div class="rounded-xl border border-slate-200 bg-white p-4">
-        <p class="text-sm text-slate-500">Críticas abiertas</p>
-        <p class="mt-1 text-2xl font-semibold">{{ criticalCount }}</p>
-      </div>
-      <div class="rounded-xl border border-slate-200 bg-white p-4">
-        <p class="text-sm text-slate-500">Resueltas</p>
-        <p class="mt-1 text-2xl font-semibold">{{ resolvedCount }}</p>
-      </div>
-    </div>
-
-    <div
-      v-if="sensorRanking.length > 0"
-      class="rounded-xl border border-slate-200 bg-white p-4"
-    >
-      <h2 class="text-sm font-semibold text-slate-800">Sensores con más alertas</h2>
-      <ol class="mt-3 divide-y divide-slate-100 text-sm">
-        <li
-          v-for="(sensor, index) in sensorRanking"
-          :key="sensor.id"
-          class="flex items-center gap-3 py-2"
+        <button
+          type="button"
+          class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50"
+          :disabled="status === 'loading'"
+          @click="loadAlerts"
         >
-          <span class="w-5 text-slate-400">{{ index + 1 }}</span>
-          <span class="min-w-0 flex-1 truncate text-slate-800">
-            {{ sensor.name }}
-            <span class="text-slate-500">· {{ sensor.site }}</span>
-          </span>
-          <span class="font-semibold text-slate-900">{{ sensor.total }}</span>
-        </li>
-      </ol>
-    </div>
+          Actualizar
+        </button>
+      </header>
 
-    <div class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 md:flex-row">
-      <input
-        v-model.trim="search"
-        type="search"
-        placeholder="Buscar por mensaje, sensor o cliente..."
-        aria-label="Buscar alertas"
-        class="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
-      />
+      <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div class="rounded-xl border border-slate-200 bg-white p-4">
+          <p class="text-sm text-slate-500">Sin reconocer</p>
+          <p class="mt-1 text-2xl font-semibold">{{ pendingCount }}</p>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4">
+          <p class="text-sm text-slate-500">Reconocidas</p>
+          <p class="mt-1 text-2xl font-semibold">{{ acknowledgedCount }}</p>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4">
+          <p class="text-sm text-slate-500">Críticas abiertas</p>
+          <p class="mt-1 text-2xl font-semibold">{{ criticalCount }}</p>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4">
+          <p class="text-sm text-slate-500">Resueltas</p>
+          <p class="mt-1 text-2xl font-semibold">{{ resolvedCount }}</p>
+        </div>
+      </div>
 
-      <select
-        v-model="clientFilter"
-        aria-label="Filtrar por cliente"
-        class="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+      <div
+        v-if="sensorRanking.length > 0"
+        class="rounded-xl border border-slate-200 bg-white p-4"
       >
-        <option value="ALL">Todos los clientes</option>
-        <option v-for="client in clients" :key="client.id" :value="client.id">
-          {{ client.name }}
-        </option>
-      </select>
+        <h2 class="text-sm font-semibold text-slate-800">Sensores con más alertas</h2>
+        <ol class="mt-3 divide-y divide-slate-100 text-sm">
+          <li
+            v-for="(sensor, index) in sensorRanking"
+            :key="sensor.id"
+            class="flex items-center gap-3 py-2"
+          >
+            <span class="w-5 text-slate-400">{{ index + 1 }}</span>
+            <span class="min-w-0 flex-1 truncate text-slate-800">
+              {{ sensor.name }}
+              <span class="text-slate-500">· {{ sensor.site }}</span>
+            </span>
+            <span class="font-semibold text-slate-900">{{ sensor.total }}</span>
+          </li>
+        </ol>
+      </div>
 
-      <select
-        v-model="stateFilter"
-        aria-label="Filtrar por estado"
-        class="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+      <div
+        v-if="actionError"
+        class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+        role="alert"
       >
-        <option value="ALL">Todos los estados</option>
-        <option value="ACTIVE">Sin reconocer</option>
-        <option value="ACKNOWLEDGED">Reconocidas</option>
-        <option value="RESOLVED">Resueltas</option>
-      </select>
+        {{ actionError }}
+      </div>
 
-      <select
-        v-model="severityFilter"
-        aria-label="Filtrar por gravedad"
-        class="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+      <DataTable
+        :columns="COLUMNS"
+        :rows="alerts"
+        :search-fields="['message', 'type', 'sensor_name', 'site_name', 'organization_name']"
+        search-placeholder="Buscar por mensaje, sensor o cliente..."
+        :filters="filters"
+        :loading="status === 'loading' || status === 'idle'"
+        :error="errorMessage"
+        item-name="alertas"
+        empty-title="No hay alertas registradas"
+        empty-message="Cuando haya alertas disponibles, aparecerán aquí."
+        icon="alert"
+        caption="Alertas"
+        @retry="loadAlerts"
       >
-        <option value="ALL">Todas las gravedades</option>
-        <option value="CRITICAL">Crítica</option>
-        <option value="WARNING">Advertencia</option>
-      </select>
-
-      <button
-        type="button"
-        class="rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-100"
-        @click="resetFilters"
-      >
-        Limpiar filtros
-      </button>
-    </div>
-
-    <div
-      v-if="actionError"
-      class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
-      role="alert"
-    >
-      {{ actionError }}
-    </div>
-
-    <div
-      v-if="status === 'loading' || status === 'idle'"
-      class="rounded-xl border border-slate-200 bg-white p-10 text-center text-slate-600"
-      role="status"
-    >
-      Cargando alertas...
-    </div>
-
-    <div
-      v-else-if="status === 'error'"
-      class="rounded-xl border border-red-200 bg-white p-6"
-      role="alert"
-    >
-      <h2 class="font-semibold text-red-700">No se pudieron cargar las alertas</h2>
-      <p class="mt-2 text-sm text-slate-600">
-        {{ error?.message || 'Se ha producido un error inesperado.' }}
-      </p>
-      <button
-        type="button"
-        class="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-        @click="loadAlerts"
-      >
-        Reintentar
-      </button>
-    </div>
-
-    <div
-      v-else-if="alerts.length === 0"
-      class="rounded-xl border border-slate-200 bg-white p-10 text-center"
-    >
-      <h2 class="font-semibold text-slate-800">No hay alertas registradas</h2>
-      <p class="mt-2 text-sm text-slate-500">
-        Cuando haya alertas disponibles, aparecerán aquí.
-      </p>
-    </div>
-
-    <div
-      v-else-if="filteredAlerts.length === 0"
-      class="rounded-xl border border-slate-200 bg-white p-10 text-center"
-    >
-      <h2 class="font-semibold text-slate-800">No hay resultados</h2>
-      <p class="mt-2 text-sm text-slate-500">
-        Prueba a cambiar los filtros de búsqueda.
-      </p>
-      <button
-        type="button"
-        class="mt-3 text-sm font-medium text-aqua-800 underline"
-        @click="resetFilters"
-      >
-        Limpiar filtros
-      </button>
-    </div>
-
-    <div
-      v-else
-      class="overflow-x-auto rounded-xl border border-slate-200 bg-white"
-    >
-      <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
-        <thead class="bg-slate-50 text-slate-600">
-          <tr>
-            <th scope="col" class="px-4 py-3 font-medium">Alerta</th>
-            <th scope="col" class="px-4 py-3 font-medium">Cliente</th>
-            <th scope="col" class="px-4 py-3 font-medium">Sensor</th>
-            <th scope="col" class="px-4 py-3 font-medium">Gravedad</th>
-            <th scope="col" class="px-4 py-3 font-medium">Estado</th>
-            <th scope="col" class="px-4 py-3 font-medium">Fecha</th>
-            <th scope="col" class="px-4 py-3 font-medium">Acciones</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100">
+        <template #row="{ row: alert }">
           <AlertRow
-            v-for="alert in filteredAlerts"
-            :key="alert.id"
             :alert="alert"
             :busy="busyAlertId === alert.id"
             @acknowledge="acknowledge"
             @resolve="resolve"
           />
-        </tbody>
-      </table>
-
-      <p class="border-t border-slate-100 px-4 py-3 text-sm text-slate-500">
-        {{ filteredAlerts.length }} de {{ alerts.length }} alertas
-      </p>
-    </div>
-  </section>
+        </template>
+      </DataTable>
+    </section>
   </AdminLayout>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import AdminLayout from '../../layouts/AdminLayout.vue'
+import DataTable from '../../components/DataTable.vue'
 import AlertRow from '../../components/AlertRow.vue'
 import { useAlertsStore } from '../../stores/alerts.js'
+import { useLabels } from '../../composables/useLabels'
 
 const alertStore = useAlertsStore()
+const { label } = useLabels()
 
-const search = ref('')
-const clientFilter = ref('ALL')
-const stateFilter = ref('ALL')
-const severityFilter = ref('ALL')
+const COLUMNS = [
+  { key: 'message', label: 'Alerta' },
+  { key: 'organization_name', label: 'Cliente' },
+  { key: 'sensor_name', label: 'Sensor' },
+  { key: 'severity', label: 'Gravedad' },
+  { key: 'state', label: 'Estado' },
+  { key: 'created_at', label: 'Fecha' },
+  { key: 'actions', label: 'Acciones' },
+]
+
 const busyAlertId = ref(null)
 const actionError = ref('')
 
 const alerts = computed(() => alertStore.alerts)
 const status = computed(() => alertStore.status)
 const error = computed(() => alertStore.error)
+
+const errorMessage = computed(() =>
+  status.value === 'error'
+    ? error.value?.message || 'Se ha producido un error inesperado.'
+    : ''
+)
 
 const pendingCount = computed(
   () => alerts.value.filter((alert) => alert.state === 'ACTIVE').length
@@ -243,7 +154,8 @@ const criticalCount = computed(
   ).length
 )
 
-const clients = computed(() => {
+// One option per client that has alerts, sorted by name
+const clientOptions = computed(() => {
   const names = new Map()
 
   for (const alert of alerts.value) {
@@ -251,9 +163,35 @@ const clients = computed(() => {
   }
 
   return [...names]
-    .map(([id, name]) => ({ id, name }))
-    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(([value, name]) => ({ value, label: name }))
+    .sort((a, b) => a.label.localeCompare(b.label))
 })
+
+// Builds the options of an enum filter with the texts from useLabels
+function enumOptions(enumName, values) {
+  return values.map((value) => ({ value, label: label(enumName, value) }))
+}
+
+const filters = computed(() => [
+  {
+    key: 'organization_id',
+    label: 'Cliente',
+    allLabel: 'Todos los clientes',
+    options: clientOptions.value,
+  },
+  {
+    key: 'state',
+    label: 'Estado',
+    allLabel: 'Todos los estados',
+    options: enumOptions('AlertState', ['ACTIVE', 'ACKNOWLEDGED', 'RESOLVED']),
+  },
+  {
+    key: 'severity',
+    label: 'Gravedad',
+    allLabel: 'Todas las gravedades',
+    options: enumOptions('AlertSeverity', ['CRITICAL', 'WARNING']),
+  },
+])
 
 const sensorRanking = computed(() => {
   const sensors = new Map()
@@ -273,36 +211,6 @@ const sensorRanking = computed(() => {
   return [...sensors.values()]
     .sort((a, b) => b.total - a.total)
     .slice(0, 5)
-})
-
-const filteredAlerts = computed(() => {
-  const query = search.value.toLocaleLowerCase()
-
-  return alerts.value.filter((alert) => {
-    const matchesSearch = [
-      alert.message,
-      alert.type,
-      alert.sensor_name,
-      alert.site_name,
-      alert.organization_name,
-    ].some((value) =>
-      String(value ?? '').toLocaleLowerCase().includes(query)
-    )
-
-    const matchesClient =
-      clientFilter.value === 'ALL' ||
-      alert.organization_id === clientFilter.value
-
-    const matchesState =
-      stateFilter.value === 'ALL' ||
-      alert.state === stateFilter.value
-
-    const matchesSeverity =
-      severityFilter.value === 'ALL' ||
-      alert.severity === severityFilter.value
-
-    return matchesSearch && matchesClient && matchesState && matchesSeverity
-  })
 })
 
 async function loadAlerts() {
@@ -337,13 +245,6 @@ async function resolve(id) {
   } finally {
     busyAlertId.value = null
   }
-}
-
-function resetFilters() {
-  search.value = ''
-  clientFilter.value = 'ALL'
-  stateFilter.value = 'ALL'
-  severityFilter.value = 'ALL'
 }
 
 onMounted(() => {

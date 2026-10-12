@@ -52,6 +52,12 @@ const LABELS = {
     ACKNOWLEDGED: { text: 'Reconocida', tone: 'info' },
     RESOLVED: { text: 'Resuelta', tone: 'success' },
   },
+  InvitationStatus: {
+    PENDING: { text: 'Pendiente', tone: 'info' },
+    ACCEPTED: { text: 'Aceptada', tone: 'success' },
+    REVOKED: { text: 'Revocada', tone: 'neutral' },
+    EXPIRED: { text: 'Caducada', tone: 'warning' },
+  },
   BuildingType: {
     HOTEL: { text: 'Hotel' },
     COMMUNITY: { text: 'Comunidad de vecinos' },
