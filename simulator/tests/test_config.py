@@ -2,7 +2,7 @@ from uuid import UUID
 
 import pytest
 
-from app.config import ConfigError, load_config
+from app.config import ConfigError, load_config, scenario_for
 
 SENSOR_ID = "6f1c8a2e-6b3d-4f9a-9c21-0b7e5d3a9d4b"
 
@@ -55,3 +55,35 @@ def test_parses_multiple_sensor_ids_and_flags():
 def test_invalid_configuration_is_rejected(env):
     with pytest.raises(ConfigError):
         load_config(env)
+
+
+OTHER_ID = SENSOR_ID.replace("6f", "7f", 1)
+
+
+def test_scenarios_per_sensor_override_the_default():
+    config = load_config({
+        "SIMULATOR_SENSOR_IDS": f"{SENSOR_ID},{OTHER_ID}",
+        "SIMULATOR_SCENARIO": "normal",
+        "SIMULATOR_SCENARIOS": f" {OTHER_ID} : Offline ",
+    })
+    assert config.sensor_scenarios == {UUID(OTHER_ID): "offline"}
+    assert scenario_for(config, UUID(SENSOR_ID)) == "normal"
+    assert scenario_for(config, UUID(OTHER_ID)) == "offline"
+
+
+def test_without_scenarios_every_sensor_uses_the_default():
+    config = load_config({"SIMULATOR_SENSOR_IDS": SENSOR_ID, "SIMULATOR_SCENARIO": "low"})
+    assert config.sensor_scenarios == {}
+    assert scenario_for(config, UUID(SENSOR_ID)) == "low"
+
+
+@pytest.mark.parametrize("scenarios", [
+    f"{SENSOR_ID}",                      # no scenario
+    "not-a-uuid:low",
+    f"{SENSOR_ID}:leak",                 # unknown scenario
+    f"{OTHER_ID}:low",                   # not in SIMULATOR_SENSOR_IDS
+    f"{SENSOR_ID}:low,{SENSOR_ID}:high",  # same sensor twice
+])
+def test_invalid_scenarios_per_sensor_are_rejected(scenarios):
+    with pytest.raises(ConfigError):
+        load_config({"SIMULATOR_SENSOR_IDS": SENSOR_ID, "SIMULATOR_SCENARIOS": scenarios})
