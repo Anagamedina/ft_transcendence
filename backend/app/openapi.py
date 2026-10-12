@@ -50,23 +50,44 @@ from pydantic import TypeAdapter
 from pydantic.json_schema import models_json_schema
 
 from app.modules.alerts.schemas import AlertResponse
+from app.modules.analytics.schemas import (
+    OverviewResponse,
+    TopSensorsResponse,
+    WeeklyAlertsResponse,
+)
 from app.modules.auth.schemas import (
     LoginRequest,
     MessageResponse,
     RegisterRequest,
     SessionResponse,
 )
+from app.modules.invitations.schemas import (
+    InvitationAccept,
+    InvitationCreate,
+    InvitationPublicResponse,
+    InvitationResponse,
+    InvitationSentResponse,
+)
 from app.modules.organizations.schemas import OrganizationCreate, OrganizationResponse
 from app.modules.readings.schemas import ReadingResponse
 from app.modules.sensors.schemas import SensorCreate, SensorResponse, SensorUpdate
 from app.modules.sites.schemas import SiteCreate, SiteResponse, SiteUpdate
-from app.modules.users.schemas import UserCreate, UserResponse
+from app.modules.users.schemas import (
+    MeResponse,
+    MeUpdate,
+    PasswordChange,
+    UserAdminResponse,
+    UserCreate,
+    UserResponse,
+    UserUpdate,
+)
 from app.shared.enums import (
     AlertSeverity,
     AlertState,
     AlertStatus,
     AlertType,
     BuildingType,
+    InvitationStatus,
     OrganizationStatus,
     SensorHealth,
     SensorStatus,
@@ -76,7 +97,8 @@ from app.shared.schemas import Page
 
 # Contratos definidos en la issue #23. La mayoría ya tienen ruta y saldrían
 # solos; se mantienen en la lista porque no estorban (manda la versión de
-# la ruta). Sigue sin ruta `UserCreate`, hasta la B6.
+# la ruta). Sin ruta todavía: `UserCreate` y el contrato de la B4, la B6,
+# la B8 y la B9 (abajo), publicado antes para el frontend de Eduardo.
 #
 # Los `Page[...]` se listan explícitamente porque `Page` es genérico:
 # `Page[SensorResponse]` y `Page[AlertResponse]` son dos schemas distintos
@@ -107,6 +129,25 @@ CONTRACT_MODELS: list[type] = [
     Page[AlertResponse],
     # Histórico de lecturas — issue #25
     Page[ReadingResponse],
+    # Invitaciones — contrato de la B4 (#141)
+    InvitationCreate,
+    InvitationResponse,
+    Page[InvitationResponse],
+    InvitationSentResponse,
+    InvitationPublicResponse,
+    InvitationAccept,
+    # Usuarios — contrato de la B6 (#141)
+    UserUpdate,
+    UserAdminResponse,
+    Page[UserAdminResponse],
+    # Mi cuenta — contrato de la B8 (#144)
+    MeResponse,
+    MeUpdate,
+    PasswordChange,
+    # Panel y KPIs — contrato de la B9 (#144)
+    OverviewResponse,
+    WeeklyAlertsResponse,
+    TopSensorsResponse,
 ]
 
 
@@ -124,6 +165,7 @@ CONTRACT_ENUMS: list[type] = [
     AlertSeverity,
     AlertStatus,
     AlertState,
+    InvitationStatus,
 ]
 
 

@@ -37,6 +37,7 @@ B17, GitHub #138 a #150). Cada carpeta contiene:
 | — | #142 | P1 | B5 — Alertas: filtros, ACKNOWLEDGED, quién actuó | B0, B3 | Pendiente |
 | — | #141 | P1 | B4+B6 — Invitaciones y gestión de usuarios | B1, B10, D3 (#130), I0 | Pendiente |
 | — | #144 | P1 | B8+B9 — Mi cuenta y KPIs | B5, B6 | Pendiente |
+| [17-contrato-b4-b6-b8-b9](17-contrato-b4-b6-b8-b9/) | #141, #144 | P1 | Contrato de la B4, B6, B8 y B9 publicado antes que las rutas (para el frontend de Eduardo) | — | 🚧 En curso (rama `ana/contrato-b4-b6-b8-b9`) |
 | — | #146 | P2 | B12 — Prueba caducada: solo lectura | B10 | Pendiente |
 | — | #145 | P2 | B16 — Eliminar organización | D9 (#133) | Pendiente |
 | — | #147 | P2 | B11 — Documentos por edificio | D4 (#132) | Pendiente |

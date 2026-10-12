@@ -601,6 +601,7 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 | #139  | B3 sensors: floor on create and edit, health, last value and health filter                     | —              | In review   |
 | —     | List of the redesign issues (B0–B18) and their mocks                                           | #124                 | Implemented |
 | —     | Cleanup: outdated comments, dead 501 code, notes in `docs/ana/` brought up to date             | #181                 | Implemented |
+| #141, #144 | Contract of B4, B6, B8 and B9 published before the routes: invitations, users, my account and KPIs | —    | In review   |
 
 Notes for each issue, with diagrams and the decisions taken, are in [`docs/ana/`](docs/ana/).
 
