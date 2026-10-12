@@ -104,6 +104,11 @@ class AppSettings(BaseSettings):
     # el .env; el valor por defecto es el del producto.
     TRIAL_DAYS: int = 7
 
+    # Versión de los términos de uso que acepta quien se registra (B10).
+    # Se guarda con cada usuario, para saber qué texto aceptó. Cuando
+    # cambien los términos de `TermsView.vue`, se sube aquí.
+    TERMS_VERSION: str = "2026-10"
+
     # Orígenes que el navegador tiene permitido usar para llamar a la API,
     # separados por comas. Vite sirve el frontend en el puerto 5173.
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
