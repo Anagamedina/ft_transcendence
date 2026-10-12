@@ -18,7 +18,7 @@
   <tr>
     <td class="min-w-48 px-4 py-3 text-slate-800">
       {{ alert.message || '—' }}
-      <span class="block text-xs text-slate-400">{{ alert.type }}</span>
+      <span class="block text-xs text-slate-400">{{ label('AlertType', alert.type) }}</span>
     </td>
     <td class="px-4 py-3 text-slate-600">
       {{ alert.organization_name || '—' }}
@@ -27,13 +27,11 @@
       {{ alert.sensor_name || '—' }}
       <span class="block text-xs text-slate-400">{{ alert.site_name }}</span>
     </td>
-    <td class="whitespace-nowrap px-4 py-3">
-      <span class="rounded-full px-2.5 py-1 text-xs font-medium" :class="severityClass">
-        {{ severityLabel }}
-      </span>
+    <td class="px-4 py-3">
+      <StatusPill type="AlertSeverity" :value="alert.severity" />
     </td>
-    <td class="whitespace-nowrap px-4 py-3 text-slate-600">
-      {{ stateLabel }}
+    <td class="px-4 py-3">
+      <StatusPill type="AlertState" :value="alert.state" />
     </td>
     <td class="whitespace-nowrap px-4 py-3 text-slate-600">
       {{ formatDate(alert.created_at) }}
@@ -69,9 +67,10 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import StatusPill from './StatusPill.vue'
+import { useLabels } from '../composables/useLabels'
 
-const props = defineProps({
+defineProps({
   // AlertResponse: message, type, organization_name, sensor_name, site_name,
   // severity, status (ACTIVE | RESOLVED), state (ACTIVE | ACKNOWLEDGED | RESOLVED), created_at
   alert: { type: Object, required: true },
@@ -82,30 +81,7 @@ const props = defineProps({
 // Both events send the alert id
 defineEmits(['acknowledge', 'resolve'])
 
-const STATE_LABELS = {
-  ACTIVE: 'Sin reconocer',
-  ACKNOWLEDGED: 'Reconocida',
-  RESOLVED: 'Resuelta',
-}
-
-const SEVERITY_LABELS = {
-  CRITICAL: 'Crítica',
-  WARNING: 'Advertencia',
-}
-
-const SEVERITY_CLASSES = {
-  CRITICAL: 'bg-red-100 text-red-800',
-  WARNING: 'bg-amber-100 text-amber-800',
-}
-
-// Unknown values are shown as they come, so a new enum value never breaks the row
-const stateLabel = computed(() => STATE_LABELS[props.alert.state] || props.alert.state || '—')
-const severityLabel = computed(
-  () => SEVERITY_LABELS[props.alert.severity] || props.alert.severity || '—'
-)
-const severityClass = computed(
-  () => SEVERITY_CLASSES[props.alert.severity] || 'bg-slate-100 text-slate-700'
-)
+const { label } = useLabels()
 
 // Short Spanish date and time, e.g. "8/9/26, 10:20"
 const dateFormat = new Intl.DateTimeFormat('es-ES', { dateStyle: 'short', timeStyle: 'short' })
