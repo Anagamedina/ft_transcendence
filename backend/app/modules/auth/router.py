@@ -8,9 +8,8 @@ issue #26, los tres implementados:
 
     POST /api/auth/login      → abre la sesión (cookie)
     POST /api/auth/logout     → la cierra
-    POST /api/auth/register   → hoy solo para el admin, que da de alta
-                                 clientes con `organization_id` (#27).
-                                 Pasa a ser público con la B10 (#140).
+    POST /api/auth/register   → registro público con prueba de 7 días
+                                 (B10, #140); abre la sesión como el login
 
 Un reparto que conviene respetar: **la cookie de sesión la pone el
 router, no el service**. Una cookie es una cabecera HTTP, y el service
@@ -42,7 +41,6 @@ from app.modules.auth.schemas import (
     SessionResponse,
 )
 from app.modules.auth.service import AuthService, get_auth_service
-from app.shared.dependencies import require_role
 from app.shared.schemas import error_response
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -121,34 +119,43 @@ def login(
     "/register",
     response_model=SessionResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Dar de alta una cuenta",
+    summary="Registrarse",
     description=(
-        "Crea una cuenta de cliente en la organización indicada en "
-        "`organization_id`.\n\n"
-        "**Exige sesión de administrador.** El equipo acordó que no hay "
-        "registro público: las cuentas de cliente las crea un admin. Por "
-        "eso este endpoint no abre sesión para el usuario creado — quien "
-        "sigue dentro es el admin que lo dio de alta."
+        "Registro público: crea la organización `organization_name` **en "
+        "prueba** (`TRIAL`, vence a los `TRIAL_DAYS` días, 7 por defecto) y "
+        "la cuenta de cliente dentro.\n\n"
+        "**No pide sesión y deja la sesión abierta**, como el login: quien "
+        "se registra entra directamente a su panel.\n\n"
+        "La contraseña necesita al menos 12 caracteres, no puede ser una "
+        "contraseña común ni contener el email."
     ),
-    dependencies=[Depends(require_role("admin"))],
     responses={
         **error_response(
-            status.HTTP_401_UNAUTHORIZED, "No hay sesión (`UNAUTHORIZED`)."
-        ),
-        **error_response(
-            status.HTTP_403_FORBIDDEN,
-            "La sesión no es de un administrador (`FORBIDDEN`).",
-        ),
-        **error_response(
-            status.HTTP_404_NOT_FOUND,
-            "La organización no existe (`ORGANIZATION_NOT_FOUND`).",
-        ),
-        **error_response(
             status.HTTP_409_CONFLICT,
-            "Ese email ya existe (`EMAIL_ALREADY_EXISTS`).",
+            "Ese email ya existe (`EMAIL_ALREADY_EXISTS`) o ya hay una "
+            "organización con ese nombre (`ORGANIZATION_NAME_TAKEN`).",
+        ),
+        **error_response(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "Términos sin aceptar (`TERMS_NOT_ACCEPTED`), contraseña débil "
+            "(`WEAK_PASSWORD`), nombre de organización vacío "
+            "(`INVALID_NAME`) o campos mal escritos (`VALIDATION_ERROR`).",
         ),
     },
 )
-def register(payload: RegisterRequest, service: AuthSvc) -> SessionResponse:
-    creado = service.register(payload, role="client")
+def register(
+    payload: RegisterRequest,
+    response: Response,
+    service: AuthSvc,
+) -> SessionResponse:
+    creado = service.register(payload)
+
+    # Igual que en el login: la cookie la pone el router.
+    response.set_cookie(
+        SESSION_COOKIE,
+        create_session_token(creado.id),
+        max_age=SESSION_MAX_AGE_SECONDS,
+        **session_cookie_kwargs(),
+    )
+
     return SessionResponse(user=creado)
