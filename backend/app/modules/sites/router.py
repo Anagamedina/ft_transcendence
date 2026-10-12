@@ -3,13 +3,15 @@
 """
 Endpoints de emplazamientos (`/api/sites/...`).
 
-Implementados en la issue #29 (PR #108); filtros comunes de la B0 (#138):
+Lectura en la issue #29 (PR #108), filtros comunes en la B0 (#138), y
+alta, edición y borrado en la B2 (#139):
 
-    GET /api/sites
-    GET /api/sites/{id}
-    GET /api/sites/{id}/sensors
-
-Alta, edición y borrado de sites llegan con la B2 (#139).
+    GET    /api/sites                → con sesión (cada uno ve lo suyo)
+    GET    /api/sites/{id}           → con sesión
+    GET    /api/sites/{id}/sensors   → con sesión
+    POST   /api/sites                → solo admin
+    PATCH  /api/sites/{id}           → solo admin
+    DELETE /api/sites/{id}           → solo admin, si no tiene sensores ni documentos
 """
 
 from __future__ import annotations
@@ -17,16 +19,17 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 
 from app.modules.sensors.schemas import SensorResponse
-from app.modules.sites.schemas import SiteResponse
+from app.modules.sites.schemas import SiteCreate, SiteResponse, SiteUpdate
 from app.modules.sites.service import SiteService, get_site_service
 from app.shared.dependencies import (
     OrganizationIdFilter,
     OrgScope,
     Pagination,
     Search,
+    require_role,
 )
 from app.shared.schemas import Page, error_response
 
@@ -52,6 +55,8 @@ _NO_AUTORIZADO = {
     description=(
         "Sites de tu organización, paginados y ordenados por nombre. Un "
         "admin ve los de todas las organizaciones.\n\n"
+        "Cada site trae `sensor_count` y `status`: `CRITICAL` o `WARNING` "
+        "según sus alertas abiertas, `OK` si no tiene ninguna.\n\n"
         "`q` busca en el nombre y la dirección. `organization_id` deja solo "
         "los de un cliente (útil para el admin)."
     ),
@@ -116,3 +121,91 @@ def list_site_sensors(
         offset=pagination.offset,
         limit=pagination.limit,
     )
+
+
+_SOLO_ADMIN = {
+    **error_response(status.HTTP_401_UNAUTHORIZED, "No hay sesión (`UNAUTHORIZED`)."),
+    **error_response(
+        status.HTTP_403_FORBIDDEN, "La sesión no es de un admin (`FORBIDDEN`)."
+    ),
+}
+_NO_EXISTE = error_response(
+    status.HTTP_404_NOT_FOUND, "El site no existe (`SITE_NOT_FOUND`)."
+)
+_NOMBRE_OCUPADO = error_response(
+    status.HTTP_409_CONFLICT,
+    "Ese cliente ya tiene un edificio con ese nombre (`SITE_NAME_TAKEN`).",
+)
+
+
+@router.post(
+    "",
+    response_model=SiteResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Dar de alta un site",
+    description=(
+        "Solo admin. Crea un edificio en el cliente `organization_id`, con sus "
+        "plantas (`floors`, contando la baja), sótanos y tipo."
+    ),
+    dependencies=[Depends(require_role("admin"))],
+    responses={
+        **_SOLO_ADMIN,
+        **error_response(
+            status.HTTP_404_NOT_FOUND,
+            "La organización no existe (`ORGANIZATION_NOT_FOUND`).",
+        ),
+        **_NOMBRE_OCUPADO,
+    },
+)
+def create_site(payload: SiteCreate, service: SiteSvc) -> SiteResponse:
+    return service.create(payload)
+
+
+@router.patch(
+    "/{site_id}",
+    response_model=SiteResponse,
+    summary="Modificar un site",
+    description=(
+        "Solo admin. Cambia solo los campos enviados. No se puede cambiar de "
+        "cliente. Quitar plantas o sótanos que tienen sensores responde 422 "
+        "`FLOOR_OUT_OF_SITE`."
+    ),
+    dependencies=[Depends(require_role("admin"))],
+    responses={
+        **_SOLO_ADMIN,
+        **_NO_EXISTE,
+        **_NOMBRE_OCUPADO,
+        **error_response(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "Quedarían sensores fuera del edificio (`FLOOR_OUT_OF_SITE`), o un "
+            "campo obligatorio vacío.",
+        ),
+    },
+)
+def update_site(site_id: UUID, payload: SiteUpdate, service: SiteSvc) -> SiteResponse:
+    return service.update(site_id, payload)
+
+
+@router.delete(
+    "/{site_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Borrar un site",
+    description=(
+        "Solo admin, y solo si el edificio está vacío: con sensores se "
+        "perderían sus lecturas y alertas, y con documentos, los documentos "
+        "y sus ficheros."
+    ),
+    dependencies=[Depends(require_role("admin"))],
+    responses={
+        **_SOLO_ADMIN,
+        **_NO_EXISTE,
+        **error_response(
+            status.HTTP_409_CONFLICT,
+            "El edificio tiene sensores (`SITE_HAS_SENSORS`) o documentos "
+            "(`SITE_HAS_DOCUMENTS`).",
+        ),
+    },
+)
+def delete_site(site_id: UUID, service: SiteSvc) -> Response:
+    service.delete(site_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

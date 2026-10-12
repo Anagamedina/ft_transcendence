@@ -4,7 +4,8 @@
 """
 Endpoints de sensores (`/api/sensors/...`).
 
-Implementados en dos issues; los filtros comunes son de la B0 (#138):
+Implementados en dos issues; los filtros comunes son de la B0 (#138), y
+la planta, `health`, `last_value` y `?health=`, de la B3 (#139):
 
     GET   /api/sensors              → issue #25 (PR #113)
     GET   /api/sensors/{id}         → issue #25 (PR #113)
@@ -23,7 +24,7 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from app.modules.sensors.schemas import SensorCreate, SensorResponse, SensorUpdate
 from app.modules.sensors.service import SensorService, get_sensor_service
@@ -35,11 +36,17 @@ from app.shared.dependencies import (
     SiteIdFilter,
     require_role,
 )
+from app.shared.enums import SensorHealth
 from app.shared.schemas import Page, error_response
 
 router = APIRouter(prefix="/sensors", tags=["Sensors"])
 
 SensorSvc = Annotated[SensorService, Depends(get_sensor_service)]
+
+HealthFilter = Annotated[
+    SensorHealth | None,
+    Query(description="Deja solo los sensores con esa salud (`health`)."),
+]
 
 _NO_AUTORIZADO = {
     **error_response(
@@ -59,12 +66,13 @@ _NO_AUTORIZADO = {
     description=(
         "Sensores de tu organización, paginados y ordenados por nombre. Un "
         "admin ve los de todas las organizaciones.\n\n"
-        "`status` y `last_seen_at` se calculan a partir de las lecturas: un "
-        "sensor está `OFFLINE` si lleva más de 5 minutos sin mandar ninguna "
-        "o no ha mandado nunca.\n\n"
+        "`status`, `last_seen_at` y `last_value` se calculan a partir de las "
+        "lecturas: un sensor está `OFFLINE` si lleva más de 5 minutos sin "
+        "mandar ninguna o no ha mandado nunca. `health` añade sus alertas "
+        "sin resolver: `OFFLINE`, si no `CRITICAL` o `WARNING`, y si no `OK`.\n\n"
         "`q` busca en el nombre, la etiqueta (`external_id`) y la ubicación. "
         "`organization_id` y `site_id` dejan solo los de un cliente o un "
-        "edificio."
+        "edificio, y `health` los que tienen esa salud."
     ),
     responses={**_NO_AUTORIZADO},
 )
@@ -75,9 +83,10 @@ def list_sensors(
     q: Search,
     organization_id: OrganizationIdFilter = None,
     site_id: SiteIdFilter = None,
+    health: HealthFilter = None,
 ) -> Page[SensorResponse]:
     # El alcance sale de la sesión (`OrgScope`), nunca de la query.
-    # `organization_id` y `site_id` solo lo estrechan.
+    # `organization_id`, `site_id` y `health` solo lo estrechan.
     return service.list(
         organization_id=scope,
         offset=pagination.offset,
@@ -85,6 +94,7 @@ def list_sensors(
         q=q,
         organization_filter=organization_id,
         site_id=site_id,
+        health=health,
     )
 
 
@@ -119,6 +129,8 @@ _SOLO_ADMIN = {
     description=(
         "Solo admin. `external_id` es la etiqueta del aparato físico y no se "
         "puede repetir en el mismo site. `unit` vale `bar` si no se envía. "
+        "`floor` (0 si no se envía) tiene que existir en el edificio: de "
+        "`-basements` a `floors - 1`. "
         "El sensor nace `OFFLINE`: todavía no ha mandado lecturas."
     ),
     dependencies=[Depends(require_role("admin"))],
@@ -128,6 +140,10 @@ _SOLO_ADMIN = {
         **error_response(
             status.HTTP_409_CONFLICT,
             "Ese `external_id` ya existe en el site (`SENSOR_EXTERNAL_ID_TAKEN`).",
+        ),
+        **error_response(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "La planta no existe en el edificio (`FLOOR_OUT_OF_SITE`).",
         ),
     },
 )
@@ -140,8 +156,9 @@ def create_sensor(payload: SensorCreate, service: SensorSvc) -> SensorResponse:
     response_model=SensorResponse,
     summary="Modificar un sensor",
     description=(
-        "Solo admin. Cambia solo los campos enviados: nombre, ubicación y "
-        "umbrales. Si llega un solo umbral, se compara con el guardado."
+        "Solo admin. Cambia solo los campos enviados: nombre, ubicación, "
+        "umbrales y planta. Si llega un solo umbral, se compara con el "
+        "guardado. La planta tiene que existir en el edificio."
     ),
     dependencies=[Depends(require_role("admin"))],
     responses={
@@ -149,7 +166,9 @@ def create_sensor(payload: SensorCreate, service: SensorSvc) -> SensorResponse:
         **error_response(status.HTTP_404_NOT_FOUND, "El sensor no existe (`SENSOR_NOT_FOUND`)."),
         **error_response(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            "Umbrales incoherentes o vacíos (`INVALID_THRESHOLDS`), o nombre vacío.",
+            "Umbrales incoherentes o vacíos (`INVALID_THRESHOLDS`), nombre o "
+            "planta vacíos, o planta que no existe en el edificio "
+            "(`FLOOR_OUT_OF_SITE`).",
         ),
     },
 )

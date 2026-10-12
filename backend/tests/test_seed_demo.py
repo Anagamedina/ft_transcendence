@@ -164,16 +164,16 @@ def test_five_clients_in_different_states(engine):
         organizations = {o.name: o for o in session.query(Organization)}
 
     assert set(organizations) == {
-        "Residencias Alcalá",
-        "Hotel Turia",
+        "Residencias Collserola",
+        "Hotel Gòtic",
         "Comunidad Mallorca 401",
-        "Polideportivo Abando",
-        "Aguas del Sur",
+        "Polideportivo Poblenou",
+        "Aigües Zona Franca",
     }
     assert {o.status for o in organizations.values()} == {"ACTIVE", "TRIAL", "SUSPENDED"}
-    turia = organizations["Hotel Turia"]
-    assert turia.status == "TRIAL"
-    assert _naive(turia.trial_ends_at) > _now_naive()
+    gotic = organizations["Hotel Gòtic"]
+    assert gotic.status == "TRIAL"
+    assert _naive(gotic.trial_ends_at) > _now_naive()
 
 
 def test_the_old_demo_organization_becomes_the_first_client(engine):
@@ -189,6 +189,29 @@ def test_the_old_demo_organization_becomes_the_first_client(engine):
     assert "Hotel Mediterráneo" not in site_names
 
 
+def test_seed_renames_the_clients_from_before_barcelona(engine):
+    seed_demo.seed()
+    with Session(engine) as session:
+        # Put back the names the demo had before D10.
+        for new, old in seed_demo.PREVIOUS_ORGANIZATION_NAMES.items():
+            session.query(Organization).filter_by(name=new).update({"name": old})
+        for new, old in seed_demo.PREVIOUS_SITE_NAMES.items():
+            session.query(Site).filter_by(name=new).update({"name": old})
+        for new, old in seed_demo.PREVIOUS_USER_EMAILS.items():
+            session.query(User).filter_by(email=new).update({"email": old})
+        session.commit()
+
+    seed_demo.seed()
+
+    with Session(engine) as session:
+        organizations = {name for (name,) in session.query(Organization.name)}
+        sites = {name for (name,) in session.query(Site.name)}
+        emails = {email for (email,) in session.query(User.email)}
+    assert organizations == {data["name"] for data in seed_demo.ORGANIZATIONS}
+    assert sites == {data["name"] for data in seed_demo.SITES}
+    assert emails == {data["email"] for data in seed_demo.USERS}
+
+
 def test_every_site_has_floors_and_real_coordinates(engine):
     seed_demo.seed()
 
@@ -201,6 +224,23 @@ def test_every_site_has_floors_and_real_coordinates(engine):
         assert site.latitude is not None and site.longitude is not None
         assert site.building_type != "OTHER"
     assert any(site.basements > 0 for site in sites)
+
+
+def test_every_site_is_in_a_barcelona_district(engine):
+    seed_demo.seed()
+
+    with Session(engine) as session:
+        sites = session.query(Site).all()
+        cities = {city for (city,) in session.query(Organization.city)}
+
+    assert all(site.district is not None for site in sites)
+    assert len({site.district for site in sites}) == len(sites)
+    for site in sites:
+        assert site.address.endswith("Barcelona")
+        # Rough box around the city, the same area the admin map shows.
+        assert Decimal("41.32") < site.latitude < Decimal("41.47")
+        assert Decimal("2.05") < site.longitude < Decimal("2.23")
+    assert cities == {"Barcelona"}
 
 
 # ---------------------------------------------------------

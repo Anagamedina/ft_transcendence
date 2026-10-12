@@ -14,6 +14,7 @@ El `.env` del proyecto tiene variables de dos dueños distintos:
     SECRET_KEY, COOKIE_SECURE             → cookie de sesión (Ana, #26)
     INGEST_API_KEY                        → clave del simulador (Ana, #106)
     CORS_ORIGINS                          → CORS de FastAPI  (Ana, #22)
+    BACKUPS_DIR, BACKUP_INTERVAL_HOURS    → página de estado (Eduardo, #154)
 
 `core/config.py` es de Daruny y lee las suyas. Este archivo lee las de
 aplicación. Cada clase toma del mismo `.env` únicamente lo que le
@@ -98,9 +99,20 @@ class AppSettings(BaseSettings):
     # coinciden sin configurar nada.
     INGEST_API_KEY: str = "dev-only-ingest-key"
 
+    # Días de prueba de una organización TRIAL: los que da el registro
+    # público (B10) y los que suma «ampliar prueba» (B1). Lo pide la I0 en
+    # el .env; el valor por defecto es el del producto.
+    TRIAL_DAYS: int = 7
+
     # Orígenes que el navegador tiene permitido usar para llamar a la API,
     # separados por comas. Vite sirve el frontend en el puerto 5173.
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+
+    # Backups automáticos (issue #154). El servicio `backup` de Compose los
+    # deja en un volumen que el backend monta en solo lectura: `/api/status`
+    # mira ahí la fecha y el tamaño del último.
+    BACKUPS_DIR: str = "/backups"
+    BACKUP_INTERVAL_HOURS: int = 24
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,

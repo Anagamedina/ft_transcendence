@@ -1,7 +1,7 @@
 """add performance indexes (D5)
 
 Revision ID: 3c9d2e7f1a40
-Revises: 81bfe9714e30
+Revises: 29b0a4e9f2ae
 Create Date: 2026-10-11
 
 Indexes for the queries of the design, checked with EXPLAIN ANALYZE on a
@@ -25,7 +25,7 @@ from alembic import op
 
 
 revision: str = "3c9d2e7f1a40"
-down_revision: Union[str, Sequence[str], None] = "81bfe9714e30"
+down_revision: Union[str, Sequence[str], None] = "29b0a4e9f2ae"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

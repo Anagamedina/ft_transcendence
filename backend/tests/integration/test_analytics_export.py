@@ -276,3 +276,32 @@ def test_malformed_input_is_422(client, data, params):
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+# ---------------------------------------------------------
+# format=json (used by the analytics panel, F19)
+# ---------------------------------------------------------
+def test_json_returns_the_same_rows_with_real_types(client, data):
+    _login(client, data["a"]["client"])
+
+    response = _export(client, format="json", **PERIOD)
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/json")
+    assert "content-disposition" not in response.headers
+    rows = response.json()
+    assert [r["date"] for r in rows] == ["2026-09-10", "2026-09-11"]
+    assert set(rows[0]) == set(EXPORT_COLUMNS)
+    assert rows[0]["readings_count"] == 3
+    assert rows[0]["pressure_avg"] == 3.0
+    assert rows[0]["alerts_critical"] == 1
+    # No readings that day: null, not an empty string.
+    assert rows[1]["pressure_avg"] is None
+
+
+def test_json_respects_the_organization(client, data):
+    _login(client, data["b"]["client"])
+
+    rows = _export(client, format="json", **PERIOD).json()
+
+    assert {r["organization"] for r in rows} == {"B"}

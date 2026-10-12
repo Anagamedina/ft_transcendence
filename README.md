@@ -79,6 +79,7 @@ older `.env` without them still starts:
 | `TRIAL_DAYS`            | `7`                  | Length of the trial after registering           |
 | `DOCUMENTS_DIR`         | `/data/documents`    | Backend folder where documents are stored       |
 | `MAX_UPLOAD_MB`         | `10`                 | Maximum size of an uploaded document            |
+| `PUBLIC_RATE_LIMIT`     | `5r/m`               | Per-IP limit on login, register and invitations |
 | `BACKUP_INTERVAL_HOURS` | `24`                 | Hours between automatic backups                 |
 | `BACKUP_KEEP`           | `7`                  | Number of backups kept                          |
 
@@ -90,14 +91,22 @@ Frontend-only configuration is documented in
 
 ### Run the stack
 
-The Compose stack declares four services on the `aquaguard` network. `database`,
-`backend` and `gateway` start by default; `simulator` sits behind the `sim`
-Compose profile until its image is complete, so a plain start never fails on it.
+The Compose stack declares five services on the `aquaguard` network. `database`,
+`backend`, `gateway` and `backup` start by default; `simulator` sits behind the
+`sim` Compose profile, so a plain start never fails on it.
 
 `gateway` is the only service published to the host. It terminates TLS on 443,
-redirects 80 to 443, serves the compiled Vue SPA, and proxies `/api/` and `/ws/`
-to `backend:8000` over the internal network. `backend` and `database` are not
-reachable from the host at all.
+redirects 80 to 443, serves the compiled Vue SPA, and proxies `/api/` to
+`backend:8000` over the internal network. It adds the security headers (HSTS,
+`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`) to every HTTPS
+response and limits `/api/auth/login`, `/api/auth/register` and
+`/api/invitations/by-code/` to `PUBLIC_RATE_LIMIT` requests per IP, answering
+429 in the API error format beyond that. The Playwright suite logs in more
+often than that, so run it against a stack started with
+`PUBLIC_RATE_LIMIT=1000r/m make up`. `backend` and `database` are not
+reachable from the host at all. `backup` writes a compressed `pg_dump` to the
+`backups_data` volume on a schedule; see
+[Health checks, status page and backups](#health-checks-status-page-and-backups).
 
 ```bash
 make up
@@ -132,8 +141,8 @@ make smoke
 
 It runs `docker compose up -d --wait` for `database`, `backend` and `gateway`,
 which starts any of them that is stopped and waits up to 60 seconds for all
-three to report `healthy`. Then it checks both health endpoints, the HTTP to
-HTTPS redirect and the SPA, sends a reading through `POST /api/readings`, and
+three to report `healthy`. Then it checks both health endpoints, `/api/status`,
+the HTTP to HTTPS redirect and the SPA, sends a reading through `POST /api/readings`, and
 confirms it was stored in PostgreSQL. The test reading is deleted afterwards.
 When the simulator is running (`make sim`), it also checks that its readings
 reach the database, unless its scenario is `offline`, which sends none on
@@ -184,11 +193,14 @@ The root `Makefile` wraps the Compose commands:
 | `make migration MSG="..."` | Generates a migration with `alembic revision --autogenerate` without applying it; fails without `MSG`                                        |
 | `make migration-check`     | Fails if the database is unreachable, has pending migrations, or the models drifted from the migrations                                      |
 | `make smoke`               | Smoke test of the stack: health, gateway, and a reading stored end to end; fails with a non-zero code                                        |
+| `make backup`              | Runs one database backup now, in addition to the automatic ones                                                                              |
+| `make backups`             | Lists the backups kept in the `backups_data` volume                                                                                          |
+| `make restore FILE=...`    | Restores the database from one of those backups; see [`docs/disaster-recovery.md`](docs/disaster-recovery.md)                                |
 | `make down`                | Stops the containers, simulator included, and keeps the PostgreSQL volume                                                                    |
 | `make logs`                | Follows the logs of every running service                                                                                                    |
 | `make ps`                  | Shows service status                                                                                                                         |
 | `make clean`               | `down --remove-orphans`, simulator included                                                                                                  |
-| `make fclean`              | `down -v --remove-orphans`, simulator included, which deletes the PostgreSQL volume                                                          |
+| `make fclean`              | `down -v --remove-orphans`, simulator included, which deletes the PostgreSQL volume, the backups and the uploaded documents                  |
 | `make re`                  | `fclean` followed by `up`, a start from scratch                                                                                              |
 
 `make fclean` destroys the database volume. PostgreSQL only creates its user on
@@ -199,6 +211,66 @@ Certificates live in `gateway/certs/` and are git-ignored. They are mounted
 read-only into the gateway instead of being baked into the image, so a private
 key never reaches a built artefact.
 
+### Health checks, status page and backups
+
+This is the DevOps minor module "health check and status page system with
+automated backups and disaster recovery procedures".
+
+**Health checks.** Every service has one, and `docker compose ps` shows the
+result:
+
+| Service     | Check                                                                    |
+|-------------|--------------------------------------------------------------------------|
+| `database`  | `pg_isready` against the configured user and database                    |
+| `backend`   | `GET /api/health` (liveness, does not touch PostgreSQL)                  |
+| `gateway`   | `GET https://localhost/api/health` through Nginx                         |
+| `simulator` | Its heartbeat file was updated recently                                  |
+| `backup`    | A backup newer than `BACKUP_INTERVAL_HOURS` exists in the volume         |
+
+`GET /api/health/db` is the readiness endpoint, and `make smoke` checks the
+whole stack end to end.
+
+**Status page.** <https://localhost/status> is public and linked from the
+footer. It shows one state per component (operational, degraded or down) and
+the time of the last check. It reads `GET /api/status`, which returns no
+sensitive data and always answers 200, also when the database is down:
+
+| Component   | Operational when                              | Otherwise                                        |
+|-------------|-----------------------------------------------|--------------------------------------------------|
+| `backend`   | The request is answered                       | Down: the page shows it when the request fails   |
+| `database`  | `SELECT 1` works                              | Down                                             |
+| `simulator` | A reading arrived in the last 5 minutes       | Down, with the time of the last reading          |
+| `backup`    | The last backup is newer than two intervals   | Degraded if older, down if there is none         |
+
+```bash
+curl -k https://localhost/api/status
+```
+
+**Automatic backups.** The `backup` service runs `pg_dump` compressed with gzip
+every `BACKUP_INTERVAL_HOURS` (24 by default) and keeps the last `BACKUP_KEEP`
+(7 by default) in the `backups_data` volume, named
+`aquaguard-YYYYMMDD-HHMMSS.sql.gz` in UTC. A dump is written under a temporary
+name and renamed only when it finishes, so an interrupted backup is never
+listed. Restarting the stack does not create an extra backup.
+
+```bash
+make backup      # one backup now
+make backups     # list them
+```
+
+**Disaster recovery.** `make restore FILE=<name>` loads a backup in a single
+transaction, so a failed restore leaves the database as it was:
+
+```bash
+make backups
+make restore FILE=aquaguard-20261010-194544.sql.gz
+make smoke
+```
+
+The full procedure, with the result of the end-to-end test (database volume
+deleted, backup restored, `make smoke` passing), is in
+[`docs/disaster-recovery.md`](docs/disaster-recovery.md).
+
 ### Demo data
 
 `make seed` (also run by `make demo`) loads `backend/seeds/seed_demo.py`. It is
@@ -208,13 +280,14 @@ with `ENV=production` because these passwords are public.
 | Account | Password | Role |
 |---|---|---|
 | `admin@aquaguard.dev` | `dev-admin-only` | Global admin |
-| `client@aquaguard.dev` | `dev-client-only` | Client of Residencias Alcalá |
-| `hotel@`, `comunidad@`, `abando@aquaguard.dev` | `dev-client-only` | One client per organization |
-| `aguasdelsur@aquaguard.dev` | `dev-client-only` | Disabled (suspended organization) |
+| `client@aquaguard.dev` | `dev-client-only` | Client of Residencias Collserola |
+| `hotel@`, `comunidad@`, `poblenou@aquaguard.dev` | `dev-client-only` | One client per organization |
+| `zonafranca@aquaguard.dev` | `dev-client-only` | Disabled (suspended organization) |
 
-- 5 organizations: Residencias Alcalá, Hotel Turia (TRIAL), Comunidad Mallorca
-  401, Polideportivo Abando and Aguas del Sur (SUSPENDED).
-- 6 buildings with floors, basements and real coordinates; 8 sensors spread
+- 5 organizations: Residencias Collserola, Hotel Gòtic (TRIAL), Comunidad
+  Mallorca 401, Polideportivo Poblenou and Aigües Zona Franca (SUSPENDED).
+- 6 buildings in Barcelona, each in a different district, with floors,
+  basements and real coordinates; 8 sensors spread
   across floors. `SENS-006` is out of range (its upper threshold is 2.0 bar)
   and `SENS-007` is offline. The simulator follows that story with
   `SIMULATOR_SCENARIOS`: `SENS-004` gets the `low` scenario (its alert stays
@@ -222,7 +295,7 @@ with `ENV=production` because these passwords are public.
   your `.env` predates this, copy `SIMULATOR_SENSOR_IDS` and
   `SIMULATOR_SCENARIOS` from `.env.example` (`make demo` warns about it).
 - 19 alerts over the last 30 days (16 resolved, 3 active), a week of hourly
-  readings, and one pending invitation for `nuevo.gestor@residenciasalcala.es`
+  readings, and one pending invitation for `nuevo.gestor@residenciascollserola.cat`
   with the code `AQUAGUARD-DEMO-INVITE`.
 
 ### Analytics export
@@ -234,8 +307,11 @@ admin gets all of them.
 
 - `from` is included and `to` excluded (ISO 8601; a date without time zone is
   UTC). Default: the last 30 days. Maximum: 366 days.
+- `format=json` returns the same rows as a JSON array (numbers, `null` for a
+  sensor without readings that day). The analytics panel (F19) builds its
+  KPIs and charts from it.
 - `422 INVALID_DATE_RANGE` if `from >= to` or the period is too long;
-  `422 VALIDATION_ERROR` for a malformed date or a `format` other than `csv`.
+  `422 VALIDATION_ERROR` for a malformed date or a `format` other than `csv`/`json`.
 - The same `from`/`to` dependency (`DateRange` in `app/shared/dependencies.py`)
   is meant for `overview` and `alerts/weekly` once B9 exists.
 
@@ -309,7 +385,7 @@ See [`backend/migrations/README.md`](backend/migrations/README.md) for details.
 
 ```text
 Browser -> Nginx gateway -> Vue frontend
-                         -> /api and /ws -> FastAPI backend -> PostgreSQL
+                         -> /api -> FastAPI backend -> PostgreSQL
 Simulator -> readings API -> FastAPI backend
 ```
 
@@ -337,6 +413,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the detailed design.
 ├── frontend/      Vue application and client-side services
 ├── gateway/       Nginx and TLS configuration
 ├── simulator/     Deterministic sensor-data simulator
+├── backup/        Scheduled PostgreSQL backups
 ├── docs/          Architecture, API, decisions, and implementation notes
 ├── scripts/       Project-management and automation scripts
 ├── compose.yaml   Local service orchestration
@@ -384,19 +461,26 @@ data types, and relationships once the schema is implemented.
 | Backend liveness endpoint (`GET /api/health`)                                                          | Implemented | TBD          | `curl -k https://localhost/api/health`                                                                                                                                                                                                                                                                                                   |
 | Database readiness endpoint (`GET /api/health/db`)                                                     | Implemented | TBD          | `curl -k https://localhost/api/health/db`                                                                                                                                                                                                                                                                                                |
 | Compose orchestration (network, volume, profiles)                                                      | Implemented | Eduardo      | `make up` then `make ps`                                                                                                                                                                                                                                                                                                                 |
-| Nginx gateway: HTTPS, HTTP redirect, SPA, `/api` and `/ws` proxy                                       | Implemented | Eduardo      | `curl -I http://localhost` returns 301, `curl -k https://localhost/api/health` returns 200                                                                                                                                                                                                                                               |
+| Nginx gateway: HTTPS, HTTP redirect, SPA, `/api` proxy, security headers, rate limit on public forms   | Implemented | Eduardo      | `curl -I http://localhost` returns 301, `curl -k https://localhost/api/health` returns 200                                                                                                                                                                                                                                               |
 | Sensor simulator (`simulator/`): normal, low, high and offline scenarios                               | Implemented | Eduardo      | `cd simulator && pytest` (33 tests); `make up && make seed && make sim`. The seed creates the sensors listed in `.env.example`, so readings persist via `POST /api/readings` (#24) with no manual setup; waits for `/api/health/db` before sending, exposes its own container `HEALTHCHECK`, and demo users get real Argon2 hashes (#89) |
+| Status page, automatic backups and disaster recovery (`/status`, `make backup`, `make restore`) | Implemented | Eduardo | `make up`, open <https://localhost/status>; `make backup && make backups`; `make restore FILE=<name> && make smoke`. `cd backend && python3 -m pytest -q tests/test_status.py` (10 tests) |
 | Health checks and smoke test (`make smoke`)                                                            | Implemented | Eduardo      | `make up && make seed && make smoke`; with `make sim` it also checks the simulator -> API -> database flow                                                                                                                                                                                                                               |
-| Authentication: register, login, logout and `GET /api/me`                                              | Implemented | Ana          | `cd backend && python3 -m pytest -q` (289 tests), or `curl -k -c c.txt -X POST https://localhost/api/auth/login -H 'Content-Type: application/json' -d '{"email":"...","password":"..."}'` then `curl -k -b c.txt https://localhost/api/me`                                                                                              |
+| Authentication: register, login, logout and `GET /api/me`                                              | Implemented | Ana          | `cd backend && python3 -m pytest -q` (486 tests), or `curl -k -c c.txt -X POST https://localhost/api/auth/login -H 'Content-Type: application/json' -d '{"email":"...","password":"..."}'` then `curl -k -b c.txt https://localhost/api/me`                                                                                              |
 | Permissions: `admin` sees every organization, `client` only its own, 401/403                           | Implemented | Ana          | `cd backend && python3 -m pytest -q tests/test_permisos.py`. Registering a client now requires `organization_id`. How the simulator authenticates on `POST /api/readings` is still open                                                                                                                                                  |
 | Sensors: list, detail, create and edit (`GET`/`POST /api/sensors`, `GET`/`PATCH /api/sensors/{id}`) | Implemented | Ana | `cd backend && python3 -m pytest -q tests/test_sensors.py tests/test_sensores_de_site_y_alta.py`. `status` is `OFFLINE` after 5 minutes without readings. Only an `admin` creates and edits; `external_id` (the device label) is unique per site, `unit` defaults to `bar` (#25, #29) |
 | Sites: list, detail and sensors (`GET /api/sites`, `GET /api/sites/{id}`, `GET /api/sites/{id}/sensors`) | Implemented | Ana | `cd backend && python3 -m pytest -q tests/test_sites.py tests/test_sensores_de_site_y_alta.py`. `admin` sees every organization's sites, `client` only its own (#29) |
-| Sensor readings: store and list (`POST /api/readings`, `GET /api/sensors/{id}/readings`)               | Implemented | Daruny, Ana  | `cd backend && python3 -m pytest -q` (289 tests). History is paginated and scoped to the session's organization `POST /api/readings` requires the simulator key in `X-Ingest-Key` (#106). |
+| Sensor readings: store and list (`POST /api/readings`, `GET /api/sensors/{id}/readings`)               | Implemented | Daruny, Ana  | `cd backend && python3 -m pytest -q` (486 tests). History is paginated and scoped to the session's organization `POST /api/readings` requires the simulator key in `X-Ingest-Key` (#106). |
 | Alerts: list, acknowledge, resolve; low/high pressure and sensor offline rules | Implemented | Daruny, Ana | `cd backend && python3 -m pytest -q tests/test_alerts_endpoints.py tests/test_sensor_offline.py`. A reading outside the thresholds opens `LOW_PRESSURE`/`HIGH_PRESSURE`; every minute the backend opens a `CRITICAL` `SENSOR_OFFLINE` for active sensors with no reading for more than 5 minutes (#28) |
 | Common API contract (B0): shared enums, `?q=` / `organization_id` / `site_id` filters, `*_name` and `floor` read fields | Implemented | Ana | `cd backend && python3 -m pytest -q tests/test_contrato_comun.py`; enums in the *Schemas* section of `/api/docs`. Filters narrow the session scope, never widen it: a client asking for another organization gets an empty list (#138) |
+| Organizations (B1): list with counters and filters, detail, create (with optional first site), edit, suspend, reactivate, extend trial, activate | Implemented | Ana | `cd backend && python3 -m pytest -q tests/test_organizations.py`. Admin only (401 without session, 403 for clients). A suspended organization's users cannot log in and their open sessions stop working (`403 ACCOUNT_DISABLED`); reactivating returns a trial to `TRIAL` and a client to `ACTIVE` (#139, #121) |
+| Buildings (B2): create, edit and delete sites (admin), floors, basements and building type, `sensor_count` and `status` from open alerts | Implemented | Ana | `cd backend && python3 -m pytest -q tests/test_sites_b2.py`. A site with sensors or documents cannot be deleted (`409 SITE_HAS_SENSORS` / `409 SITE_HAS_DOCUMENTS`), and removing floors that have sensors returns `422 FLOOR_OUT_OF_SITE`. `status` is `CRITICAL`/`WARNING` from the site's open alerts, `OK` otherwise (#139) |
+| Sensors (B3): floor on create and edit, `health`, `last_value` and `?health=` filter | Implemented | Ana | `cd backend && python3 -m pytest -q tests/test_sensors_b3.py`. `floor` must exist in the site (`-basements` to `floors - 1`, otherwise `422 FLOOR_OUT_OF_SITE`). `health` is `OFFLINE` after 5 minutes without readings, otherwise `CRITICAL`/`WARNING` from the sensor's open alerts, `OK` otherwise. `last_value` is the value of the last reading received (#139) |
 | Admin dashboard: KPIs, sites, sensors and active alerts summaries                                      | In progress | Florinda     | Run `./scripts/launch-frontend.sh`, visit `/admin` (layout and summaries render; sites come from mocks, sensors and alerts appear once stores are loaded)                                                                                                                                                                                |
 | Admin sites map: Barcelona municipal boundary, marker colour by active alert, zoom limited to the city | Implemented | Florinda     | Run `./scripts/launch-frontend.sh`, visit `/admin`, click "Ver mapa"                                                                                                                                                                                                                                                                     |
+| Admin alerts view: filters by client, state and severity, counters, ranking of sensors, acknowledge and resolve without reloading, open alerts counter in the admin menu | Implemented | Lylia, Eduardo | `make up && make seed`, log in as `admin@aquaguard.dev`, visit `/admin/alerts` (#38, #153) |
 | Admin clients and sites views (`/admin/clients`, `/admin/clients/:id`, `/admin/sites`) and Sidebar navigation | Implemented | Florinda | Run `./scripts/launch-frontend.sh`, visit `/admin/clients`, open a client, then use the Sidebar to go to Sites and click a site. Data comes from temporary mocks until the organizations and sites stores exist |
+| Public header: fixed white header with "Entrar" and "Prueba 7 días", active page highlighted; `aqua-500` and `aqua-700` palette tones added | Implemented | Florinda | Run `./scripts/launch-frontend.sh`, visit `/` and `/login`, scroll to check the header stays fixed. "Prueba 7 días" points to `/prueba`, which shows the 404 page until F15-P (#166) |
+| Public landing and legal page: light hero with example building card, how it works, Barcelona districts, alert lifecycle, roles table and final call to action; privacy and terms merged into `/legal` with `#privacidad` and `#terminos` anchors; light `Footer` variant for public pages | Implemented | Florinda | Run `./scripts/launch-frontend.sh`, visit `/`, then click "Términos de servicio" in the footer: it opens `/legal` scrolled to the terms. `/privacy` and `/terms` still open the old views until F1 adds the redirects |
 
 Every pull request that adds a feature should update this table with its status,
 contributors, and a reproducible verification method.
@@ -405,19 +489,21 @@ contributors, and a reproducible verification method.
 
 The project must reach at least 14 validated points. The following selection is
 the team's current AquaGuard plan, based on the product architecture document.
+It adds up to 13: the real-time module (WebSockets, 2 points) was dropped from
+the plan, so one more point still has to be assigned.
 
 | Category           | Module                                          | Type  | Points | Status                          | Contributors                          |
 |--------------------|-------------------------------------------------|-------|-------:|---------------------------------|---------------------------------------|
 | Web                | Frontend and backend frameworks (Vue + FastAPI) | Major |      2 | In progress - not yet countable | Ana, Florinda, Lylia, Daruny, Eduardo |
 | Web                | ORM (SQLAlchemy)                                | Minor |      1 | In progress - not yet countable | Daruny                                |
-| Web                | Real-time features (WebSockets)                 | Major |      2 | Planned                         | Ana, Lylia, Daruny, Eduardo           |
 | User Management    | Advanced permissions                            | Major |      2 | Planned                         | Ana, Daruny, Lylia                    |
 | User Management    | Organization system                             | Major |      2 | Planned                         | Ana, Daruny                           |
 | Data and Analytics | Advanced analytics dashboard                    | Major |      2 | Planned                         | Ana, Daruny, Florinda, Lylia          |
 | Web                | Advanced search                                 | Minor |      1 | Planned                         | Ana, Daruny, Florinda, Lylia          |
 | Data and Analytics | Data export and import                          | Minor |      1 | Planned                         | Ana, Daruny, Florinda, Lylia          |
 | Web                | Notification system                             | Minor |      1 | Planned                         | Ana, Daruny, Florinda, Lylia          |
-|                    | **Planned total**                               |       | **14** |                                 |                                       |
+| DevOps             | Health checks, status page and backups          | Minor |      1 | Implemented                     | Eduardo                               |
+|                    | **Planned total**                               |       | **13** |                                 |                                       |
 
 ### Module implementation plan
 
@@ -425,21 +511,21 @@ the team's current AquaGuard plan, based on the product architecture document.
   the SPA and modular backend foundations.
 - **ORM:** SQLAlchemy maps the domain models to PostgreSQL and isolates database
   access behind repositories.
-- **Real-time features:** WebSockets will broadcast new readings and alerts and
-  handle connection and disconnection events. This depends on the REST flow
-  being stable first.
 - **Advanced permissions:** Users will have roles and different CRUD actions or
   views according to their permissions.
 - **Organization system:** Organizations will own members, sites, and related
   actions with tenant isolation.
 - **Advanced analytics dashboard:** The Admin area will provide interactive
-  charts, KPIs, date ranges, filters, real-time updates, and export support.
+  charts, KPIs, date ranges, filters, periodic refresh, and export support.
 - **Advanced search:** Search will include filters, sorting, and pagination for
   sites, sensors, alerts, and related data.
 - **Data export and import:** The project will provide validated CSV/JSON export
   and import flows, including simple bulk operations where applicable.
 - **Notification system:** Relevant creation, update, and deletion events will
   generate user-facing notifications.
+- **Health checks, status page and backups:** Every service has a health check,
+  `/status` shows the state of each component, and the database is backed up
+  on a schedule with a tested restore procedure.
 
 ### Dependencies and validation evidence
 
@@ -447,16 +533,17 @@ the team's current AquaGuard plan, based on the product architecture document.
   Vue.
 - Authentication, roles, and organization isolation are prerequisites for the
   permissions and organization modules.
-- Readings and alerts must be persisted before real-time broadcasting and
-  analytics can be demonstrated.
+- Readings and alerts must be persisted before analytics can be demonstrated.
 - Advanced search and export/import depend on stable domain endpoints and
   validated data contracts.
 - Every claimed module must include tests, a reproducible demo path, and the
   responsible contributors in this section.
 
-The DevOps health/status system is a separate 1-point candidate and should be
-tracked as a bonus or additional module after the planned 14 points are
-complete. Major modules are worth 2 points and minor modules are worth 1 point.
+The DevOps health/status system (health checks, status page, automated backups
+and disaster recovery, 1 point) is implemented and described in
+[Health checks, status page and backups](#health-checks-status-page-and-backups).
+It counts towards the planned total above. Major modules are worth 2 points and
+minor modules are worth 1 point.
 
 ## Team information
 
@@ -490,21 +577,24 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 
 ### Ana (`anamedin`)
 
-| Issue | Contribution                                                                                  | Pull requests  | Status      |
-|-------|-----------------------------------------------------------------------------------------------|----------------|-------------|
-| #22   | FastAPI modular architecture (8 routers), unified error format and health checks              | #46            | Implemented |
-| #23   | Pydantic schemas and OpenAPI contract, including schemas published before their routes        | #46            | Implemented |
-| #24   | `POST /api/readings`: stores the reading, idempotent by `id`, evaluates alert rules           | #72            | Implemented |
-| #25   | `GET /api/sensors`, `GET /api/sensors/{id}` and reading history; `OFFLINE` after 5 minutes    | #77, #113      | Implemented |
-| #26   | Register, login, logout and `GET /api/me`: Argon2 hashing, signed httpOnly session cookie     | #75, #79       | Implemented |
-| #27   | Roles and per-organization isolation (`require_role`, `get_org_scope`)                        | #105           | Implemented |
-| #28   | Alerts: list, acknowledge, resolve; `LOW_PRESSURE`/`HIGH_PRESSURE` and `SENSOR_OFFLINE` rules | #78, #98, #118 | Implemented |
-| #29   | Sites, sensors of a site, sensor create and edit                                              | #108, #115     | Implemented |
-| #30   | Pytest coverage of critical routes                                                            | #109, #114     | Implemented |
-| #106  | `POST /api/readings` requires the simulator key (`X-Ingest-Key`)                              | #116           | Implemented |
-| #138  | B0 common contract: shared enums, `q`/`organization_id`/`site_id` filters, `*_name` fields    | #180           | Implemented |
-| —     | List of the redesign issues (B0–B18) and their mocks                                          | #124           | Implemented |
-| —     | Cleanup: outdated comments, dead 501 code, notes in `docs/ana/` brought up to date            | #181           | In review   |
+| Issue | Contribution                                                                                   | Pull requests        | Status      |
+|-------|------------------------------------------------------------------------------------------------|----------------------|-------------|
+| #22   | FastAPI modular architecture (8 routers), unified error format and health checks              | #46                  | Implemented |
+| #23   | Pydantic schemas and OpenAPI contract, including schemas published before their routes        | #46                  | Implemented |
+| #24   | `POST /api/readings`: stores the reading, idempotent by `id`, evaluates alert rules            | #72                  | Implemented |
+| #25   | `GET /api/sensors`, `GET /api/sensors/{id}` and reading history; `OFFLINE` after 5 minutes     | #77, #113            | Implemented |
+| #26   | Register, login, logout and `GET /api/me`: Argon2 hashing, signed httpOnly session cookie      | #75, #79             | Implemented |
+| #27   | Roles and per-organization isolation (`require_role`, `get_org_scope`)                         | #105                 | Implemented |
+| #28   | Alerts: list, acknowledge, resolve; `LOW_PRESSURE`/`HIGH_PRESSURE` and `SENSOR_OFFLINE` rules   | #78, #98, #118       | Implemented |
+| #29   | Sites, sensors of a site, sensor create and edit                                               | #108, #115           | Implemented |
+| #30   | Pytest coverage of critical routes                                                             | #109, #114           | Implemented |
+| #106  | `POST /api/readings` requires the simulator key (`X-Ingest-Key`)                               | #116                 | Implemented |
+| #138  | B0 common contract: shared enums, `q`/`organization_id`/`site_id` filters, `*_name` fields     | #180                 | Implemented |
+| #139  | B1 organizations: list with counters, create with first site, edit, suspend/reactivate, trial | —                    | In review   |
+| #139  | B2 buildings: create, edit and delete sites, floors and building type, sensor count and status  | —              | In review   |
+| #139  | B3 sensors: floor on create and edit, health, last value and health filter                     | —              | In review   |
+| —     | List of the redesign issues (B0–B18) and their mocks                                           | #124                 | Implemented |
+| —     | Cleanup: outdated comments, dead 501 code, notes in `docs/ana/` brought up to date             | #181                 | Implemented |
 
 Notes for each issue, with diagrams and the decisions taken, are in [`docs/ana/`](docs/ana/).
 
@@ -535,6 +625,7 @@ One pull request groups five tasks of the database and backend area:
 | Issue 132 — `documents` table with the metadata of each building's files: `kind` CHECK (PLAN/REPORT/INVOICE/PHOTO/OTHER), `size` in bytes (`BigInteger`, CHECK ≥ 0), unique `storage_key`, index on `(site_id, created_at)`, ON DELETE CASCADE from `sites` and `organizations` and SET NULL from the uploader                                                                                                                                                                                            | [#PR](https://github.com/Anagamedina/ft_transcendence/pull/PR)   | Only metadata: the file lives in the storage under `storage_key`, which is unique so two rows cannot delete each other's file; the CASCADE from `organizations` never fires on its own because `sites.organization_id` is RESTRICT, so documents go away with their sites; verified `upgrade`/`downgrade`/`upgrade`, `make migration-check` (no drift) and the cascade in PostgreSQL.                                                                                                                  |
 | Issue 133 — `purge_organization(db, id)` in `organizations/purge.py`: deletes an organization and all its data (readings → alerts → sensors → documents → sites → invitations → users → organization) in one transaction, returning the counts per table                                                                                                                                                                                                                                                  | [#PR](https://github.com/Anagamedina/ft_transcendence/pull/PR)   | Foreign keys stay RESTRICT so a stray DELETE cannot wipe data; each table is deleted explicitly with one set-based statement (readings are never loaded into Python); organization, sites and sensors are locked first so a reading arriving mid-purge waits instead of breaking it; admins attached to the organization are detached, not deleted; tests run on SQLite and on a throwaway PostgreSQL database, plus a dry run on the dev data (5,094 readings in 48 ms, rolled back).                 |
 | Issue 134 (B18) — Analytics date range and CSV export: shared `DateRange` dependency (`from`/`to`, last 30 days by default, 422 if `from >= to` or over 366 days) and `GET /api/analytics/export?format=csv` with readings aggregated per sensor and day plus that day's alerts, scoped by `OrgScope`, downloaded via `Content-Disposition`                                                                                                                                                               | [#PR](https://github.com/Anagamedina/ft_transcendence/pull/PR)   | B9 does not exist yet, so `overview` and `alerts/weekly` are not touched: they only need `rango: DateRange` once Ana adds them; everything is aggregated in SQL (GROUP BY), never row by row; one table mixing readings and alerts so it opens directly in a spreadsheet; tests run on SQLite and on a throwaway PostgreSQL database (the `engine` fixture moved to `tests/integration/conftest.py`), and the download was checked through the gateway as client and admin.                            |
+| Issue 135 (F19) — Analytics panel in the admin dashboard: line (alerts per day), pie (alerts by severity) and horizontal bar (alerts per client or sensor) Chart.js charts with tooltips, 7/30/90-day presets and from/to inputs that reload KPIs and charts, "Exportar CSV" for the chosen period, refresh every 30 s paused while the tab is hidden, loading/empty/error states | [#PR](https://github.com/Anagamedina/ft_transcendence/pull/PR) | B9 does not exist yet, so the charts read `GET /api/analytics/export?format=json` (added to B18) and the period KPIs are computed in the `analytics` store; stale responses are dropped when the range changes; a failed background refresh keeps the data on screen; the line uses monotone interpolation so counts never dip below 0; palette checked with a colorblind validator; also works with `VITE_USE_MOCK=true`; checked in the browser (range change, CSV, 30 s refresh, no console errors). |
 | Issue 136 (D5+D7) — Performance indexes and per-sensor simulator scenarios: `readings(sensor_id, created_at)`, `alerts(status, severity, created_at)`, `alerts(sensor_id, status)` and `users(organization_id)` (migration `3c9d2e7f1a40`); the last-reading queries (sensor status, offline rule) use a per-sensor `max()` that reads one index entry; `SIMULATOR_SCENARIOS=<sensor_id>:<scenario>` with `SIMULATOR_SCENARIO` as default, demo values in `.env.example` | [#PR](https://github.com/Anagamedina/ft_transcendence/pull/PR) | Measured with EXPLAIN ANALYZE on a throwaway database (1.6M readings, 200k alerts, 4k users): offline check 72 s → 10.6 ms, sensor list `last_seen_at` 9 → 1.8 ms, open alert per reading 0.56 → 0.15 ms; `alerts(status, created_at)` is kept because dropping it made the alert history 0.3 → 308 ms; no `sites(organization_id)` index, `uq_sites_organization_name` already starts with it; invalid `SIMULATOR_SCENARIOS` (bad UUID, unknown scenario, sensor not listed, duplicate) stops the simulator with a clear error; SENS-004 gets `low` so its seeded alert stays real, SENS-007 `offline`; checked with `make demo`. |
 
 | Florinda (`flperez-`) | Features/modules                                                                                                                                                                                                                                                             | Pull requests                                                    | Challenges and solutions                                                                                                                                                                                                                                                                                                     |
@@ -565,12 +656,15 @@ development without a running backend by implementing a mock adapter with the sa
   states and prevented double submission. Authentication was tested with the MockAdapter 
   while the backend was not yet available.|                                              |
   Route guards and role-based navigation | Implemented protected routes using Vue Router navigation guards and Pinia authentication state. Added role-based access control for client and admin dashboards, redirects for unauthorized access, session initialization, and a custom 404 page for unknown routes. | #174 | Ensured that unauthenticated users cannot access protected pages and that authenticated users are redirected according to their roles. Centralized authentication checks in the router and handled unknown routes with a dedicated Not Found view. |
+  | Admin Sensors and Alerts views |# |Implemented Admin views to display sensors and alerts, with basic filtering and loading, error, and empty states. Connected the views to the existing Pinia stores and API services, and enabled navigation from the Admin sidebar. | #XXX | Reused the existing Services/Stores architecture and MockAdapter fixtures to develop and test the views without requiring a running backend. Kept data-fetching logic separate from presentation components and verified sensor and alert retrieval using mocked API responses. 
 
 | Eduardo (`egalindo`) | Features/modules             | Pull requests | Challenges and solutions |
 |----------------------|------------------------------|---------------|--------------------------|
 | 09                   | Docker Compose stack         | Implemented   |
 | 10                   | Nginx gateway and HTTPS      | Implemented   |
 | 11                   | Health checks and smoke test | Implemented   |
+| 14                   | Environment variables and generated keys | Implemented   |
+| 15                   | Status page, backups and disaster recovery | Implemented   |
 
 ## Resources
 
@@ -622,6 +716,9 @@ label planned work separately from implemented work.
 - The gateway serves a production build of the SPA. Frontend development still
   uses the Vite dev server through `./scripts/launch-frontend.sh`.
 - Database models and migration bodies are not implemented yet.
+- Backups live in a Docker volume on the same host as the database. They
+  survive the loss of the database volume, but not the loss of the host or
+  `make fclean`; `docs/disaster-recovery.md` explains how to copy them out.
 - The README placeholders must be completed by the team.
 
 ## License

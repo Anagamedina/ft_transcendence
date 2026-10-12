@@ -31,6 +31,14 @@ const routes = [
     component: () => import("../views/public/TermsView.vue"),
   },
   {
+    path: "/legal",
+    component: () => import("../views/public/LegalView.vue"),
+  },
+  {
+    path: "/status",
+    component: () => import("../views/public/StatusView.vue"),
+  },
+  {
     path: "/test",
     component: () => import("../views/public/TestView.vue"),
   },
@@ -76,6 +84,18 @@ const routes = [
   path: "/:pathMatch(.*)*",
   component: () => import("../views/public/NotFoundView.vue"),
   },
+  {
+    path: '/admin/sensors',
+    name: 'AdminSensors',
+    component: () => import("../views/admin/SensorsView.vue"),
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: '/admin/alerts',
+    name: 'AdminAlerts',
+    component: () => import("../views/admin/AlertsView.vue"),
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
 ];
 
 const router = createRouter({
@@ -85,6 +105,10 @@ const router = createRouter({
   scrollBehavior(to, from, savedPosition) {
     if (savedPosition) {
       return savedPosition;
+    }
+    // Scroll to the anchor (e.g. /legal#terminos), leaving room for the sticky header
+    if (to.hash) {
+      return { el: to.hash, top: 80 };
     }
     return { top: 0 };
   },

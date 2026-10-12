@@ -28,8 +28,10 @@ B17, GitHub #138 a #150). Cada carpeta contiene:
 
 | Carpeta | Issue | Prio | Qué | Depende de | Estado |
 |---|---|---|---|---|---|
-| [12-contrato-comun-b0](12-contrato-comun-b0/) | #138 | P1 | B0 — Enums, filtros, paginación, campos `*_name` | — | ✅ Hecha en rama `ana/138-contrato-comun` (falta PR) |
-| — | #139 | P1 | B1+B2+B3 — Organizaciones, edificios, sensores con health (absorbe #121) | B0, D0-D2 ✅ | Pendiente |
+| [12-contrato-comun-b0](12-contrato-comun-b0/) | #138 | P1 | B0 — Enums, filtros, paginación, campos `*_name` | — | ✅ Hecha (PR #180) |
+| [13-organizaciones-b1](13-organizaciones-b1/) | #139 | P1 | **B1** — Organizaciones (absorbe #121) | B0 ✅, D0-D2 ✅ | 🚧 En curso (rama `ana/139-b1-organizaciones`) |
+| [14-edificios-b2](14-edificios-b2/) | #139 | P1 | **B2** — Edificios: alta, edición, borrado, plantas y tipo | B1 | 🚧 En curso (rama `ana/139-b2-edificios`) |
+| [15-sensores-b3](15-sensores-b3/) | #139 | P1 | **B3** — Sensores: planta, `health`, `last_value` y `?health=` | B2 | 🚧 En curso (rama `ana/139-b3-sensores`) |
 | — | #143 | P1 | B7 — Series de 7 días para gráficas | — | Pendiente (paralelo) |
 | — | #140 | P1 | B10 — Registro público con prueba de 7 días | B0, B1, I0 (#151) | Pendiente |
 | — | #142 | P1 | B5 — Alertas: filtros, ACKNOWLEDGED, quién actuó | B0, B3 | Pendiente |
