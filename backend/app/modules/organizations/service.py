@@ -114,7 +114,7 @@ class OrganizationService:
         La organización y el edificio van en la misma transacción: si el
         edificio falla, no queda una organización a medias.
         """
-        nombre = _nombre_valido(payload.name)
+        nombre = nombre_valido(payload.name)
         self._nombre_libre(nombre)
 
         datos = payload.model_dump(include=set(_CONTACTO))
@@ -149,7 +149,7 @@ class OrganizationService:
                 raise DomainValidationError(
                     "El nombre no puede quedar vacío.", code="INVALID_NAME"
                 )
-            cambios["name"] = _nombre_valido(cambios["name"])
+            cambios["name"] = nombre_valido(cambios["name"])
             self._nombre_libre(cambios["name"], exclude_id=organizacion.id)
 
         try:
@@ -276,10 +276,11 @@ class OrganizationService:
         return _to_response(organizacion, contadores[organizacion.id])
 
 
-def _nombre_valido(nombre: str) -> str:
+def nombre_valido(nombre: str) -> str:
     """
     El nombre ya llega recortado (`ApiRequest`); aquí se rechaza el vacío
-    con el código `INVALID_NAME` de la #121.
+    con el código `INVALID_NAME` de la #121. La usa también el registro
+    público (B10), que crea la organización de quien se registra.
     """
     nombre = nombre.strip()
     if not nombre:
