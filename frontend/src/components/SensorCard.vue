@@ -1,7 +1,7 @@
 <template>
   <div
     class="bg-white border-2 rounded-xl shadow-lg p-6 transition h-full flex flex-col"
-    :class="status.borderClass"
+    :class="borderClass"
   >
     <div
       class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2"
@@ -17,12 +17,7 @@
           {{ location }}
         </p>
       </div>
-      <span
-        class="self-start shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold"
-        :class="[status.bgClass, status.textClass]"
-      >
-        {{ status.icon }} {{ status.label }}
-      </span>
+      <StatusPill type="SensorHealth" :value="health" class="self-start shrink-0" />
     </div>
 
     <div class="mt-auto pt-4">
@@ -37,19 +32,26 @@
 
 <script setup>
 import { computed } from "vue";
-import { useSensorStatus } from "../composables/useSensorStatus";
+import StatusPill from "./StatusPill.vue";
+import { useLabels } from "../composables/useLabels";
 
 const props = defineProps({
   name: { type: String, required: true },
   location: { type: String, default: "" },
-  // 'normal' | 'warning' | 'critical' | 'offline' — llega ya calculado, este
-  // componente solo lo traduce visualmente, no decide umbrales.
-  statusKey: { type: String, default: "offline" },
+  // SensorHealth value (OK | WARNING | CRITICAL | OFFLINE). Old mock keys
+  // (normal | warning | critical | offline) are still accepted. It arrives
+  // already computed: this component only shows it, it never decides thresholds.
+  statusKey: { type: String, default: "OFFLINE" },
   value: { type: [Number, String], default: null },
   unit: { type: String, default: "bar" },
 });
 
-const status = computed(() => useSensorStatus(props.statusKey));
+const { tone, toneClasses, toSensorHealth } = useLabels();
+
+const health = computed(() => toSensorHealth(props.statusKey));
+const borderClass = computed(
+  () => toneClasses(tone("SensorHealth", health.value)).border,
+);
 const hasReading = computed(
   () => props.value !== null && props.value !== undefined && props.value !== "",
 );

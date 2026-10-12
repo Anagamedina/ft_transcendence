@@ -17,11 +17,14 @@ export default {
           800: '#0f3a5f',     // Mid dark blue: hover on Sidebar/Footer
           900: '#0c2340',     // Dark navy: Sidebar/Footer background, titles
         },
-        // Status colors (alerts and feedback)
-        success: '#10b981',
-        warning: '#f59e0b',
-        danger: '#ef4444',
-        info: '#3b82f6',
+        // Status colors (alerts and feedback).
+        // DEFAULT keeps existing classes working (text-success, border-danger...).
+        // light + dark are used together in status pills: light background with
+        // dark text reaches WCAG AA contrast.
+        success: { DEFAULT: '#10b981', light: '#d1fae5', dark: '#065f46' },
+        warning: { DEFAULT: '#f59e0b', light: '#fef3c7', dark: '#92400e' },
+        danger: { DEFAULT: '#ef4444', light: '#fee2e2', dark: '#991b1b' },
+        info: { DEFAULT: '#3b82f6', light: '#dbeafe', dark: '#1e40af' },
       }
     }
   },
