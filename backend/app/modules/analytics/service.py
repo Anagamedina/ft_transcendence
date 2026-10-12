@@ -23,7 +23,7 @@ from app.modules.analytics.repository import AnalyticsRepository
 from app.modules.analytics.schemas import EXPORT_COLUMNS
 from app.shared.dependencies import DbSession
 
-# Excel only reads a CSV as UTF-8 (accents in "Alcalá") if it starts with
+# Excel only reads a CSV as UTF-8 (accents in "Gràcia") if it starts with
 # a BOM. Other tools ignore it.
 UTF8_BOM = "\ufeff"
 

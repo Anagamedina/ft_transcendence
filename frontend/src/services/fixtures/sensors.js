@@ -18,7 +18,7 @@ export const sensors = [
   {
     id: '471ebe4f-3ff0-45f5-9558-2567851310aa',
     site_id: '11111111-1111-4111-8111-111111111111',
-    name: 'Pressure Sensor Madrid 02',
+    name: 'Pressure Sensor Diagonal 02',
     location: 'Sala técnica',
     sensor_type: 'PRESSURE',
     min_pressure: 1.5,
