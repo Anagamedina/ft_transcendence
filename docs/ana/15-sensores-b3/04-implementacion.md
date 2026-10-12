@@ -8,8 +8,12 @@ Rama: `ana/139-b3-sensores` (sale de la B2, `ana/139-b2-edificios`).
    severidades)`. `OFFLINE` gana a todo; después `CRITICAL`, `WARNING` y
    `OK`. El enum `SensorHealth` ya existía desde la B0.
 2. **Repository** (`sensors/repository.py`):
-   - `live(sensor_ids)`: última lectura (`row_number()` por sensor) y
-     gravedades de las alertas `ACTIVE`, en 2 consultas para toda la página.
+   - `live(sensor_ids)`: última lectura y gravedades de las alertas
+     `ACTIVE`, en 2 consultas para toda la página. La última lectura salía
+     con `row_number()` por sensor; en la D5 (#136) pasó a una subconsulta
+     `ORDER BY … LIMIT 1` que usa `ix_readings_sensor_created_at` (de
+     ~465 ms a ~1 ms con 59 000 lecturas), y se borró
+     `last_seen_by_sensor`, que ya no usaba nadie.
    - `_filtro_salud`: la misma regla como condición SQL, para `?health=`.
    - `get_for_update(sensor_id)`: el sensor bloqueado para editarlo.
 3. **Schemas**: `floor` en `SensorCreate` (0 por defecto) y en
