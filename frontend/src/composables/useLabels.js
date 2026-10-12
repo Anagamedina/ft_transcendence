@@ -24,7 +24,6 @@ const TONE_CLASSES = {
 const LABELS = {
   OrganizationStatus: {
     TRIAL: { text: 'En prueba', tone: 'info' },
-    TRIAL_ENDED: { text: 'Prueba terminada', tone: 'warning' },
     ACTIVE: { text: 'Activo', tone: 'success' },
     SUSPENDED: { text: 'Suspendido', tone: 'neutral' },
   },
@@ -55,10 +54,10 @@ const LABELS = {
   },
   BuildingType: {
     HOTEL: { text: 'Hotel' },
-    RESIDENTIAL: { text: 'Comunidad de vecinos' },
+    COMMUNITY: { text: 'Comunidad de vecinos' },
     OFFICE: { text: 'Oficinas' },
     SPORTS: { text: 'Instalación deportiva' },
-    NURSING_HOME: { text: 'Residencia' },
+    RESIDENCE: { text: 'Residencia' },
     INDUSTRIAL: { text: 'Industrial' },
     OTHER: { text: 'Otro' },
   },
