@@ -24,7 +24,7 @@ Estados **guardados** frente a estados **calculados**:
   `AlertSeverity`, `AlertStatus`. Si se cambia uno, hay que cambiar su
   CHECK con una migración (Daruny).
 - Calculados al responder, nunca se guardan: `SiteStatus`,
-  `SensorStatus`, `SensorHealth`, `AlertState`.
+  `SensorStatus`, `SensorHealth`, `AlertState`, `InvitationStatus`.
 """
 
 from __future__ import annotations
@@ -197,3 +197,23 @@ class AlertState(str, Enum):
         if acknowledged_at is not None:
             return cls.ACKNOWLEDGED
         return cls.ACTIVE
+
+
+# ---------------------------------------------------------
+# INVITACIONES — contrato de la B4 (#141)
+# ---------------------------------------------------------
+class InvitationStatus(str, Enum):
+    """
+    Estado de una invitación. Calculado: la tabla (D3, Daruny) guarda
+    fechas, no un estado.
+
+    - `ACCEPTED` → `accepted_at` tiene fecha.
+    - `REVOKED`  → `revoked_at` tiene fecha.
+    - `EXPIRED`  → ni aceptada ni revocada, y `expires_at` ya pasó.
+    - `PENDING`  → ni aceptada ni revocada, y todavía no ha caducado.
+    """
+
+    PENDING = "PENDING"
+    ACCEPTED = "ACCEPTED"
+    REVOKED = "REVOKED"
+    EXPIRED = "EXPIRED"

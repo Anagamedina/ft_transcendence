@@ -4,7 +4,7 @@
 |---|---|---:|
 | Estado frente a salud | `status` responde «¿manda datos?»; `health` junta eso con sus alertas | 15 min |
 | La misma regla en Python y en SQL | `calcular_salud` para la respuesta, `_filtro_salud` para filtrar antes de paginar | 25 min |
-| Función de ventana | `row_number() OVER (PARTITION BY sensor_id ORDER BY created_at DESC)` saca la última lectura de cada sensor en una sola consulta | 30 min |
+| Última lectura por sensor | Una subconsulta `ORDER BY created_at DESC, id DESC LIMIT 1` por sensor lee solo la última entrada de `ix_readings_sensor_created_at` (D5). Un `row_number() OVER (PARTITION BY sensor_id …)` da lo mismo, pero numera todas las lecturas antes de quedarse con la primera | 30 min |
 | `SELECT … FOR UPDATE` | Bloquear el site mientras se comprueban plantas, para que dos operaciones no validen a la vez contra datos viejos | 30 min |
 | Orden de los bloqueos | El sensor primero y el site después; quien edita el site no bloquea sensores, así que no hay interbloqueo | 20 min |
 

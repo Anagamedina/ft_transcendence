@@ -12,7 +12,7 @@ Rules:
 - Dates are relative to now and recalculated on every run, so "today" and
   "this week" always have data.
 - Sensors are looked up by their fixed UUID: the simulator
-  (SIMULATOR_SENSOR_IDS) and `make smoke` use those ids.
+  (SIMULATOR_SENSOR_IDS, SIMULATOR_SCENARIOS) and `make smoke` use those ids.
 - Refuses to run with ENV=production: the demo passwords are public.
 """
 
@@ -68,8 +68,6 @@ PREVIOUS_USER_EMAILS = {
     "poblenou@aquaguard.dev": "abando@aquaguard.dev",
     "zonafranca@aquaguard.dev": "aguasdelsur@aquaguard.dev",
 }
-
-TERMS_VERSION = "2026-09"
 
 # Shown in the README: the invitation can be accepted with this code.
 DEMO_INVITATION_CODE = "AQUAGUARD-DEMO-INVITE"
@@ -213,12 +211,15 @@ SITES = [
 
 # The first three keep the ids that the simulator and the smoke test use.
 #
-# Two sensors have a story:
+# Three sensors have a story (SIMULATOR_SCENARIOS in .env.example keeps the
+# simulator in line with it):
+# - 4 (Gòtic, planta 6) has LOW PRESSURE: its alert stays active and the
+#   simulator sends it the `low` scenario.
 # - 6 (Poblenou) is OUT OF RANGE: its upper threshold is 2.0 bar and the
 #   simulator's normal scenario sends 2.5-4.5 bar, so every reading stays
-#   above it without changing the simulator.
-# - 7 (Aigües Zona Franca) is OFFLINE: it is not in SIMULATOR_SENSOR_IDS and its
-#   last reading is OFFLINE_SINCE old.
+#   above it.
+# - 7 (Aigües Zona Franca) is OFFLINE: the simulator sends it the `offline`
+#   scenario (no readings) and its last reading is OFFLINE_SINCE old.
 SENSORS = [
     {"n": 1, "site": "sant_gervasi", "external_id": "SENS-001", "name": "Presión entrada",
      "location": "Sótano - Sala de bombas", "floor": -1, "low": "1.500", "high": "6.000"},
@@ -391,7 +392,9 @@ def _upsert_user(
     user.organization_id = organization_id
     user.is_active = data.get("is_active", True)
     user.last_login_at = now - timedelta(hours=data["last_login_hours"])
-    user.terms_version = TERMS_VERSION
+    # The same version as the public sign-up (B10), so the demo users and a
+    # new account show the same terms in "My account".
+    user.terms_version = app_settings.TERMS_VERSION
     user.terms_accepted_at = now - timedelta(days=60)
     db.flush()
     return user

@@ -187,61 +187,14 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
-          <tr v-for="alert in filteredAlerts" :key="alert.id">
-            <td class="min-w-48 px-4 py-3 text-slate-800">
-              {{ alert.message || '—' }}
-              <span class="block text-xs text-slate-400">{{ alert.type }}</span>
-            </td>
-            <td class="px-4 py-3 text-slate-600">
-              {{ alert.organization_name || '—' }}
-            </td>
-            <td class="px-4 py-3 text-slate-600">
-              {{ alert.sensor_name || '—' }}
-              <span class="block text-xs text-slate-400">{{ alert.site_name }}</span>
-            </td>
-            <td class="whitespace-nowrap px-4 py-3">
-              <span
-                class="rounded-full px-2.5 py-1 text-xs font-medium"
-                :class="severityClass(alert.severity)"
-              >
-                {{ severityLabel(alert.severity) }}
-              </span>
-            </td>
-            <td class="whitespace-nowrap px-4 py-3 text-slate-600">
-              {{ stateLabel(alert.state) }}
-            </td>
-            <td class="whitespace-nowrap px-4 py-3 text-slate-600">
-              {{ formatDate(alert.created_at) }}
-            </td>
-            <td class="whitespace-nowrap px-4 py-3">
-              <div class="flex flex-wrap gap-2">
-                <button
-                  v-if="alert.state === 'ACTIVE'"
-                  type="button"
-                  class="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium hover:bg-slate-50 disabled:opacity-50"
-                  :disabled="busyAlertId === alert.id"
-                  @click="acknowledge(alert.id)"
-                >
-                  Reconocer
-                </button>
-                <button
-                  v-if="alert.status === 'ACTIVE'"
-                  type="button"
-                  class="rounded-md bg-aqua-900 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-aqua-800 disabled:opacity-50"
-                  :disabled="busyAlertId === alert.id"
-                  @click="resolve(alert.id)"
-                >
-                  Resolver
-                </button>
-                <span
-                  v-if="alert.status === 'RESOLVED'"
-                  class="text-xs text-slate-500"
-                >
-                  Sin acciones
-                </span>
-              </div>
-            </td>
-          </tr>
+          <AlertRow
+            v-for="alert in filteredAlerts"
+            :key="alert.id"
+            :alert="alert"
+            :busy="busyAlertId === alert.id"
+            @acknowledge="acknowledge"
+            @resolve="resolve"
+          />
         </tbody>
       </table>
 
@@ -256,6 +209,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import AdminLayout from '../../layouts/AdminLayout.vue'
+import AlertRow from '../../components/AlertRow.vue'
 import { useAlertsStore } from '../../stores/alerts.js'
 
 const alertStore = useAlertsStore()
@@ -390,47 +344,6 @@ function resetFilters() {
   clientFilter.value = 'ALL'
   stateFilter.value = 'ALL'
   severityFilter.value = 'ALL'
-}
-
-function stateLabel(state) {
-  const labels = {
-    ACTIVE: 'Sin reconocer',
-    ACKNOWLEDGED: 'Reconocida',
-    RESOLVED: 'Resuelta',
-  }
-
-  return labels[state] || state || '—'
-}
-
-function severityLabel(severity) {
-  const labels = {
-    CRITICAL: 'Crítica',
-    WARNING: 'Advertencia',
-  }
-
-  return labels[severity] || severity || '—'
-}
-
-function severityClass(severity) {
-  const classes = {
-    CRITICAL: 'bg-red-100 text-red-800',
-    WARNING: 'bg-amber-100 text-amber-800',
-  }
-
-  return classes[severity] || 'bg-slate-100 text-slate-700'
-}
-
-function formatDate(value) {
-  if (!value) return '—'
-
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) return '—'
-
-  return new Intl.DateTimeFormat('es-ES', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  }).format(date)
 }
 
 onMounted(() => {

@@ -29,14 +29,15 @@ B17, GitHub #138 a #150). Cada carpeta contiene:
 | Carpeta | Issue | Prio | Qué | Depende de | Estado |
 |---|---|---|---|---|---|
 | [12-contrato-comun-b0](12-contrato-comun-b0/) | #138 | P1 | B0 — Enums, filtros, paginación, campos `*_name` | — | ✅ Hecha (PR #180) |
-| [13-organizaciones-b1](13-organizaciones-b1/) | #139 | P1 | **B1** — Organizaciones (absorbe #121) | B0 ✅, D0-D2 ✅ | 🚧 En curso (rama `ana/139-b1-organizaciones`) |
-| [14-edificios-b2](14-edificios-b2/) | #139 | P1 | **B2** — Edificios: alta, edición, borrado, plantas y tipo | B1 | 🚧 En curso (rama `ana/139-b2-edificios`) |
-| [15-sensores-b3](15-sensores-b3/) | #139 | P1 | **B3** — Sensores: planta, `health`, `last_value` y `?health=` | B2 | 🚧 En curso (rama `ana/139-b3-sensores`) |
+| [13-organizaciones-b1](13-organizaciones-b1/) | #139 | P1 | **B1** — Organizaciones (absorbe #121) | B0 ✅, D0-D2 ✅ | ✅ Hecha (PR #191) |
+| [14-edificios-b2](14-edificios-b2/) | #139 | P1 | **B2** — Edificios: alta, edición, borrado, plantas y tipo | B1 | ✅ Hecha (PR #194) |
+| [15-sensores-b3](15-sensores-b3/) | #139 | P1 | **B3** — Sensores: planta, `health`, `last_value` y `?health=` | B2 | ✅ Hecha (PR #197) |
 | — | #143 | P1 | B7 — Series de 7 días para gráficas | — | Pendiente (paralelo) |
-| — | #140 | P1 | B10 — Registro público con prueba de 7 días | B0, B1, I0 (#151) | Pendiente |
+| [16-registro-b10](16-registro-b10/) | #140 | P1 | **B10** — Registro público con prueba de 7 días | B0 ✅, B1 ✅, I0 ✅ | ✅ Hecha (PR #205) |
 | — | #142 | P1 | B5 — Alertas: filtros, ACKNOWLEDGED, quién actuó | B0, B3 | Pendiente |
 | — | #141 | P1 | B4+B6 — Invitaciones y gestión de usuarios | B1, B10, D3 (#130), I0 | Pendiente |
 | — | #144 | P1 | B8+B9 — Mi cuenta y KPIs | B5, B6 | Pendiente |
+| [17-contrato-b4-b6-b8-b9](17-contrato-b4-b6-b8-b9/) | #141, #144 | P1 | Contrato de la B4, B6, B8 y B9 publicado antes que las rutas (para el frontend de Eduardo) | — | 🚧 En curso (rama `ana/contrato-b4-b6-b8-b9`) |
 | — | #146 | P2 | B12 — Prueba caducada: solo lectura | B10 | Pendiente |
 | — | #145 | P2 | B16 — Eliminar organización | D9 (#133) | Pendiente |
 | — | #147 | P2 | B11 — Documentos por edificio | D4 (#132) | Pendiente |

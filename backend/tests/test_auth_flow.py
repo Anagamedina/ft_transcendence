@@ -1,8 +1,8 @@
 """
 Login, registro y `/api/me` (issue #26).
 
-El flujo completo contra la aplicación real: entrar, saber quién eres, dar
-de alta a alguien y salir.
+El flujo completo contra la aplicación real: entrar, saber quién eres y
+salir. El registro, público desde la B10, se prueba en `test_registro_b10.py`.
 """
 
 import time
@@ -185,110 +185,5 @@ def test_despues_de_salir_me_ya_no_responde(client, datos):
 # ---------------------------------------------------------
 # REGISTER
 # ---------------------------------------------------------
-def test_un_admin_puede_dar_de_alta_un_cliente(client, datos):
-    _login(client, "admin@aquaguard.dev")
-
-    respuesta = client.post(
-        "/api/auth/register",
-        json={
-            "email": "nuevo@aquaguard.dev",
-            "name": "Hotel Nuevo",
-            "password": "otra-contrasena-larga",
-            "organization_id": str(datos["org"].id),
-        },
-    )
-
-    assert respuesta.status_code == 201
-    creado = respuesta.json()["user"]
-    assert creado["email"] == "nuevo@aquaguard.dev"
-    assert creado["role"] == "client"
-    # Va a la organización que indica el admin (issue #27).
-    assert creado["organization_id"] == str(datos["org"].id)
-
-
-def test_el_nuevo_usuario_puede_entrar(client, datos):
-    _login(client, "admin@aquaguard.dev")
-    client.post(
-        "/api/auth/register",
-        json={
-            "email": "nuevo@aquaguard.dev",
-            "name": "Hotel Nuevo",
-            "password": "otra-contrasena-larga",
-            "organization_id": str(datos["org"].id),
-        },
-    )
-    client.post("/api/auth/logout")
-    client.cookies.clear()
-
-    respuesta = _login(client, "nuevo@aquaguard.dev", "otra-contrasena-larga")
-
-    assert respuesta.status_code == 200
-
-
-def test_un_cliente_no_puede_dar_de_alta_a_nadie(client, datos):
-    """No hay registro público: las cuentas las crea un admin."""
-    _login(client, "cliente@aquaguard.dev")
-
-    respuesta = client.post(
-        "/api/auth/register",
-        json={
-            "email": "nuevo@aquaguard.dev",
-            "name": "Hotel Nuevo",
-            "password": "otra-contrasena-larga",
-            "organization_id": str(datos["org"].id),
-        },
-    )
-
-    assert respuesta.status_code == 403
-    assert respuesta.json()["error"]["code"] == "FORBIDDEN"
-
-
-def test_sin_sesion_no_se_puede_registrar(client, datos):
-    respuesta = client.post(
-        "/api/auth/register",
-        json={
-            "email": "nuevo@aquaguard.dev",
-            "name": "Hotel Nuevo",
-            "password": "otra-contrasena-larga",
-            "organization_id": str(datos["org"].id),
-        },
-    )
-
-    assert respuesta.status_code == 401
-
-
-def test_un_email_repetido_da_409(client, datos):
-    _login(client, "admin@aquaguard.dev")
-
-    respuesta = client.post(
-        "/api/auth/register",
-        json={
-            "email": "cliente@aquaguard.dev",
-            "name": "Otro",
-            "password": "otra-contrasena-larga",
-            "organization_id": str(datos["org"].id),
-        },
-    )
-
-    assert respuesta.status_code == 409
-    assert respuesta.json()["error"]["code"] == "EMAIL_ALREADY_EXISTS"
-
-
-def test_la_contrasena_se_guarda_hasheada(client, datos, engine):
-    """Nunca en claro, ni siquiera un momento."""
-    _login(client, "admin@aquaguard.dev")
-    client.post(
-        "/api/auth/register",
-        json={
-            "email": "nuevo@aquaguard.dev",
-            "name": "Hotel Nuevo",
-            "password": "otra-contrasena-larga",
-            "organization_id": str(datos["org"].id),
-        },
-    )
-
-    with Session(engine) as session:
-        guardado = session.query(User).filter_by(email="nuevo@aquaguard.dev").one()
-
-    assert guardado.password_hash != "otra-contrasena-larga"
-    assert guardado.password_hash.startswith("$argon2")
+# Desde la B10 el registro es público y tiene su propio archivo:
+# `test_registro_b10.py`.

@@ -144,27 +144,6 @@ class SensorRepository:
             query = query.where(Site.organization_id == organization_id)
         return self.db.scalar(query.options(_con_jerarquia()))
 
-    def last_seen_by_sensor(self, sensor_ids: list[UUID]) -> dict[UUID, datetime]:
-        """
-        Cuándo llegó la última lectura de cada sensor (#25, Ana).
-
-        Una sola consulta para toda la página, no una por sensor. Los
-        sensores sin lecturas no aparecen en el diccionario.
-
-        Usa `created_at` (cuándo la recibió el backend) y no `recorded_at`
-        (cuándo dice el sensor que la midió); ver `sensors/status.py`. Hoy
-        no hay índice por `(sensor_id, created_at)`: con muchas lecturas
-        convendrá crearlo.
-        """
-        if not sensor_ids:
-            return {}
-        filas = self.db.execute(
-            select(Reading.sensor_id, func.max(Reading.created_at))
-            .where(Reading.sensor_id.in_(sensor_ids))
-            .group_by(Reading.sensor_id)
-        ).all()
-        return {sensor_id: ultima for sensor_id, ultima in filas}
-
     # Añadidos por Ana para la B3 (#139).
     def live(self, sensor_ids: list[UUID]) -> dict[UUID, SensorLive]:
         """
@@ -179,20 +158,25 @@ class SensorRepository:
         if not sensor_ids:
             return {}
 
-        orden = func.row_number().over(
-            partition_by=Reading.sensor_id,
-            order_by=(Reading.created_at.desc(), Reading.id.desc()),
-        ).label("orden")
-        ultimas = (
-            select(Reading.sensor_id, Reading.created_at, Reading.value, orden)
-            .where(Reading.sensor_id.in_(sensor_ids))
-            .subquery()
+        # D5: por cada sensor de la página, el id de su última lectura con
+        # ORDER BY ... LIMIT 1, que PostgreSQL resuelve leyendo solo la
+        # última entrada de ix_readings_sensor_created_at; luego la lectura
+        # por su clave. El row_number() de antes numeraba todas las lecturas
+        # de cada sensor antes de quedarse con la primera.
+        ultima = (
+            select(Reading.id)
+            .where(Reading.sensor_id == Sensor.id)
+            .order_by(Reading.created_at.desc(), Reading.id.desc())
+            .limit(1)
+            .correlate(Sensor)
+            .scalar_subquery()
         )
         lecturas = {
             sensor_id: (cuando, valor)
             for sensor_id, cuando, valor in self.db.execute(
-                select(ultimas.c.sensor_id, ultimas.c.created_at, ultimas.c.value)
-                .where(ultimas.c.orden == 1)
+                select(Sensor.id, Reading.created_at, Reading.value)
+                .join(Reading, Reading.id == ultima)
+                .where(Sensor.id.in_(sensor_ids))
             ).all()
         }
 

@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime, timezone
 
 from app.client import ReadingsClient
-from app.config import ConfigError, SimulatorConfig, load_config
+from app.config import ConfigError, SimulatorConfig, load_config, scenario_for
 from app.scenarios import SCENARIOS
 
 logger = logging.getLogger("simulator")
@@ -28,7 +28,7 @@ def _touch_heartbeat(path: str) -> None:
 
 def run(config: SimulatorConfig, stop: threading.Event) -> bool:
     rng = random.Random(config.random_seed)
-    scenario = SCENARIOS[config.scenario]
+    scenarios = {sensor_id: SCENARIOS[scenario_for(config, sensor_id)] for sensor_id in config.sensor_ids}
     client = None if config.dry_run else ReadingsClient(
         config.api_url, config.ingest_api_key, config.request_timeout_seconds, config.max_retries
     )
@@ -37,6 +37,8 @@ def run(config: SimulatorConfig, stop: threading.Event) -> bool:
         "starting scenario=%s sensors=%d interval=%ss dry_run=%s api=%s",
         config.scenario, len(config.sensor_ids), config.interval_seconds, config.dry_run, config.api_url,
     )
+    for sensor_id, name in config.sensor_scenarios.items():
+        logger.info("sensor=%s scenario=%s", sensor_id, name)
     try:
         if client is not None:
             logger.info(
@@ -58,7 +60,7 @@ def run(config: SimulatorConfig, stop: threading.Event) -> bool:
             for sensor_id in config.sensor_ids:
                 if stop.is_set():
                     break
-                pressure = scenario(rng)
+                pressure = scenarios[sensor_id](rng)
                 if pressure is None:
                     logger.info("sensor=%s offline, no reading sent", sensor_id)
                     continue
