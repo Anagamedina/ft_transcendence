@@ -174,17 +174,6 @@ class SensorRepository(Protocol):
         """El sensor bloqueado hasta el final de la transacción (B3)."""
         ...
 
-    def last_seen_by_sensor(self, sensor_ids: list[UUID]) -> dict[UUID, datetime]:
-        """
-        Cuándo llegó la última lectura de cada sensor, en una sola consulta
-        para toda la página. Los que no tienen lecturas no aparecen.
-
-        Sustituye al antiguo `touch_last_seen`: `last_seen_at` no es una
-        columna, se calcula a partir de las lecturas (issue #25). Así no
-        hay un dato guardado dos veces que pueda contradecirse.
-        """
-        ...
-
     def list_by_site(
         self, site_id: UUID, offset: int, limit: int
     ) -> tuple[list[Any], int]:
