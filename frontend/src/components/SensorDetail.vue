@@ -2,7 +2,7 @@
   <div v-if="sensor" class="max-w-md">
     <div
       class="bg-white border-2 rounded-xl shadow-lg p-6"
-      :class="status.borderClass"
+      :class="borderClass"
     >
       <div
         class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2"
@@ -13,12 +13,12 @@
           </h2>
           <p class="text-sm text-gray-500 break-words">{{ sensor.location }}</p>
         </div>
-        <span
-          class="self-start shrink-0 inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold"
-          :class="[status.bgClass, status.textClass]"
-        >
-          {{ status.icon }} {{ status.label }}
-        </span>
+        <StatusPill
+          type="SensorHealth"
+          :value="health"
+          size="md"
+          class="self-start shrink-0"
+        />
       </div>
 
       <div class="mt-6">
@@ -38,7 +38,8 @@
 
 <script setup>
 import { computed } from "vue";
-import { useSensorStatus } from "../composables/useSensorStatus";
+import StatusPill from "./StatusPill.vue";
+import { useLabels } from "../composables/useLabels";
 
 // Pure component: only receives an already-resolved sensor. It has no idea
 // whether the data came from a mock, Pinia, or a real API — same principle
@@ -50,7 +51,12 @@ const props = defineProps({
   },
 });
 
-const status = computed(() => useSensorStatus(props.sensor?.statusKey));
+const { tone, toneClasses, toSensorHealth } = useLabels();
+
+const health = computed(() => toSensorHealth(props.sensor?.statusKey));
+const borderClass = computed(
+  () => toneClasses(tone("SensorHealth", health.value)).border,
+);
 const hasReading = computed(
   () =>
     props.sensor?.value !== null &&
