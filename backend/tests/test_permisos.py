@@ -42,6 +42,7 @@ RUTAS_PUBLICAS = {
     ("GET", "/api/status"),  # página de estado, pública a propósito (#154)
     ("POST", "/api/auth/login"),  # es como se consigue la sesión
     ("POST", "/api/auth/logout"),  # salir tiene que funcionar siempre
+    ("POST", "/api/auth/register"),  # registro público, B10 (#140)
 }
 
 
@@ -195,17 +196,17 @@ def test_toda_ruta_privada_sin_sesion_da_401(client, metodo, ruta):
 # ---------------------------------------------------------
 # 2 · Rol
 # ---------------------------------------------------------
-def test_un_cliente_no_puede_dar_de_alta_cuentas(client, datos):
+def test_un_cliente_no_puede_dar_de_alta_edificios(client, datos):
+    """
+    Hasta la B10 esto se probaba con el registro, que era solo de admin.
+    Ahora el registro es público, y la ruta de admin de referencia es el
+    alta de edificios (B2).
+    """
     _entrar(client, datos["cliente_a"])
 
     respuesta = client.post(
-        "/api/auth/register",
-        json={
-            "email": "nuevo@aquaguard.dev",
-            "name": "Nuevo",
-            "password": "una-contrasena-larga",
-            "organization_id": str(datos["a"]["org"].id),
-        },
+        "/api/sites",
+        json={"organization_id": str(datos["a"]["org"].id), "name": "Nuevo"},
     )
 
     assert respuesta.status_code == 403
@@ -289,43 +290,28 @@ def test_un_cliente_sin_organizacion_no_ve_nada(client, datos, url):
 
 
 # ---------------------------------------------------------
-# Registro: a qué organización va el cliente
+# Registro público (B10): la cuenta nueva solo ve lo suyo
 # ---------------------------------------------------------
-def _registrar(client, **cambios):
-    cuerpo = {
-        "email": "nuevo@aquaguard.dev",
-        "name": "Nuevo",
-        "password": "una-contrasena-larga",
-        **cambios,
-    }
-    return client.post("/api/auth/register", json=cuerpo)
-
-
-def test_el_admin_global_da_de_alta_un_cliente_en_una_organizacion(client, datos):
-    """Antes de la #27 este cliente se creaba sin organización."""
-    _entrar(client, datos["admin_global"])
-
-    respuesta = _registrar(client, organization_id=str(datos["b"]["org"].id))
+def test_quien_se_registra_empieza_en_una_organizacion_vacia(client, datos):
+    """
+    Hasta la B10 el admin elegía la organización del cliente (#27). Ahora
+    el registro crea siempre una organización nueva, y desde ella no se
+    ve nada de A ni de B.
+    """
+    respuesta = client.post(
+        "/api/auth/register",
+        json={
+            "name": "Nuevo",
+            "email": "nuevo@hotelmar.dev",
+            "password": "agua-que-no-se-escapa",
+            "organization_name": "Hotel Mar",
+            "accept_terms": True,
+        },
+    )
 
     assert respuesta.status_code == 201
-    assert respuesta.json()["user"]["organization_id"] == str(datos["b"]["org"].id)
-    assert respuesta.json()["user"]["role"] == "client"
-
-
-def test_registrar_sin_organizacion_da_422(client, datos):
-    _entrar(client, datos["admin_global"])
-
-    respuesta = _registrar(client)
-
-    assert respuesta.status_code == 422
-
-
-def test_registrar_en_una_organizacion_que_no_existe_da_404(client, datos, engine):
-    _entrar(client, datos["admin_global"])
-
-    respuesta = _registrar(client, organization_id=str(uuid4()))
-
-    assert respuesta.status_code == 404
-    assert respuesta.json()["error"]["code"] == "ORGANIZATION_NOT_FOUND"
-    with Session(engine) as session:
-        assert session.query(User).filter_by(email="nuevo@aquaguard.dev").count() == 0
+    nueva = respuesta.json()["user"]["organization_id"]
+    assert nueva not in {str(datos["a"]["org"].id), str(datos["b"]["org"].id)}
+    # La cookie del registro ya sirve: no hace falta hacer login.
+    for url in ("/api/sites", "/api/sensors", "/api/alerts"):
+        assert client.get(url).json()["total"] == 0, url

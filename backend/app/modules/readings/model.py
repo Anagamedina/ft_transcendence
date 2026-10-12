@@ -29,6 +29,13 @@ class Reading(Base):
             "sensor_id",
             "recorded_at",
         ),
+        # D5: last reading received per sensor (sensor status and the
+        # offline rule use created_at, not recorded_at).
+        Index(
+            "ix_readings_sensor_created_at",
+            "sensor_id",
+            "created_at",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(

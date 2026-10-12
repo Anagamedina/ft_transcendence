@@ -64,6 +64,7 @@ def test_defaults_for_new_rows(db: Session, org: Organization):
     assert org.status == "ACTIVE"
     assert org.trial_ends_at is None
     assert (site.floors, site.basements, site.building_type) == (1, 0, "OTHER")
+    assert site.district is None
     assert sensor.floor == 0
     assert user.is_active is True
     assert user.last_login_at is None
@@ -85,6 +86,21 @@ def test_site_needs_at_least_one_floor(db: Session, org: Organization):
     db.add(Site(organization_id=org.id, name="Solar", floors=0))
     with pytest.raises(IntegrityError):
         db.flush()
+
+
+def test_site_district_outside_barcelona_is_rejected(db: Session, org: Organization):
+    db.add(Site(organization_id=org.id, name="Torre", district="CHAMBERI"))
+    with pytest.raises(IntegrityError):
+        db.flush()
+
+
+def test_site_accepts_a_barcelona_district(db: Session, org: Organization):
+    site = Site(organization_id=org.id, name="Torre", district="SANT_MARTI")
+    db.add(site)
+    db.flush()
+    db.refresh(site)
+
+    assert site.district == "SANT_MARTI"
 
 
 def test_client_without_organization_is_rejected(db: Session):

@@ -11,6 +11,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     String,
     Uuid,
     func,
@@ -33,6 +34,8 @@ class User(Base):
             "role = 'admin' OR organization_id IS NOT NULL",
             name="ck_users_client_has_organization",
         ),
+        # D5: users of an organization.
+        Index("ix_users_organization_id", "organization_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(

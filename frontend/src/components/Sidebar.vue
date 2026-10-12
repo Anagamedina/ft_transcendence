@@ -33,6 +33,13 @@
         >
           <span class="w-5 h-5 shrink-0"><AppIcon :name="item.icon" /></span>
           {{ item.label }}
+          <span
+            v-if="item.badge"
+            class="ml-auto rounded-full bg-red-500 px-2 py-0.5 text-xs font-semibold"
+            :aria-label="`${item.badge} abiertas`"
+          >
+            {{ item.badge }}
+          </span>
         </router-link>
 
         <!-- No route yet: shown but not clickable -->
@@ -58,7 +65,7 @@ import AppIcon from './AppIcon.vue'
 
 defineProps({
   appName: { type: String, default: 'AquaGuard' },
-  // Each item: { label, icon, to?, exact?, disabled? }
+  // Each item: { label, icon, to?, exact?, disabled?, badge? }
   // Without items, the original three entries are shown (no links yet)
   items: {
     type: Array,

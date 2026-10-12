@@ -749,6 +749,7 @@ const mockAdapter = {
       }
 
       alert.acknowledged_at = new Date().toISOString()
+      alert.state = 'ACKNOWLEDGED'
 
       return Promise.resolve({
         data: { ...alert },
@@ -785,6 +786,7 @@ const mockAdapter = {
       }
 
       alert.status = 'RESOLVED'
+      alert.state = 'RESOLVED'
       alert.resolved_at = new Date().toISOString()
 
       return Promise.resolve({

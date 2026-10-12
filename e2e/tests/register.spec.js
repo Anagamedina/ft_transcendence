@@ -1,44 +1,60 @@
 import { test, expect } from '@playwright/test'
-import { ADMIN, CLIENT, login, expectDashboard } from './helpers.js'
+import { CLIENT, login, expectDashboard } from './helpers.js'
 
-test('an admin registers a client and that client can log in', async ({ page, request }) => {
-  const client = await request.post('/api/auth/login', { data: CLIENT })
-  const organizationId = (await client.json()).user.organization_id
+// Registro público con prueba de 7 días (B10, #140). Hasta la B10 solo un
+// admin podía dar de alta cuentas. El formulario de /register con los
+// campos nuevos es la F15-P (Florinda); mientras llega, se prueba por la API.
+//
+// Hace 4 registros y un login seguidos: lanzar contra un stack arrancado con
+// `PUBLIC_RATE_LIMIT=1000r/m make up`, como el resto de Playwright (README),
+// o el límite de Nginx puede responder 429.
 
-  const admin = await request.post('/api/auth/login', { data: ADMIN })
-  expect(admin.status()).toBe(200)
+const PASSWORD = 'agua-que-no-se-escapa'
 
-  const newUser = {
-    name: 'E2E Client',
-    email: `e2e-${Date.now()}@aquaguard.dev`,
-    password: 'e2e-password',
+function newAccount() {
+  const id = Date.now()
+  return {
+    name: 'E2E Visitor',
+    email: `e2e-${id}@aquaguard.dev`,
+    password: PASSWORD,
+    organization_name: `E2E Org ${id}`,
+    accept_terms: true,
   }
-  const created = await request.post('/api/auth/register', {
-    data: { ...newUser, organization_id: organizationId },
-  })
-  expect(created.status()).toBe(201)
+}
 
-  await login(page, newUser)
+test('a visitor registers without a session and is already logged in', async ({ request }) => {
+  const account = newAccount()
+
+  const created = await request.post('/api/auth/register', { data: account })
+  expect(created.status()).toBe(201)
+  expect((await created.json()).user.role).toBe('client')
+
+  // The register response already opened the session.
+  const me = await request.get('/api/me')
+  expect(me.status()).toBe(200)
+  expect((await me.json()).user.email).toBe(account.email)
+})
+
+test('the new account can log in from the login form', async ({ page, request }) => {
+  const account = newAccount()
+  expect((await request.post('/api/auth/register', { data: account })).status()).toBe(201)
+
+  await login(page, account)
   await expectDashboard(page)
 })
 
 test('registering the same email twice is rejected', async ({ request }) => {
-  const client = await request.post('/api/auth/login', { data: CLIENT })
-  const organizationId = (await client.json()).user.organization_id
-  await request.post('/api/auth/login', { data: ADMIN })
-
   const duplicated = await request.post('/api/auth/register', {
-    data: { name: 'Duplicated', email: CLIENT.email, password: 'e2e-password', organization_id: organizationId },
+    data: { ...newAccount(), email: CLIENT.email },
   })
   expect(duplicated.status()).toBe(409)
+  expect((await duplicated.json()).error.code).toBe('EMAIL_ALREADY_EXISTS')
 })
 
-test('the public register form is rejected without an admin session', async ({ page }) => {
-  await page.goto('/register')
-  await page.getByLabel('Nombre').fill('E2E Anonymous')
-  await page.getByLabel('Email').fill(`e2e-anon-${Date.now()}@aquaguard.dev`)
-  await page.getByLabel('Contraseña').fill('e2e-password')
-  await page.getByRole('button', { name: 'Crear cuenta' }).click()
-  await expect(page.getByRole('alert')).toHaveText('No hay sesión iniciada.')
-  await expect(page).toHaveURL('/register')
+test('a weak password is rejected', async ({ request }) => {
+  const weak = await request.post('/api/auth/register', {
+    data: { ...newAccount(), password: 'password1234' },
+  })
+  expect(weak.status()).toBe(422)
+  expect((await weak.json()).error.code).toBe('WEAK_PASSWORD')
 })

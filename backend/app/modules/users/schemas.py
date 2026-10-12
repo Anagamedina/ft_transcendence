@@ -24,6 +24,7 @@ from uuid import UUID
 
 from pydantic import EmailStr, Field
 
+from app.shared.enums import OrganizationStatus
 from app.shared.schemas import ApiModel, ApiRequest
 
 
@@ -83,6 +84,13 @@ class UserUpdate(ApiRequest):
 
     name: str | None = Field(default=None, min_length=1, max_length=120)
     role: UserRole | None = None
+    # B6 (#141): mover o añadir un usuario a una organización. Un `client`
+    # siempre necesita una (CHECK `ck_users_client_has_organization`). El
+    # email no se edita: no está aquí, y `extra="forbid"` lo rechaza.
+    organization_id: UUID | None = Field(
+        default=None,
+        description="Organización del usuario. Obligatoria si queda como `client`.",
+    )
 
 
 class UserResponse(ApiModel):
@@ -107,3 +115,92 @@ class UserResponse(ApiModel):
         ),
     )
     created_at: datetime = Field(description="Alta del usuario, en UTC.")
+
+
+# ---------------------------------------------------------
+# CONTRATO DE LA B6 Y LA B8 (#141, #144)
+# ---------------------------------------------------------
+# Se publican antes que las rutas, como en la #23, para que el frontend
+# (F11 y F13 de Eduardo y Lylia) monte sus pantallas con mocks.
+#
+# B6 — usuarios (admin):
+#   GET    /api/users?organization_id=&q=&active=  → Page[UserAdminResponse]
+#   GET    /api/users/{id}                         → UserAdminResponse
+#   PATCH  /api/users/{id}                         → UserAdminResponse (UserUpdate)
+#   POST   /api/users/{id}/deactivate              → UserAdminResponse
+#   POST   /api/users/{id}/activate                → UserAdminResponse
+#   DELETE /api/users/{id}                         → 204
+#
+# B8 — Mi cuenta (cualquiera con sesión):
+#   GET    /api/me                → MeResponse
+#   PATCH  /api/me                → MeResponse (MeUpdate)
+#   POST   /api/me/password       → MessageResponse (PasswordChange)
+class UserAdminResponse(UserResponse):
+    """Un usuario en la gestión de usuarios del admin (B6)."""
+
+    organization_name: str | None = Field(
+        default=None, description="Nombre de su organización.", examples=["Hotel Mar"]
+    )
+    is_active: bool = Field(
+        default=True,
+        description=(
+            "`false` si un admin lo ha desactivado: no puede entrar (403 "
+            "`ACCOUNT_DISABLED`)."
+        ),
+    )
+    last_login_at: datetime | None = Field(
+        default=None, description="Último login, en UTC. Nulo si nunca ha entrado."
+    )
+
+
+class OrganizationSummary(ApiModel):
+    """La organización de quien tiene la sesión, para Mi cuenta (B8)."""
+
+    id: UUID
+    name: str = Field(examples=["Hotel Mar"])
+    status: OrganizationStatus = Field(examples=["TRIAL"])
+    trial_ends_at: datetime | None = Field(
+        default=None, description="Fin de la prueba, en UTC. Nulo si no está en prueba."
+    )
+
+
+class MeResponse(ApiModel):
+    """
+    Respuesta de `GET /api/me` desde la B8. Mantiene `user` donde estaba
+    (el frontend ya lo lee así) y añade lo de Mi cuenta.
+    """
+
+    user: UserResponse
+    organization: OrganizationSummary | None = Field(
+        default=None, description="Nula para un admin sin organización."
+    )
+    last_login_at: datetime | None = None
+    terms_version: str | None = Field(
+        default=None,
+        description="Versión de los términos que aceptó. Nula en cuentas anteriores a la B10.",
+        examples=["2026-10"],
+    )
+    terms_accepted_at: datetime | None = None
+
+
+class MeUpdate(ApiRequest):
+    """Lo que cada uno puede cambiar de su cuenta (B8). El email no."""
+
+    name: str = Field(min_length=1, max_length=120, examples=["Ana Medina"])
+
+
+class PasswordChange(ApiRequest):
+    """
+    Cambiar la propia contraseña (B8). Si `current_password` no coincide,
+    422 `WRONG_PASSWORD` (no 401: la sesión sigue siendo válida, y un 401
+    haría que el frontend la cerrara); si la nueva no cumple la regla de
+    la B10, 422 `WEAK_PASSWORD`. Las demás sesiones abiertas no se cierran (necesitaría
+    una columna que no existe).
+    """
+
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(
+        max_length=128,
+        description="Misma regla que el registro (B10): al menos 12 caracteres, no común, sin el email.",
+        examples=["agua-que-no-se-escapa"],
+    )

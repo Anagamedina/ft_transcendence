@@ -99,6 +99,17 @@ class AppSettings(BaseSettings):
     # coinciden sin configurar nada.
     INGEST_API_KEY: str = "dev-only-ingest-key"
 
+    # Días de prueba de una organización TRIAL: los que da el registro
+    # público (B10) y los que suma «ampliar prueba» (B1). Lo pide la I0 en
+    # el .env; el valor por defecto es el del producto.
+    TRIAL_DAYS: int = 7
+
+    # Versión de los términos de uso que acepta quien se registra (B10).
+    # Se guarda con cada usuario, para saber qué texto aceptó. Cuando
+    # cambien los términos de `/legal` (`LegalView.vue`, ancla `#terminos`),
+    # se sube aquí. El seed de la demo usa el mismo valor.
+    TERMS_VERSION: str = "2026-10"
+
     # Orígenes que el navegador tiene permitido usar para llamar a la API,
     # separados por comas. Vite sirve el frontend en el puerto 5173.
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"

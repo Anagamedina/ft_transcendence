@@ -1,8 +1,8 @@
 """
 Demo data for `make demo` and the evaluation (issue #131, D6).
 
-Five clients in different situations, buildings with floors and real
-coordinates, eight sensors (one offline, one out of range), 30 days of alerts
+Five clients in different situations, buildings in Barcelona with floors,
+district and real coordinates, eight sensors (one offline, one out of range), 30 days of alerts
 and readings, demo users and one pending invitation.
 
 Rules:
@@ -12,7 +12,7 @@ Rules:
 - Dates are relative to now and recalculated on every run, so "today" and
   "this week" always have data.
 - Sensors are looked up by their fixed UUID: the simulator
-  (SIMULATOR_SENSOR_IDS) and `make smoke` use those ids.
+  (SIMULATOR_SENSOR_IDS, SIMULATOR_SCENARIOS) and `make smoke` use those ids.
 - Refuses to run with ENV=production: the demo passwords are public.
 """
 
@@ -48,7 +48,26 @@ DEMO_NAMESPACE = UUID("6d1f3c2a-9b8e-4c7d-a1f0-5e2b8c9d0a11")
 LEGACY_ORGANIZATION_NAME = "Demo"
 LEGACY_SITE_NAMES = ("Hotel Mediterráneo", "Edificio Central")
 
-TERMS_VERSION = "2026-09"
+# The demo used to have clients and buildings in other cities. Since D10 all of
+# them are in Barcelona and were renamed: a database seeded before keeps its
+# rows and renames them, instead of ending up with ten clients.
+PREVIOUS_ORGANIZATION_NAMES = {
+    "Residencias Collserola": "Residencias Alcalá",
+    "Hotel Gòtic": "Hotel Turia",
+    "Polideportivo Poblenou": "Polideportivo Abando",
+    "Aigües Zona Franca": "Aguas del Sur",
+}
+PREVIOUS_SITE_NAMES = {
+    "Residencia Sant Gervasi": "Residencia Cervantes",
+    "Residencia Gràcia": "Residencia San Diego",
+    "Hotel Gòtic Centro": "Hotel Turia Centro",
+    "Polideportivo Poblenou": "Polideportivo Abando",
+    "Estación de bombeo Zona Franca": "Estación de bombeo La Cartuja",
+}
+PREVIOUS_USER_EMAILS = {
+    "poblenou@aquaguard.dev": "abando@aquaguard.dev",
+    "zonafranca@aquaguard.dev": "aguasdelsur@aquaguard.dev",
+}
 
 # Shown in the README: the invitation can be accepted with this code.
 DEMO_INVITATION_CODE = "AQUAGUARD-DEMO-INVITE"
@@ -63,22 +82,22 @@ def _sensor_id(n: int) -> UUID:
 # ---------------------------------------------------------
 ORGANIZATIONS = [
     {
-        "name": "Residencias Alcalá",
+        "name": "Residencias Collserola",
         "status": "ACTIVE",
-        "city": "Alcalá de Henares",
-        "contact_email": "mantenimiento@residenciasalcala.es",
-        "phone": "+34 918 802 140",
-        "legal_name": "Residencias Alcalá S.L.",
-        "tax_id": "B86412357",
-        "billing_email": "facturacion@residenciasalcala.es",
+        "city": "Barcelona",
+        "contact_email": "mantenimiento@residenciascollserola.cat",
+        "phone": "+34 932 802 140",
+        "legal_name": "Residencias Collserola S.L.",
+        "tax_id": "B08412357",
+        "billing_email": "facturacion@residenciascollserola.cat",
     },
     {
-        "name": "Hotel Turia",
+        "name": "Hotel Gòtic",
         "status": "TRIAL",
         "trial_ends_in_days": 10,
-        "city": "Valencia",
-        "contact_email": "direccion@hotelturia.es",
-        "phone": "+34 963 512 300",
+        "city": "Barcelona",
+        "contact_email": "direccion@hotelgotic.cat",
+        "phone": "+34 933 512 300",
         "legal_name": None,
         "tax_id": None,
         "billing_email": None,
@@ -94,57 +113,60 @@ ORGANIZATIONS = [
         "billing_email": "admin@fincamallorca401.cat",
     },
     {
-        "name": "Polideportivo Abando",
+        "name": "Polideportivo Poblenou",
         "status": "ACTIVE",
-        "city": "Bilbao",
-        "contact_email": "instalaciones@abandokirolak.eus",
-        "phone": "+34 944 230 870",
-        "legal_name": "Abando Kirolak S.A.",
-        "tax_id": "A48123456",
-        "billing_email": "contabilidad@abandokirolak.eus",
+        "city": "Barcelona",
+        "contact_email": "instalaciones@poblenouesports.cat",
+        "phone": "+34 934 230 870",
+        "legal_name": "Poblenou Esports S.A.",
+        "tax_id": "A08123456",
+        "billing_email": "contabilidad@poblenouesports.cat",
     },
     {
-        "name": "Aguas del Sur",
+        "name": "Aigües Zona Franca",
         "status": "SUSPENDED",
-        "city": "Sevilla",
-        "contact_email": "operaciones@aguasdelsur.es",
-        "phone": "+34 954 610 455",
-        "legal_name": "Aguas del Sur Gestión Hídrica S.L.",
-        "tax_id": "B41987654",
-        "billing_email": "pagos@aguasdelsur.es",
+        "city": "Barcelona",
+        "contact_email": "operaciones@aigueszonafranca.cat",
+        "phone": "+34 935 610 455",
+        "legal_name": "Aigües Zona Franca Gestió Hídrica S.L.",
+        "tax_id": "B08987654",
+        "billing_email": "pagos@aigueszonafranca.cat",
     },
 ]
 
 SITES = [
     {
-        "key": "cervantes",
-        "organization": "Residencias Alcalá",
-        "name": "Residencia Cervantes",
-        "address": "Calle de Santiago 12, 28801 Alcalá de Henares",
-        "latitude": Decimal("40.482600"),
-        "longitude": Decimal("-3.364300"),
+        "key": "sant_gervasi",
+        "organization": "Residencias Collserola",
+        "name": "Residencia Sant Gervasi",
+        "address": "Carrer de Ganduxer 25, 08021 Barcelona",
+        "district": "SARRIA_SANT_GERVASI",
+        "latitude": Decimal("41.396500"),
+        "longitude": Decimal("2.139500"),
         "floors": 4,
         "basements": 1,
         "building_type": "RESIDENCE",
     },
     {
-        "key": "san_diego",
-        "organization": "Residencias Alcalá",
-        "name": "Residencia San Diego",
-        "address": "Plaza de San Diego 3, 28801 Alcalá de Henares",
-        "latitude": Decimal("40.483900"),
-        "longitude": Decimal("-3.361200"),
+        "key": "gracia",
+        "organization": "Residencias Collserola",
+        "name": "Residencia Gràcia",
+        "address": "Carrer de Verdi 40, 08012 Barcelona",
+        "district": "GRACIA",
+        "latitude": Decimal("41.404000"),
+        "longitude": Decimal("2.157500"),
         "floors": 3,
         "basements": 0,
         "building_type": "RESIDENCE",
     },
     {
-        "key": "turia",
-        "organization": "Hotel Turia",
-        "name": "Hotel Turia Centro",
-        "address": "Carrer de la Pau 18, 46002 València",
-        "latitude": Decimal("39.473800"),
-        "longitude": Decimal("-0.374900"),
+        "key": "gotic",
+        "organization": "Hotel Gòtic",
+        "name": "Hotel Gòtic Centro",
+        "address": "Carrer de Ferran 20, 08002 Barcelona",
+        "district": "CIUTAT_VELLA",
+        "latitude": Decimal("41.381500"),
+        "longitude": Decimal("2.175500"),
         "floors": 8,
         "basements": 2,
         "building_type": "HOTEL",
@@ -154,6 +176,7 @@ SITES = [
         "organization": "Comunidad Mallorca 401",
         "name": "Finca Mallorca 401",
         "address": "Carrer de Mallorca 401, 08013 Barcelona",
+        "district": "EIXAMPLE",
         "latitude": Decimal("41.403600"),
         "longitude": Decimal("2.174400"),
         "floors": 7,
@@ -161,23 +184,25 @@ SITES = [
         "building_type": "COMMUNITY",
     },
     {
-        "key": "abando",
-        "organization": "Polideportivo Abando",
-        "name": "Polideportivo Abando",
-        "address": "Calle de Hurtado de Amézaga 6, 48008 Bilbao",
-        "latitude": Decimal("43.260700"),
-        "longitude": Decimal("-2.927800"),
+        "key": "poblenou",
+        "organization": "Polideportivo Poblenou",
+        "name": "Polideportivo Poblenou",
+        "address": "Carrer de Llull 220, 08005 Barcelona",
+        "district": "SANT_MARTI",
+        "latitude": Decimal("41.402200"),
+        "longitude": Decimal("2.198500"),
         "floors": 2,
         "basements": 1,
         "building_type": "SPORTS",
     },
     {
         "key": "bombeo",
-        "organization": "Aguas del Sur",
-        "name": "Estación de bombeo La Cartuja",
-        "address": "Calle Américo Vespucio 5, 41092 Sevilla",
-        "latitude": Decimal("37.409300"),
-        "longitude": Decimal("-6.004500"),
+        "organization": "Aigües Zona Franca",
+        "name": "Estación de bombeo Zona Franca",
+        "address": "Carrer A de la Zona Franca 30, 08040 Barcelona",
+        "district": "SANTS_MONTJUIC",
+        "latitude": Decimal("41.346000"),
+        "longitude": Decimal("2.145000"),
         "floors": 1,
         "basements": 1,
         "building_type": "INDUSTRIAL",
@@ -186,28 +211,31 @@ SITES = [
 
 # The first three keep the ids that the simulator and the smoke test use.
 #
-# Two sensors have a story:
-# - 6 (Abando) is OUT OF RANGE: its upper threshold is 2.0 bar and the
+# Three sensors have a story (SIMULATOR_SCENARIOS in .env.example keeps the
+# simulator in line with it):
+# - 4 (Gòtic, planta 6) has LOW PRESSURE: its alert stays active and the
+#   simulator sends it the `low` scenario.
+# - 6 (Poblenou) is OUT OF RANGE: its upper threshold is 2.0 bar and the
 #   simulator's normal scenario sends 2.5-4.5 bar, so every reading stays
-#   above it without changing the simulator.
-# - 7 (Aguas del Sur) is OFFLINE: it is not in SIMULATOR_SENSOR_IDS and its
-#   last reading is OFFLINE_SINCE old.
+#   above it.
+# - 7 (Aigües Zona Franca) is OFFLINE: the simulator sends it the `offline`
+#   scenario (no readings) and its last reading is OFFLINE_SINCE old.
 SENSORS = [
-    {"n": 1, "site": "cervantes", "external_id": "SENS-001", "name": "Presión entrada",
+    {"n": 1, "site": "sant_gervasi", "external_id": "SENS-001", "name": "Presión entrada",
      "location": "Sótano - Sala de bombas", "floor": -1, "low": "1.500", "high": "6.000"},
-    {"n": 2, "site": "cervantes", "external_id": "SENS-002", "name": "Presión cubierta",
+    {"n": 2, "site": "sant_gervasi", "external_id": "SENS-002", "name": "Presión cubierta",
      "location": "Cubierta - Depósito", "floor": 4, "low": "1.000", "high": "5.500"},
-    {"n": 3, "site": "turia", "external_id": "SENS-003", "name": "Presión general",
+    {"n": 3, "site": "gotic", "external_id": "SENS-003", "name": "Presión general",
      "location": "Sótano 2 - Cuarto de bombas", "floor": -2, "low": "1.500", "high": "6.000"},
-    {"n": 4, "site": "turia", "external_id": "SENS-004", "name": "Presión planta 6",
+    {"n": 4, "site": "gotic", "external_id": "SENS-004", "name": "Presión planta 6",
      "location": "Planta 6 - Office", "floor": 6, "low": "1.500", "high": "6.000"},
     {"n": 5, "site": "mallorca", "external_id": "SENS-005", "name": "Presión acometida",
      "location": "Portería - Contador general", "floor": 0, "low": "1.500", "high": "6.000"},
-    {"n": 6, "site": "abando", "external_id": "SENS-006", "name": "Presión vestuarios",
+    {"n": 6, "site": "poblenou", "external_id": "SENS-006", "name": "Presión vestuarios",
      "location": "Sótano - Vestuarios", "floor": -1, "low": "0.500", "high": "2.000"},
     {"n": 7, "site": "bombeo", "external_id": "SENS-007", "name": "Presión impulsión",
      "location": "Nave de bombeo", "floor": 0, "low": "1.500", "high": "8.000"},
-    {"n": 8, "site": "san_diego", "external_id": "SENS-008", "name": "Presión cocina",
+    {"n": 8, "site": "gracia", "external_id": "SENS-008", "name": "Presión cocina",
      "location": "Planta 1 - Cocina", "floor": 1, "low": "1.500", "high": "6.000"},
 ]
 
@@ -220,22 +248,22 @@ USERS = [
     {"email": "admin@aquaguard.dev", "name": "Demo Admin", "role": "admin",
      "organization": None, "password": "dev-admin-only", "last_login_hours": 1},
     {"email": "client@aquaguard.dev", "name": "Lucía Martín", "role": "client",
-     "organization": "Residencias Alcalá", "password": "dev-client-only", "last_login_hours": 2},
+     "organization": "Residencias Collserola", "password": "dev-client-only", "last_login_hours": 2},
     {"email": "hotel@aquaguard.dev", "name": "Javier Soler", "role": "client",
-     "organization": "Hotel Turia", "password": "dev-client-only", "last_login_hours": 20},
+     "organization": "Hotel Gòtic", "password": "dev-client-only", "last_login_hours": 20},
     {"email": "comunidad@aquaguard.dev", "name": "Montse Puig", "role": "client",
      "organization": "Comunidad Mallorca 401", "password": "dev-client-only", "last_login_hours": 72},
-    {"email": "abando@aquaguard.dev", "name": "Iker Etxeberria", "role": "client",
-     "organization": "Polideportivo Abando", "password": "dev-client-only", "last_login_hours": 5},
+    {"email": "poblenou@aquaguard.dev", "name": "Jordi Vidal", "role": "client",
+     "organization": "Polideportivo Poblenou", "password": "dev-client-only", "last_login_hours": 5},
     # Suspended client: the account exists but is disabled.
-    {"email": "aguasdelsur@aquaguard.dev", "name": "Rocío Navarro", "role": "client",
-     "organization": "Aguas del Sur", "password": "dev-client-only", "last_login_hours": 24 * 25,
+    {"email": "zonafranca@aquaguard.dev", "name": "Rocío Navarro", "role": "client",
+     "organization": "Aigües Zona Franca", "password": "dev-client-only", "last_login_hours": 24 * 25,
      "is_active": False},
 ]
 
 INVITATION = {
-    "organization": "Residencias Alcalá",
-    "email": "nuevo.gestor@residenciasalcala.es",
+    "organization": "Residencias Collserola",
+    "email": "nuevo.gestor@residenciascollserola.cat",
     "expires_in_days": 7,
 }
 
@@ -245,7 +273,7 @@ INVITATION = {
 ALERTS = [
     # Active
     {"key": "a01", "sensor": OUT_OF_RANGE_SENSOR, "type": "HIGH_PRESSURE", "severity": "CRITICAL",
-     "ago": timedelta(hours=2), "ack": 15, "resolved": None, "by": "abando@aquaguard.dev"},
+     "ago": timedelta(hours=2), "ack": 15, "resolved": None, "by": "poblenou@aquaguard.dev"},
     {"key": "a02", "sensor": OFFLINE_SENSOR, "type": "SENSOR_OFFLINE", "severity": "CRITICAL",
      "ago": OFFLINE_SINCE - timedelta(minutes=5), "ack": None, "resolved": None, "by": None},
     {"key": "a03", "sensor": 4, "type": "LOW_PRESSURE", "severity": "WARNING",
@@ -260,11 +288,11 @@ ALERTS = [
     {"key": "r04", "sensor": 2, "type": "LOW_PRESSURE", "severity": "CRITICAL",
      "ago": timedelta(days=3, hours=11), "ack": 8, "resolved": 90, "by": "client@aquaguard.dev"},
     {"key": "r05", "sensor": 6, "type": "HIGH_PRESSURE", "severity": "WARNING",
-     "ago": timedelta(days=4, hours=2), "ack": 30, "resolved": 240, "by": "abando@aquaguard.dev"},
+     "ago": timedelta(days=4, hours=2), "ack": 30, "resolved": 240, "by": "poblenou@aquaguard.dev"},
     {"key": "r06", "sensor": 8, "type": "HIGH_PRESSURE", "severity": "WARNING",
      "ago": timedelta(days=5, hours=7), "ack": 20, "resolved": 75, "by": "client@aquaguard.dev"},
     {"key": "r07", "sensor": 7, "type": "LOW_PRESSURE", "severity": "WARNING",
-     "ago": timedelta(days=7, hours=1), "ack": 60, "resolved": 300, "by": "aguasdelsur@aquaguard.dev"},
+     "ago": timedelta(days=7, hours=1), "ack": 60, "resolved": 300, "by": "zonafranca@aquaguard.dev"},
     {"key": "r08", "sensor": 4, "type": "SENSOR_OFFLINE", "severity": "CRITICAL",
      "ago": timedelta(days=9, hours=5), "ack": 12, "resolved": 50, "by": "admin@aquaguard.dev"},
     {"key": "r09", "sensor": 1, "type": "HIGH_PRESSURE", "severity": "CRITICAL",
@@ -280,7 +308,7 @@ ALERTS = [
     {"key": "r14", "sensor": 2, "type": "HIGH_PRESSURE", "severity": "WARNING",
      "ago": timedelta(days=25, hours=3), "ack": 28, "resolved": 110, "by": "client@aquaguard.dev"},
     {"key": "r15", "sensor": 6, "type": "LOW_PRESSURE", "severity": "CRITICAL",
-     "ago": timedelta(days=27, hours=9), "ack": 9, "resolved": 40, "by": "abando@aquaguard.dev"},
+     "ago": timedelta(days=27, hours=9), "ack": 9, "resolved": 40, "by": "poblenou@aquaguard.dev"},
     {"key": "r16", "sensor": 5, "type": "SENSOR_OFFLINE", "severity": "CRITICAL",
      "ago": timedelta(days=29, hours=5), "ack": 50, "resolved": 200, "by": "admin@aquaguard.dev"},
 ]
@@ -318,6 +346,11 @@ def _find_organization(db: Session, name: str) -> Organization | None:
 
 def _upsert_organization(db: Session, data: dict, now: datetime) -> Organization:
     organization = _find_organization(db, data["name"])
+    previous = PREVIOUS_ORGANIZATION_NAMES.get(data["name"])
+    if organization is None and previous is not None:
+        organization = _find_organization(db, previous)
+        if organization is not None:
+            organization.name = data["name"]
     if organization is None:
         legacy = _find_organization(db, LEGACY_ORGANIZATION_NAME)
         if legacy is not None and data["name"] == ORGANIZATIONS[0]["name"]:
@@ -340,6 +373,11 @@ def _upsert_user(
     db: Session, data: dict, organization_id: UUID | None, now: datetime
 ) -> User:
     user = db.query(User).filter_by(email=data["email"]).one_or_none()
+    previous = PREVIOUS_USER_EMAILS.get(data["email"])
+    if user is None and previous is not None:
+        user = db.query(User).filter_by(email=previous).one_or_none()
+        if user is not None:
+            user.email = data["email"]
     if user is None:
         user = User(
             email=data["email"],
@@ -354,22 +392,35 @@ def _upsert_user(
     user.organization_id = organization_id
     user.is_active = data.get("is_active", True)
     user.last_login_at = now - timedelta(hours=data["last_login_hours"])
-    user.terms_version = TERMS_VERSION
+    # The same version as the public sign-up (B10), so the demo users and a
+    # new account show the same terms in "My account".
+    user.terms_version = app_settings.TERMS_VERSION
     user.terms_accepted_at = now - timedelta(days=60)
     db.flush()
     return user
 
 
-def _upsert_site(db: Session, data: dict, organization_id: UUID) -> Site:
-    site = (
+def _find_site(db: Session, organization_id: UUID, name: str) -> Site | None:
+    return (
         db.query(Site)
-        .filter_by(organization_id=organization_id, name=data["name"])
+        .filter_by(organization_id=organization_id, name=name)
         .one_or_none()
     )
+
+
+def _upsert_site(db: Session, data: dict, organization_id: UUID) -> Site:
+    site = _find_site(db, organization_id, data["name"])
+    previous = PREVIOUS_SITE_NAMES.get(data["name"])
+    if site is None and previous is not None:
+        site = _find_site(db, organization_id, previous)
+        if site is not None:
+            site.name = data["name"]
     if site is None:
         site = Site(organization_id=organization_id, name=data["name"])
         db.add(site)
-    for field in ("address", "latitude", "longitude", "floors", "basements", "building_type"):
+    for field in (
+        "address", "district", "latitude", "longitude", "floors", "basements", "building_type"
+    ):
         setattr(site, field, data[field])
     db.flush()
     return site

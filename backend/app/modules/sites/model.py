@@ -28,6 +28,8 @@ class Site(Base):
 
     # Table-level constraints and validation rules.
     __table_args__ = (
+        # Also the index for "sites of an organization" (D5): it starts with
+        # organization_id, so a separate index on that column would be redundant.
         UniqueConstraint(
             "organization_id",
             "name",
@@ -53,6 +55,13 @@ class Site(Base):
         CheckConstraint(
             "floors >= 1 AND basements >= 0",
             name="ck_sites_floors",
+        ),
+        # One of the ten districts of Barcelona, or unknown (D10).
+        CheckConstraint(
+            "district IS NULL OR district IN ('CIUTAT_VELLA', 'EIXAMPLE', "
+            "'SANTS_MONTJUIC', 'LES_CORTS', 'SARRIA_SANT_GERVASI', 'GRACIA', "
+            "'HORTA_GUINARDO', 'NOU_BARRIS', 'SANT_ANDREU', 'SANT_MARTI')",
+            name="ck_sites_district",
         ),
     )
 
@@ -118,6 +127,13 @@ class Site(Base):
         String(20),
         server_default="OTHER",
         nullable=False,
+    )
+
+    # Barcelona district, see ck_sites_district. NULL for the sites created
+    # before D10, so it has no default.
+    district: Mapped[str | None] = mapped_column(
+        String(30),
+        nullable=True,
     )
 
     # Creation timestamp managed by the database.

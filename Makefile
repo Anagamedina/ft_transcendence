@@ -24,11 +24,13 @@ env:
 		-e "s|^INGEST_API_KEY=.*|INGEST_API_KEY=$$(openssl rand -hex 32)|" \
 		.env.example > .env
 
-# The demo needs the sensor list of .env.example: an older .env leaves the
-# new sensors without simulated readings, so they show as offline.
+# The demo needs the sensor list and per-sensor scenarios of .env.example: an
+# older .env leaves sensors without readings (offline) or with the wrong story.
 check-sim-env: env
-	@grep -qxF "$$(grep '^SIMULATOR_SENSOR_IDS=' .env.example)" .env || \
-		echo "WARNING: SIMULATOR_SENSOR_IDS in .env differs from .env.example; copy that line or some demo sensors will show as offline."
+	@for var in SIMULATOR_SENSOR_IDS SIMULATOR_SCENARIOS; do \
+		grep -qxF "$$(grep "^$$var=" .env.example)" .env || \
+			echo "WARNING: $$var in .env differs from .env.example; copy that line or the demo sensors will not match the seed."; \
+	done
 
 certs:
 	@mkdir -p $(CERTS_DIR)

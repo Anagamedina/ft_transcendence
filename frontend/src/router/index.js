@@ -37,6 +37,10 @@ const routes = [
     component: () => import("../views/public/TermsView.vue"),
   },
   {
+    path: "/legal",
+    component: () => import("../views/public/LegalView.vue"),
+  },
+  {
     path: "/status",
     component: () => import("../views/public/StatusView.vue"),
   },
