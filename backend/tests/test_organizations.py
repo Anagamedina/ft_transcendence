@@ -8,6 +8,7 @@ usuarios, también a los que ya tenían la sesión abierta.
 
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -315,20 +316,28 @@ def test_email_de_contacto_mal_escrito_da_422(admin, datos):
 
 
 def test_un_cliente_dado_de_alta_en_la_nueva_organizacion_no_ve_nada_ajeno(
-    admin, client, datos
+    admin, client, engine, datos
 ):
-    """Criterio de la #121: el cliente de la organización nueva empieza vacío."""
+    """
+    Criterio de la #121: el cliente de la organización nueva empieza vacío.
+
+    Hasta la B10 el cliente se daba de alta con `POST /api/auth/register`
+    como admin. Ahora esa ruta es el registro público, y los usuarios de
+    una organización que ya existe llegarán por invitación (B4); mientras,
+    se crea directamente en la base.
+    """
     org = admin.post("/api/organizations", json={"name": "Residencia Mar"}).json()
-    alta = admin.post(
-        "/api/auth/register",
-        json={
-            "name": "Recepción Mar",
-            "email": "recepcion@mar.dev",
-            "password": PASSWORD,
-            "organization_id": org["id"],
-        },
-    )
-    assert alta.status_code == 201
+    with Session(engine) as session:
+        session.add(
+            User(
+                organization_id=UUID(org["id"]),
+                email="recepcion@mar.dev",
+                name="Recepción Mar",
+                password_hash=hash_password(PASSWORD),
+                role="client",
+            )
+        )
+        session.commit()
 
     client.cookies.clear()
     assert client.post(
