@@ -3,8 +3,20 @@
 //   id, name, status (TRIAL | ACTIVE | SUSPENDED), trial_ends_at,
 //   contact and billing fields, counters and created_at.
 // Counters (site_count, sensor_count...) are computed by the backend;
-// here they match services/fixtures/sites.js so the detail view stays consistent.
+// here they match services/fixtures/sites.js and sensors.js so the detail view stays consistent.
+// It also holds mock users and functions that mimic the B1/B4/B16 endpoints, so the
+// views already call "actions" with the same meaning as the future store.
 // Delete this file once the organizations store exists.
+
+import { reactive } from 'vue'
+import { sites as fixtureSites } from '../../services/fixtures/sites'
+import { sensors as fixtureSensors } from '../../services/fixtures/sensors'
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+// Days added by "extend trial" and days an invitation lasts (TRIAL_DAYS and INVITATION_TTL_DAYS)
+const TRIAL_DAYS = 7
+const INVITATION_TTL_DAYS = 7
 
 // Trial end date relative to today, at 23:59:59 local time.
 // Relative dates keep the demo meaningful any day: fixed dates would all be in the past soon.
@@ -16,7 +28,9 @@ function trialEndsIn(days) {
   return date.toISOString()
 }
 
-export const mockClients = [
+// reactive: when an action changes a client (or a new one is created),
+// every view that shows it updates without reloading
+export const mockClients = reactive([
   {
     id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     name: 'Hotel Diagonal Mar',
@@ -29,7 +43,7 @@ export const mockClients = [
     tax_id: 'B12345678',
     billing_email: 'facturas@hoteldiagonal.example.com',
     site_count: 3,
-    sensor_count: 9,
+    sensor_count: 3,
     user_count: 2,
     open_alerts: 1,
     critical_alerts: 1,
@@ -112,7 +126,7 @@ export const mockClients = [
     id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
     name: 'Gimnàs Poblenou',
     status: 'ACTIVE',
-    trial_ends_at: trialEndsIn(-30),
+    trial_ends_at: null,
     city: 'Barcelona',
     contact_email: 'gerencia@gimnaspoblenou.example.com',
     phone: '+34 600 000 006',
@@ -162,4 +176,135 @@ export const mockClients = [
     critical_alerts: 0,
     created_at: '2026-10-10T16:00:00Z',
   },
-]
+])
+
+// Users of each client. Shape follows UserResponse: id, organization_id, name, email, role, created_at.
+// One line per user; the count per client matches user_count above.
+export const mockUsers = reactive([
+  { id: 'u-01', organization_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', name: 'Marta Soler', email: 'marta.soler@hoteldiagonal.example.com', role: 'client', created_at: '2026-08-01T09:00:00Z' },
+  { id: 'u-02', organization_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', name: 'Jordi Vidal', email: 'jordi.vidal@hoteldiagonal.example.com', role: 'client', created_at: '2026-08-04T10:00:00Z' },
+  { id: 'u-03', organization_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', name: 'Laia Puig', email: 'secretaria@escolagracia.example.com', role: 'client', created_at: '2026-08-05T10:00:00Z' },
+  { id: 'u-04', organization_id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', name: 'Pere Roca', email: 'presidencia@veinssants.example.com', role: 'client', created_at: '2026-08-10T12:00:00Z' },
+  { id: 'u-05', organization_id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', name: 'Núria Font', email: 'direccion@clinicasarria.example.com', role: 'client', created_at: '2026-10-08T11:00:00Z' },
+  { id: 'u-06', organization_id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', name: 'Albert Serra', email: 'info@restaurantborn.example.com', role: 'client', created_at: '2026-09-20T13:00:00Z' },
+  { id: 'u-07', organization_id: 'ffffffff-ffff-4fff-8fff-ffffffffffff', name: 'Clara Mas', email: 'gerencia@gimnaspoblenou.example.com', role: 'client', created_at: '2026-08-29T10:00:00Z' },
+  { id: 'u-08', organization_id: 'ffffffff-ffff-4fff-8fff-ffffffffffff', name: 'Oriol Camps', email: 'oriol.camps@gimnaspoblenou.example.com', role: 'client', created_at: '2026-09-01T09:00:00Z' },
+  { id: 'u-09', organization_id: 'ffffffff-ffff-4fff-8fff-ffffffffffff', name: 'Sara Ribas', email: 'sara.ribas@gimnaspoblenou.example.com', role: 'client', created_at: '2026-09-03T09:00:00Z' },
+  { id: 'u-10', organization_id: '12121212-1212-4121-8121-121212121212', name: 'Anna Ferrer', email: 'manteniment@residenciahorta.example.com', role: 'client', created_at: '2026-09-02T09:30:00Z' },
+  { id: 'u-11', organization_id: '12121212-1212-4121-8121-121212121212', name: 'Marc Costa', email: 'marc.costa@residenciahorta.example.com', role: 'client', created_at: '2026-09-05T09:30:00Z' },
+  { id: 'u-12', organization_id: '34343434-3434-4343-8343-343434343434', name: 'Eva Martí', email: 'serveis@oficineslescorts.example.com', role: 'client', created_at: '2026-10-10T17:00:00Z' },
+])
+
+// Pending invitations (B4). A user only exists after accepting, so they do not count in user_count.
+// The real invitation stores only the email; name is kept here to show who it is for.
+export const mockInvitations = reactive([])
+
+// Sites created with the wizard during this session (the fixtures cannot change)
+const createdSites = reactive([])
+
+// Sites of one client with their sensors attached, for the row expansion and the detail tabs
+export function sitesOf(clientId) {
+  return [...fixtureSites, ...createdSites]
+    .filter((site) => site.organization_id === clientId)
+    .map((site) => ({
+      ...site,
+      sensors: fixtureSensors.filter((sensor) => sensor.site_id === site.id),
+    }))
+}
+
+export function usersOf(clientId) {
+  return mockUsers.filter((user) => user.organization_id === clientId)
+}
+
+export function invitationsOf(clientId) {
+  return mockInvitations.filter((invitation) => invitation.organization_id === clientId)
+}
+
+export function findClient(clientId) {
+  return mockClients.find((client) => client.id === clientId)
+}
+
+// Random id in the same format as the API (UUID v4)
+function newId() {
+  return crypto.randomUUID()
+}
+
+// ---------------------------------------------------------------------------
+// Mock actions. Same rules as the backend service (B1, B4, B16), applied locally.
+// TODO: replace each one with its store action (data area).
+// ---------------------------------------------------------------------------
+
+// POST /api/organizations/{id}/suspend
+export function suspendClient(client) {
+  client.status = 'SUSPENDED'
+}
+
+// POST /api/organizations/{id}/reactivate: back to TRIAL if it still has a trial date
+export function reactivateClient(client) {
+  client.status = client.trial_ends_at ? 'TRIAL' : 'ACTIVE'
+}
+
+// POST /api/organizations/{id}/extend-trial: adds the days to the end date,
+// or to today if the trial already ended
+export function extendTrial(client, now = new Date()) {
+  const end = new Date(client.trial_ends_at)
+  const from = end > now ? end : now
+  client.trial_ends_at = new Date(from.getTime() + TRIAL_DAYS * DAY_MS).toISOString()
+}
+
+// POST /api/organizations/{id}/activate: the trial becomes a paying client
+export function activateClient(client) {
+  client.status = 'ACTIVE'
+  client.trial_ends_at = null
+}
+
+// DELETE /api/organizations/{id} (B16): removes the client and everything it owns
+export function deleteClient(client) {
+  const index = mockClients.indexOf(client)
+  if (index !== -1) mockClients.splice(index, 1)
+}
+
+// POST /api/invitations (B4): returns the link the admin sends to the new user
+export function inviteUser(client, { name, email }) {
+  const code = Math.random().toString(36).slice(2, 8)
+  const invitation = {
+    id: newId(),
+    organization_id: client.id,
+    name,
+    email,
+    link: `${window.location.origin}/register?invitacion=${code}`,
+    expires_at: new Date(Date.now() + INVITATION_TTL_DAYS * DAY_MS).toISOString(),
+  }
+  mockInvitations.push(invitation)
+  return invitation
+}
+
+// POST /api/organizations with first_site, then the first invitation.
+// Created by the admin, so it starts ACTIVE (the public sign-up creates trials).
+export function createClient({ client, site, user }) {
+  const id = newId()
+  const newClient = {
+    id,
+    name: client.name.trim(),
+    status: 'ACTIVE',
+    trial_ends_at: null,
+    city: 'Barcelona',
+    contact_email: client.contact_email || null,
+    phone: client.phone || null,
+    legal_name: client.legal_name || null,
+    tax_id: client.tax_id || null,
+    billing_email: client.billing_email || null,
+    site_count: 1,
+    sensor_count: 0,
+    user_count: 0,
+    open_alerts: 0,
+    critical_alerts: 0,
+    created_at: new Date().toISOString(),
+  }
+  mockClients.unshift(newClient)
+  createdSites.push({ id: newId(), organization_id: id, ...site, created_at: newClient.created_at })
+
+  // Return the reactive copy, so later changes to it update every view
+  const created = findClient(id)
+  return { client: created, invitation: inviteUser(created, user) }
+}
