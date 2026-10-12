@@ -5,7 +5,8 @@
 
 <template>
   <div class="min-h-screen min-w-[320px] flex flex-col">
-    <Header title="AquaGuard · Admin">
+    <!-- pl-12 on mobile: room for the Sidebar menu button, which is fixed at the top left -->
+    <Header title="AquaGuard · Admin" class="pl-12 md:pl-0">
       <template #actions>
         <button
           @click="handleLogout"
