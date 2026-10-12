@@ -69,8 +69,6 @@ PREVIOUS_USER_EMAILS = {
     "zonafranca@aquaguard.dev": "aguasdelsur@aquaguard.dev",
 }
 
-TERMS_VERSION = "2026-09"
-
 # Shown in the README: the invitation can be accepted with this code.
 DEMO_INVITATION_CODE = "AQUAGUARD-DEMO-INVITE"
 
@@ -391,7 +389,9 @@ def _upsert_user(
     user.organization_id = organization_id
     user.is_active = data.get("is_active", True)
     user.last_login_at = now - timedelta(hours=data["last_login_hours"])
-    user.terms_version = TERMS_VERSION
+    # The same version as the public sign-up (B10), so the demo users and a
+    # new account show the same terms in "My account".
+    user.terms_version = app_settings.TERMS_VERSION
     user.terms_accepted_at = now - timedelta(days=60)
     db.flush()
     return user

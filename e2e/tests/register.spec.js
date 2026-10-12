@@ -4,6 +4,10 @@ import { CLIENT, login, expectDashboard } from './helpers.js'
 // Registro público con prueba de 7 días (B10, #140). Hasta la B10 solo un
 // admin podía dar de alta cuentas. El formulario de /register con los
 // campos nuevos es la F15-P (Florinda); mientras llega, se prueba por la API.
+//
+// Hace 4 registros y un login seguidos: lanzar contra un stack arrancado con
+// `PUBLIC_RATE_LIMIT=1000r/m make up`, como el resto de Playwright (README),
+// o el límite de Nginx puede responder 429.
 
 const PASSWORD = 'agua-que-no-se-escapa'
 

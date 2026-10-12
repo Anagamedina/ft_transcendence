@@ -106,7 +106,8 @@ class AppSettings(BaseSettings):
 
     # Versión de los términos de uso que acepta quien se registra (B10).
     # Se guarda con cada usuario, para saber qué texto aceptó. Cuando
-    # cambien los términos de `TermsView.vue`, se sube aquí.
+    # cambien los términos de `/legal` (`LegalView.vue`, ancla `#terminos`),
+    # se sube aquí. El seed de la demo usa el mismo valor.
     TERMS_VERSION: str = "2026-10"
 
     # Orígenes que el navegador tiene permitido usar para llamar a la API,

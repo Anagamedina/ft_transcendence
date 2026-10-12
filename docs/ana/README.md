@@ -33,7 +33,7 @@ B17, GitHub #138 a #150). Cada carpeta contiene:
 | [14-edificios-b2](14-edificios-b2/) | #139 | P1 | **B2** — Edificios: alta, edición, borrado, plantas y tipo | B1 | ✅ Hecha (PR #194) |
 | [15-sensores-b3](15-sensores-b3/) | #139 | P1 | **B3** — Sensores: planta, `health`, `last_value` y `?health=` | B2 | ✅ Hecha (PR #197) |
 | — | #143 | P1 | B7 — Series de 7 días para gráficas | — | Pendiente (paralelo) |
-| [16-registro-b10](16-registro-b10/) | #140 | P1 | **B10** — Registro público con prueba de 7 días | B0 ✅, B1 ✅, I0 ✅ | 🚧 En curso (rama `ana/140-b10-registro-publico`) |
+| [16-registro-b10](16-registro-b10/) | #140 | P1 | **B10** — Registro público con prueba de 7 días | B0 ✅, B1 ✅, I0 ✅ | ✅ Hecha (PR #205) |
 | — | #142 | P1 | B5 — Alertas: filtros, ACKNOWLEDGED, quién actuó | B0, B3 | Pendiente |
 | — | #141 | P1 | B4+B6 — Invitaciones y gestión de usuarios | B1, B10, D3 (#130), I0 | Pendiente |
 | — | #144 | P1 | B8+B9 — Mi cuenta y KPIs | B5, B6 | Pendiente |
