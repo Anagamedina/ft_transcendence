@@ -19,34 +19,63 @@ en Axios. Sin eso el navegador no envía la cookie y todo responde 401.
 
 from __future__ import annotations
 
-from uuid import UUID
-
 from pydantic import EmailStr, Field
 
-from app.modules.users.schemas import UserCreate, UserResponse
+from app.modules.users.schemas import UserResponse
+from app.shared.passwords import PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH
 from app.shared.schemas import ApiModel, ApiRequest
 
 
-class RegisterRequest(UserCreate):
+class RegisterRequest(ApiRequest):
     """
-    Alta de cuenta. Mismos campos que `UserCreate`.
+    Registro público (B10, issue #140): cualquiera crea su cuenta y, con
+    ella, su organización en prueba.
 
-    Se declara como subclase con nombre propio, en lugar de usar
-    `UserCreate` directamente en la ruta, porque el nombre del schema es lo
-    que aparece en OpenAPI: el frontend lee `RegisterRequest` y sabe a qué
-    endpoint corresponde. Además permite que el registro evolucione
-    (aceptar un código de invitación, por ejemplo) sin arrastrar el alta
-    administrativa de usuarios.
+    Ya no hereda de `UserCreate`. Hasta la B10 el registro era el alta de
+    un cliente por un admin, con `organization_id`; ahora quien se
+    registra no tiene organización todavía: la crea con
+    `organization_name`. Los usuarios de una organización que ya existe
+    llegarán por invitación (B4).
 
-    `organization_id` es obligatorio desde la issue #27. Antes el cliente
-    heredaba la organización del admin que lo daba de alta, y un admin
-    global (sin organización) creaba clientes sin organización: cuentas
-    que no ven nada.
+    La contraseña solo se limita aquí a 128 caracteres. La regla de
+    verdad (12 como mínimo, no común, sin el email) la aplica el service
+    con `check_password`, para responder `WEAK_PASSWORD` y no el
+    `VALIDATION_ERROR` genérico.
     """
 
-    organization_id: UUID = Field(
-        description="Organización a la que pertenecerá el cliente.",
-        examples=["11111111-1111-4111-8111-111111111111"],
+    name: str = Field(
+        min_length=1,
+        max_length=120,
+        description="Nombre de quien se registra.",
+        examples=["Ana Medina"],
+    )
+    email: EmailStr = Field(
+        description="Email de la cuenta. Único en todo el sistema.",
+        examples=["ana@hotelmar.com"],
+    )
+    password: str = Field(
+        max_length=PASSWORD_MAX_LENGTH,
+        description=(
+            f"Al menos {PASSWORD_MIN_LENGTH} caracteres, que no sea una "
+            "contraseña común ni contenga el email. Si no cumple, 422 "
+            "`WEAK_PASSWORD`."
+        ),
+        examples=["agua-que-no-se-escapa"],
+    )
+    organization_name: str = Field(
+        max_length=120,
+        description=(
+            "Nombre de la organización que se crea, en prueba. Único sin "
+            "distinguir mayúsculas."
+        ),
+        examples=["Hotel Mar"],
+    )
+    accept_terms: bool = Field(
+        description=(
+            "Tiene que ser `true`: quien se registra acepta los términos "
+            "de uso. Si no, 422 `TERMS_NOT_ACCEPTED`."
+        ),
+        examples=[True],
     )
 
 
@@ -57,7 +86,7 @@ class LoginRequest(ApiRequest):
     password: str = Field(
         min_length=1,
         description=(
-            "Contraseña. Aquí NO se aplica el mínimo de 8 caracteres: al "
+            "Contraseña. Aquí NO se aplica la regla de contraseñas: al "
             "entrar hay que aceptar lo que el usuario teclee y responder "
             "401 si no coincide. Rechazarlo con un 422 por longitud "
             "revelaría qué contraseñas no existen en el sistema."
@@ -68,7 +97,7 @@ class LoginRequest(ApiRequest):
 
 class SessionResponse(ApiModel):
     """
-    Respuesta de `POST /api/auth/login` y `GET /api/auth/me`.
+    Respuesta del login, del registro (B10) y de `GET /api/me`.
 
     Devuelve el usuario, no un token: el token va en la cookie.
     """
