@@ -88,7 +88,8 @@ services:
       dockerfile: gateway/Dockerfile
     restart: unless-stopped
     environment:
-      PUBLIC_RATE_LIMIT: ${PUBLIC_RATE_LIMIT:-5r/m}
+      PUBLIC_RATE_LIMIT: ${PUBLIC_RATE_LIMIT:-10r/m}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-10}
     volumes:
       - ./gateway/certs:/etc/nginx/certs:ro
     ports:
