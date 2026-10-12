@@ -280,19 +280,20 @@ with `ENV=production` because these passwords are public.
 | Account | Password | Role |
 |---|---|---|
 | `admin@aquaguard.dev` | `dev-admin-only` | Global admin |
-| `client@aquaguard.dev` | `dev-client-only` | Client of Residencias Alcalá |
-| `hotel@`, `comunidad@`, `abando@aquaguard.dev` | `dev-client-only` | One client per organization |
-| `aguasdelsur@aquaguard.dev` | `dev-client-only` | Disabled (suspended organization) |
+| `client@aquaguard.dev` | `dev-client-only` | Client of Residencias Collserola |
+| `hotel@`, `comunidad@`, `poblenou@aquaguard.dev` | `dev-client-only` | One client per organization |
+| `zonafranca@aquaguard.dev` | `dev-client-only` | Disabled (suspended organization) |
 
-- 5 organizations: Residencias Alcalá, Hotel Turia (TRIAL), Comunidad Mallorca
-  401, Polideportivo Abando and Aguas del Sur (SUSPENDED).
-- 6 buildings with floors, basements and real coordinates; 8 sensors spread
+- 5 organizations: Residencias Collserola, Hotel Gòtic (TRIAL), Comunidad
+  Mallorca 401, Polideportivo Poblenou and Aigües Zona Franca (SUSPENDED).
+- 6 buildings in Barcelona, each in a different district, with floors,
+  basements and real coordinates; 8 sensors spread
   across floors. `SENS-006` is out of range (its upper threshold is 2.0 bar)
   and `SENS-007` is offline: it is left out of `SIMULATOR_SENSOR_IDS` on
   purpose. If your `.env` predates this seed, copy that line from
   `.env.example`, or the other sensors will show as offline too.
 - 19 alerts over the last 30 days (16 resolved, 3 active), a week of hourly
-  readings, and one pending invitation for `nuevo.gestor@residenciasalcala.es`
+  readings, and one pending invitation for `nuevo.gestor@residenciascollserola.cat`
   with the code `AQUAGUARD-DEMO-INVITE`.
 
 ### Analytics export
