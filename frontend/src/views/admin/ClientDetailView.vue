@@ -103,25 +103,33 @@ const dataFields = computed(() => [
 // Status actions: run the action and confirm the result in a status message
 // ---------------------------------------------------------------------------
 const feedback = ref('')
+const feedbackMessage = ref(null)
+
+// Shows the result and moves the focus to it: the button that was clicked
+// may disappear (e.g. "Suspender" becomes "Reactivar"), so the focus would be lost
+function showFeedback(text) {
+  feedback.value = text
+  nextTick(() => feedbackMessage.value?.focus())
+}
 
 function onExtend() {
   extendTrial(client.value)
-  feedback.value = `Prueba ampliada hasta el ${formatDate(client.value.trial_ends_at)}.`
+  showFeedback(`Prueba ampliada hasta el ${formatDate(client.value.trial_ends_at)}.`)
 }
 
 function onActivate() {
   activateClient(client.value)
-  feedback.value = `${client.value.name} ya es cliente activo.`
+  showFeedback(`${client.value.name} ya es cliente activo.`)
 }
 
 function onSuspend() {
   suspendClient(client.value)
-  feedback.value = `${client.value.name} está suspendido.`
+  showFeedback(`${client.value.name} está suspendido.`)
 }
 
 function onReactivate() {
   reactivateClient(client.value)
-  feedback.value = `${client.value.name} se ha reactivado.`
+  showFeedback(`${client.value.name} se ha reactivado.`)
 }
 
 function onDelete() {
@@ -216,9 +224,11 @@ const INPUT_CLASS =
 
         <!-- Result of the last action; role="status" announces it to screen readers -->
         <p
+          ref="feedbackMessage"
           role="status"
+          tabindex="-1"
           class="text-sm font-semibold text-green-800"
-          :class="feedback ? 'rounded-lg border border-green-200 bg-green-50 px-4 py-2' : ''"
+          :class="feedback ? 'rounded-lg border border-green-200 bg-green-50 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-aqua-600' : ''"
         >
           {{ feedback }}
         </p>

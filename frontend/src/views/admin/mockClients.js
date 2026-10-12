@@ -258,10 +258,21 @@ export function activateClient(client) {
   client.trial_ends_at = null
 }
 
+// Removes in place every item of a reactive list that matches, so views stay reactive
+function removeWhere(list, matches) {
+  for (let i = list.length - 1; i >= 0; i -= 1) {
+    if (matches(list[i])) list.splice(i, 1)
+  }
+}
+
 // DELETE /api/organizations/{id} (B16): removes the client and everything it owns
+// (its users, pending invitations and the sites created in this session)
 export function deleteClient(client) {
-  const index = mockClients.indexOf(client)
-  if (index !== -1) mockClients.splice(index, 1)
+  const ownedBy = (item) => item.organization_id === client.id
+  removeWhere(mockUsers, ownedBy)
+  removeWhere(mockInvitations, ownedBy)
+  removeWhere(createdSites, ownedBy)
+  removeWhere(mockClients, (item) => item.id === client.id)
 }
 
 // POST /api/invitations (B4): returns the link the admin sends to the new user
@@ -272,7 +283,8 @@ export function inviteUser(client, { name, email }) {
     organization_id: client.id,
     name,
     email,
-    link: `${window.location.origin}/register?invitacion=${code}`,
+    // Same route and param that F6 (#167) reads: /registro?invitacion=CODE (route defined by F1)
+    link: `${window.location.origin}/registro?invitacion=${code}`,
     expires_at: new Date(Date.now() + INVITATION_TTL_DAYS * DAY_MS).toISOString(),
   }
   mockInvitations.push(invitation)
