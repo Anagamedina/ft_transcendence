@@ -99,6 +99,9 @@ class AuthService:
         self._organizacion_libre(nombre_org)
 
         ahora = ahora or datetime.now(timezone.utc)
+        # Argon2 tarda a propósito (unos 100 ms): se calcula antes de abrir
+        # la transacción para que esta dure lo menos posible.
+        huella = hash_password(payload.password)
         try:
             with transaction(self.db):
                 organizacion = self.organizations.create(
@@ -113,7 +116,7 @@ class AuthService:
                     organization_id=organizacion.id,
                     email=payload.email,
                     name=payload.name,
-                    password_hash=hash_password(payload.password),
+                    password_hash=huella,
                     role=UserRole.CLIENT.value,
                 )
                 usuario.terms_version = app_settings.TERMS_VERSION

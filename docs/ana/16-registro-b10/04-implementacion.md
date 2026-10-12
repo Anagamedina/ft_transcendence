@@ -51,3 +51,17 @@ Rama: `ana/140-b10-registro-publico` (sale de `develop`).
 | Frontend (`mockAdapter.js`) | El mock de `/api/auth/register` sigue con los campos viejos |
 | B4 y B8 | Usar `check_password` al aceptar la invitación y al cambiar contraseña |
 | B12 (#146) | Qué pasa cuando vence `trial_ends_at` |
+
+## Retoques tras la revisión (12-10-2026)
+
+La PR #205 se mergeó mientras se preparaban; van en una PR aparte.
+
+- El seed de la demo usa `app_settings.TERMS_VERSION` en vez de su propia
+  constante (`"2026-09"`): una sola versión de los términos.
+- El comentario de `TERMS_VERSION` apunta a `/legal` (`LegalView.vue`), no
+  a `TermsView.vue`.
+- `hash_password` se calcula antes de abrir la transacción: Argon2 tarda
+  unos 100 ms y la transacción dura menos.
+- `register.spec.js` avisa de que hay que lanzarlo con
+  `PUBLIC_RATE_LIMIT=1000r/m make up`.
+- Con PostgreSQL la suite da 539 passed, 4 skipped (según la revisión).

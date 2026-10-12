@@ -600,7 +600,7 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 | #139  | B1 organizations: list with counters, create with first site, edit, suspend/reactivate, trial  | #191           | Implemented |
 | #139  | B2 buildings: create, edit and delete sites, floors and building type, sensor count and status | #194           | Implemented |
 | #139  | B3 sensors: floor on create and edit, health, last value and health filter                     | #197           | Implemented |
-| #140  | B10 public register: own organization on a 7-day trial, session opened, common password rule   | —              | In review   |
+| #140  | B10 public register: own organization on a 7-day trial, session opened, common password rule   | #205           | Implemented |
 | —     | List of the redesign issues (B0–B18) and their mocks                                           | #124           | Implemented |
 | —     | Cleanup: outdated comments, dead 501 code, notes in `docs/ana/` brought up to date             | #181           | Implemented |
 | #141, #144 | Contract of B4, B6, B8 and B9 published before the routes: invitations, users, my account and KPIs | —    | In review   |
