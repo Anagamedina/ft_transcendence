@@ -6,6 +6,16 @@
 // here they match services/fixtures/sites.js so the detail view stays consistent.
 // Delete this file once the organizations store exists.
 
+// Trial end date relative to today, at 23:59:59 local time.
+// Relative dates keep the demo meaningful any day: fixed dates would all be in the past soon.
+// Local 23:59:59 (not UTC) so the shown end date is the intended day in Barcelona.
+function trialEndsIn(days) {
+  const date = new Date()
+  date.setDate(date.getDate() + days)
+  date.setHours(23, 59, 59, 0)
+  return date.toISOString()
+}
+
 export const mockClients = [
   {
     id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
@@ -65,7 +75,7 @@ export const mockClients = [
     id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
     name: 'Clínica Sarrià',
     status: 'TRIAL',
-    trial_ends_at: '2026-10-15T23:59:59Z',
+    trial_ends_at: trialEndsIn(3),
     city: 'Barcelona',
     contact_email: 'direccion@clinicasarria.example.com',
     phone: '+34 600 000 004',
@@ -84,7 +94,7 @@ export const mockClients = [
     id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
     name: 'Restaurant del Born',
     status: 'TRIAL',
-    trial_ends_at: '2026-09-27T23:59:59Z',
+    trial_ends_at: trialEndsIn(-4),
     city: 'Barcelona',
     contact_email: 'info@restaurantborn.example.com',
     phone: '+34 600 000 005',
@@ -102,7 +112,7 @@ export const mockClients = [
     id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
     name: 'Gimnàs Poblenou',
     status: 'ACTIVE',
-    trial_ends_at: '2026-09-05T23:59:59Z',
+    trial_ends_at: trialEndsIn(-30),
     city: 'Barcelona',
     contact_email: 'gerencia@gimnaspoblenou.example.com',
     phone: '+34 600 000 006',
@@ -138,7 +148,7 @@ export const mockClients = [
     id: '34343434-3434-4343-8343-343434343434',
     name: 'Oficines Les Corts',
     status: 'TRIAL',
-    trial_ends_at: '2026-10-17T23:59:59Z',
+    trial_ends_at: trialEndsIn(1),
     city: 'Barcelona',
     contact_email: 'serveis@oficineslescorts.example.com',
     phone: null,
