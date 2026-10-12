@@ -41,6 +41,26 @@
       >
         Abrir modal
       </button>
+
+      <!-- Issue #160 (F4 + F5): building floor by floor and pressure chart, mock data -->
+      <div class="grid grid-cols-1 items-start gap-5 lg:grid-cols-[420px_minmax(0,1fr)]">
+        <BuildingStack
+          :name="demoBuilding.name"
+          :floors="demoBuilding.floors"
+          :basements="demoBuilding.basements"
+          :sensors="demoSensors"
+          :selected-id="selectedSensorId"
+          @select="selectedSensorId = $event"
+        />
+        <SensorDetailPanel
+          :sensor="selectedSensor"
+          :readings="selectedReadings"
+          :alert-count="demoAlertCounts[selectedSensorId] ?? 0"
+        />
+      </div>
+
+      <!-- Empty state: building without sensors -->
+      <BuildingStack name="Edificio sin sensores" :floors="3" :basements="1" :sensors="[]" />
     </div>
 
     <Modal
@@ -69,8 +89,11 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import MainLayout from "../../layouts/MainLayout.vue";
+import BuildingStack from "../../components/BuildingStack.vue";
+import SensorDetailPanel from "../../components/SensorDetailPanel.vue";
+import { demoBuilding, demoSensors, demoReadings, demoAlertCounts } from "../../services/fixtures/building";
 import Modal from "../../components/Modal.vue";
 import SensorCard from "../../components/SensorCard.vue";
 import { useAuthStore } from "../../stores/auth";
@@ -110,4 +133,15 @@ sensorsStore.sensors = [
 const alertsStore = useAlertsStore();
 
 const modalAbierto = ref(false);
+
+// Issue #160 demo: selected sensor and its mock readings.
+// As in the mockup, the panel always shows a sensor: the worst one first.
+const healthRank = { CRITICAL: 0, WARNING: 1, OFFLINE: 2, OK: 3 };
+const selectedSensorId = ref(
+  [...demoSensors].sort((a, b) => healthRank[a.health] - healthRank[b.health])[0].id,
+);
+const selectedSensor = computed(
+  () => demoSensors.find((s) => s.id === selectedSensorId.value) || null,
+);
+const selectedReadings = computed(() => demoReadings(selectedSensor.value));
 </script>
