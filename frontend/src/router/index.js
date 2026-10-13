@@ -16,11 +16,17 @@ const routes = [
   },
   {
     path: "/dashboard",
-    component: () => import("../views/client/DashboardView.vue"),
+    component: () => import("../layouts/ClientLayout.vue"),
     meta: {
-      requiresAuth: true,  //tells the router: "this route requires authentication" so we can not access directly 
+      requiresAuth: true,
       requiresClient: true,
     },
+    children: [
+      {
+        path: "",
+        component: () => import("../views/client/DashboardView.vue"),
+      },
+    ],
   },
   {
     path: "/privacy",
@@ -106,9 +112,11 @@ const router = createRouter({
     if (savedPosition) {
       return savedPosition;
     }
-    // Scroll to the anchor (e.g. /legal#terminos), leaving room for the sticky header
     if (to.hash) {
-      return { el: to.hash, top: 80 };
+      return {
+      el: to.hash,
+      behavior: 'smooth',
+      }
     }
     return { top: 0 };
   },
@@ -151,7 +159,7 @@ router.beforeEach(async (to) => {
   }
 
   // Allow only clients to access the client dashboard.
-  if (requiresClient && authStore.isAdmin) {
+  if (requiresClient && !authStore.isClient) {
     return authStore.isAdmin ? "/admin" : "/login";
   }
 
