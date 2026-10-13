@@ -7,6 +7,11 @@ import adapter from './adapter.js'
 const EXPORT_URL = '/api/analytics/export'
 
 const analyticsService = {
+  // KPI cards of the dashboard (F12, uses B9).
+  getOverview() {
+    return adapter.get('/api/analytics/overview')
+  },
+
   // range = { from, to } as ISO strings
   getDailyRows(range) {
     return adapter.get(EXPORT_URL, { params: { format: 'json', ...range } })

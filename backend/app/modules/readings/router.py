@@ -12,8 +12,9 @@ documento):
 **Este router no lleva `prefix`.** Es la excepción entre los ocho, y es
 deliberada: expone dos rutas que cuelgan de árboles distintos.
 
-    POST /api/readings                       → issue #24
-    GET  /api/sensors/{sensor_id}/readings   → issue #25 (histórico)
+    POST /api/readings                              → issue #24
+    GET  /api/sensors/{sensor_id}/readings          → issue #25 (histórico)
+    GET  /api/sensors/{sensor_id}/readings/series   → B7 (gráfica)
 
 Ambas son "lecturas" y comparten service y schemas, así que viven en el
 mismo módulo; pero la segunda se lee desde un sensor. Con
@@ -29,12 +30,18 @@ contra el schema, y se delega. Es el criterio de aceptación de la issue
 
 from __future__ import annotations
 
-from typing import Annotated
+from datetime import datetime
+from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
-from app.modules.readings.schemas import ReadingCreate, ReadingResponse
+from app.modules.readings.schemas import (
+    ReadingCreate,
+    ReadingResponse,
+    ReadingSeriesResponse,
+    SeriesBucket,
+)
 from app.modules.readings.service import ReadingService, get_reading_service
 from app.shared.dependencies import OrgScope, Pagination, require_ingest_key
 from app.shared.schemas import Page, error_response
@@ -103,7 +110,11 @@ def create_reading(payload: ReadingCreate, service: ReadingSvc) -> ReadingRespon
     summary="Histórico de lecturas de un sensor",
     description=(
         "Devuelve las lecturas de un sensor, paginadas y ordenadas por "
-        "fecha de medida. Lo consume la vista de detalle de sensor "
+        "fecha de medida: **de la más reciente a la más antigua** por "
+        "defecto, o al revés con `?order=asc` (B7). `?from=&to=` lo limita "
+        "a ese periodo, sin incluir `to`; una fecha sin zona horaria se "
+        "toma como UTC y `from` posterior a `to` da 422 "
+        "(`INVALID_DATE_RANGE`). Lo consume la vista de detalle de sensor "
         "(issue #40).\n\n"
         "Solo devuelve sensores de **tu propia organización**: un "
         "`sensor_id` de otro cliente responde 404, igual que uno que no "
@@ -131,6 +142,18 @@ def list_sensor_readings(
     service: ReadingSvc,
     scope: OrgScope,
     pagination: Pagination,
+    start: Annotated[
+        datetime | None,
+        Query(alias="from", description="Desde (ISO 8601, incluido)."),
+    ] = None,
+    end: Annotated[
+        datetime | None,
+        Query(alias="to", description="Hasta (ISO 8601, sin incluir)."),
+    ] = None,
+    order: Annotated[
+        Literal["asc", "desc"],
+        Query(description="`desc`: la más reciente primero."),
+    ] = "desc",
 ) -> Page[ReadingResponse]:
     # La organización sale de la sesión (`OrgScope`), nunca de lo que envíe
     # el cliente: si viniera en la query, cualquiera podría pedir la de otro.
@@ -139,4 +162,51 @@ def list_sensor_readings(
         organization_id=scope,
         offset=pagination.offset,
         limit=pagination.limit,
+        start=start,
+        end=end,
+        newest_first=order == "desc",
+    )
+
+
+@router.get(
+    "/sensors/{sensor_id}/readings/series",
+    response_model=ReadingSeriesResponse,
+    summary="Serie de presión de un sensor para la gráfica",
+    description=(
+        "Presión de los últimos `days` días agrupada en tramos de `bucket` "
+        "(B7): cada punto trae el inicio del tramo (`t`) y la presión "
+        "media, mínima y máxima. Los tramos sin lecturas no salen. Incluye "
+        "`min_pressure` y `max_pressure` del sensor para dibujar la banda "
+        "permitida.\n\n"
+        "Mismo alcance que el histórico: un sensor de otra organización "
+        "responde 404. Más de 1000 puntos (por ejemplo, 30 días a 15 min) "
+        "da 422 (`TOO_MANY_POINTS`)."
+    ),
+    responses={
+        **error_response(
+            status.HTTP_401_UNAUTHORIZED,
+            "No hay sesión (`UNAUTHORIZED`).",
+        ),
+        **error_response(
+            status.HTTP_404_NOT_FOUND,
+            "El sensor no existe o no es de tu organización "
+            "(`SENSOR_NOT_FOUND`).",
+        ),
+        **error_response(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "Demasiados puntos (`TOO_MANY_POINTS`) o parámetros no válidos.",
+        ),
+    },
+)
+def sensor_readings_series(
+    sensor_id: UUID,
+    service: ReadingSvc,
+    scope: OrgScope,
+    days: Annotated[int, Query(ge=1, le=30, description="Días hasta ahora.")] = 7,
+    bucket: Annotated[
+        SeriesBucket, Query(description="Tamaño de cada tramo.")
+    ] = SeriesBucket.H2,
+) -> ReadingSeriesResponse:
+    return service.series(
+        sensor_id=sensor_id, organization_id=scope, days=days, bucket=bucket
     )
