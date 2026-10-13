@@ -47,7 +47,7 @@ merge asegurado. Manteniéndolos separados, cada uno toca solo lo suyo.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Protocol, runtime_checkable
 from uuid import UUID
 
@@ -99,9 +99,14 @@ class ReadingRepository(Protocol):
         organization_id: UUID | None,
         offset: int,
         limit: int,
+        start: datetime | None = None,
+        end: datetime | None = None,
+        newest_first: bool = False,
     ) -> tuple[list[Any], int]:
         """
-        Histórico de un sensor, ordenado por fecha de medida.
+        Histórico de un sensor, ordenado por fecha de medida: de la más
+        antigua a la más reciente, o al revés con `newest_first` (B7).
+        `start` y `end` lo limitan a [start, end).
 
         Devuelve la página y el total de filas que cumplen el filtro. Van
         juntos porque el total exige un COUNT aparte, y dejarlo fuera del
@@ -113,6 +118,20 @@ class ReadingRepository(Protocol):
         el histórico de otro cliente. `None` es un valor explícito que
         significa «todas las organizaciones», solo para un admin; lo decide
         `get_org_scope` (issue #27).
+        """
+        ...
+
+    def series_by_sensor(
+        self,
+        sensor_id: UUID,
+        start: datetime,
+        end: datetime,
+        bucket: timedelta,
+    ) -> list[tuple[datetime, Any, Any, Any]]:
+        """
+        Lecturas de un sensor en [start, end) agrupadas en tramos de
+        `bucket` (B7): `(inicio del tramo, media, mínimo, máximo)`, del
+        más antiguo al más reciente y solo los tramos con lecturas.
         """
         ...
 

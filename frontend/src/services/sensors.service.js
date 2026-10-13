@@ -1,8 +1,10 @@
 import adapter from './adapter.js'
 
 const sensorsService = {
-  getSensors() {
-    return adapter.get('/api/sensors')
+  // GET /api/sensors -> Page { items, total, page, page_size, pages }
+  // params (optional): { q, organization_id, site_id, health, page, page_size }
+  getSensors(params = {}) {
+    return adapter.get('/api/sensors', { params })
   },
 
   createSensor(data) {
