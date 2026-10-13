@@ -126,3 +126,49 @@ class OrganizationResponse(ApiModel):
         default=0, description="De las alertas sin resolver, cuántas son CRITICAL."
     )
     created_at: datetime = Field(description="Alta de la organización, en UTC.")
+
+
+class OrganizationDelete(ApiRequest):
+    """
+    Confirmación del borrado (B16): el nombre exacto de la organización,
+    como en «escribe el nombre para confirmar». Evita borrar otra por un id
+    equivocado.
+    """
+
+    confirm_name: str = Field(
+        max_length=NAME_MAX,
+        description="Nombre de la organización, tal cual (se distinguen mayúsculas).",
+        examples=["Hotel Diagonal Mar"],
+    )
+
+
+class OrganizationDeleted(ApiModel):
+    """Lo que se ha borrado, para que el admin vea el alcance (B16)."""
+
+    id: UUID
+    name: str
+    deleted: dict[str, int] = Field(
+        description=(
+            "Filas borradas por tabla: readings, alerts, sensors, documents, "
+            "sites, invitations, users y organizations."
+        ),
+        examples=[
+            {
+                "readings": 5094,
+                "alerts": 12,
+                "sensors": 8,
+                "documents": 2,
+                "sites": 3,
+                "invitations": 1,
+                "users": 4,
+                "organizations": 1,
+            }
+        ],
+    )
+    detached_admins: int = Field(
+        default=0,
+        description="Admins que tenían esta organización: no se borran, se quedan sin ella.",
+    )
+    deleted_files: int = Field(
+        default=0, description="Archivos de documentos borrados del disco."
+    )
