@@ -4,6 +4,9 @@ import { defineStore } from "pinia";
 import {ref, computed} from "vue";
 import sensorsService from "../services/sensors.service.js";
 
+// Largest page the API accepts
+const PAGE_SIZE = 100;
+
 export const useSensorsStore = defineStore("sensors", () =>{
 
     //STATE
@@ -22,9 +25,19 @@ export const useSensorsStore = defineStore("sensors", () =>{
         error.value = null;
 
         try {
-        const response = await sensorsService.getSensors();
+        // The API returns 20 sensors per page by default (100 at most):
+        // ask page after page so the admin sees every sensor.
+        const all = [];
+        let page = 1;
+        let pages = 1;
+        do {
+            const response = await sensorsService.getSensors({ page, page_size: PAGE_SIZE });
+            all.push(...response.data.items);
+            pages = response.data.pages;
+            page += 1;
+        } while (page <= pages);
 
-        sensors.value = response.data.items;
+        sensors.value = all;
 
         status.value = "success";
 
@@ -45,6 +58,22 @@ export const useSensorsStore = defineStore("sensors", () =>{
     }
 
 
+    // POST /api/sensors (#169). Adds the new sensor to the list and returns it.
+    // Errors go to the caller, so the form shows them and the list stays as it was.
+    async function createSensor(data) {
+        const response = await sensorsService.createSensor(data);
+        sensors.value = [...sensors.value, response.data];
+        return response.data;
+    }
+
+    // PATCH /api/sensors/{id} (#169). Replaces the sensor with the API answer.
+    async function updateSensor(id, data) {
+        const response = await sensorsService.updateSensor(id, data);
+        sensors.value = sensors.value.map((sensor) => (sensor.id === id ? response.data : sensor));
+        if (selectedSensor.value?.id === id) selectedSensor.value = response.data;
+        return response.data;
+    }
+
     function selectSensor(sensor) {
         selectedSensor.value = sensor;
     }
@@ -64,6 +93,8 @@ export const useSensorsStore = defineStore("sensors", () =>{
         error,
         sensorCount,
         fetchSensors,
+        createSensor,
+        updateSensor,
         selectSensor,
         clearSensors,
     };
