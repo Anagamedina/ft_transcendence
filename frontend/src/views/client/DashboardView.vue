@@ -59,7 +59,7 @@
           :sensors="sensorStore.sensors"
           :status="sensorStore.status"
           :error="sensorStore.error"
-          @retry="loadSensors"
+          @retry="retrySensors"
         />
       </section>
 
@@ -88,7 +88,7 @@
           v-else-if="historyStatus === 'error'"
           title="No se ha podido cargar el histórico"
           :message="historyError"
-          @retry="loadHistory"
+          @retry="retryHistory"
           compact
         />
 
@@ -101,13 +101,20 @@
         />
 
         <div v-else-if="historyStatus === 'success'" class="overflow-x-auto">
-          <p
+          <div
             v-if="historyWarning"
-            class="mt-3 text-sm text-amber-700"
+            class="mb-3 flex items-center justify-between gap-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800"
             role="status"
+          >
+            <span>{{ historyWarning }}</span>
+            <button
+              type="button"
+              class="shrink-0 rounded-lg border border-amber-300 px-3 py-1 font-medium hover:bg-amber-100"
+              @click="loadHistory"
             >
-            {{ historyWarning }}
-          </p>
+              Reintentar
+            </button>
+          </div>
           <table class="w-full text-left text-sm">
             <thead>
               <tr class="border-b border-gray-200 text-gray-500">
@@ -126,7 +133,7 @@
                   {{ sensorName(reading.sensor_id) }}
                 </td>
                 <td class="px-3 py-3">
-                  {{ reading.pressure }} bar
+                  {{ formatPressure(reading) }}
                 </td>
                 <td class="px-3 py-3">
                   {{ formatDate(reading.measured_at) }}
@@ -160,10 +167,10 @@
               {{ authStore.user?.email || 'No disponible' }}
             </dd>
           </div>
-          <div>
+          <div v-if="organizationName">
             <dt class="text-sm text-gray-500">Organización</dt>
             <dd class="font-medium text-gray-900">
-              {{ authStore.user?.organization_id }}
+              {{ organizationName }}
             </dd>
           </div>
         </dl>
@@ -207,9 +214,26 @@ const activeAlerts = computed(() =>
 
 const activeAlertCount = computed(() => activeAlerts.value.length)
 
+// The profile only has organization_id; the sensors carry the organization name
+const organizationName = computed(() =>
+  sensorStore.sensors.find(sensor => sensor.organization_name)?.organization_name
+    || null
+)
+
+function findSensor(sensorId) {
+  return sensorStore.sensors.find(sensor => sensor.id === sensorId)
+}
+
 function sensorName(sensorId) {
-  return sensorStore.sensors.find(sensor => sensor.id === sensorId)?.name
-    || 'Sensor'
+  return findSensor(sensorId)?.name || 'Sensor'
+}
+
+// Spanish number format: '6,8 bar'
+const pressureFormat = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 2 })
+
+function formatPressure(reading) {
+  const unit = findSensor(reading.sensor_id)?.unit || 'bar'
+  return `${pressureFormat.format(reading.pressure)} ${unit}`
 }
 
 function formatDate(value) {
@@ -227,6 +251,21 @@ async function loadSensors() {
   } catch {
     // The store exposes the error state to SensorsSummary.
   }
+}
+
+// The history depends on the sensor list, so it is reloaded with it.
+async function retrySensors() {
+  await loadSensors()
+  await loadHistory()
+}
+
+// If the sensors failed, fetch them again before the history.
+async function retryHistory() {
+  if (sensorStore.status === 'error') {
+    await retrySensors()
+    return
+  }
+  await loadHistory()
 }
 
 async function loadAlerts() {
@@ -266,7 +305,7 @@ async function loadHistory() {
 
   historyStatus.value = 'loading'
 
-  // Chaque capteur est chargé indépendamment.
+  // Each sensor is loaded independently.
   const results = await Promise.allSettled(
     sensorIds.map(sensorId =>
       readingService.getSensorReadings(sensorId)
@@ -289,7 +328,7 @@ async function loadHistory() {
 
   history.value = successful
 
-  // Tous les capteurs ont échoué.
+  // Every sensor failed.
   if (failedCount === results.length) {
     historyStatus.value = 'error'
     historyError.value =
