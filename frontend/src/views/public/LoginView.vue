@@ -83,10 +83,10 @@
             ¿No tienes una cuenta?
 
             <RouterLink
-              to="/register"
+              to="/prueba"
               class="text-[#0369A1] font-semibold hover:underline"
             >
-              Crear una cuenta
+              Prueba 7 días gratis
             </RouterLink>
           </p>
 
