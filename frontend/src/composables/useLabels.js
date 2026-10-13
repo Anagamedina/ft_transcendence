@@ -67,6 +67,19 @@ const LABELS = {
     INDUSTRIAL: { text: 'Industrial' },
     OTHER: { text: 'Otro' },
   },
+  // Barcelona districts (D10, ck_sites_district). Official names, in Catalan
+  District: {
+    CIUTAT_VELLA: { text: 'Ciutat Vella' },
+    EIXAMPLE: { text: 'Eixample' },
+    SANTS_MONTJUIC: { text: 'Sants-Montjuïc' },
+    LES_CORTS: { text: 'Les Corts' },
+    SARRIA_SANT_GERVASI: { text: 'Sarrià-Sant Gervasi' },
+    GRACIA: { text: 'Gràcia' },
+    HORTA_GUINARDO: { text: 'Horta-Guinardó' },
+    NOU_BARRIS: { text: 'Nou Barris' },
+    SANT_ANDREU: { text: 'Sant Andreu' },
+    SANT_MARTI: { text: 'Sant Martí' },
+  },
   SensorType: {
     PRESSURE: { text: 'Presión' },
     FLOW: { text: 'Caudal' },

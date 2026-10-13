@@ -1,5 +1,8 @@
 // Fixtures mock of sites
-// Shape conforms to SiteResponse
+// Shape conforms to SiteResponse (B2): organization_name, floors, basements,
+// building_type, sensor_count and status are what the API returns today.
+// district is optional: the API adds it after B2 (D10); null means "not known yet".
+// sensor_count matches fixtures/sensors.js.
 
 export const sites = [
   {
@@ -10,6 +13,10 @@ export const sites = [
     address: 'Avinguda Diagonal, 100, Barcelona',
     latitude: 41.4096,
     longitude: 2.2169,
+    floors: 4,
+    basements: 2,
+    building_type: 'HOTEL',
+    district: 'SANT_MARTI',
     sensor_count: 2,
     status: 'CRITICAL',
     created_at: '2026-08-01T08:00:00Z',
@@ -23,8 +30,12 @@ export const sites = [
     address: 'Carrer de Mallorca, 401, Barcelona',
     latitude: 41.4036,
     longitude: 2.1744,
+    floors: 6,
+    basements: 1,
+    building_type: 'OFFICE',
+    district: 'EIXAMPLE',
     sensor_count: 1,
-    status: 'OK',
+    status: 'WARNING',
     created_at: '2026-08-01T08:00:00Z',
   },
 
@@ -35,7 +46,11 @@ export const sites = [
     name: 'Edificio Poblenou',
     address: 'Carrer de Pujades, 150, Barcelona',
     latitude: 41.4005,
-    longitude: 2.1990,
+    longitude: 2.199,
+    floors: 2,
+    basements: 0,
+    building_type: 'OTHER',
+    district: null,
     sensor_count: 0,
     status: 'OK',
     created_at: '2026-08-03T10:15:00Z',

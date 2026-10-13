@@ -7,6 +7,27 @@ import { readings } from './fixtures/readings.js'
 import { sensors } from './fixtures/sensors.js'
 import { sites } from './fixtures/sites.js'
 import { systemStatus } from './fixtures/status.js'
+import { demoBuilding, demoSensors, demoReadings } from './fixtures/building.js'
+
+// The C-Edificio demo building (8 sensors on 6 floors) also appears in the
+// admin sites and sensors lists, so the floor-by-floor view has real content.
+// Clients do not see it (see getAccessibleSites).
+sites.push(demoBuilding)
+sensors.push(...demoSensors)
+
+// Floors of a site from -basements to floors - 1, as the API checks (B3)
+function floorInSite(floor, site) {
+  return Number.isInteger(floor) && floor >= -site.basements && floor <= site.floors - 1
+}
+
+function floorOutOfSite(site) {
+  return {
+    status: 422,
+    code: 'FLOOR_OUT_OF_SITE',
+    message: `La planta tiene que estar entre ${-site.basements} y ${site.floors - 1} en este edificio.`,
+    details: null,
+  }
+}
 
 // Mock users used for authentication tests.
 const mockUser = [
@@ -97,9 +118,12 @@ function getAccessibleSites() {
     return []
   }
 
+  // The demo building is only for the admin views (#169); the client
+  // dashboard keeps its own fixture data
   return sites.filter(
     (site) =>
-      site.organization_id === currentUser.organization_id
+      site.organization_id === currentUser.organization_id &&
+      site.id !== demoBuilding.id
   )
 }
 
@@ -307,9 +331,15 @@ const mockAdapter = {
         return Promise.reject(forbiddenError())
       }
 
-      const sensorReadings = readings.filter(
+      // Sensors without fixture readings get 7 days of demo readings for the chart.
+      // A sensor that never reported (last_seen_at null) has none, as in the API.
+      const fixtureReadings = readings.filter(
         (reading) => reading.sensor_id === sensorId
       )
+      // Demo readings only for the admin sensors view, so the client history stays as it was
+      const useDemo =
+        currentUser.role === 'admin' && fixtureReadings.length === 0 && sensor.last_seen_at
+      const sensorReadings = useDemo ? demoReadings(sensor) : fixtureReadings
 
       return Promise.resolve({
         data: {
@@ -711,23 +741,103 @@ const mockAdapter = {
         )
       }
 
+      const floor = data.floor ?? 0
+      if (!floorInSite(floor, site)) {
+        return Promise.reject(floorOutOfSite(site))
+      }
+
+      // external_id is unique inside its site (409, as the API: exact match).
+      // Case variants ('sens-001') are rejected earlier by SensorForm.
+      if (sensors.some((item) => item.site_id === site.id && item.external_id === data.external_id)) {
+        return Promise.reject({
+          status: 409,
+          code: 'EXTERNAL_ID_TAKEN',
+          message: 'Ya hay un sensor con esa etiqueta en este edificio.',
+          details: null,
+        })
+      }
+
+      // A new sensor has never sent a reading: OFFLINE until the first one arrives
       const sensor = {
         id: crypto.randomUUID(),
         site_id: data.site_id,
+        site_name: site.name,
+        organization_id: site.organization_id,
+        organization_name: site.organization_name,
+        floor,
+        external_id: data.external_id,
         name: data.name.trim(),
         location: data.location ?? null,
         sensor_type: data.sensor_type ?? 'PRESSURE',
+        unit: data.unit ?? 'bar',
         min_pressure: data.min_pressure,
         max_pressure: data.max_pressure,
-        status: 'ONLINE',
+        status: 'OFFLINE',
+        health: 'OFFLINE',
         last_seen_at: null,
+        last_value: null,
         created_at: new Date().toISOString(),
       }
 
       sensors.push(sensor)
+      site.sensor_count = (site.sensor_count ?? 0) + 1
 
       return Promise.resolve({
-        data: sensor,
+        data: { ...sensor },
+        status: 201,
+      })
+    }
+
+    // Create a site (B2). Same 409 as the API: exact name inside the same client.
+    // Case variants ('torre sofia') are rejected earlier by SiteForm.
+    if (url === '/api/sites') {
+      // Admin only, as in the API (B2)
+      if (!currentUser) {
+        return Promise.reject(authError())
+      }
+      if (currentUser.role !== 'admin') {
+        return Promise.reject(forbiddenError())
+      }
+
+      const sameName = sites.some(
+        (site) =>
+          site.organization_id === data.organization_id &&
+          site.name === String(data.name).trim()
+      )
+
+      if (sameName) {
+        return Promise.reject({
+          status: 409,
+          code: 'SITE_NAME_TAKEN',
+          message: 'Ese cliente ya tiene un edificio con ese nombre.',
+          details: null,
+        })
+      }
+
+      // The mock has no organizations table: take the name from another site of the client
+      const owner = sites.find((site) => site.organization_id === data.organization_id)
+
+      const site = {
+        id: crypto.randomUUID(),
+        organization_id: data.organization_id,
+        organization_name: owner?.organization_name ?? 'Cliente',
+        name: String(data.name).trim(),
+        address: data.address || null,
+        latitude: data.latitude ?? null,
+        longitude: data.longitude ?? null,
+        floors: data.floors ?? 1,
+        basements: data.basements ?? 0,
+        building_type: data.building_type ?? 'OTHER',
+        district: null,
+        sensor_count: 0,
+        status: 'OK',
+        created_at: new Date().toISOString(),
+      }
+
+      sites.push(site)
+
+      return Promise.resolve({
+        data: { ...site },
         status: 201,
       })
     }
@@ -917,7 +1027,17 @@ const mockAdapter = {
         )
       }
 
+      if (data.floor !== undefined) {
+        const site = sites.find((item) => item.id === sensor.site_id)
+        if (site && !floorInSite(data.floor, site)) {
+          return Promise.reject(floorOutOfSite(site))
+        }
+      }
+
       Object.assign(sensor, {
+        ...(data.floor !== undefined && {
+          floor: data.floor,
+        }),
         ...(data.name !== undefined && {
           name: data.name.trim(),
         }),
@@ -933,7 +1053,40 @@ const mockAdapter = {
       })
 
       return Promise.resolve({
-        data: sensor,
+        data: { ...sensor },
+        status: 200,
+      })
+    }
+
+    // Update a site (B2). Only the fields sent change; the client cannot change.
+    if (url.startsWith('/api/sites/')) {
+      // Admin only, as in the API (B2)
+      if (!currentUser) {
+        return Promise.reject(authError())
+      }
+      if (currentUser.role !== 'admin') {
+        return Promise.reject(forbiddenError())
+      }
+
+      const id = url.split('/')[3]
+      const site = sites.find((site) => site.id === id)
+
+      if (!site) {
+        return Promise.reject({
+          status: 404,
+          code: 'SITE_NOT_FOUND',
+          message: 'El site indicado no existe.',
+          details: null,
+        })
+      }
+
+      const EDITABLE = ['name', 'address', 'latitude', 'longitude', 'floors', 'basements', 'building_type']
+      for (const field of EDITABLE) {
+        if (data[field] !== undefined) site[field] = data[field]
+      }
+
+      return Promise.resolve({
+        data: { ...site },
         status: 200,
       })
     }
