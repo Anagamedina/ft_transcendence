@@ -120,6 +120,10 @@ class AppSettings(BaseSettings):
     BACKUPS_DIR: str = "/backups"
     BACKUP_INTERVAL_HOURS: int = 24
 
+    # Carpeta de los archivos de documentos (B11): `storage_key` es la ruta
+    # relativa a ella. Compose la monta en el volumen `documents_data`.
+    DOCUMENTS_DIR: str = "/data/documents"
+
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,
         env_file_encoding="utf-8",
