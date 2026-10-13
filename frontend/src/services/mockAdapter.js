@@ -155,16 +155,31 @@ function checkMockPassword(password, email) {
 }
 
 // Imitates the Nginx limit on the register form (gateway/nginx.conf):
-// more than 10 attempts in one minute (PUBLIC_RATE_LIMIT=10r/m) answers 429.
-const REGISTER_LIMIT = 10
-const REGISTER_WINDOW_MS = 60 * 1000
-let registerAttempts = []
+// rate=10r/m (one slot every 6 s) and burst=4, same algorithm as Nginx.
+// Five quick attempts pass, the 6th gets 429, then one more every 6 s.
+const REGISTER_SLOT_MS = 6 * 1000
+const REGISTER_BURST = 4
+let registerExcess = null
+let registerLastTime = 0
 
 function isRegisterRateLimited() {
   const now = Date.now()
-  registerAttempts = registerAttempts.filter((time) => now - time < REGISTER_WINDOW_MS)
-  registerAttempts.push(now)
-  return registerAttempts.length > REGISTER_LIMIT
+
+  // First request: Nginx lets it through without counting it as excess
+  if (registerExcess === null) {
+    registerExcess = 0
+    registerLastTime = now
+    return false
+  }
+
+  const excess = Math.max(0, registerExcess - (now - registerLastTime) / REGISTER_SLOT_MS) + 1
+  if (excess > REGISTER_BURST) {
+    return true
+  }
+
+  registerExcess = excess
+  registerLastTime = now
+  return false
 }
 
 function rateLimitError() {
