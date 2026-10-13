@@ -112,11 +112,9 @@ const router = createRouter({
     if (savedPosition) {
       return savedPosition;
     }
+    // Scroll to the anchor (e.g. /legal#terminos), leaving room for the sticky header
     if (to.hash) {
-      return {
-      el: to.hash,
-      behavior: 'smooth',
-      }
+      return { el: to.hash, top: 80, behavior: 'smooth' };
     }
     return { top: 0 };
   },
