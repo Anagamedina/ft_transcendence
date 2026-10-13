@@ -2,7 +2,7 @@
   ADMIN DASHBOARD VIEW
   Main admin page: KPIs summary, sites, sensors and alerts overview.
   Rendered inside AdminLayout. Data comes only from Pinia stores (no direct HTTP calls).
-  Sensors and alerts are fetched on mount; loading / error / empty states are shown
+  KPIs, sites, sensors and alerts are fetched on mount; loading / error / empty states are shown
   inside each summary card, and retry re-runs the store action.
 -->
 
@@ -11,22 +11,24 @@ import { ref, computed, onMounted, defineAsyncComponent } from 'vue'
 import AdminLayout from '../../layouts/AdminLayout.vue'
 import KPICard from '../../components/KPICard.vue'
 import AppIcon from '../../components/AppIcon.vue'
+import ErrorState from '../../components/ErrorState.vue'
 import { useSensorsStore } from '../../stores/sensors'
 import { useAlertsStore } from '../../stores/alerts'
+import { useSitesStore } from '../../stores/sites'
+import { useOverviewStore } from '../../stores/overview'
 import SitesSummary from '../../components/SitesSummary.vue'
 import SensorsSummary from '../../components/SensorsSummary.vue'
 import AlertsSummary from '../../components/AlertsSummary.vue'
 import Modal from '../../components/Modal.vue'
 import AnalyticsPanel from '../../components/AnalyticsPanel.vue'
-// TODO: temporary mock data until the sites store exists (Services/Stores area).
-// Replace with the store, e.g. `sitesStore.sites`, and delete this import.
-import { sites as mockSites } from '../../services/fixtures/sites'
 
 // Loaded only when the map window is opened (MapLibre is heavy, ~900 KB)
 const SitesMap = defineAsyncComponent(() => import('../../components/SitesMap.vue'))
 
 const sensorStore = useSensorsStore()
 const alertsStore = useAlertsStore()
+const sitesStore = useSitesStore()
+const overviewStore = useOverviewStore()
 
 // Load data on mount. Errors are already stored in each store (status/error),
 // so we only catch them here to avoid unhandled promise rejections.
@@ -36,43 +38,52 @@ async function loadSensors() {
 async function loadAlerts() {
   try { await alertsStore.fetchAlerts() } catch { /* handled via alertsStore.error */ }
 }
+async function loadSites() {
+  try { await sitesStore.fetchSites() } catch { /* handled via sitesStore.error */ }
+}
+async function loadOverview() {
+  try { await overviewStore.fetchOverview() } catch { /* handled via overviewStore.error */ }
+}
 
 onMounted(() => {
+  loadOverview()
+  loadSites()
   loadSensors()
   loadAlerts()
 })
 
-// KPIs show "—" until the store has real data, so "0" always means a real zero
-const sensorsReady = computed(() => sensorStore.status === 'success')
-const alertsReady = computed(() => alertsStore.status === 'success')
+// KPIs come from GET /api/analytics/overview. They show "—" until the API
+// answers, so "0" always means a real zero.
+const kpis = computed(() => {
+  const data = overviewStore.overview
+  if (!data) {
+    return { clients: '—', sensors: '—', alerts: '—', resolution: '—' }
+  }
+  return {
+    clients: `${data.organizations_needing_attention} de ${data.organizations_total}`,
+    sensors: `${data.sensors_online} de ${data.sensors_total}`,
+    alerts: data.open_alerts,
+    resolution: formatMinutes(data.median_resolution_minutes),
+  }
+})
 
-const totalSensors = computed(() => sensorStore.sensorCount)
-const onlineSensors = computed(
-  () => sensorStore.sensors.filter((s) => s.status === 'ONLINE').length
-)
+// null = no alert was resolved in the last 30 days
+function formatMinutes(minutes) {
+  if (minutes === null) return '—'
+  const total = Math.round(minutes)
+  if (total < 60) return `${total} min`
+  return `${Math.floor(total / 60)} h ${total % 60} min`
+}
+
 const activeAlertList = computed(
   () => alertsStore.alerts.filter((a) => a.status === 'ACTIVE')
 )
-const activeAlerts = computed(() => activeAlertList.value.length)
 
-// Alert level of each site for the map: an alert belongs to a sensor,
-// and a sensor belongs to a site (alert.sensor_id -> sensor.site_id).
-// If a site has several active alerts, the most severe one wins.
-const ALERT_RANK = { none: 0, warning: 1, critical: 2 }
+// The API already sends the status of each site, computed from its open alerts.
+// The map only needs it with the names of its own marker levels.
+const ALERT_LEVELS = { OK: 'none', WARNING: 'warning', CRITICAL: 'critical' }
 const sitesForMap = computed(() =>
-  mockSites.map((site) => {
-    const sensorIds = new Set(
-      sensorStore.sensors.filter((s) => s.site_id === site.id).map((s) => s.id)
-    )
-    let alertLevel = 'none'
-    activeAlertList.value
-      .filter((a) => sensorIds.has(a.sensor_id))
-      .forEach((a) => {
-        const level = a.severity === 'CRITICAL' ? 'critical' : 'warning'
-        if (ALERT_RANK[level] > ALERT_RANK[alertLevel]) alertLevel = level
-      })
-    return { ...site, alertLevel }
-  })
+  sitesStore.sites.map((site) => ({ ...site, alertLevel: ALERT_LEVELS[site.status] ?? 'none' }))
 )
 
 // Compact map card: summary + button that opens the map in a modal window
@@ -85,26 +96,35 @@ const criticalSites = computed(() => sitesForMap.value.filter((s) => s.alertLeve
   <AdminLayout>
     <h1 class="text-2xl font-bold text-gray-800 mb-6">Dashboard Admin</h1>
 
+    <ErrorState
+      v-if="overviewStore.status === 'error'"
+      class="mb-4"
+      compact
+      title="No se han podido cargar los indicadores"
+      :message="overviewStore.error?.message"
+      @retry="loadOverview"
+    />
+
     <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-      <KPICard label="Sites" :value="mockSites.length">
-        <template #icon><AppIcon name="building" /></template>
+      <KPICard label="Clientes que necesitan atención" :value="kpis.clients">
+        <template #icon><AppIcon name="users" /></template>
       </KPICard>
 
-      <KPICard label="Sensores totales" :value="sensorsReady ? totalSensors : '—'">
-        <template #icon><AppIcon name="droplet" /></template>
-      </KPICard>
-
-      <KPICard label="Sensores online" :value="sensorsReady ? onlineSensors : '—'">
+      <KPICard label="Sensores en línea" :value="kpis.sensors">
         <template #icon><AppIcon name="wifi" /></template>
       </KPICard>
 
-      <KPICard label="Alertas activas" :value="alertsReady ? activeAlerts : '—'">
+      <KPICard label="Alertas abiertas" :value="kpis.alerts">
         <template #icon><AppIcon name="alert" /></template>
+      </KPICard>
+
+      <KPICard label="Tiempo de resolución" :value="kpis.resolution">
+        <template #icon><AppIcon name="bar-chart" /></template>
       </KPICard>
     </section>
 
     <section class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
-      <SitesSummary :sites="mockSites" />
+      <SitesSummary :sites="sitesStore.sites" />
       <SensorsSummary
         :sensors="sensorStore.sensors"
         :status="sensorStore.status"
