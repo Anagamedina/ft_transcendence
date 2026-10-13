@@ -1,7 +1,8 @@
 <!--
   SITE FORM
   Fields of a building (site): name, address, floors, basements and type.
-  Used by NewClientWizard (#168) and reusable in the sites view (#169).
+  Used by NewClientWizard (#168) and the sites view (#169).
+  takenNames (optional): names of the client's other buildings, to reject a repeated one.
   v-model holds the site object; validate() checks it with the same limits as the API (B2).
   Usage:
     <SiteForm ref="siteForm" v-model="site" />
@@ -142,6 +143,17 @@ const BASEMENTS_MAX = 20
 // The site object: { name, address, floors, basements, building_type }
 const site = defineModel({ type: Object, required: true })
 
+const props = defineProps({
+  // Names of the client's other buildings. The check ignores case and spaces,
+  // so 'Torre Sofia' and 'torre sofia' count as the same building
+  takenNames: { type: Array, default: () => [] },
+})
+
+// Same text whatever the case or the spaces around it
+function sameName(a, b) {
+  return String(a).trim().toLocaleLowerCase('es') === String(b).trim().toLocaleLowerCase('es')
+}
+
 // Unique prefix, so two forms on the same page never share ids
 const uid = useId()
 function fieldId(name) {
@@ -175,6 +187,7 @@ const validators = {
   name(value) {
     if (value.trim() === '') return 'Escribe el nombre del edificio.'
     if (value.length > NAME_MAX) return `Máximo ${NAME_MAX} caracteres.`
+    if (props.takenNames.some((name) => sameName(name, value))) return 'Este cliente ya tiene un edificio con ese nombre.'
     return ''
   },
   address(value) {
