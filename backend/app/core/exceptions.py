@@ -165,6 +165,13 @@ class DomainValidationError(AppError):
     code = "VALIDATION_ERROR"
 
 
+class PayloadTooLargeError(AppError):
+    """El cuerpo de la petición pasa del tamaño permitido (un documento, B11)."""
+
+    status_code = status.HTTP_413_CONTENT_TOO_LARGE
+    code = "PAYLOAD_TOO_LARGE"
+
+
 class NotImplementedYetError(AppError):
     """
     La ruta existe y su contrato está publicado en OpenAPI, pero la lógica

@@ -124,6 +124,10 @@ class AppSettings(BaseSettings):
     # relativa a ella. Compose la monta en el volumen `documents_data`.
     DOCUMENTS_DIR: str = "/data/documents"
 
+    # Tamaño máximo de un documento, en MB (B11). El gateway usa el mismo
+    # valor (+1 MB por la cabecera multipart) en `client_max_body_size`.
+    MAX_UPLOAD_MB: int = 10
+
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,
         env_file_encoding="utf-8",

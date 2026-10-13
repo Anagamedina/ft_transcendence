@@ -5,15 +5,19 @@ The `documents` table only holds metadata; the bytes live on disk, in
 `DOCUMENTS_DIR / storage_key`. This module is the only place that touches
 those files.
 
-For now it only deletes them (B16, deleting an organization). Uploading
-and downloading arrive with B11 and belong here too.
+Uploading and downloading are B11; deleting, B16 (deleting an
+organization) and B11 (deleting one document).
 """
 
 from __future__ import annotations
 
 import logging
+import os
+import shutil
+import tempfile
 from collections.abc import Iterable
 from pathlib import Path
+from typing import BinaryIO
 
 from app.core.app_config import app_settings
 
@@ -32,6 +36,40 @@ def _path(storage_key: str, root: Path) -> Path | None:
     return path
 
 
+def _root(root: str | Path | None) -> Path:
+    return Path(root or app_settings.DOCUMENTS_DIR).resolve()
+
+
+def save_file(source: BinaryIO, storage_key: str, root: str | Path | None = None) -> None:
+    """
+    Copies `source` from its start to `DOCUMENTS_DIR / storage_key`.
+
+    It is written to a temporary file in the same folder and then renamed:
+    a failed copy never leaves half a file under a real storage_key.
+    """
+    path = _path(storage_key, _root(root))
+    if path is None:
+        raise ValueError(f"storage_key outside DOCUMENTS_DIR: {storage_key}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    source.seek(0)
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".upload-")
+    try:
+        with os.fdopen(fd, "wb") as out:
+            shutil.copyfileobj(source, out)
+        os.replace(tmp, path)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
+
+
+def file_path(storage_key: str, root: str | Path | None = None) -> Path | None:
+    """The file of a document, or None if it is not on disk."""
+    path = _path(storage_key, _root(root))
+    if path is None or not path.is_file():
+        return None
+    return path
+
+
 def delete_files(storage_keys: Iterable[str], root: str | Path | None = None) -> int:
     """
     Deletes the files of these documents and returns how many were deleted.
@@ -41,7 +79,7 @@ def delete_files(storage_keys: Iterable[str], root: str | Path | None = None) ->
     uploaded), and a file that cannot be deleted is logged, not raised: the
     rows are already gone and the request must not fail because of it.
     """
-    base = Path(root or app_settings.DOCUMENTS_DIR).resolve()
+    base = _root(root)
     deleted = 0
     for key in storage_keys:
         path = _path(key, base)
