@@ -20,7 +20,7 @@ el frontend y la cookie. Cambiarlo no aporta nada y rompe a todos.
 Estados **guardados** frente a estados **calculados**:
 
 - Guardados (la tabla tiene un CHECK con los mismos valores):
-  `OrganizationStatus`, `BuildingType`, `SensorType`, `AlertType`,
+  `OrganizationStatus`, `BuildingType`, `SensorType`, `DocumentKind`, `AlertType`,
   `AlertSeverity`, `AlertStatus`. Si se cambia uno, hay que cambiar su
   CHECK con una migración (Daruny).
 - Calculados al responder, nunca se guardan: `SiteStatus`,
@@ -135,6 +135,19 @@ class SensorHealth(str, Enum):
     WARNING = "WARNING"
     CRITICAL = "CRITICAL"
     OFFLINE = "OFFLINE"
+
+
+# ---------------------------------------------------------
+# DOCUMENTOS
+# ---------------------------------------------------------
+class DocumentKind(str, Enum):
+    """Tipo de documento de un edificio. CHECK `ck_documents_kind`. B11."""
+
+    PLAN = "PLAN"
+    REPORT = "REPORT"
+    INVOICE = "INVOICE"
+    PHOTO = "PHOTO"
+    OTHER = "OTHER"
 
 
 # ---------------------------------------------------------
