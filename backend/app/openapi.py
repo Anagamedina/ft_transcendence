@@ -61,6 +61,7 @@ from app.modules.auth.schemas import (
     RegisterRequest,
     SessionResponse,
 )
+from app.modules.documents.schemas import DocumentResponse
 from app.modules.invitations.schemas import (
     InvitationAccept,
     InvitationCreate,
@@ -87,6 +88,7 @@ from app.shared.enums import (
     AlertStatus,
     AlertType,
     BuildingType,
+    DocumentKind,
     InvitationStatus,
     OrganizationStatus,
     SensorHealth,
@@ -119,6 +121,9 @@ CONTRACT_MODELS: list[type] = [
     SiteUpdate,
     SiteResponse,
     Page[SiteResponse],
+    # Documentos — B11 (#147)
+    DocumentResponse,
+    Page[DocumentResponse],
     # Sensores — issues #25 y #29
     SensorCreate,
     SensorUpdate,
@@ -158,6 +163,7 @@ CONTRACT_MODELS: list[type] = [
 CONTRACT_ENUMS: list[type] = [
     OrganizationStatus,
     BuildingType,
+    DocumentKind,
     SensorType,
     SensorStatus,
     SensorHealth,
