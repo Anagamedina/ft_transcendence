@@ -14,6 +14,9 @@ todo, **qué cambios de estado se permiten**:
     TRIAL     --activate-->     ACTIVE (pasa a cliente; se borra el fin de prueba)
     TRIAL     --extend-trial--> TRIAL con TRIAL_DAYS más
 
+Y el borrado completo (B16, `delete`): confirmando el nombre, con
+`purge_organization` (D9) en una sola transacción.
+
 Cualquier otro cambio responde 409 con un código propio, para que el
 frontend explique qué ha pasado en vez de mostrar un error genérico.
 
@@ -42,19 +45,24 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.app_config import app_settings
 from app.core.database import transaction
 from app.core.exceptions import ConflictError, DomainValidationError, NotFoundError
+from app.modules.documents import storage
+from app.modules.documents.model import Document
 from app.modules.organizations.model import Organization
+from app.modules.organizations.purge import purge_organization
 from app.modules.organizations.repository import (
     OrganizationCounts,
     OrganizationRepository,
 )
 from app.modules.organizations.schemas import (
     OrganizationCreate,
+    OrganizationDeleted,
     OrganizationResponse,
     OrganizationUpdate,
 )
@@ -231,6 +239,44 @@ class OrganizationService:
                 organizacion, status=OrganizationStatus.ACTIVE.value, trial_ends_at=None
             )
         return self._respuesta(organizacion)
+
+    # ---------------------------------------------------------
+    # BORRADO (B16)
+    # ---------------------------------------------------------
+    def delete(self, organization_id: UUID, confirm_name: str) -> OrganizationDeleted:
+        """
+        Borra la organización con todo lo suyo. Para dejarla fuera sin
+        perder nada está `suspend`.
+
+        Una sola transacción: la organización se bloquea, se comprueba el
+        nombre y `purge_organization` borra tabla a tabla. Si algo falla,
+        no se borra nada. Los archivos de documentos se borran después del
+        commit: si la transacción falla, tienen que seguir ahí.
+        """
+        with transaction(self.db):
+            organizacion = self._bloqueada(organization_id)
+            if confirm_name.strip() != organizacion.name:
+                raise DomainValidationError(
+                    "El nombre no coincide con el de la organización.",
+                    code="NAME_CONFIRMATION_MISMATCH",
+                )
+            nombre = organizacion.name
+            archivos = list(
+                self.db.scalars(
+                    select(Document.storage_key).where(
+                        Document.organization_id == organization_id
+                    )
+                )
+            )
+            resultado = purge_organization(self.db, organization_id)
+
+        return OrganizationDeleted(
+            id=organization_id,
+            name=nombre,
+            deleted=resultado.deleted,
+            detached_admins=resultado.detached_admins,
+            deleted_files=storage.delete_files(archivos),
+        )
 
     # ---------------------------------------------------------
     # AUXILIARES
