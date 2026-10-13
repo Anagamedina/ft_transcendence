@@ -12,6 +12,7 @@ incluye la #121.
     POST  /api/organizations/{id}/reactivate    → vuelve a TRIAL o ACTIVE
     POST  /api/organizations/{id}/extend-trial  → TRIAL_DAYS más de prueba
     POST  /api/organizations/{id}/activate      → la prueba pasa a cliente
+    DELETE /api/organizations/{id}              → borra todo (B16, issue #145)
 
 **Todas son solo de admin**, y por eso el `require_role` va en el router
 entero y no ruta a ruta: así una ruta nueva no puede olvidarlo. Sin sesión
@@ -31,6 +32,8 @@ from fastapi import APIRouter, Depends, Query, status
 
 from app.modules.organizations.schemas import (
     OrganizationCreate,
+    OrganizationDelete,
+    OrganizationDeleted,
     OrganizationResponse,
     OrganizationUpdate,
 )
@@ -238,3 +241,32 @@ def activate_organization(
     organization_id: UUID, service: OrganizationSvc
 ) -> OrganizationResponse:
     return service.activate(organization_id)
+
+
+@router.delete(
+    "/{organization_id}",
+    response_model=OrganizationDeleted,
+    summary="Eliminar una organización con todos sus datos",
+    description=(
+        "Borra la organización, sus edificios, sensores, lecturas, alertas, "
+        "documentos (también sus archivos), invitaciones y usuarios, en una "
+        "sola transacción: o se borra todo o nada. No se puede deshacer; "
+        "para dejar a un cliente fuera sin perder datos, `/suspend`.\n\n"
+        "Hay que enviar `confirm_name` con el nombre exacto de la "
+        "organización. Los admins que la tuvieran asignada no se borran: se "
+        "quedan sin organización."
+    ),
+    responses={
+        **_SOLO_ADMIN,
+        **_NO_EXISTE,
+        **error_response(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "`confirm_name` no coincide con el nombre "
+            "(`NAME_CONFIRMATION_MISMATCH`) o falta (`VALIDATION_ERROR`).",
+        ),
+    },
+)
+def delete_organization(
+    organization_id: UUID, payload: OrganizationDelete, service: OrganizationSvc
+) -> OrganizationDeleted:
+    return service.delete(organization_id, payload.confirm_name)
