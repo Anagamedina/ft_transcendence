@@ -2,6 +2,7 @@
 
 import { alerts } from './fixtures/alerts.js'
 import { dailyRows } from './fixtures/analytics.js'
+import { overview } from './fixtures/overview.js'
 import { readings } from './fixtures/readings.js'
 import { sensors } from './fixtures/sensors.js'
 import { sites } from './fixtures/sites.js'
@@ -372,6 +373,30 @@ const mockAdapter = {
         },
         status: 200,
       });
+    }
+
+    // KPI cards of the dashboard (F12).
+    if (url === '/api/analytics/overview') {
+      if (!currentUser) {
+        return Promise.reject(authError())
+      }
+
+      // A client has no "clients": both fields are null, as in the contract.
+      if (currentUser.role !== 'admin') {
+        return Promise.resolve({
+          data: {
+            ...overview,
+            organizations_total: null,
+            organizations_needing_attention: null,
+          },
+          status: 200,
+        })
+      }
+
+      return Promise.resolve({
+        data: { ...overview },
+        status: 200,
+      })
     }
 
     // Analytics export (F19): JSON rows for the charts or a CSV Blob.
@@ -957,6 +982,7 @@ Readings      GET       /api/sensors/{id}/readings
 Alerts        GET       /api/alerts
 Alerts        PATCH     /api/alerts/{id}/acknowledge
 Alerts        PATCH     /api/alerts/{id}/resolve
+Analytics     GET       /api/analytics/overview
 */
 
 /*

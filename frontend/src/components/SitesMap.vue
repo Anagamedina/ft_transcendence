@@ -227,10 +227,42 @@ function drawBoundary() {
   })
 }
 
+// The base style compares some values as numbers (road shields, building
+// heights). When a map feature does not have the value, MapLibre warns in the
+// console. These two functions make the style safe; the map looks the same.
+
+// A filter like ['<=', ['get', 'ref_length'], 6] becomes
+// ['all', ['has', 'ref_length'], ['<=', ['get', 'ref_length'], 6]].
+const ORDER_OPERATORS = ['<', '<=', '>', '>=']
+function guardFilter(filter) {
+  if (!Array.isArray(filter)) return filter
+  const [operator, left] = filter
+  if (ORDER_OPERATORS.includes(operator) && Array.isArray(left) && left[0] === 'get') {
+    return ['all', ['has', left[1]], filter]
+  }
+  return filter.map(guardFilter)
+}
+
+function fixBaseStyle(previousStyle, nextStyle) {
+  const layers = nextStyle.layers.map((layer) => {
+    const fixed = { ...layer }
+    if (layer.filter) fixed.filter = guardFilter(layer.filter)
+    // A building without height gets a height of 0
+    if (layer.id === 'building-3d') {
+      fixed.paint = {
+        ...layer.paint,
+        'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0],
+        'fill-extrusion-height': ['coalesce', ['get', 'render_height'], 0],
+      }
+    }
+    return fixed
+  })
+  return { ...nextStyle, layers }
+}
+
 onMounted(() => {
   map = new maplibregl.Map({
     container: mapContainer.value,
-    style: MAP_STYLE,
     center: [2.16, 41.39],
     zoom: 11.5,
     bearing: BEARING,
@@ -241,10 +273,18 @@ onMounted(() => {
     touchPitch: false,
     pitchWithRotate: false,
   })
+  map.setStyle(MAP_STYLE, { transformStyle: fixBaseStyle })
   map.touchZoomRotate.disableRotation()
   map.keyboard.disableRotation()
   // + / − buttons (no compass: the map cannot be rotated)
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
+  // The base style names some icons that its sprite does not have. An empty
+  // 1x1 image answers each request, so MapLibre does not warn in the console.
+  map.on('styleimagemissing', (event) => {
+    if (!map.hasImage(event.id)) {
+      map.addImage(event.id, { width: 1, height: 1, data: new Uint8Array(4) })
+    }
+  })
   map.on('moveend', keepInsideCity)
   map.on('zoom', () => {
     zoomedIn.value = fittedZoom !== null && map.getZoom() > fittedZoom + 0.05
