@@ -20,8 +20,8 @@ el frontend y la cookie. Cambiarlo no aporta nada y rompe a todos.
 Estados **guardados** frente a estados **calculados**:
 
 - Guardados (la tabla tiene un CHECK con los mismos valores):
-  `OrganizationStatus`, `BuildingType`, `SensorType`, `DocumentKind`, `AlertType`,
-  `AlertSeverity`, `AlertStatus`. Si se cambia uno, hay que cambiar su
+  `OrganizationStatus`, `SubscriptionPlan`, `BuildingType`, `SensorType`,
+  `DocumentKind`, `AlertType`, `AlertSeverity`, `AlertStatus`. Si se cambia uno, hay que cambiar su
   CHECK con una migración (Daruny).
 - Calculados al responder, nunca se guardan: `SiteStatus`,
   `SensorStatus`, `SensorHealth`, `AlertState`, `InvitationStatus`.
@@ -47,6 +47,18 @@ class OrganizationStatus(str, Enum):
     TRIAL = "TRIAL"
     ACTIVE = "ACTIVE"
     SUSPENDED = "SUSPENDED"
+
+
+class SubscriptionPlan(str, Enum):
+    """
+    Plan contratado al pasar de la prueba a cliente (B14). CHECK
+    `ck_organizations_plan`. El catálogo con precios y límites está en
+    `modules/subscriptions/plans.py`.
+    """
+
+    BASIC = "BASIC"
+    PRO = "PRO"
+    ENTERPRISE = "ENTERPRISE"
 
 
 # ---------------------------------------------------------
