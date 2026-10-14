@@ -16,6 +16,14 @@ const authService = { //creamos un objeto que agrupará todas las operaciones de
   me() {
     return adapter.get('/api/me') //gets the currently authenticated user using the active session cookie
   },
+
+  updateMe(data) {
+    return adapter.patch('/api/me', data)
+  },
+
+  changePassword(data) {
+    return adapter.post('/api/me/password', data)
+  },
 }
 
 export default authService

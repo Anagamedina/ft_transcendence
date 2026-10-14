@@ -18,8 +18,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
 
-from app.modules.auth.schemas import SessionResponse
+from app.modules.auth.schemas import MessageResponse
 from app.modules.users.service import UserService, get_user_service
+from app.modules.users.schemas import MeResponse, MeUpdate, PasswordChange
 from app.shared.dependencies import CurrentUser
 from app.shared.schemas import error_response
 
@@ -30,7 +31,7 @@ UserSvc = Annotated[UserService, Depends(get_user_service)]
 
 @router.get(
     "/me",
-    response_model=SessionResponse,
+    response_model=MeResponse,
     summary="Quién soy",
     description=(
         "Devuelve el usuario de la sesión actual.\n\n"
@@ -46,5 +47,40 @@ UserSvc = Annotated[UserService, Depends(get_user_service)]
         ),
     },
 )
-def get_me(service: UserSvc, user: CurrentUser) -> SessionResponse:
-    return SessionResponse(user=service.get_me(user))
+def get_me(service: UserSvc, user: CurrentUser) -> MeResponse:
+    return service.get_me(user)
+
+
+@router.patch(
+    "/me",
+    response_model=MeResponse,
+    summary="Actualizar mi cuenta",
+    responses={
+        **error_response(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "El nombre no es válido (`INVALID_NAME`).",
+        ),
+    },
+)
+def update_me(
+    payload: MeUpdate, service: UserSvc, user: CurrentUser
+) -> MeResponse:
+    return service.update_me(user, payload)
+
+
+@router.post(
+    "/me/password",
+    response_model=MessageResponse,
+    summary="Cambiar mi contraseña",
+    responses={
+        **error_response(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "La contraseña actual no coincide (`WRONG_PASSWORD`) o la nueva "
+            "no cumple las reglas (`WEAK_PASSWORD`).",
+        ),
+    },
+)
+def change_password(
+    payload: PasswordChange, service: UserSvc, user: CurrentUser
+) -> MessageResponse:
+    return service.change_password(user, payload)

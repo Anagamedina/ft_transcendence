@@ -187,8 +187,9 @@ class AuthService:
         # Único momento en que tenemos la contraseña en claro, y por tanto
         # el único en que se puede rehacer la huella si los parámetros de
         # Argon2 se han quedado flojos.
-        if needs_rehash(usuario.password_hash):
-            with transaction(self.db):
+        with transaction(self.db):
+            usuario.last_login_at = datetime.now(timezone.utc)
+            if needs_rehash(usuario.password_hash):
                 usuario.password_hash = hash_password(payload.password)
 
         return UserResponse.model_validate(usuario)

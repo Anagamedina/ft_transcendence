@@ -16,10 +16,6 @@ const routes = [
     component: () => import("../views/public/TrialView.vue"),
   },
   {
-    path: "/registro",
-    redirect: "/prueba",
-  },
-  {
     path: "/register",
     redirect: "/prueba",
   },
@@ -65,6 +61,10 @@ const routes = [
       {
         path: "",
         component: () => import("../views/client/DashboardView.vue"),
+      },
+      {
+        path: "account",
+        component: () => import("../views/client/AccountView.vue"),
       },
     ],
   },
@@ -122,7 +122,17 @@ const routes = [
     },
   },
 
+  {
+    path: "/admin/account",
+    component: () => import("../views/admin/AccountView.vue"),
+    meta: {
+      requiresAuth: true,
+      role: "admin",
+    },
+  },
+
   // 404 must be last
+  // Redirects unknown routes to the 404 page
   {
     path: "/:pathMatch(.*)*",
     name: "NotFound",
@@ -163,14 +173,13 @@ router.beforeEach(async (to) => {
     .reverse()
     .find((record) => record.meta.role)?.meta.role;
 
-  const isAuthPage = ["/login", "/prueba", "/registro"].includes(to.path);
+  const isAuthPage = ["/login", "/prueba"].includes(to.path);
 
-  // Load the current session before making access decisions.
   if (requiresAuth || isAuthPage) {
     await authStore.initializeAuth();
   }
 
-  // Protected route: user must be logged in.
+  // Redirect unauthenticated users to the login page.
   if (requiresAuth && !authStore.isAuthenticated) {
     return {
       path: "/login",

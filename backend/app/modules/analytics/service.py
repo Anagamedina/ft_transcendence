@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import csv
 import io
-from datetime import datetime
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from uuid import UUID
 
@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.modules.analytics.repository import AnalyticsRepository
 from app.modules.analytics.schemas import EXPORT_COLUMNS
+from app.core.exceptions import DomainValidationError, NotFoundError
 from app.shared.dependencies import DbSession
 
 # Excel only reads a CSV as UTF-8 (accents in "Gràcia") if it starts with
@@ -102,6 +103,26 @@ class AnalyticsService:
         writer.writeheader()
         writer.writerows(_csv_row(r) for r in self.export_rows(organization_id, start, end))
         return buffer.getvalue()
+
+    def overview(self, organization_id: UUID | None, is_admin: bool) -> dict:
+        return self.repository.overview(organization_id, is_admin)
+
+    def weekly_alerts(
+        self, site_id: UUID, week_start: date | None, organization_id: UUID | None
+    ) -> dict:
+        today = datetime.now(timezone.utc).date()
+        week_start = week_start or (today - timedelta(days=today.weekday()))
+        if week_start.weekday() != 0:
+            raise DomainValidationError(
+                "week_start tiene que ser un lunes.", code="INVALID_WEEK_START"
+            )
+        result = self.repository.site_weekly_alerts(site_id, week_start, organization_id)
+        if result is None:
+            raise NotFoundError("El site no existe.", code="SITE_NOT_FOUND")
+        return result
+
+    def top_sensors(self, days: int, organization_id: UUID | None) -> dict:
+        return {"days": days, "items": self.repository.top_sensors(days, organization_id)}
 
 
 def get_analytics_service(db: DbSession) -> AnalyticsService:
