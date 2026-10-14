@@ -12,16 +12,27 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
+from app.core.database import transaction
+from app.core.exceptions import DomainValidationError
+from app.core.security import hash_password, verify_password
+from app.modules.auth.schemas import MessageResponse
 from app.modules.users.model import User
-from app.modules.users.schemas import UserResponse
+from app.modules.users.schemas import (
+    MeResponse,
+    MeUpdate,
+    OrganizationSummary,
+    PasswordChange,
+    UserResponse,
+)
 from app.shared.dependencies import DbSession
+from app.shared.passwords import check_password
 
 
 class UserService:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def get_me(self, usuario: "User") -> UserResponse:
+    def get_me(self, usuario: "User") -> MeResponse:
         """
         Perfil del usuario de la sesión actual.
 
@@ -42,7 +53,50 @@ class UserService:
         respuesta, porque es donde entraría lo que vaya creciendo alrededor
         del perfil: preferencias, último acceso, permisos calculados.
         """
-        return UserResponse.model_validate(usuario)
+        organization = None
+        if usuario.organization is not None:
+            organization = OrganizationSummary.model_validate(usuario.organization)
+
+        return MeResponse(
+            user=UserResponse.model_validate(usuario),
+            organization=organization,
+            last_login_at=usuario.last_login_at,
+            terms_version=usuario.terms_version,
+            terms_accepted_at=usuario.terms_accepted_at,
+        )
+
+    def update_me(self, usuario: "User", payload: MeUpdate) -> MeResponse:
+        """Actualiza únicamente los datos editables de la propia cuenta."""
+        usuario.name = payload.name.strip()
+        if not usuario.name:
+            raise DomainValidationError(
+                "El nombre no puede estar vacío.",
+                code="INVALID_NAME",
+            )
+
+        with transaction(self.db):
+            self.db.add(usuario)
+
+        return self.get_me(usuario)
+
+    def change_password(
+        self, usuario: "User", payload: PasswordChange
+    ) -> MessageResponse:
+        """Comprueba y reemplaza la contraseña sin invalidar la sesión actual."""
+        if not verify_password(payload.current_password, usuario.password_hash):
+            raise DomainValidationError(
+                "La contraseña actual no es correcta.",
+                code="WRONG_PASSWORD",
+            )
+
+        check_password(payload.new_password, email=usuario.email)
+        new_hash = hash_password(payload.new_password)
+
+        with transaction(self.db):
+            usuario.password_hash = new_hash
+            self.db.add(usuario)
+
+        return MessageResponse(message="Contraseña actualizada.")
 
 
 def get_user_service(db: DbSession) -> UserService:
