@@ -48,15 +48,26 @@
                 Contraseña
               </label>
 
-              <input
-                id="password"
-                v-model="form.password"
-                type="password"
-                autocomplete="current-password"
-                required
-                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                placeholder="Tu contraseña"
-              />
+              <div class="relative">
+                <input
+                  id="password"
+                  v-model="form.password"
+                  :type="showPassword ? 'text' : 'password'"
+                  autocomplete="current-password"
+                  required
+                  class="w-full px-4 py-3 pr-20 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  placeholder="Tu contraseña"
+                />
+                <!-- Show / hide the password, same as the trial sign-up form -->
+                <button
+                  type="button"
+                  class="absolute inset-y-0 right-0 px-3 text-sm font-semibold text-aqua-700 hover:underline"
+                  :aria-pressed="showPassword"
+                  @click="showPassword = !showPassword"
+                >
+                  {{ showPassword ? "Ocultar" : "Mostrar" }}
+                </button>
+              </div>
             </div>
 
             <!-- Error -->
@@ -83,10 +94,10 @@
             ¿No tienes una cuenta?
 
             <RouterLink
-              to="/register"
+              to="/prueba"
               class="text-[#0369A1] font-semibold hover:underline"
             >
-              Crear una cuenta
+              Prueba 7 días gratis
             </RouterLink>
           </p>
 
@@ -100,7 +111,7 @@
 
 <script setup>
 
-import { computed, reactive, onMounted } from "vue";
+import { computed, reactive, ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "../../stores/auth.js";
 import PublicLayout from "../../layouts/PublicLayout.vue";
@@ -114,10 +125,25 @@ const form = reactive({
   password: "",
 });
 
+const showPassword = ref(false);
+
 const isLoading = computed(() => authStore.status === "loading");
 
+// Spanish text for the usual login errors; anything else keeps the API message
 const errorMessage = computed(() => {
-  return authStore.error?.message ?? null;
+  const error = authStore.error;
+  if (!error) return null;
+
+  if (error.code === "INVALID_CREDENTIALS" || error.code === "UNAUTHORIZED") {
+    return "Email o contraseña incorrectos.";
+  }
+  if (error.code === "TOO_MANY_REQUESTS") {
+    return "Demasiados intentos, prueba en unos minutos.";
+  }
+  if (error.code === "NETWORK_ERROR") {
+    return "No hemos podido conectar con el servidor. Inténtalo de nuevo.";
+  }
+  return error.message ?? null;
 });
 
 async function handleSubmit() {

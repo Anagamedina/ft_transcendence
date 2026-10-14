@@ -10,9 +10,15 @@ const routes = [
     path: "/login",
     component: () => import("../views/public/LoginView.vue"),
   },
+  // Public sign-up with a 7-day trial (F15-P, #166)
+  {
+    path: "/prueba",
+    component: () => import("../views/public/TrialView.vue"),
+  },
+  // Old sign-up URL, kept so existing links still work
   {
     path: "/register",
-    component: () => import("../views/public/RegisterView.vue"),
+    redirect: "/prueba",
   },
   {
     path: "/dashboard",
@@ -135,7 +141,7 @@ router.beforeEach(async (to) => {
     (record) => record.meta.requiresClient
   );
 
-  const isAuthPage = ["/login", "/register"].includes(to.path);
+  const isAuthPage = ["/login", "/prueba"].includes(to.path);
 
   if (requiresAuth || isAuthPage) {
     await authStore.initializeAuth();

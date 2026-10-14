@@ -104,6 +104,92 @@ function validationError(field, message) {
   };
 }
 
+// Organizations that already exist in the mock, to answer 409
+// ORGANIZATION_NAME_TAKEN. Same demo names as the admin clients mock.
+const mockOrganizations = [
+  { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', name: 'Hotel Diagonal Mar' },
+  { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', name: 'Escola Gràcia' },
+  { id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', name: 'Comunitat de veïns Sants' },
+]
+
+const MOCK_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+// Error with the backend shape: { status, code, message, details }
+function domainError(status, code, message) {
+  return { status, code, message, details: null }
+}
+
+// Same rule as backend/app/shared/passwords.py (short list of common ones).
+// Returns the error message, or null when the password is valid.
+const MOCK_PASSWORD_MIN_LENGTH = 12
+const MOCK_COMMON_PASSWORDS = [
+  'password1234',
+  'contraseña123',
+  'qwertyuiop12',
+  '123456789012',
+  'abcdefghijkl',
+  'aquaguard123',
+  'aquaguard2026',
+]
+
+function checkMockPassword(password, email) {
+  if (password.length < MOCK_PASSWORD_MIN_LENGTH) {
+    return `La contraseña tiene que tener al menos ${MOCK_PASSWORD_MIN_LENGTH} caracteres.`
+  }
+  if (password.length > 128) {
+    return 'La contraseña no puede pasar de 128 caracteres.'
+  }
+
+  const lower = password.toLowerCase()
+  if (MOCK_COMMON_PASSWORDS.includes(lower) || new Set(lower).size < 5) {
+    return 'Esa contraseña es demasiado fácil de adivinar. Elige otra.'
+  }
+
+  const normalizedEmail = email.toLowerCase()
+  const localPart = normalizedEmail.split('@')[0]
+  if (lower.includes(normalizedEmail) || (localPart.length >= 4 && lower.includes(localPart))) {
+    return 'La contraseña no puede contener tu email.'
+  }
+
+  return null
+}
+
+// Imitates the Nginx limit on the register form (gateway/nginx.conf):
+// rate=10r/m (one slot every 6 s) and burst=4, same algorithm as Nginx.
+// Five quick attempts pass, the 6th gets 429, then one more every 6 s.
+const REGISTER_SLOT_MS = 6 * 1000
+const REGISTER_BURST = 4
+let registerExcess = null
+let registerLastTime = 0
+
+function isRegisterRateLimited() {
+  const now = Date.now()
+
+  // First request: Nginx lets it through without counting it as excess
+  if (registerExcess === null) {
+    registerExcess = 0
+    registerLastTime = now
+    return false
+  }
+
+  const excess = Math.max(0, registerExcess - (now - registerLastTime) / REGISTER_SLOT_MS) + 1
+  if (excess > REGISTER_BURST) {
+    return true
+  }
+
+  registerExcess = excess
+  registerLastTime = now
+  return false
+}
+
+function rateLimitError() {
+  return domainError(
+    429,
+    'TOO_MANY_REQUESTS',
+    'Demasiadas peticiones. Espera un minuto y vuelve a intentarlo.'
+  )
+}
+
 function getAccessibleSites() {
   if (!currentUser) return []
 
@@ -509,55 +595,85 @@ const mockAdapter = {
       console.log('[MOCK POST]', url, data, config)
     }
 
-    // Register a new mock client.
+    // Public sign-up with a 7-day trial (B10, #140). Same order and codes as
+    // backend/app/modules/auth/service.py: 429 (Nginx), 422, then 409.
     if (url === '/api/auth/register') {
-      const email =
-        typeof data.email === 'string'
-          ? data.email.trim()
+      if (isRegisterRateLimited()) {
+        return Promise.reject(rateLimitError())
+      }
+
+      const name = typeof data.name === 'string' ? data.name.trim() : ''
+      const email = typeof data.email === 'string' ? data.email.trim() : ''
+      const password = typeof data.password === 'string' ? data.password : ''
+      const organizationName =
+        typeof data.organization_name === 'string'
+          ? data.organization_name.trim()
           : ''
 
-      if (!email) {
-        return Promise.reject({
-          status: 422,
-          code: 'VALIDATION_ERROR',
-          message: 'A valid email is required.',
-          details: null,
-        })
+      // Pydantic checks (generic VALIDATION_ERROR, one detail per field)
+      if (!name || name.length > 120) {
+        return Promise.reject(validationError('name', 'String should have 1-120 characters'))
+      }
+      if (!MOCK_EMAIL_PATTERN.test(email)) {
+        return Promise.reject(validationError('email', 'value is not a valid email address'))
+      }
+      if (typeof data.organization_name !== 'string' || data.organization_name.length > 120) {
+        return Promise.reject(validationError('organization_name', 'String should have at most 120 characters'))
+      }
+      if (typeof data.accept_terms !== 'boolean') {
+        return Promise.reject(validationError('accept_terms', 'Input should be a valid boolean'))
       }
 
-      if (
-        mockUser.some(
-          (user) => user.email.toLowerCase() === email.toLowerCase()
-        )
-      ) {
-        return Promise.reject({
-          status: 409,
-          code: 'EMAIL_ALREADY_EXISTS',
-          message: 'This email is already registered.',
-          details: null,
-        })
+      // Domain checks
+      if (!data.accept_terms) {
+        return Promise.reject(domainError(
+          422,
+          'TERMS_NOT_ACCEPTED',
+          'Tienes que aceptar los términos de uso para registrarte.'
+        ))
       }
 
-      if (
-        typeof data.password !== 'string' ||
-        !data.password
-      ) {
-        return Promise.reject({
-          status: 422,
-          code: 'VALIDATION_ERROR',
-          message: 'A password is required.',
-          details: null,
-        })
+      const weakPasswordMessage = checkMockPassword(password, email)
+      if (weakPasswordMessage) {
+        return Promise.reject(domainError(422, 'WEAK_PASSWORD', weakPasswordMessage))
       }
+
+      if (!organizationName) {
+        return Promise.reject(domainError(422, 'INVALID_NAME', 'El nombre no puede estar vacío.'))
+      }
+
+      if (mockUser.some((user) => user.email.toLowerCase() === email.toLowerCase())) {
+        return Promise.reject(domainError(409, 'EMAIL_ALREADY_EXISTS', 'Ese email ya está dado de alta.'))
+      }
+
+      if (mockOrganizations.some(
+        (org) => org.name.toLowerCase() === organizationName.toLowerCase()
+      )) {
+        return Promise.reject(domainError(
+          409,
+          'ORGANIZATION_NAME_TAKEN',
+          'Ya hay una organización con ese nombre.'
+        ))
+      }
+
+      // Organization in TRIAL for 7 days, and its first client user
+      const now = new Date()
+      const organization = {
+        id: crypto.randomUUID(),
+        name: organizationName,
+        status: 'trial',
+        trial_ends_at: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      }
+      mockOrganizations.push(organization)
 
       const newUser = {
         id: crypto.randomUUID(),
         email,
-        name: data.name || 'Mock Client',
+        name,
         role: 'client',
-        organization_id: null,
-        created_at: new Date().toISOString(),
-        password: data.password,
+        organization_id: organization.id,
+        created_at: now.toISOString(),
+        password,
       }
 
       mockUser.push(newUser);
