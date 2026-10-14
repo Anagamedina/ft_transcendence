@@ -199,6 +199,10 @@ _SCHEMA_EXAMPLES: dict[str, dict[str, Any]] = {
         "legal_name": "Hoteles Diagonal S.L.",
         "tax_id": "B12345678",
         "billing_email": "facturacion@diagonalmar.com",
+        "billing_address": "Avinguda Diagonal 100, 08019",
+        "plan": "PRO",
+        "subscribed_at": "2026-10-08T09:30:00Z",
+        "iban_masked": "ES** **** **** **** **** 1332",
         "site_count": 1,
         "sensor_count": 8,
         "user_count": 4,
@@ -522,6 +526,86 @@ _SCHEMA_EXAMPLES: dict[str, dict[str, Any]] = {
         "name": "Laura Puig",
         "password": "agua-que-no-se-escapa",
         "accept_terms": True,
+    },
+    # B14 — «Hazte cliente» (#150)
+    "PlanResponse": {
+        "id": "PRO",
+        "name": "Profesional",
+        "description": "Para hoteles y comunidades con varios edificios.",
+        "monthly_price_eur": 79,
+        "max_sites": 5,
+        "max_sensors": 50,
+        "features": ["Todo lo del plan Básico", "Histórico de 1 año y exportación CSV"],
+    },
+    "SubscriptionRequest": {
+        "plan": "PRO",
+        "legal_name": "Hoteles Diagonal S.L.",
+        "tax_id": "B12345678",
+        "billing_address": "Avinguda Diagonal 100, 08019",
+        "city": "Barcelona",
+        "billing_email": "facturacion@diagonalmar.com",
+        "contact_email": "contacto@diagonalmar.com",
+        "phone": "+34 600 000 000",
+        "iban": "ES91 2100 0418 4502 0005 1332",
+        "accept_terms": True,
+    },
+    "SubscriptionResponse": {
+        "organization_id": "11111111-1111-4111-8111-111111111111",
+        "organization_name": "Hotel Diagonal Mar",
+        "status": "ACTIVE",
+        "plan": "PRO",
+        "plan_name": "Profesional",
+        "subscribed_at": "2026-10-08T09:30:00Z",
+        "legal_name": "Hoteles Diagonal S.L.",
+        "tax_id": "B12345678",
+        "billing_address": "Avinguda Diagonal 100, 08019",
+        "city": "Barcelona",
+        "billing_email": "facturacion@diagonalmar.com",
+        "contact_email": "contacto@diagonalmar.com",
+        "phone": "+34 600 000 000",
+        "iban_masked": "ES** **** **** **** **** 1332",
+    },
+    # B17 — búsqueda global (#150)
+    "SearchResponse": {
+        "q": "diag",
+        "organizations": {
+            "items": [
+                {
+                    "id": "11111111-1111-4111-8111-111111111111",
+                    "name": "Hotel Diagonal Mar",
+                    "status": "ACTIVE",
+                    "city": "Barcelona",
+                }
+            ],
+            "total": 1,
+        },
+        "sites": {
+            "items": [
+                {
+                    "id": "33333333-3333-4333-8333-333333333333",
+                    "name": "Torre Diagonal",
+                    "address": "Avinguda Diagonal 100, Barcelona",
+                    "organization_id": "11111111-1111-4111-8111-111111111111",
+                    "organization_name": "Hotel Diagonal Mar",
+                }
+            ],
+            "total": 1,
+        },
+        "sensors": {
+            "items": [
+                {
+                    "id": "44444444-4444-4444-8444-444444444444",
+                    "name": "Pressure Sensor Diagonal 02",
+                    "external_id": "SENS-102",
+                    "location": "Sala técnica",
+                    "site_id": "33333333-3333-4333-8333-333333333333",
+                    "site_name": "Torre Diagonal",
+                    "organization_id": "11111111-1111-4111-8111-111111111111",
+                    "organization_name": "Hotel Diagonal Mar",
+                }
+            ],
+            "total": 1,
+        },
     },
 }
 
