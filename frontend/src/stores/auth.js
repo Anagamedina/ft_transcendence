@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { ref, computed } from 'vue'; //retrieves Vue functions -> ref et computed
 import authService from "../services/auth.service.js"; //so auth.store can communicate with backend but without making HTTP requests directly
+import invitationsService from "../services/invitations.service.js";
 
 export const useAuthStore = defineStore("auth", () =>{
 
@@ -131,6 +132,36 @@ export const useAuthStore = defineStore("auth", () =>{
     }
   }
 
+  // Accept an invitation (F6, #167): creates the client user and opens the
+  // session, like register. The response is the same SessionResponse.
+  async function acceptInvitation(code, data) {
+    status.value = "loading";
+    error.value = null;
+
+    try {
+      const response = await invitationsService.acceptInvitation(code, data);
+
+      user.value = response.data.user;
+      role.value = response.data.user.role;
+
+      status.value = "success";
+      initialized.value = true;
+
+      return user.value;
+
+    } catch (err) {
+      error.value = {
+        code: err.code,
+        message: err.message,
+        details: err.details,
+      };
+
+      status.value = "error";
+
+      throw err;
+    }
+  }
+
   
   async function logout() {
     status.value = "loading";
@@ -174,6 +205,7 @@ export const useAuthStore = defineStore("auth", () =>{
 
     login,
     register,
+    acceptInvitation,
     fetchMe,
     initializeAuth,
     logout,
