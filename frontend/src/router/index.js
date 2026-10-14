@@ -15,17 +15,47 @@ const routes = [
     path: "/prueba",
     component: () => import("../views/public/TrialView.vue"),
   },
-  // Old sign-up URL, kept so existing links still work
   {
     path: "/register",
     redirect: "/prueba",
   },
+  // Accept an invitation: /registro?invitacion=CODE (F6, #167).
+  // Public, and not in the guard's auth pages: the view itself tells a user
+  // who is already logged in to log out first, instead of redirecting them.
+  {
+    path: "/registro",
+    component: () => import("../views/public/AcceptInvitationView.vue"),
+  },
+  {
+    path: "/legal",
+    component: () => import("../views/public/LegalView.vue"),
+  },
+  {
+    path: "/privacy",
+    redirect: "/legal",
+  },
+  {
+    path: "/terms",
+    redirect: "/legal",
+  },
+  {
+    path: "/status",
+    component: () => import("../views/public/StatusView.vue"),
+  },
+
+  // Old client home, kept so existing links and bookmarks still work
   {
     path: "/dashboard",
+    redirect: "/app",
+  },
+
+  // Client routes
+  {
+    path: "/app", ///app becomes the client's home page
     component: () => import("../layouts/ClientLayout.vue"),
     meta: {
       requiresAuth: true,
-      requiresClient: true,
+      role: "client",
     },
     children: [
       {
@@ -38,36 +68,14 @@ const routes = [
       },
     ],
   },
-  {
-    path: "/privacy",
-    component: () => import("../views/public/PrivacyView.vue"),
-  },
-  {
-    path: "/terms",
-    component: () => import("../views/public/TermsView.vue"),
-  },
-  {
-    path: "/legal",
-    component: () => import("../views/public/LegalView.vue"),
-  },
-  {
-    path: "/status",
-    component: () => import("../views/public/StatusView.vue"),
-  },
-  {
-    path: "/test",
-    component: () => import("../views/public/TestView.vue"),
-  },
-  {
-    path: "/sensors/:id",
-    component: () => import("../views/public/SensorDetailView.vue"),
-  },
+
+  // Admin routes
   {
     path: "/admin",
     component: () => import("../views/admin/DashboardView.vue"),
     meta: {
       requiresAuth: true,
-      requiresAdmin: true,
+      role: "admin",
     },
   },
   {
@@ -75,7 +83,7 @@ const routes = [
     component: () => import("../views/admin/ClientsView.vue"),
     meta: {
       requiresAuth: true,
-      requiresAdmin: true,
+      role: "admin",
     },
   },
   {
@@ -84,7 +92,7 @@ const routes = [
     props: true,
     meta: {
       requiresAuth: true,
-      requiresAdmin: true,
+      role: "admin",
     },
   },
   {
@@ -92,9 +100,29 @@ const routes = [
     component: () => import("../views/admin/SitesView.vue"),
     meta: {
       requiresAuth: true,
-      requiresAdmin: true,
+      role: "admin",
     },
   },
+  {
+    path: "/admin/sensors",
+    name: "AdminSensors",
+    component: () => import("../views/admin/SensorsView.vue"),
+    meta: {
+      requiresAuth: true,
+      role: "admin",
+    },
+  },
+  {
+    path: "/admin/alerts",
+    name: "AdminAlerts",
+    component: () => import("../views/admin/AlertsView.vue"),
+    meta: {
+      requiresAuth: true,
+      role: "admin",
+    },
+  },
+
+  // 404 must be last
   {
     path: "/admin/account",
     component: () => import("../views/admin/AccountView.vue"),
@@ -102,20 +130,9 @@ const routes = [
   },
   // Redirects unknown routes to the 404 page
   {
-  path: "/:pathMatch(.*)*",
-  component: () => import("../views/public/NotFoundView.vue"),
-  },
-  {
-    path: '/admin/sensors',
-    name: 'AdminSensors',
-    component: () => import("../views/admin/SensorsView.vue"),
-    meta: { requiresAuth: true, requiresAdmin: true },
-  },
-  {
-    path: '/admin/alerts',
-    name: 'AdminAlerts',
-    component: () => import("../views/admin/AlertsView.vue"),
-    meta: { requiresAuth: true, requiresAdmin: true },
+    path: "/:pathMatch(.*)*",
+    name: "NotFound",
+    component: () => import("../views/public/NotFoundView.vue"),
   },
 ];
 
@@ -127,10 +144,15 @@ const router = createRouter({
     if (savedPosition) {
       return savedPosition;
     }
-    // Scroll to the anchor (e.g. /legal#terminos), leaving room for the sticky header
+
     if (to.hash) {
-      return { el: to.hash, top: 80, behavior: 'smooth' };
+      return {
+        el: to.hash,
+        top: 80,
+        behavior: "smooth",
+      };
     }
+
     return { top: 0 };
   },
 });
@@ -142,9 +164,10 @@ router.beforeEach(async (to) => {
     (record) => record.meta.requiresAuth
   );
 
-  const requiresAdmin = to.matched.some(
-    (record) => record.meta.requiresAdmin
-  );
+//meta.role replaces the old requiresAdmin and requiresClient
+  const requiredRole = [...to.matched]
+    .reverse()
+    .find((record) => record.meta.role)?.meta.role;
 
   const requiresClient = to.matched.some(
     (record) => record.meta.requiresClient
@@ -164,21 +187,24 @@ router.beforeEach(async (to) => {
     };
   }
 
-  // Allow only administrators to access admin routes.
-  if (requiresAdmin && !authStore.isAdmin) {
-    return authStore.isAuthenticated
-      ? "/dashboard"
-      : "/login";
+  // Protected route: authenticated user must have the required role
+  //A client attempting to access an admin page is redirected to /app, and vice versa
+  if (requiredRole && authStore.role !== requiredRole) {
+    if (authStore.isAdmin) {
+      return "/admin";
+    }
+
+    if (authStore.isClient) {
+      return "/app";
+    }
+
+  // Avoid redirecting indefinitely between protected and login routes
+    return { name: "NotFound" };
   }
 
-  // Allow only clients to access the client dashboard.
-  if (requiresClient && !authStore.isClient) {
-    return authStore.isAdmin ? "/admin" : "/login";
-  }
-
-  // Redirect authenticated users away from login and registration pages.
+  // Logged-in users should go to their role-specific home page
   if (isAuthPage && authStore.isAuthenticated) {
-    return authStore.isAdmin ? "/admin" : "/dashboard";
+    return authStore.isAdmin ? "/admin" : "/app";
   }
 
   return true;

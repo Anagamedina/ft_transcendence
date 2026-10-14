@@ -39,6 +39,9 @@ const mockUser = [
     role: "admin",
     organization_id: null,
     created_at: "2026-08-01T08:00:00Z",
+    organization_name: 'Organisation de démonstration',
+    is_active: true,
+    last_login_at: null,
     password: "123",
   },
   {
@@ -48,9 +51,14 @@ const mockUser = [
     role: "client",
     organization_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     created_at: "2026-08-01T08:00:00Z",
+    organization_name: 'Organisation de démonstration',
+    is_active: true,
+    last_login_at: null,
     password: "123",
   },
 ]
+
+const mockDocuments = []
 
 let currentUser = null
 
@@ -68,7 +76,8 @@ restoreMockUser();
 function toPublicUser(user) {
   if (!user) return null
 
-  const { password, ...publicUser } = user
+  const publicUser = { ...user }
+  delete publicUser.password
   return publicUser
 }
 
@@ -125,14 +134,6 @@ function validationError(field, message) {
     ],
   };
 }
-
-// Organizations that already exist in the mock, to answer 409
-// ORGANIZATION_NAME_TAKEN. Same demo names as the admin clients mock.
-const mockOrganizations = [
-  { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', name: 'Hotel Diagonal Mar' },
-  { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', name: 'Escola Gràcia' },
-  { id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', name: 'Comunitat de veïns Sants' },
-]
 
 const MOCK_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -271,8 +272,110 @@ const DAY_MS = 24 * 60 * 60 * 1000
 const TRIAL_DAYS = 7
 const INVITATION_TTL_DAYS = 7
 
-// Invitations created during this session (B4 has no routes yet: see invitations.service.js)
-const invitations = []
+// Invitations (B4 has no routes yet: see invitations.service.js).
+// Each one keeps its `code` here so F6 (#167) can find it by code; the API stores
+// only a hash, and the responses never include it (see toInvitationResponse).
+//
+// Fixed demo codes, to test /registro?invitacion=CODE without creating one first:
+//   AQUAGUARD-DEMO-INVITE   pending (same code as backend/seeds/seed_demo.py)
+//   AQUAGUARD-DEMO-EXPIRED  expired  -> 410 INVITATION_EXPIRED
+//   AQUAGUARD-DEMO-USED     accepted -> 404 INVITATION_NOT_FOUND
+// They start again on every page load. The ones the admin creates are saved in
+// localStorage, so their link still works after a reload in the same browser.
+const MOCK_INVITATIONS_KEY = 'aquaguard_mock_invitations'
+
+function demoInvitation(code, createdDaysAgo, expiresInDays, acceptedDaysAgo = null) {
+  const now = Date.now()
+  return {
+    id: crypto.randomUUID(),
+    organization_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    organization_name: 'Hotel Diagonal Mar',
+    email: 'nuevo.gestor@hoteldiagonal.example.com',
+    expires_at: new Date(now + expiresInDays * DAY_MS).toISOString(),
+    accepted_at: acceptedDaysAgo === null ? null : new Date(now - acceptedDaysAgo * DAY_MS).toISOString(),
+    revoked_at: null,
+    created_by_name: 'Mock Admin',
+    created_at: new Date(now - createdDaysAgo * DAY_MS).toISOString(),
+    code,
+    demo: true,
+  }
+}
+
+function loadSavedInvitations() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(MOCK_INVITATIONS_KEY) ?? '[]')
+    return Array.isArray(saved) ? saved : []
+  } catch {
+    return []
+  }
+}
+
+function saveInvitations() {
+  try {
+    const own = invitations.filter((item) => !item.demo)
+    localStorage.setItem(MOCK_INVITATIONS_KEY, JSON.stringify(own))
+  } catch {
+    // Storage full or blocked: the invitations still work until the page reloads
+  }
+}
+
+const invitations = [
+  demoInvitation('AQUAGUARD-DEMO-INVITE', 1, INVITATION_TTL_DAYS - 1),
+  demoInvitation('AQUAGUARD-DEMO-EXPIRED', 9, -2),
+  demoInvitation('AQUAGUARD-DEMO-USED', 3, INVITATION_TTL_DAYS - 3, 1),
+  ...loadSavedInvitations(),
+]
+
+// InvitationResponse of the contract: without the code and the mock flags
+function toInvitationResponse(invitation) {
+  const { code, demo, ...response } = invitation
+  return { ...response, status: invitationStatus(invitation) }
+}
+
+// The pending invitation with that code, or the API error:
+// 410 when it expired, 404 when it does not exist, was accepted or was revoked
+function findInvitationByCode(code) {
+  const invitation = invitations.find((item) => item.code === code)
+  const status = invitation ? invitationStatus(invitation) : null
+
+  if (status === 'EXPIRED') {
+    return { error: domainError(410, 'INVITATION_EXPIRED', 'La invitación ha caducado.') }
+  }
+  if (status !== 'PENDING') {
+    return { error: domainError(404, 'INVITATION_NOT_FOUND', 'La invitación no existe o ya no es válida.') }
+  }
+  return { invitation }
+}
+
+// The code inside /api/invitations/by-code/{code}[/accept]
+function codeFromUrl(url) {
+  return decodeURIComponent(url.split('/')[4] ?? '')
+}
+
+// Imitates the Nginx limit on /api/invitations/by-code/ (gateway/nginx.conf):
+// same rule as the register form (10r/m, burst=4), with its own counter
+let invitationsExcess = null
+let invitationsLastTime = 0
+
+function isInvitationsRateLimited() {
+  const now = Date.now()
+
+  if (invitationsExcess === null) {
+    invitationsExcess = 0
+    invitationsLastTime = now
+    return false
+  }
+
+  const excess =
+    Math.max(0, invitationsExcess - (now - invitationsLastTime) / REGISTER_SLOT_MS) + 1
+  if (excess > REGISTER_BURST) {
+    return true
+  }
+
+  invitationsExcess = excess
+  invitationsLastTime = now
+  return false
+}
 
 function organizationNotFound() {
   return {
@@ -383,6 +486,62 @@ const mockAdapter = {
       })
     }
 
+    // Users (B6): admin only
+    if (url === '/api/users') {
+      const denied = adminCheck()
+      if (denied) return Promise.reject(denied)
+
+      const params = config.params ?? {}
+      const q = normalize(String(params.q ?? '').trim())
+
+      const items = mockUser
+        .filter((user) => {
+          if (
+            params.organization_id &&
+            user.organization_id !== params.organization_id
+          ) return false
+
+          if (
+            params.active !== undefined &&
+            String(user.is_active !== false) !== String(params.active)
+          ) return false
+
+          if (
+            q &&
+            ![user.name, user.email, user.organization_name]
+              .some((value) => normalize(value ?? '').includes(q))
+          ) return false
+
+          return true
+        })
+        .map(toPublicUser)
+        .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+
+      return Promise.resolve({
+        data: toPage(items, params),
+        status: 200,
+      })
+    }
+
+    if (url.startsWith('/api/users/')) {
+      const denied = adminCheck()
+      if (denied) return Promise.reject(denied)
+
+      const id = url.split('/')[3]
+      const user = mockUser.find((item) => item.id === id)
+
+      if (!user) {
+        return Promise.reject(
+          domainError(404, 'USER_NOT_FOUND', 'El usuario no existe.')
+        )
+      }
+
+  return Promise.resolve({
+    data: toPublicUser(user),
+    status: 200,
+  })
+}
+
     // Get the public status page data.
     if (url === '/api/status') {
       return Promise.resolve({
@@ -439,9 +598,28 @@ const mockAdapter = {
       const params = config.params ?? {}
       const items = invitations
         .filter((item) => !params.organization_id || item.organization_id === params.organization_id)
-        .map((item) => ({ ...item, status: invitationStatus(item) }))
+        .map(toInvitationResponse)
 
       return Promise.resolve({ data: toPage(items, params), status: 200 })
+    }
+
+    // Open an invitation link (B4, public): only what the accept form needs
+    if (url.startsWith('/api/invitations/by-code/')) {
+      if (isInvitationsRateLimited()) {
+        return Promise.reject(rateLimitError())
+      }
+
+      const { invitation, error } = findInvitationByCode(codeFromUrl(url))
+      if (error) return Promise.reject(error)
+
+      return Promise.resolve({
+        data: {
+          organization_name: invitation.organization_name,
+          email: invitation.email,
+          expires_at: invitation.expires_at,
+        },
+        status: 200,
+      })
     }
 
     // Get all sites.
@@ -819,6 +997,26 @@ const mockAdapter = {
       })
     }
 
+    // Documents (B11): list
+    if (url === '/api/documents') {
+      if (!currentUser) return Promise.reject(authError())
+
+      const params = config.params ?? {}
+      const items = mockDocuments
+        .filter((document) =>
+          currentUser.role === 'admin' ||
+          document.organization_id === currentUser.organization_id
+        )
+        .filter((document) =>
+          !params.site_id || document.site_id === params.site_id
+        )
+
+      return Promise.resolve({
+        data: toPage(items, params),
+        status: 200,
+      })
+    }
+
     // Handle unknown endpoints.
     return Promise.reject({
       status: 404,
@@ -900,25 +1098,29 @@ const mockAdapter = {
         return Promise.reject(domainError(409, 'EMAIL_ALREADY_EXISTS', 'Ese email ya está dado de alta.'))
       }
 
-      if (mockOrganizations.some(
-        (org) => org.name.toLowerCase() === organizationName.toLowerCase()
-      )) {
-        return Promise.reject(domainError(
-          409,
-          'ORGANIZATION_NAME_TAKEN',
-          'Ya hay una organización con ese nombre.'
-        ))
-      }
-
       // Organization in TRIAL for 7 days, and its first client user
       const now = new Date()
       const organization = {
         id: crypto.randomUUID(),
         name: organizationName,
-        status: 'trial',
+        status: 'TRIAL',
         trial_ends_at: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       }
-      mockOrganizations.push(organization)
+
+      if (nameTaken(organizationName)) {
+        return Promise.reject(
+          conflict(
+            'ORGANIZATION_NAME_TAKEN',
+            'Ya hay una organización con ese nombre.'
+          )
+        )
+      }
+
+      organizations.push({
+        ...organization,
+        user_count: 1,
+        created_at: now.toISOString(),
+      })
 
       const newUser = {
         id: crypto.randomUUID(),
@@ -960,7 +1162,6 @@ const mockAdapter = {
       }
 
       currentUser = user;
-      user.last_login_at = new Date().toISOString();
       localStorage.setItem(MOCK_SESSION_KEY, user.id);
 
       return Promise.resolve({
@@ -983,6 +1184,33 @@ const mockAdapter = {
         status: 200,
       })
     }
+
+      // Users (B6): activate / deactivate
+      if (
+        url.startsWith('/api/users/') &&
+        (url.endsWith('/activate') || url.endsWith('/deactivate'))
+      ) {
+        const denied = adminCheck()
+        if (denied) return Promise.reject(denied)
+
+        const parts = url.split('/')
+        const id = parts[3]
+        const action = parts[4]
+        const user = mockUser.find((item) => item.id === id)
+
+        if (!user) {
+          return Promise.reject(
+            domainError(404, 'USER_NOT_FOUND', 'El usuario no existe.')
+          )
+        }
+
+        user.is_active = action === 'activate'
+
+        return Promise.resolve({
+          data: toPublicUser(user),
+          status: 200,
+        })
+      }
 
     // Create an organization (B1), with its first building in the same operation.
     // Created by the admin, so it starts ACTIVE (the public sign-up creates trials)
@@ -1090,6 +1318,75 @@ const mockAdapter = {
       return Promise.resolve({ data: withCounters(organization), status: 200 })
     }
 
+    // Accept an invitation (B4, public): creates the client user and opens the
+    // session, like the sign-up. Order: 429 (Nginx), 404/410, 422, then 409
+    if (url.startsWith('/api/invitations/by-code/') && url.endsWith('/accept')) {
+      if (isInvitationsRateLimited()) {
+        return Promise.reject(rateLimitError())
+      }
+
+      const { invitation, error } = findInvitationByCode(codeFromUrl(url))
+      if (error) return Promise.reject(error)
+
+      const name = typeof data.name === 'string' ? data.name.trim() : ''
+      const password = typeof data.password === 'string' ? data.password : ''
+
+      // Pydantic checks (generic VALIDATION_ERROR, one detail per field)
+      if (!name || name.length > 120) {
+        return Promise.reject(validationError('name', 'String should have 1-120 characters'))
+      }
+      if (typeof data.accept_terms !== 'boolean') {
+        return Promise.reject(validationError('accept_terms', 'Input should be a valid boolean'))
+      }
+
+      // Domain checks, same as the register (B10)
+      if (!data.accept_terms) {
+        return Promise.reject(domainError(
+          422,
+          'TERMS_NOT_ACCEPTED',
+          'Tienes que aceptar los términos de uso para registrarte.'
+        ))
+      }
+
+      const weakPasswordMessage = checkMockPassword(password, invitation.email)
+      if (weakPasswordMessage) {
+        return Promise.reject(domainError(422, 'WEAK_PASSWORD', weakPasswordMessage))
+      }
+
+      if (mockUser.some((user) => user.email.toLowerCase() === invitation.email)) {
+        return Promise.reject(domainError(409, 'EMAIL_ALREADY_EXISTS', 'Ese email ya está dado de alta.'))
+      }
+
+      const now = new Date()
+      const newUser = {
+        id: crypto.randomUUID(),
+        email: invitation.email,
+        name,
+        role: 'client',
+        organization_id: invitation.organization_id,
+        created_at: now.toISOString(),
+        password,
+      }
+      mockUser.push(newUser)
+
+      // One use only: the same link answers 404 from now on
+      invitation.accepted_at = now.toISOString()
+      saveInvitations()
+
+      const organization = organizations.find((item) => item.id === invitation.organization_id)
+      if (organization) organization.user_count = (organization.user_count ?? 0) + 1
+
+      currentUser = newUser
+      localStorage.setItem(MOCK_SESSION_KEY, newUser.id)
+
+      return Promise.resolve({
+        data: {
+          user: toPublicUser(currentUser),
+        },
+        status: 201,
+      })
+    }
+
     // Create an invitation (B4). No session check: see GET /api/invitations
     if (url === '/api/invitations') {
       const email = typeof data.email === 'string' ? data.email.trim().toLowerCase() : ''
@@ -1115,15 +1412,17 @@ const mockAdapter = {
         revoked_at: null,
         created_by_name: currentUser?.name ?? null,
         created_at: now.toISOString(),
+        // Kept so GET /by-code/{code} can find it; never returned after this answer
+        code,
       }
       invitations.push(invitation)
+      saveInvitations()
 
       // code and url only in this answer, as in the API.
       // Same route and param that F6 (#167) reads: /registro?invitacion=CODE
       return Promise.resolve({
         data: {
-          ...invitation,
-          status: 'PENDING',
+          ...toInvitationResponse(invitation),
           code,
           url: `${window.location.origin}/registro?invitacion=${code}`,
         },
@@ -1359,6 +1658,62 @@ const mockAdapter = {
       })
     }
 
+    // Documents (B11): upload multipart/form-data
+    if (url === '/api/documents') {
+      if (!currentUser) return Promise.reject(authError())
+
+      const file = data instanceof FormData ? data.get('file') : null
+      const siteId = data instanceof FormData ? data.get('site_id') : null
+      const kind = data instanceof FormData ? data.get('kind') : null
+
+      if (!file || typeof file.name !== 'string') {
+        return Promise.reject(
+          validationError('file', 'Un fichier est obligatoire.')
+        )
+      }
+
+      if (!siteId) {
+        return Promise.reject(
+          validationError('site_id', 'site_id est obligatoire.')
+        )
+      }
+
+      if (!kind) {
+        return Promise.reject(
+          validationError('kind', 'kind est obligatoire.')
+        )
+      }
+
+      const site = sites.find((item) => item.id === siteId)
+      if (!site) {
+        return Promise.reject(
+          domainError(404, 'SITE_NOT_FOUND', 'El edificio no existe.')
+        )
+      }
+
+      if (!getAccessibleSites().some((item) => item.id === siteId)) {
+        return Promise.reject(forbiddenError())
+      }
+
+      const document = {
+        id: crypto.randomUUID(),
+        organization_id: site.organization_id,
+        site_id: site.id,
+        site_name: site.name,
+        kind,
+        filename: file.name,
+        content_type: file.type || 'application/octet-stream',
+        size: file.size,
+        uploaded_by: currentUser.id,
+        can_delete: true,
+        created_at: new Date().toISOString(),
+      }
+
+      mockDocuments.push(document)
+
+      return Promise.resolve({ data: document, status: 201 })
+    }
+
     // Handle unknown endpoints.
     return Promise.reject({
       status: 404,
@@ -1371,6 +1726,48 @@ const mockAdapter = {
     // PATCH requests
   patch(url, data = {}, config = {}) {
     console.log('[MOCK PATCH]', url, data, config)
+
+    // Users (B6): partial update
+    if (url.startsWith('/api/users/')) {
+      const denied = adminCheck()
+      if (denied) return Promise.reject(denied)
+
+      const id = url.split('/')[3]
+      const user = mockUser.find((item) => item.id === id)
+
+      if (!user) {
+        return Promise.reject(
+          domainError(404, 'USER_NOT_FOUND', 'El usuario no existe.')
+        )
+      }
+
+      if (data.name !== undefined) {
+        if (typeof data.name !== 'string' || !data.name.trim()) {
+          return Promise.reject(
+            validationError('name', 'El nombre no puede estar vacío.')
+          )
+        }
+        user.name = data.name.trim()
+      }
+
+      if (data.role !== undefined) {
+        if (!['admin', 'client'].includes(data.role)) {
+          return Promise.reject(
+            validationError('role', 'El rol no es válido.')
+          )
+        }
+        user.role = data.role
+      }
+
+      if (data.organization_id !== undefined) {
+        user.organization_id = data.organization_id
+      }
+
+      return Promise.resolve({
+        data: toPublicUser(user),
+        status: 200,
+      })
+    }
 
     if (url === '/api/me') {
       if (!currentUser) return Promise.reject(authError())
@@ -1658,6 +2055,31 @@ const mockAdapter = {
   delete(url, config = {}) {
     console.log('[MOCK DELETE]', url, config)
 
+    // Users (B6): delete
+    if (url.startsWith('/api/users/')) {
+      const denied = adminCheck()
+      if (denied) return Promise.reject(denied)
+
+      const id = url.split('/')[3]
+      const index = mockUser.findIndex((item) => item.id === id)
+
+      if (index === -1) {
+        return Promise.reject(
+          domainError(404, 'USER_NOT_FOUND', 'El usuario no existe.')
+        )
+      }
+
+      if (mockUser[index].id === currentUser?.id) {
+        return Promise.reject(
+          domainError(409, 'CANNOT_DELETE_SELF', 'No puedes eliminar tu propia cuenta.')
+        )
+      }
+
+      mockUser.splice(index, 1)
+
+      return Promise.resolve({ data: null, status: 204 })
+    }
+
     // Delete an organization and everything it owns (B16). Needs the exact name
     if (url.startsWith('/api/organizations/')) {
       const denied = adminCheck()
@@ -1688,11 +2110,44 @@ const mockAdapter = {
         users: organization.user_count,
         organizations: removeWhere(organizations, (item) => item.id === organization.id),
       }
+      saveInvitations()
 
       return Promise.resolve({
         data: { id: organization.id, name: organization.name, deleted, detached_admins: 0, deleted_files: 0 },
         status: 200,
       })
+    }
+
+    // Documents (B11): delete
+    if (url.startsWith('/api/documents/')) {
+      if (!currentUser) return Promise.reject(authError())
+
+      const id = url.split('/')[3]
+      const index = mockDocuments.findIndex((item) => item.id === id)
+
+      if (index === -1) {
+        return Promise.reject(
+          domainError(404, 'DOCUMENT_NOT_FOUND', 'El documento no existe.')
+        )
+      }
+
+      const document = mockDocuments[index]
+
+      if (
+        document.organization_id !== currentUser.organization_id &&
+        currentUser.role !== 'admin'
+      ) {
+        return Promise.reject(forbiddenError())
+      }
+
+      // A client cannot delete a document uploaded by an admin.
+      const uploader = mockUser.find((user) => user.id === document.uploaded_by)
+      if (currentUser.role === 'client' && uploader?.role === 'admin') {
+        return Promise.reject(forbiddenError())
+      }
+
+      mockDocuments.splice(index, 1)
+      return Promise.resolve({ data: null, status: 204 })
     }
 
     return Promise.reject({
@@ -1735,6 +2190,8 @@ Orgs          POST      /api/organizations/{id}/suspend | reactivate | extend-tr
 Orgs          DELETE    /api/organizations/{id}
 Invitations   GET       /api/invitations
 Invitations   POST      /api/invitations
+Invitations   GET       /api/invitations/by-code/{code}
+Invitations   POST      /api/invitations/by-code/{code}/accept
 */
 
 /*

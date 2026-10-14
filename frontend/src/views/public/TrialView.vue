@@ -236,7 +236,7 @@ const MAX_NAME_LENGTH = 120;
 
 // Where a new client lands after signing up.
 // The session is already open: the register response sets the cookie.
-const CLIENT_HOME = "/dashboard";
+const CLIENT_HOME = "/app";
 
 // Simple shape check; the backend does the strict validation.
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

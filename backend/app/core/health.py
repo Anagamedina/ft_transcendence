@@ -61,7 +61,19 @@ def health() -> HealthResponse:
     ),
     responses={
         status.HTTP_503_SERVICE_UNAVAILABLE: {
-            "description": "La base de datos no responde."
+            "description": "La base de datos no responde (`DATABASE_UNAVAILABLE`).",
+            "content": {
+                "application/json": {
+                    "schema": {"$ref": "#/components/schemas/ErrorResponse"},
+                    "example": {
+                        "error": {
+                            "code": "DATABASE_UNAVAILABLE",
+                            "message": "La base de datos no está disponible.",
+                            "details": None,
+                        }
+                    }
+                }
+            },
         }
     },
 )

@@ -19,6 +19,7 @@ Tres bloques:
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Generic, TypeVar
 
@@ -126,7 +127,40 @@ class ErrorResponse(ApiModel):
     )
 
 
-def error_response(status_code: int, description: str) -> dict[int, dict[str, object]]:
+_ERROR_CODE_RE = re.compile(r"`([A-Z][A-Z0-9_]+)`")
+
+_DEFAULT_ERROR_CODES = {
+    400: "BAD_REQUEST",
+    401: "UNAUTHORIZED",
+    403: "FORBIDDEN",
+    404: "NOT_FOUND",
+    409: "CONFLICT",
+    413: "PAYLOAD_TOO_LARGE",
+    422: "VALIDATION_ERROR",
+    429: "TOO_MANY_REQUESTS",
+    500: "INTERNAL_ERROR",
+    501: "NOT_IMPLEMENTED",
+    503: "SERVICE_UNAVAILABLE",
+}
+
+_ERROR_MESSAGES = {
+    "UNAUTHORIZED": "No hay una sesión válida.",
+    "FORBIDDEN": "La sesión no tiene permiso para esta operación.",
+    "NOT_FOUND": "El recurso solicitado no existe.",
+    "CONFLICT": "La operación entra en conflicto con el estado actual.",
+    "VALIDATION_ERROR": "Los datos enviados no son válidos.",
+    "PAYLOAD_TOO_LARGE": "El contenido enviado supera el tamaño permitido.",
+    "TOO_MANY_REQUESTS": "Demasiadas solicitudes.",
+}
+
+
+def error_response(
+    status_code: int,
+    description: str,
+    *,
+    code: str | None = None,
+    message: str | None = None,
+) -> dict[int, dict[str, object]]:
     """
     Genera la entrada de `responses=` que documenta un error en OpenAPI.
 
@@ -141,7 +175,28 @@ def error_response(status_code: int, description: str) -> dict[int, dict[str, ob
             **error_response(422, "Presión fuera de rango."),
         }
     """
-    return {status_code: {"model": ErrorResponse, "description": description}}
+    # Las descripciones de los routers ya contienen el código estable entre
+    # backticks. Reutilizarlo evita que el ejemplo diga VALIDATION_ERROR
+    # cuando el endpoint realmente documenta, por ejemplo, SITE_NOT_FOUND.
+    match = _ERROR_CODE_RE.search(description)
+    resolved_code = code or (match.group(1) if match else None)
+    resolved_code = resolved_code or _DEFAULT_ERROR_CODES.get(status_code, "API_ERROR")
+    example = {
+        "error": {
+            "code": resolved_code,
+            "message": message or _ERROR_MESSAGES.get(
+                resolved_code, "La operación no se puede completar."
+            ),
+            "details": None,
+        }
+    }
+    return {
+        status_code: {
+            "model": ErrorResponse,
+            "description": description,
+            "content": {"application/json": {"example": example}},
+        }
+    }
 
 
 # ---------------------------------------------------------

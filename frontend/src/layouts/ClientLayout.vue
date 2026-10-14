@@ -46,11 +46,11 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const sidebarItems = [
-  { label: 'Dashboard', to: '/dashboard', icon: 'building'},
-  { label: 'Sensores', to: '/dashboard#sensors', icon: 'droplet'},
-  { label: 'Histórico', to: '/dashboard#history', icon: 'bar-chart' },
-  { label: 'Alertas', to: '/dashboard#alerts', icon: 'alert'},
-  { label: 'Mi cuenta', to: '/dashboard/account', icon: 'users' },
+  { label: 'Dashboard', to: '/app', icon: 'building'},
+  { label: 'Sensores', to: '/app#sensors', icon: 'droplet'},
+  { label: 'Histórico', to: '/app#history', icon: 'bar-chart' },
+  { label: 'Alertas', to: '/app#alerts', icon: 'alert'},
+  { label: 'Perfil', to: '/app#profile', icon: 'users' },
 ]
 
 async function handleLogout() {
