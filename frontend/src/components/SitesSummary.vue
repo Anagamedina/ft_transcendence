@@ -11,7 +11,7 @@
     </div>
 
     <p v-if="sites.length === 0" class="text-sm text-gray-500">
-      No hay sites disponibles todavía.
+      No hay edificios disponibles todavía.
     </p>
 
     <ul v-else class="divide-y divide-gray-100">

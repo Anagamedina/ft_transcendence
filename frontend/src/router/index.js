@@ -16,10 +16,6 @@ const routes = [
     component: () => import("../views/public/TrialView.vue"),
   },
   {
-    path: "/registro",
-    redirect: "/prueba",
-  },
-  {
     path: "/register",
     redirect: "/prueba",
   },
