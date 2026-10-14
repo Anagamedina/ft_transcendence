@@ -191,6 +191,16 @@ export const useOrganizationsStore = defineStore('organizations', () => {
     return replaceOrganization(response.data)
   }
 
+  // True when another client already has this name, ignoring case, as the API (409).
+  // Uses the search (q) and compares the whole name, because q also matches parts
+  // of other fields. It does not change the list state.
+  async function isNameTaken(name) {
+    const wanted = name.trim().toLocaleLowerCase('es')
+    if (wanted === '') return false
+    const response = await organizationsService.getOrganizations({ q: name.trim(), page: 1, page_size: 100 })
+    return response.data.items.some((item) => item.name.toLocaleLowerCase('es') === wanted)
+  }
+
   // DELETE /api/organizations/{id} with the exact name as confirmation (B16).
   // Returns what was deleted: { id, name, deleted: { sites, sensors, ... } }
   async function deleteOrganization(id, confirmName) {
@@ -250,6 +260,7 @@ export const useOrganizationsStore = defineStore('organizations', () => {
     extendTrial,
     activate,
     deleteOrganization,
+    isNameTaken,
     fetchInvitations,
     createInvitation,
   }

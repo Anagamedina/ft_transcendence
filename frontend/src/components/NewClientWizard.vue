@@ -5,9 +5,10 @@
   the result back in `created`, then the wizard shows the invitation link to send.
   While the parent is saving, `submitting` disables the buttons; an API error comes
   back in `serverError` ({ field, message }): a 'name' error returns to step 1.
+  With `checkName`, step 1 asks the API if the name is free before moving on.
   Usage:
-    <NewClientWizard :created="result" :submitting="saving" :server-error="apiError"
-      @submit="create" @cancel="close" @open="goToClient" />
+    <NewClientWizard :created="result" :check-name="isNameTaken" :submitting="saving"
+      :server-error="apiError" @submit="create" @cancel="close" @open="goToClient" />
 -->
 
 <template>
@@ -217,11 +218,11 @@
       </p>
 
       <div class="flex justify-between gap-3 border-t border-gray-200 pt-4">
-        <button type="button" :class="BUTTON_SECONDARY" :disabled="submitting" @click="back">
+        <button type="button" :class="BUTTON_SECONDARY" :disabled="busy" @click="back">
           {{ step === 0 ? 'Cancelar' : 'Atrás' }}
         </button>
         <!-- type="submit": Enter in any field also moves forward -->
-        <button type="submit" :class="BUTTON_PRIMARY" :disabled="submitting" :aria-busy="submitting">
+        <button type="submit" :class="BUTTON_PRIMARY" :disabled="busy" :aria-busy="busy">
           {{ submitLabel }}
         </button>
       </div>
@@ -241,6 +242,8 @@ const props = defineProps({
   submitting: { type: Boolean, default: false },
   // API error after "Crear cliente": { field, message }. field 'name' goes back to step 1
   serverError: { type: Object, default: null },
+  // Optional async (name) => true when the name is already used. Checked on "Siguiente" in step 1
+  checkName: { type: Function, default: null },
 })
 
 const emit = defineEmits(['submit', 'cancel', 'open'])
@@ -262,7 +265,12 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const step = ref(0)
 const isLastStep = computed(() => step.value === STEPS.length - 1)
 
+// True while step 1 waits for the name check
+const checking = ref(false)
+const busy = computed(() => props.submitting || checking.value)
+
 const submitLabel = computed(() => {
+  if (checking.value) return 'Comprobando…'
   if (!isLastStep.value) return 'Siguiente'
   return props.submitting ? 'Creando cliente…' : 'Crear cliente'
 })
@@ -336,10 +344,29 @@ function validateStep() {
   return true
 }
 
-function next() {
-  if (props.submitting) return
+// Step 1: asks the API whether the name is free. If the check itself fails
+// (network, server), the admin can go on: "Crear cliente" checks it again (409)
+async function nameIsFree() {
+  if (!props.checkName) return true
+  checking.value = true
+  try {
+    const taken = await props.checkName(form.client.name)
+    if (!taken) return true
+    errors.name = 'Ya hay un cliente con este nombre.'
+    nextTick(() => inputs.name?.focus())
+    return false
+  } catch {
+    return true
+  } finally {
+    checking.value = false
+  }
+}
+
+async function next() {
+  if (busy.value) return
   generalError.value = ''
   if (!validateStep()) return
+  if (step.value === 0 && !(await nameIsFree())) return
   if (isLastStep.value) {
     emit('submit', {
       client: { ...form.client },

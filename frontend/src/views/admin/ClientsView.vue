@@ -193,6 +193,7 @@ async function onCreate(data) {
       </button>
       <NewClientWizard
         :created="created"
+        :check-name="organizationsStore.isNameTaken"
         :submitting="saving"
         :server-error="createError"
         @submit="onCreate"
