@@ -72,7 +72,10 @@ from app.shared.dependencies import DbSession
 from app.shared.enums import OrganizationStatus
 from app.shared.schemas import Page
 
-_CONTACTO = ("city", "contact_email", "phone", "legal_name", "tax_id", "billing_email")
+_CONTACTO = (
+    "city", "contact_email", "phone", "legal_name", "tax_id", "billing_email",
+    "billing_address",
+)
 
 
 class OrganizationService:
@@ -372,6 +375,10 @@ def _to_response(
         legal_name=organizacion.legal_name,
         tax_id=organizacion.tax_id,
         billing_email=organizacion.billing_email,
+        billing_address=organizacion.billing_address,
+        plan=organizacion.plan,
+        subscribed_at=_utc(organizacion.subscribed_at),
+        iban_masked=organizacion.iban_masked,
         site_count=contadores.sites,
         sensor_count=contadores.sensors,
         user_count=contadores.users,
