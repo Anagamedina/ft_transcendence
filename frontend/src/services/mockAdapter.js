@@ -688,6 +688,74 @@ const mockAdapter = {
       })
     }
 
+    if (url === '/api/analytics/alerts/weekly') {
+      if (!currentUser) return Promise.reject(authError())
+      const params = config.params ?? {}
+      const site = getAccessibleSites().find((item) => item.id === params.site_id)
+      if (!site) {
+        return Promise.reject(domainError(404, 'SITE_NOT_FOUND', 'El site no existe.'))
+      }
+      const requestedStart = params.week_start ? new Date(`${params.week_start}T00:00:00Z`) : new Date()
+      const mondayOffset = (requestedStart.getUTCDay() + 6) % 7
+      if (params.week_start && mondayOffset !== 0) {
+        return Promise.reject(domainError(422, 'INVALID_WEEK_START', 'week_start tiene que ser un lunes.'))
+      }
+      requestedStart.setUTCDate(requestedStart.getUTCDate() - mondayOffset)
+      const days = Array.from({ length: 7 }, (_, index) => {
+        const day = new Date(requestedStart)
+        day.setUTCDate(day.getUTCDate() + index)
+        return day.toISOString().slice(0, 10)
+      })
+      const siteSensors = getAccessibleSensors().filter((sensor) => sensor.site_id === site.id)
+      const siteAlerts = getAccessibleAlerts().filter((alert) => alert.site_id === site.id || siteSensors.some((sensor) => sensor.id === alert.sensor_id))
+      return Promise.resolve({
+        data: {
+          site_id: site.id,
+          site_name: site.name,
+          week_start: days[0],
+          days,
+          rows: siteSensors.map((sensor) => ({
+            sensor_id: sensor.id,
+            sensor_name: sensor.name,
+            floor: sensor.floor,
+            counts: days.map((day) => siteAlerts.filter((alert) => alert.sensor_id === sensor.id && String(alert.created_at).slice(0, 10) === day).length),
+          })),
+        },
+        status: 200,
+      })
+    }
+
+    if (url === '/api/analytics/alerts/top-sensors') {
+      if (!currentUser) return Promise.reject(authError())
+      const days = Number(config.params?.days ?? 30)
+      const cutoff = Date.now() - days * 24 * 60 * 60 * 1000
+      const grouped = new Map()
+      getAccessibleAlerts().filter((alert) => new Date(alert.created_at).getTime() >= cutoff).forEach((alert) => {
+        const sensor = getAccessibleSensors().find((item) => item.id === alert.sensor_id)
+        if (!sensor) return
+        const site = sites.find((item) => item.id === sensor.site_id)
+        const organization = organizations.find((item) => item.id === site?.organization_id)
+        const item = grouped.get(sensor.id) ?? {
+          sensor_id: sensor.id,
+          sensor_name: sensor.name,
+          site_id: sensor.site_id,
+          site_name: site?.name,
+          organization_name: organization?.name,
+          alert_count: 0,
+          critical_count: 0,
+          last_alert_at: null,
+        }
+        item.alert_count += 1
+        if (alert.severity === 'CRITICAL') item.critical_count += 1
+        if (!item.last_alert_at || alert.created_at > item.last_alert_at) item.last_alert_at = alert.created_at
+        grouped.set(sensor.id, item)
+      })
+      return Promise.resolve({
+        data: { days, items: [...grouped.values()].sort((a, b) => b.alert_count - a.alert_count).slice(0, 10) },
+        status: 200,
+      })
+    }
+
     // Analytics export (F19): JSON rows for the charts or a CSV Blob.
     if (url === '/api/analytics/export') {
       if (!currentUser) {

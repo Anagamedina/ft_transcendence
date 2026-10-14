@@ -12,6 +12,14 @@ const analyticsService = {
     return adapter.get('/api/analytics/overview')
   },
 
+  getWeeklyAlerts(params) {
+    return adapter.get('/api/analytics/alerts/weekly', { params })
+  },
+
+  getTopSensors(days = 30) {
+    return adapter.get('/api/analytics/alerts/top-sensors', { params: { days } })
+  },
+
   // range = { from, to } as ISO strings
   getDailyRows(range) {
     return adapter.get(EXPORT_URL, { params: { format: 'json', ...range } })
