@@ -20,6 +20,11 @@ class Organization(Base):
             "status IN ('TRIAL', 'ACTIVE', 'SUSPENDED')",
             name="ck_organizations_status",
         ),
+        # Same values as SubscriptionPlan (B14). NULL until the client subscribes.
+        CheckConstraint(
+            "plan IS NULL OR plan IN ('BASIC', 'PRO', 'ENTERPRISE')",
+            name="ck_organizations_plan",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -56,6 +61,16 @@ class Organization(Base):
     legal_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     tax_id: Mapped[str | None] = mapped_column(String(30), nullable=True)
     billing_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    billing_address: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+    # Subscription (B14). Set when a TRIAL client subscribes from the app.
+    plan: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    subscribed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    # Only the masked IBAN ("ES** **** **** **** **** 1332"), never the real one.
+    iban_masked: Mapped[str | None] = mapped_column(String(42), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

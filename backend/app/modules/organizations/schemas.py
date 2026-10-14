@@ -23,7 +23,7 @@ from uuid import UUID
 from pydantic import EmailStr, Field
 
 from app.modules.sites.schemas import SiteBase
-from app.shared.enums import OrganizationStatus
+from app.shared.enums import OrganizationStatus, SubscriptionPlan
 from app.shared.schemas import ApiModel, ApiRequest
 
 # Los nombres de organización se guardan con 120 caracteres como máximo
@@ -54,6 +54,10 @@ class OrganizationContact(ApiRequest):
     )
     billing_email: EmailStr | None = Field(
         default=None, description="Email al que se envían las facturas."
+    )
+    billing_address: str | None = Field(
+        default=None, max_length=200, description="Dirección fiscal.",
+        examples=["Avinguda Diagonal 100, 08019"],
     )
 
 
@@ -118,6 +122,17 @@ class OrganizationResponse(ApiModel):
     legal_name: str | None = None
     tax_id: str | None = None
     billing_email: str | None = None
+    billing_address: str | None = None
+    plan: SubscriptionPlan | None = Field(
+        default=None,
+        description="Plan contratado desde la app (B14). `null` si no se ha suscrito.",
+    )
+    subscribed_at: datetime | None = Field(
+        default=None, description="Cuándo se suscribió, en UTC."
+    )
+    iban_masked: str | None = Field(
+        default=None, description="Solo enmascarado: el IBAN entero no se guarda."
+    )
     site_count: int = Field(default=0, description="Edificios del cliente.")
     sensor_count: int = Field(default=0, description="Sensores en todos sus edificios.")
     user_count: int = Field(default=0, description="Usuarios de la organización.")
