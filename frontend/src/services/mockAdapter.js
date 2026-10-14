@@ -39,6 +39,9 @@ const mockUser = [
     role: "admin",
     organization_id: null,
     created_at: "2026-08-01T08:00:00Z",
+    organization_name: 'Organisation de démonstration',
+    is_active: true,
+    last_login_at: null,
     password: "123",
   },
   {
@@ -48,9 +51,14 @@ const mockUser = [
     role: "client",
     organization_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     created_at: "2026-08-01T08:00:00Z",
+    organization_name: 'Organisation de démonstration',
+    is_active: true,
+    last_login_at: null,
     password: "123",
   },
 ]
+
+const mockDocuments = []
 
 let currentUser = null
 
@@ -68,7 +76,8 @@ restoreMockUser();
 function toPublicUser(user) {
   if (!user) return null
 
-  const { password, ...publicUser } = user
+  const publicUser = { ...user }
+  delete publicUser.password
   return publicUser
 }
 
@@ -104,14 +113,6 @@ function validationError(field, message) {
     ],
   };
 }
-
-// Organizations that already exist in the mock, to answer 409
-// ORGANIZATION_NAME_TAKEN. Same demo names as the admin clients mock.
-const mockOrganizations = [
-  { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', name: 'Hotel Diagonal Mar' },
-  { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', name: 'Escola Gràcia' },
-  { id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', name: 'Comunitat de veïns Sants' },
-]
 
 const MOCK_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -465,6 +466,62 @@ const mockAdapter = {
         status: 200,
       })
     }
+
+    // Users (B6): admin only
+    if (url === '/api/users') {
+      const denied = adminCheck()
+      if (denied) return Promise.reject(denied)
+
+      const params = config.params ?? {}
+      const q = normalize(String(params.q ?? '').trim())
+
+      const items = mockUser
+        .filter((user) => {
+          if (
+            params.organization_id &&
+            user.organization_id !== params.organization_id
+          ) return false
+
+          if (
+            params.active !== undefined &&
+            String(user.is_active !== false) !== String(params.active)
+          ) return false
+
+          if (
+            q &&
+            ![user.name, user.email, user.organization_name]
+              .some((value) => normalize(value ?? '').includes(q))
+          ) return false
+
+          return true
+        })
+        .map(toPublicUser)
+        .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+
+      return Promise.resolve({
+        data: toPage(items, params),
+        status: 200,
+      })
+    }
+
+    if (url.startsWith('/api/users/')) {
+      const denied = adminCheck()
+      if (denied) return Promise.reject(denied)
+
+      const id = url.split('/')[3]
+      const user = mockUser.find((item) => item.id === id)
+
+      if (!user) {
+        return Promise.reject(
+          domainError(404, 'USER_NOT_FOUND', 'El usuario no existe.')
+        )
+      }
+
+  return Promise.resolve({
+    data: toPublicUser(user),
+    status: 200,
+  })
+}
 
     // Get the public status page data.
     if (url === '/api/status') {
@@ -853,6 +910,26 @@ const mockAdapter = {
       })
     }
 
+    // Documents (B11): list
+    if (url === '/api/documents') {
+      if (!currentUser) return Promise.reject(authError())
+
+      const params = config.params ?? {}
+      const items = mockDocuments
+        .filter((document) =>
+          currentUser.role === 'admin' ||
+          document.organization_id === currentUser.organization_id
+        )
+        .filter((document) =>
+          !params.site_id || document.site_id === params.site_id
+        )
+
+      return Promise.resolve({
+        data: toPage(items, params),
+        status: 200,
+      })
+    }
+
     // Handle unknown endpoints.
     return Promise.reject({
       status: 404,
@@ -921,25 +998,29 @@ const mockAdapter = {
         return Promise.reject(domainError(409, 'EMAIL_ALREADY_EXISTS', 'Ese email ya está dado de alta.'))
       }
 
-      if (mockOrganizations.some(
-        (org) => org.name.toLowerCase() === organizationName.toLowerCase()
-      )) {
-        return Promise.reject(domainError(
-          409,
-          'ORGANIZATION_NAME_TAKEN',
-          'Ya hay una organización con ese nombre.'
-        ))
-      }
-
       // Organization in TRIAL for 7 days, and its first client user
       const now = new Date()
       const organization = {
         id: crypto.randomUUID(),
         name: organizationName,
-        status: 'trial',
+        status: 'TRIAL',
         trial_ends_at: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       }
-      mockOrganizations.push(organization)
+
+      if (nameTaken(organizationName)) {
+        return Promise.reject(
+          conflict(
+            'ORGANIZATION_NAME_TAKEN',
+            'Ya hay una organización con ese nombre.'
+          )
+        )
+      }
+
+      organizations.push({
+        ...organization,
+        user_count: 1,
+        created_at: now.toISOString(),
+      })
 
       const newUser = {
         id: crypto.randomUUID(),
@@ -1003,6 +1084,33 @@ const mockAdapter = {
         status: 200,
       })
     }
+
+      // Users (B6): activate / deactivate
+      if (
+        url.startsWith('/api/users/') &&
+        (url.endsWith('/activate') || url.endsWith('/deactivate'))
+      ) {
+        const denied = adminCheck()
+        if (denied) return Promise.reject(denied)
+
+        const parts = url.split('/')
+        const id = parts[3]
+        const action = parts[4]
+        const user = mockUser.find((item) => item.id === id)
+
+        if (!user) {
+          return Promise.reject(
+            domainError(404, 'USER_NOT_FOUND', 'El usuario no existe.')
+          )
+        }
+
+        user.is_active = action === 'activate'
+
+        return Promise.resolve({
+          data: toPublicUser(user),
+          status: 200,
+        })
+      }
 
     // Create an organization (B1), with its first building in the same operation.
     // Created by the admin, so it starts ACTIVE (the public sign-up creates trials)
@@ -1450,6 +1558,62 @@ const mockAdapter = {
       })
     }
 
+    // Documents (B11): upload multipart/form-data
+    if (url === '/api/documents') {
+      if (!currentUser) return Promise.reject(authError())
+
+      const file = data instanceof FormData ? data.get('file') : null
+      const siteId = data instanceof FormData ? data.get('site_id') : null
+      const kind = data instanceof FormData ? data.get('kind') : null
+
+      if (!file || typeof file.name !== 'string') {
+        return Promise.reject(
+          validationError('file', 'Un fichier est obligatoire.')
+        )
+      }
+
+      if (!siteId) {
+        return Promise.reject(
+          validationError('site_id', 'site_id est obligatoire.')
+        )
+      }
+
+      if (!kind) {
+        return Promise.reject(
+          validationError('kind', 'kind est obligatoire.')
+        )
+      }
+
+      const site = sites.find((item) => item.id === siteId)
+      if (!site) {
+        return Promise.reject(
+          domainError(404, 'SITE_NOT_FOUND', 'El edificio no existe.')
+        )
+      }
+
+      if (!getAccessibleSites().some((item) => item.id === siteId)) {
+        return Promise.reject(forbiddenError())
+      }
+
+      const document = {
+        id: crypto.randomUUID(),
+        organization_id: site.organization_id,
+        site_id: site.id,
+        site_name: site.name,
+        kind,
+        filename: file.name,
+        content_type: file.type || 'application/octet-stream',
+        size: file.size,
+        uploaded_by: currentUser.id,
+        can_delete: true,
+        created_at: new Date().toISOString(),
+      }
+
+      mockDocuments.push(document)
+
+      return Promise.resolve({ data: document, status: 201 })
+    }
+
     // Handle unknown endpoints.
     return Promise.reject({
       status: 404,
@@ -1462,6 +1626,48 @@ const mockAdapter = {
   // PATCH requests
   patch(url, data = {}, config = {}) {
     console.log('[MOCK PATCH]', url, data, config)
+
+    // Users (B6): partial update
+    if (url.startsWith('/api/users/')) {
+      const denied = adminCheck()
+      if (denied) return Promise.reject(denied)
+
+      const id = url.split('/')[3]
+      const user = mockUser.find((item) => item.id === id)
+
+      if (!user) {
+        return Promise.reject(
+          domainError(404, 'USER_NOT_FOUND', 'El usuario no existe.')
+        )
+      }
+
+      if (data.name !== undefined) {
+        if (typeof data.name !== 'string' || !data.name.trim()) {
+          return Promise.reject(
+            validationError('name', 'El nombre no puede estar vacío.')
+          )
+        }
+        user.name = data.name.trim()
+      }
+
+      if (data.role !== undefined) {
+        if (!['admin', 'client'].includes(data.role)) {
+          return Promise.reject(
+            validationError('role', 'El rol no es válido.')
+          )
+        }
+        user.role = data.role
+      }
+
+      if (data.organization_id !== undefined) {
+        user.organization_id = data.organization_id
+      }
+
+      return Promise.resolve({
+        data: toPublicUser(user),
+        status: 200,
+      })
+    }
 
     // Acknowledge an alert.
     if (url.startsWith('/api/alerts/') && url.endsWith('/acknowledge')) {
@@ -1739,6 +1945,31 @@ const mockAdapter = {
   delete(url, config = {}) {
     console.log('[MOCK DELETE]', url, config)
 
+    // Users (B6): delete
+    if (url.startsWith('/api/users/')) {
+      const denied = adminCheck()
+      if (denied) return Promise.reject(denied)
+
+      const id = url.split('/')[3]
+      const index = mockUser.findIndex((item) => item.id === id)
+
+      if (index === -1) {
+        return Promise.reject(
+          domainError(404, 'USER_NOT_FOUND', 'El usuario no existe.')
+        )
+      }
+
+      if (mockUser[index].id === currentUser?.id) {
+        return Promise.reject(
+          domainError(409, 'CANNOT_DELETE_SELF', 'No puedes eliminar tu propia cuenta.')
+        )
+      }
+
+      mockUser.splice(index, 1)
+
+      return Promise.resolve({ data: null, status: 204 })
+    }
+
     // Delete an organization and everything it owns (B16). Needs the exact name
     if (url.startsWith('/api/organizations/')) {
       const denied = adminCheck()
@@ -1775,6 +2006,38 @@ const mockAdapter = {
         data: { id: organization.id, name: organization.name, deleted, detached_admins: 0, deleted_files: 0 },
         status: 200,
       })
+    }
+
+    // Documents (B11): delete
+    if (url.startsWith('/api/documents/')) {
+      if (!currentUser) return Promise.reject(authError())
+
+      const id = url.split('/')[3]
+      const index = mockDocuments.findIndex((item) => item.id === id)
+
+      if (index === -1) {
+        return Promise.reject(
+          domainError(404, 'DOCUMENT_NOT_FOUND', 'El documento no existe.')
+        )
+      }
+
+      const document = mockDocuments[index]
+
+      if (
+        document.organization_id !== currentUser.organization_id &&
+        currentUser.role !== 'admin'
+      ) {
+        return Promise.reject(forbiddenError())
+      }
+
+      // A client cannot delete a document uploaded by an admin.
+      const uploader = mockUser.find((user) => user.id === document.uploaded_by)
+      if (currentUser.role === 'client' && uploader?.role === 'admin') {
+        return Promise.reject(forbiddenError())
+      }
+
+      mockDocuments.splice(index, 1)
+      return Promise.resolve({ data: null, status: 204 })
     }
 
     return Promise.reject({
