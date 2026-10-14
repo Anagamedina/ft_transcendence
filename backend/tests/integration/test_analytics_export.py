@@ -305,3 +305,92 @@ def test_json_respects_the_organization(client, data):
     rows = _export(client, format="json", **PERIOD).json()
 
     assert {r["organization"] for r in rows} == {"B"}
+
+
+# ---------------------------------------------------------
+# B9 dashboard KPIs and alert aggregations
+# ---------------------------------------------------------
+def test_overview_is_scoped_and_returns_kpis(client, engine, data):
+    now = datetime.now(timezone.utc)
+    with Session(engine) as db:
+        db.add(
+            Alert(
+                sensor_id=data["a"]["sensor"].id,
+                alert_type="LOW_PRESSURE",
+                status="RESOLVED",
+                severity="WARNING",
+                message="Resuelta",
+                created_at=now - timedelta(minutes=30),
+                resolved_at=now,
+            )
+        )
+        db.commit()
+
+    _login(client, data["admin"])
+    response = client.get("/api/analytics/overview")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["organizations_total"] == 2
+    assert body["organizations_needing_attention"] == 1
+    assert body["sites_total"] == 2
+    assert body["sensors_total"] == 2
+    assert body["open_alerts"] == 2
+    assert body["critical_open_alerts"] == 0
+    assert body["median_resolution_minutes"] == pytest.approx(30, abs=0.1)
+
+    _login(client, data["a"]["client"])
+    client_body = client.get("/api/analytics/overview").json()
+    assert client_body["organizations_total"] is None
+    assert client_body["sites_total"] == 1
+    assert client_body["open_alerts"] == 2
+
+
+def test_weekly_alerts_returns_seven_days_and_zero_sensor_rows(client, data):
+    _login(client, data["a"]["client"])
+
+    response = client.get(
+        "/api/analytics/alerts/weekly",
+        params={"site_id": str(data["a"]["site"].id), "week_start": "2026-09-07"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["week_start"] == "2026-09-07"
+    assert len(body["days"]) == 7
+    assert len(body["rows"]) == 1
+    assert sum(body["rows"][0]["counts"]) == 3
+
+
+def test_weekly_rejects_non_monday_and_hides_other_organization(client, data):
+    _login(client, data["a"]["client"])
+    invalid = client.get(
+        "/api/analytics/alerts/weekly",
+        params={"site_id": str(data["a"]["site"].id), "week_start": "2026-09-10"},
+    )
+    assert invalid.status_code == 422
+    assert invalid.json()["error"]["code"] == "INVALID_WEEK_START"
+
+    hidden = client.get(
+        "/api/analytics/alerts/weekly",
+        params={"site_id": str(data["b"]["site"].id), "week_start": "2026-09-07"},
+    )
+    assert hidden.status_code == 404
+    assert hidden.json()["error"]["code"] == "SITE_NOT_FOUND"
+
+
+def test_top_sensors_returns_scoped_ranked_items(client, data):
+    _login(client, data["admin"])
+
+    response = client.get("/api/analytics/alerts/top-sensors", params={"days": 60})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["days"] == 60
+    assert body["items"][0]["sensor_id"] == str(data["a"]["sensor"].id)
+    assert body["items"][0]["alert_count"] >= 4
+    assert body["items"][0]["critical_count"] == 1
+
+    _login(client, data["b"]["client"])
+    client_items = client.get("/api/analytics/alerts/top-sensors", params={"days": 60}).json()["items"]
+    assert all(item["organization_name"] == "B" for item in client_items)

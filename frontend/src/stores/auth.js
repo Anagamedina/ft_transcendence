@@ -8,6 +8,10 @@ export const useAuthStore = defineStore("auth", () =>{
     //STATE
     const user =ref(null); //ref() is used to create reactive data
     const role =ref(null);
+    const organization = ref(null);
+    const lastLoginAt = ref(null);
+    const termsVersion = ref(null);
+    const termsAcceptedAt = ref(null);
 
     let initializationPromise = null;
 
@@ -19,7 +23,16 @@ export const useAuthStore = defineStore("auth", () =>{
     const isAuthenticated = computed(() => user.value !== null); //computed() is used to create a computed value based on other reactive data
     const isAdmin = computed(() => role.value === "admin"); 
     const isClient = computed(() => role.value === "client");
-   
+
+    function applyMe(data) {
+      user.value = data.user;
+      role.value = data.user.role;
+      organization.value = data.organization ?? null;
+      lastLoginAt.value = data.last_login_at ?? null;
+      termsVersion.value = data.terms_version ?? null;
+      termsAcceptedAt.value = data.terms_accepted_at ?? null;
+    }
+
     //ACTIONS
 
   async function fetchMe() { //Who is currently logged in?
@@ -29,8 +42,7 @@ export const useAuthStore = defineStore("auth", () =>{
     try {
       const response = await authService.me();
 
-      user.value = response.data.user;
-      role.value = response.data.user.role;
+      applyMe(response.data);
 
       status.value = "success";
 
@@ -39,6 +51,10 @@ export const useAuthStore = defineStore("auth", () =>{
     } catch (err) {
       user.value = null;
       role.value = null;
+      organization.value = null;
+      lastLoginAt.value = null;
+      termsVersion.value = null;
+      termsAcceptedAt.value = null;
 
       if (err.status === 401 || err.code === "UNAUTHORIZED") {
       error.value = null;
@@ -81,9 +97,10 @@ export const useAuthStore = defineStore("auth", () =>{
 
     try {
       const response = await authService.login(credentials);
-
-      user.value = response.data.user;
-      role.value = response.data.user.role;
+      // Login keeps the historical SessionResponse contract. Fetch the
+      // extended B8 profile before exposing the authenticated state.
+      const meResponse = await authService.me();
+      applyMe(meResponse.data);
 
       status.value = "success";
       initialized.value = true;
@@ -110,9 +127,8 @@ export const useAuthStore = defineStore("auth", () =>{
 
     try {
       const response = await authService.register(data);
-
-      user.value = response.data.user;
-      role.value = response.data.user.role;
+      const meResponse = await authService.me();
+      applyMe(meResponse.data);
 
       status.value = "success";
       initialized.value = true;
@@ -162,7 +178,17 @@ export const useAuthStore = defineStore("auth", () =>{
     }
   }
 
-  
+  async function updateMe(data) {
+    const response = await authService.updateMe(data);
+    applyMe(response.data);
+    return response.data;
+  }
+
+  async function changePassword(data) {
+    return authService.changePassword(data);
+  }
+
+
   async function logout() {
     status.value = "loading";
     error.value = null;
@@ -181,6 +207,10 @@ export const useAuthStore = defineStore("auth", () =>{
       // cleaning local state
       user.value = null;
       role.value = null;
+      organization.value = null;
+      lastLoginAt.value = null;
+      termsVersion.value = null;
+      termsAcceptedAt.value = null;
 
       initialized.value = true;
       
@@ -195,6 +225,10 @@ export const useAuthStore = defineStore("auth", () =>{
   return {
     user,
     role,
+    organization,
+    lastLoginAt,
+    termsVersion,
+    termsAcceptedAt,
     status,
     error,
 
@@ -210,6 +244,8 @@ export const useAuthStore = defineStore("auth", () =>{
     initializeAuth,
     logout,
     clearError,
+    updateMe,
+    changePassword,
   };
 
 });

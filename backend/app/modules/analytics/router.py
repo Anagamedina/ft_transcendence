@@ -3,8 +3,8 @@
 """
 Endpoints de analítica (`/api/analytics/...`).
 
-Registrado desde la issue #22, sin rutas todavía. Llegan con el
-rediseño:
+Registrado desde la issue #22. Las rutas B9 agregan KPIs y rankings; B18
+mantiene la exportación con rango de fechas:
 
     GET /api/analytics/overview              → B9 (#144, Ana)
     GET /api/analytics/alerts/weekly         → B9 (#144, Ana)
@@ -13,28 +13,59 @@ rediseño:
 
 Se usa `overview`, como dice el documento (apartado 9.2), y no `kpis`,
 como dibuja el diagrama de arquitectura.
-El periodo de los tres sale de la dependencia compartida `DateRange`
-(shared/dependencies.py): últimos 30 días por defecto y 422 si `from >= to`.
-Cuando se implemente B9, `overview` y `weekly` solo tienen que recibir
-`rango: DateRange` y filtrar por `rango.start` / `rango.end`.
+`overview` usa los últimos 30 días para la mediana; `weekly` usa una semana
+ISO explícita y `top-sensors` recibe `days`.
 """
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response, status
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 
-from app.modules.analytics.schemas import EXPORT_COLUMNS, DailyRow, ExportFormat
+from app.modules.analytics.schemas import (
+    EXPORT_COLUMNS,
+    DailyRow,
+    ExportFormat,
+    OverviewResponse,
+    TopSensorsResponse,
+    WeeklyAlertsResponse,
+)
 from app.modules.analytics.service import AnalyticsService, get_analytics_service
-from app.shared.dependencies import DateRange, OrgScope
+from app.shared.dependencies import CurrentUser, DateRange, OrgScope
 from app.shared.schemas import error_response
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
 AnalyticsSvc = Annotated[AnalyticsService, Depends(get_analytics_service)]
+
+
+@router.get("/overview", response_model=OverviewResponse, summary="KPIs del panel")
+def overview(service: AnalyticsSvc, user: CurrentUser, scope: OrgScope) -> OverviewResponse:
+    return OverviewResponse.model_validate(service.overview(scope, user.role == "admin"))
+
+
+@router.get("/alerts/weekly", response_model=WeeklyAlertsResponse, summary="Alertas por semana")
+def weekly_alerts(
+    service: AnalyticsSvc,
+    scope: OrgScope,
+    site_id: UUID,
+    week_start: date | None = Query(default=None),
+) -> WeeklyAlertsResponse:
+    return WeeklyAlertsResponse.model_validate(service.weekly_alerts(site_id, week_start, scope))
+
+
+@router.get("/alerts/top-sensors", response_model=TopSensorsResponse, summary="Sensores con más alertas")
+def top_sensors(
+    service: AnalyticsSvc,
+    scope: OrgScope,
+    days: Annotated[int, Query(ge=1, le=366)] = 30,
+) -> TopSensorsResponse:
+    return TopSensorsResponse.model_validate(service.top_sensors(days, scope))
 
 
 @router.get(
