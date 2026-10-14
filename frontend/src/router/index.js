@@ -32,6 +32,10 @@ const routes = [
         path: "",
         component: () => import("../views/client/DashboardView.vue"),
       },
+      {
+        path: "account",
+        component: () => import("../views/client/AccountView.vue"),
+      },
     ],
   },
   {
@@ -90,6 +94,11 @@ const routes = [
       requiresAuth: true,
       requiresAdmin: true,
     },
+  },
+  {
+    path: "/admin/account",
+    component: () => import("../views/admin/AccountView.vue"),
+    meta: { requiresAuth: true, requiresAdmin: true },
   },
   // Redirects unknown routes to the 404 page
   {

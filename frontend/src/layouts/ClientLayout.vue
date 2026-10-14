@@ -50,7 +50,7 @@ const sidebarItems = [
   { label: 'Sensores', to: '/dashboard#sensors', icon: 'droplet'},
   { label: 'Histórico', to: '/dashboard#history', icon: 'bar-chart' },
   { label: 'Alertas', to: '/dashboard#alerts', icon: 'alert'},
-  { label: 'Perfil', to: '/dashboard#profile', icon: 'users' },
+  { label: 'Mi cuenta', to: '/dashboard/account', icon: 'users' },
 ]
 
 async function handleLogout() {
