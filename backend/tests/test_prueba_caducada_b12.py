@@ -207,16 +207,21 @@ def test_las_escrituras_responden_403_trial_expired(cliente, datos):
         assert _codigo(respuesta) == "TRIAL_EXPIRED", (metodo, ruta)
 
 
+_SIEMPRE_ABIERTAS = {"/api/readings", "/api/me/organization/subscribe"}
+
+
 def _todas_las_escrituras():
     """
     Cada POST, PUT, PATCH y DELETE de la API, salvo los que no piden
     sesión o tienen que funcionar siempre: `auth` (login, logout,
-    registro) y la ingesta del simulador.
+    registro), la ingesta del simulador y contratar un plan (B14), que
+    es justo lo que tiene que poder hacer un cliente con la prueba
+    vencida.
     """
     for ruta in app.routes:
         if not isinstance(ruta, APIRoute):
             continue
-        if ruta.path.startswith("/api/auth/") or ruta.path == "/api/readings":
+        if ruta.path.startswith("/api/auth/") or ruta.path in _SIEMPRE_ABIERTAS:
             continue
         for metodo in sorted(ruta.methods - {"GET", "HEAD", "OPTIONS"}):
             yield metodo, ruta.path
@@ -268,6 +273,26 @@ def test_la_escritura_rechazada_no_cambia_nada(cliente, datos, engine):
 
 def test_se_puede_cerrar_sesion(cliente):
     assert cliente.post("/api/auth/logout").status_code == 200
+
+
+def test_con_la_prueba_vencida_se_puede_contratar_un_plan(cliente, datos):
+    """Es la salida de la solo lectura: no puede llevar `require_trial_not_expired`."""
+    respuesta = cliente.post(
+        "/api/me/organization/subscribe",
+        json={
+            "plan": "BASIC",
+            "legal_name": "Hotel Mar S.L.",
+            "tax_id": "B12345678",
+            "billing_address": "Passeig Marítim 1, 08003",
+            "billing_email": "facturas@mar.dev",
+            "accept_terms": True,
+        },
+    )
+
+    assert respuesta.status_code == 200, respuesta.text
+    assert respuesta.json()["status"] == "ACTIVE"
+    # Ya es cliente: vuelve a poder escribir.
+    assert cliente.patch("/api/me", json={"name": "Otro nombre"}).status_code == 200
 
 
 def test_se_puede_entrar(client, datos):
