@@ -5,23 +5,34 @@ Lógica de usuarios.
 
 Hoy solo hay `GET /api/me` (issue #26). La gestión de usuarios
 (listar, editar, activar y desactivar) llega con la B6 (#141), y `PATCH
-/api/me` y el cambio de contraseña con la B8 (#144).
+/api/me` y el cambio de contraseña con la B8 (#144). Exportar mis datos y
+pedir la baja, con la B15 (#149).
 """
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.app_config import app_settings
 from app.core.database import transaction
 from app.core.exceptions import DomainValidationError
 from app.core.security import hash_password, verify_password
 from app.modules.auth.schemas import MessageResponse
+from app.modules.sites.model import Site
 from app.modules.users.model import User
 from app.modules.users.schemas import (
+    AccountExport,
+    DeletionRequestResponse,
     MeResponse,
     MeUpdate,
+    MyDataExport,
+    OrganizationExport,
     OrganizationSummary,
     PasswordChange,
+    SiteExport,
     UserResponse,
 )
 from app.shared.dependencies import DbSession
@@ -63,6 +74,7 @@ class UserService:
             last_login_at=usuario.last_login_at,
             terms_version=usuario.terms_version,
             terms_accepted_at=usuario.terms_accepted_at,
+            deletion_requested_at=usuario.deletion_requested_at,
         )
 
     def update_me(self, usuario: "User", payload: MeUpdate) -> MeResponse:
@@ -97,6 +109,62 @@ class UserService:
             self.db.add(usuario)
 
         return MessageResponse(message="Contraseña actualizada.")
+
+    # ---------------------------------------------------------
+    # B15 — EXPORTAR MIS DATOS Y PEDIR LA BAJA (#149)
+    # ---------------------------------------------------------
+    def export_me(
+        self, usuario: "User", ahora: datetime | None = None
+    ) -> MyDataExport:
+        """
+        La cuenta, su organización y sus edificios, en un JSON.
+
+        **Los edificios se buscan por la organización del usuario, nunca
+        «todos» con un `None`.** Un admin sin organización recibe una
+        lista vacía: exporta sus datos, no los de todos los clientes (el
+        mismo cuidado que explica `get_org_scope`).
+        """
+        sitios: list[Site] = []
+        if usuario.organization_id is not None:
+            sitios = list(
+                self.db.scalars(
+                    select(Site)
+                    .where(Site.organization_id == usuario.organization_id)
+                    .order_by(Site.name)
+                )
+            )
+
+        organizacion = None
+        if usuario.organization is not None:
+            organizacion = OrganizationExport.model_validate(usuario.organization)
+
+        return MyDataExport(
+            exported_at=ahora or datetime.now(timezone.utc),
+            current_terms_version=app_settings.TERMS_VERSION,
+            account=AccountExport.model_validate(usuario),
+            organization=organizacion,
+            sites=[SiteExport.model_validate(sitio) for sitio in sitios],
+        )
+
+    def request_deletion(
+        self, usuario: "User", ahora: datetime | None = None
+    ) -> DeletionRequestResponse:
+        """
+        Registra que el usuario quiere darse de baja. No borra nada: lo
+        tramita un admin a mano (B16 borra la organización entera).
+
+        Es idempotente, como reconocer una alerta: pedirla otra vez no
+        pisa la fecha de la primera, que es la que cuenta.
+        """
+        if usuario.deletion_requested_at is None:
+            with transaction(self.db):
+                usuario.deletion_requested_at = ahora or datetime.now(timezone.utc)
+                self.db.add(usuario)
+
+        return DeletionRequestResponse(
+            deletion_requested_at=usuario.deletion_requested_at,
+            message="Hemos registrado tu petición de baja. Un administrador la tramitará.",
+        )
 
 
 def get_user_service(db: DbSession) -> UserService:
