@@ -296,13 +296,25 @@ def get_current_user(request: Request, db: DbSession) -> User:
 
 def ensure_account_enabled(user: User) -> None:
     """
-    Corta con 403 `ACCOUNT_DISABLED` si la organización del usuario está
-    suspendida (B1). La usan el login y `get_current_user`.
+    Corta con 403 `ACCOUNT_DISABLED` si el usuario está desactivado (B6)
+    o su organización está suspendida (B1). La usan el login y
+    `get_current_user`.
 
-    El admin no se bloquea: gestiona todas las organizaciones, y suspender
-    la suya no debe dejar la plataforma sin nadie que pueda reactivarla.
-    La B6 (#141) añadirá aquí los usuarios desactivados (`is_active`).
+    Un usuario desactivado no entra sea cual sea su rol: un admin puede
+    desactivar a otro admin. Lo que no puede es desactivarse a sí mismo
+    (`users/service.py`), así que siempre queda alguien que lo deshaga.
+
+    La organización suspendida no bloquea al admin: gestiona todas las
+    organizaciones, y suspender la suya no debe dejar la plataforma sin
+    nadie que pueda reactivarla.
     """
+    # `is False` y no `not`: en un `User` recién creado y sin guardar el
+    # campo aún vale None, y la columna es `true` por defecto.
+    if user.is_active is False:
+        raise ForbiddenError(
+            "Tu cuenta está desactivada. Habla con quien te dio acceso.",
+            code="ACCOUNT_DISABLED",
+        )
     if user.role == "admin" or user.organization is None:
         return
     if user.organization.status == OrganizationStatus.SUSPENDED.value:
