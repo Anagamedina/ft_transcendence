@@ -35,7 +35,7 @@
           {{ item.label }}
           <span
             v-if="item.badge"
-            class="ml-auto rounded-full bg-red-500 px-2 py-0.5 text-xs font-semibold"
+            class="ml-auto rounded-full bg-red-600 px-2 py-0.5 text-xs font-semibold"
             :aria-label="`${item.badge} abiertas`"
           >
             {{ item.badge }}
@@ -70,7 +70,7 @@ defineProps({
   items: {
     type: Array,
     default: () => [
-      { label: 'Dashboard', icon: 'bar-chart' },
+      { label: 'Panel', icon: 'bar-chart' },
       { label: 'Sensores', icon: 'droplet' },
       { label: 'Alertas', icon: 'alert' },
     ],

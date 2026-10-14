@@ -51,14 +51,6 @@ const routes = [
     component: () => import("../views/public/StatusView.vue"),
   },
   {
-    path: "/test",
-    component: () => import("../views/public/TestView.vue"),
-  },
-  {
-    path: "/sensors/:id",
-    component: () => import("../views/public/SensorDetailView.vue"),
-  },
-  {
     path: "/admin",
     component: () => import("../views/admin/DashboardView.vue"),
     meta: {

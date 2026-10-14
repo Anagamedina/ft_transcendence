@@ -8,7 +8,7 @@
       Página no encontrada
     </p>
 
-    <p class="mt-2 text-gray-500">
+    <p class="mt-2 text-gray-600">
       La dirección que has introducido no existe.
     </p>
 

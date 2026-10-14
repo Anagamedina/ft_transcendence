@@ -18,7 +18,7 @@
               <h3 class="text-lg font-bold text-aqua-900">{{ title }}</h3>
             </slot>
             <button
-              class="text-gray-400 hover:text-aqua-600 text-2xl leading-none transition"
+              class="text-gray-500 hover:text-aqua-600 text-2xl leading-none transition"
               @click="close"
               aria-label="Cerrar"
             >

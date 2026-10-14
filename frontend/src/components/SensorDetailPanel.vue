@@ -61,6 +61,7 @@ import PressureChart from './PressureChart.vue'
 import LoadingState from './LoadingState.vue'
 import ErrorState from './ErrorState.vue'
 import { floorLabel } from '../utils/floors'
+import { useFormat } from '../composables/useFormat'
 
 const props = defineProps({
   // SensorResponse (B3); null hides the panel
@@ -80,36 +81,16 @@ defineEmits(['retry'])
 
 const unit = computed(() => props.sensor?.unit || 'bar')
 
-// Spanish number format, as in the mockup: '1,3' and '2,0–6,0'
-const oneDecimal = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-
-function formatValue(value) {
-  return value === null || value === undefined ? '—' : `${oneDecimal.format(value)} ${unit.value}`
-}
-
-// 'hace 1 min', 'hace 3 h', 'hace 2 días'
-const relative = new Intl.RelativeTimeFormat('es-ES', { numeric: 'always', style: 'short' })
-
-function timeAgo(isoDate) {
-  if (!isoDate) return 'Nunca'
-  const seconds = Math.round((new Date(isoDate).getTime() - Date.now()) / 1000)
-  if (Number.isNaN(seconds)) return '—'
-  if (seconds > -60) return 'Ahora'
-  if (seconds > -3600) return relative.format(Math.round(seconds / 60), 'minute')
-  if (seconds > -86400) return relative.format(Math.round(seconds / 3600), 'hour')
-  return relative.format(Math.round(seconds / 86400), 'day')
-}
+// '1,3 bar', '2,0–6,0 bar' and 'hace 3 min', as in the mockup
+const { formatPressure, formatRange, formatRelative } = useFormat()
 
 const figures = computed(() => {
   const s = props.sensor
   if (!s) return []
   return [
-    { label: 'Valor actual', value: formatValue(s.last_value) },
-    {
-      label: 'Rango permitido',
-      value: `${oneDecimal.format(s.min_pressure)}–${oneDecimal.format(s.max_pressure)} ${unit.value}`,
-    },
-    { label: 'Última lectura', value: timeAgo(s.last_seen_at) },
+    { label: 'Valor actual', value: formatPressure(s.last_value, unit.value) },
+    { label: 'Rango permitido', value: formatRange(s.min_pressure, s.max_pressure, unit.value) },
+    { label: 'Última lectura', value: formatRelative(s.last_seen_at, { empty: 'Nunca' }) },
     { label: `Alertas (${props.days} días)`, value: props.alertCount ?? '—' },
   ]
 })

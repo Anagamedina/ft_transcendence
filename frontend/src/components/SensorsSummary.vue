@@ -41,14 +41,7 @@
           <p class="font-semibold text-gray-800 truncate">{{ sensor.name }}</p>
           <p class="text-sm text-gray-500 truncate">{{ sensor.location }}</p>
         </div>
-        <span
-          class="shrink-0 px-2 py-1 rounded-full text-xs font-semibold"
-          :class="sensor.status === 'ONLINE'
-            ? 'bg-success/10 text-success'
-            : 'bg-gray-100 text-gray-500'"
-        >
-          {{ sensor.status === 'ONLINE' ? 'Online' : 'Offline' }}
-        </span>
+        <StatusPill type="SensorStatus" :value="sensor.status" class="shrink-0" />
       </li>
     </ul>
   </section>
@@ -57,6 +50,7 @@
 <script setup>
 import { ref } from 'vue'
 import AppIcon from './AppIcon.vue'
+import StatusPill from './StatusPill.vue'
 import LoadingState from './LoadingState.vue'
 import ErrorState from './ErrorState.vue'
 import EmptyState from './EmptyState.vue'

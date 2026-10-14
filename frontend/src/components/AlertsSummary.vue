@@ -39,18 +39,11 @@
         class="py-3 flex items-start justify-between gap-3"
       >
         <div class="min-w-0">
-          <p class="font-semibold text-gray-800">{{ typeLabels[alert.type] || alert.type }}</p>
+          <p class="font-semibold text-gray-800">{{ label('AlertType', alert.type) }}</p>
           <p class="text-sm text-gray-500">{{ alert.message }}</p>
-          <p class="text-xs text-gray-400 mt-1">{{ formatDate(alert.created_at) }}</p>
+          <p class="text-xs text-gray-500 mt-1">{{ formatDateTime(alert.created_at) }}</p>
         </div>
-        <span
-          class="shrink-0 px-2 py-1 rounded-full text-xs font-semibold"
-          :class="alert.severity === 'CRITICAL'
-            ? 'bg-danger/10 text-danger'
-            : 'bg-warning/10 text-warning'"
-        >
-          {{ alert.severity === 'CRITICAL' ? 'Crítica' : 'Aviso' }}
-        </span>
+        <StatusPill type="AlertSeverity" :value="alert.severity" class="shrink-0" />
       </li>
     </ul>
   </section>
@@ -59,9 +52,12 @@
 <script setup>
 import { ref } from 'vue'
 import AppIcon from './AppIcon.vue'
+import StatusPill from './StatusPill.vue'
 import LoadingState from './LoadingState.vue'
 import ErrorState from './ErrorState.vue'
 import EmptyState from './EmptyState.vue'
+import { useLabels } from '../composables/useLabels'
+import { useFormat } from '../composables/useFormat'
 
 defineProps({
   alerts: { type: Array, default: () => [] },
@@ -80,16 +76,7 @@ function onRetry() {
   emit('retry')
 }
 
-const typeLabels = {
-  LOW_PRESSURE: 'Presión baja',
-  HIGH_PRESSURE: 'Presión alta',
-  SENSOR_OFFLINE: 'Sensor sin conexión',
-}
-
-function formatDate(isoString) {
-  return new Date(isoString).toLocaleString('es-ES', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  })
-}
+// Same texts and colours as the alerts table; dates in local time ('hoy 08:20')
+const { label } = useLabels()
+const { formatDateTime } = useFormat()
 </script>

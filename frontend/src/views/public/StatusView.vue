@@ -54,6 +54,7 @@ import { onMounted, ref } from "vue";
 import PublicLayout from "../../layouts/PublicLayout.vue";
 import LoadingState from "../../components/LoadingState.vue";
 import statusService from "../../services/status.service.js";
+import { useFormat } from "../../composables/useFormat";
 
 const STATES = {
   OPERATIONAL: {
@@ -89,13 +90,12 @@ const NAMES = {
 const report = ref(null);
 const loading = ref(false);
 
-function formatDate(value) {
-  return new Date(value).toLocaleString("es-ES");
-}
+// 'hoy 08:20' (local time) and '1,5 MB'
+const { formatDateTime: formatDate, formatNumber } = useFormat();
 
 function formatSize(bytes) {
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024) return `${formatNumber(bytes / 1024, 1)} KB`;
+  return `${formatNumber(bytes / (1024 * 1024), 1)} MB`;
 }
 
 function describe(component) {

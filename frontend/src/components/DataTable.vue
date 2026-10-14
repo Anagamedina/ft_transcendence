@@ -22,14 +22,15 @@
 
 <template>
   <div class="space-y-4">
-    <!-- Search and filters -->
-    <div class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 md:flex-row">
+    <!-- Search and filters. flex-wrap: on tablets the selects drop to a second
+         line instead of pushing the page wider than the screen -->
+    <div class="flex flex-wrap gap-3 rounded-xl border border-slate-200 bg-white p-4">
       <input
         v-model.trim="search"
         type="search"
         :placeholder="searchPlaceholder"
         :aria-label="searchPlaceholder"
-        class="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+        class="w-full min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm xl:w-auto xl:min-w-64 xl:flex-1"
       />
 
       <select
@@ -37,7 +38,7 @@
         :key="filter.key"
         v-model="filterValues[filter.key]"
         :aria-label="`Filtrar por ${filter.label.toLowerCase()}`"
-        class="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+        class="min-w-0 flex-1 basis-full rounded-lg border border-slate-300 px-3 py-2 text-sm sm:basis-auto xl:flex-none"
       >
         <option value="ALL">{{ filter.allLabel }}</option>
         <option v-for="option in filter.options" :key="option.value" :value="option.value">
@@ -47,7 +48,7 @@
 
       <button
         type="button"
-        class="rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-100"
+        class="w-full whitespace-nowrap rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 sm:w-auto"
         @click="resetFilters"
       >
         Limpiar filtros

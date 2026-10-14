@@ -20,6 +20,7 @@ import InviteLinkCopy from '../../components/InviteLinkCopy.vue'
 import { useClientStatus } from '../../composables/useClientStatus'
 import { useOrganizationsStore } from '../../stores/organizations'
 import { useSitesStore } from '../../stores/sites'
+import { useFormat } from '../../composables/useFormat'
 
 const props = defineProps({
   // Comes from the route /admin/clients/:id (router option props: true)
@@ -59,10 +60,8 @@ const pillText = computed(() => {
   return `${status.value.label} · ${status.value.trialText.toLowerCase()}`
 })
 
-const longDate = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })
-function formatDate(isoDate) {
-  return longDate.format(new Date(isoDate))
-}
+// '21 oct 2026'
+const { formatDate } = useFormat()
 
 // ---------------------------------------------------------------------------
 // Tabs: the Tabs component handles the keyboard and the ARIA attributes

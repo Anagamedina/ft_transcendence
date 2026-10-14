@@ -2,13 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Commented out (Issue #4): this rule blocked global horizontal scroll,
-	 which hid the min-w-[320px] safeguard added in MainLayout.vue for
-	 viewports narrower than any real device. Originally added in Issue #3
-	 (shared layout components) as a quick fix for an overflow issue — if
-	 that issue reappears, fix the specific overflowing element instead of
-	 re-enabling this globally.
-html, body {
-	overflow-x: hidden;
+/* Do not hide horizontal overflow on html/body: if a page gets wider than the
+   screen, fix the element that overflows. Tables scroll inside their own box. */
+
+/* Visible keyboard focus everywhere (#170): blue ring with a white gap, so it
+   shows both on light pages and on the dark Sidebar/Footer. Only for keyboard
+   focus (:focus-visible), not for mouse clicks. Components that need another
+   colour (e.g. ErrorState) override it with Tailwind focus-visible: classes. */
+@layer base {
+	:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+		outline: 2px solid theme('colors.aqua.600');
+		outline-offset: 2px;
+		box-shadow: 0 0 0 2px #fff;
+	}
 }
-*/
