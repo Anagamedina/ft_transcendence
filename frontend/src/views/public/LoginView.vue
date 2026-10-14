@@ -129,7 +129,6 @@ const showPassword = ref(false);
 
 const isLoading = computed(() => authStore.status === "loading");
 
-// Spanish text for the usual login errors; anything else keeps the API message
 const errorMessage = computed(() => {
   const error = authStore.error;
   if (!error) return null;
@@ -157,8 +156,9 @@ async function handleSubmit() {
       password: form.password,
     });
 
-    // Redirect users to their originally requested page when possible.
+    // Redirect to the requested page if it is safe.
     const redirect = route.query.redirect;
+
     const isSafeRedirect =
       typeof redirect === "string" &&
       redirect.startsWith("/") &&
@@ -169,10 +169,14 @@ async function handleSubmit() {
       return;
     }
 
-    // Redirect users to the home page matching their role.
-    await router.replace(
-      authStore.isAdmin ? "/admin" : "/dashboard"
-    );
+    // Redirect according to the user's role.
+    if (authStore.isAdmin) {
+      await router.replace("/admin");
+    } else if (authStore.isClient) {
+      await router.replace("/app");
+    } else {
+      await router.replace("/");
+    }
   } catch (error) {
     // The authentication store already handles login errors.
   }

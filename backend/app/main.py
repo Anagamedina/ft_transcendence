@@ -131,12 +131,13 @@ Todos los errores, sin excepción, tienen esta forma:
 con él. `message` es para personas y puede reescribirse o traducirse sin
 romper nada. `details` es una lista de fallos por campo, o `null`.
 
-### Contratos sin ruta todavía
+### Contratos pendientes
 
-Algunos schemas aparecen en la sección **Schemas** aunque ninguna ruta los
-use aún (por ejemplo `OrganizationResponse` o `SensorHealth`), para que el
-frontend pueda construir sus mocks contra ellos antes de que se publique
-el endpoint.
+Los schemas de rutas existentes se generan directamente desde esas rutas.
+Solo los contratos de funcionalidades aún no publicadas (B4, B6, B8 y B9)
+se mantienen explícitamente en **Schemas** hasta que sus endpoints estén
+disponibles. Así el documento no contiene versiones manuales de modelos que
+ya podrían quedarse desfasadas respecto a la API.
 """
 
 
@@ -195,8 +196,9 @@ def create_app() -> FastAPI:
     app.include_router(status.router, prefix="/api")
     app.include_router(api_router, prefix="/api")
 
-    # Publica en OpenAPI los schemas y enums del contrato que todavía no
-    # usa ninguna ruta. Ver `app/openapi.py`.
+    # Publica en OpenAPI solo los contratos aún sin ruta y el vocabulario
+    # común. Los modelos usados por endpoints los genera FastAPI. Ver
+    # `app/openapi.py`.
     register_contract_schemas(app)
 
     return app
