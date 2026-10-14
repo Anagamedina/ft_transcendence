@@ -27,6 +27,7 @@ Lo que hay implementado y lo que no:
 - `require_role`       → implementado en la issue #27.
 - `get_org_scope`      → implementado en la issue #27.
 - `require_ingest_key` → implementado en la issue #106.
+- `require_trial_not_expired` → implementado en la issue #146 (B12).
 """
 
 from __future__ import annotations
@@ -47,6 +48,7 @@ from app.core.exceptions import (
     UnauthorizedError,
 )
 from app.core.security import SESSION_COOKIE, read_session_token
+from app.modules.organizations.trial import trial_expired
 from app.modules.users.model import User
 from app.shared.enums import OrganizationStatus
 from app.modules.users.repository import UserRepository
@@ -70,6 +72,7 @@ __all__ = [
     "get_org_scope",
     "OrgScope",
     "require_ingest_key",
+    "require_trial_not_expired",
 ]
 
 
@@ -367,6 +370,39 @@ def get_org_scope(user: CurrentUser) -> UUID | None:
 
 
 OrgScope = Annotated[UUID | None, Depends(get_org_scope)]
+
+
+# ---------------------------------------------------------
+# PRUEBA CADUCADA — issue #146 (B12)
+# ---------------------------------------------------------
+def require_trial_not_expired(user: CurrentUser) -> None:
+    """
+    Con la prueba vencida, la cuenta pasa a solo lectura (B12).
+
+        @router.patch("/me", dependencies=[Depends(require_trial_not_expired)])
+
+    Va en cada escritura que puede hacer un cliente; las lecturas no lo
+    llevan, así que el cliente sigue entrando y viendo sus datos. Las
+    escrituras solo de admin tampoco: ahí un cliente debe recibir
+    `FORBIDDEN`, no un `TRIAL_EXPIRED` que le prometa que podrá hacerlo
+    cuando le amplíen la prueba. `test_prueba_caducada_b12.py` recorre
+    todas las escrituras de la API para que una nueva no se olvide.
+
+    Responde 403 `TRIAL_EXPIRED` hasta que un admin amplíe la prueba
+    (`extend-trial`) o la active (`activate`). Como `get_current_user` lee
+    la organización en cada petición, el cambio se aplica en la siguiente.
+    La regla de cuándo vence está en `organizations/trial.py`.
+
+    El admin no se bloquea, igual que en `ensure_account_enabled`.
+    """
+    if user.role == "admin":
+        return
+    if trial_expired(user.organization):
+        raise ForbiddenError(
+            "Tu periodo de prueba ha terminado. Puedes consultar tus datos, pero "
+            "no modificarlos hasta que AquaGuard lo amplíe o active tu cuenta.",
+            code="TRIAL_EXPIRED",
+        )
 
 
 # ---------------------------------------------------------

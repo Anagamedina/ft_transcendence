@@ -42,6 +42,7 @@ from app.shared.dependencies import (
     Search,
     SensorIdFilter,
     SiteIdFilter,
+    require_trial_not_expired,
 )
 from app.shared.schemas import Page, error_response
 
@@ -62,6 +63,16 @@ _NO_ENCONTRADA = error_response(
     status.HTTP_404_NOT_FOUND,
     "La alerta no existe, o no es de tu organización (`ALERT_NOT_FOUND`).",
 )
+# Escrituras de cliente: con la prueba vencida, solo lectura (B12).
+_SOLO_LECTURA_SI_CADUCA = [Depends(require_trial_not_expired)]
+_NO_PUEDE_ESCRIBIR = {
+    **_NO_AUTORIZADO,
+    **error_response(
+        status.HTTP_403_FORBIDDEN,
+        "Cuenta de cliente sin organización (`FORBIDDEN`), o la prueba ha "
+        "vencido y la cuenta es de solo lectura (`TRIAL_EXPIRED`).",
+    ),
+}
 
 
 @router.get(
@@ -117,7 +128,8 @@ def list_alerts(
         "dos operadores pulsan a la vez, la segunda llamada no falla ni "
         "pisa la hora de la primera, que es la que interesa conservar."
     ),
-    responses={**_NO_AUTORIZADO, **_NO_ENCONTRADA},
+    dependencies=_SOLO_LECTURA_SI_CADUCA,
+    responses={**_NO_PUEDE_ESCRIBIR, **_NO_ENCONTRADA},
 )
 def acknowledge_alert(
     alert_id: UUID, service: AlertSvc, scope: OrgScope
@@ -135,8 +147,9 @@ def acknowledge_alert(
         "silencioso: volvería a escribir la fecha de cierre y se perdería "
         "cuándo se atendió de verdad."
     ),
+    dependencies=_SOLO_LECTURA_SI_CADUCA,
     responses={
-        **_NO_AUTORIZADO,
+        **_NO_PUEDE_ESCRIBIR,
         **_NO_ENCONTRADA,
         **error_response(
             status.HTTP_409_CONFLICT,
