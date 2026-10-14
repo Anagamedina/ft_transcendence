@@ -250,8 +250,110 @@ const DAY_MS = 24 * 60 * 60 * 1000
 const TRIAL_DAYS = 7
 const INVITATION_TTL_DAYS = 7
 
-// Invitations created during this session (B4 has no routes yet: see invitations.service.js)
-const invitations = []
+// Invitations (B4 has no routes yet: see invitations.service.js).
+// Each one keeps its `code` here so F6 (#167) can find it by code; the API stores
+// only a hash, and the responses never include it (see toInvitationResponse).
+//
+// Fixed demo codes, to test /registro?invitacion=CODE without creating one first:
+//   AQUAGUARD-DEMO-INVITE   pending (same code as backend/seeds/seed_demo.py)
+//   AQUAGUARD-DEMO-EXPIRED  expired  -> 410 INVITATION_EXPIRED
+//   AQUAGUARD-DEMO-USED     accepted -> 404 INVITATION_NOT_FOUND
+// They start again on every page load. The ones the admin creates are saved in
+// localStorage, so their link still works after a reload in the same browser.
+const MOCK_INVITATIONS_KEY = 'aquaguard_mock_invitations'
+
+function demoInvitation(code, createdDaysAgo, expiresInDays, acceptedDaysAgo = null) {
+  const now = Date.now()
+  return {
+    id: crypto.randomUUID(),
+    organization_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    organization_name: 'Hotel Diagonal Mar',
+    email: 'nuevo.gestor@hoteldiagonal.example.com',
+    expires_at: new Date(now + expiresInDays * DAY_MS).toISOString(),
+    accepted_at: acceptedDaysAgo === null ? null : new Date(now - acceptedDaysAgo * DAY_MS).toISOString(),
+    revoked_at: null,
+    created_by_name: 'Mock Admin',
+    created_at: new Date(now - createdDaysAgo * DAY_MS).toISOString(),
+    code,
+    demo: true,
+  }
+}
+
+function loadSavedInvitations() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(MOCK_INVITATIONS_KEY) ?? '[]')
+    return Array.isArray(saved) ? saved : []
+  } catch {
+    return []
+  }
+}
+
+function saveInvitations() {
+  try {
+    const own = invitations.filter((item) => !item.demo)
+    localStorage.setItem(MOCK_INVITATIONS_KEY, JSON.stringify(own))
+  } catch {
+    // Storage full or blocked: the invitations still work until the page reloads
+  }
+}
+
+const invitations = [
+  demoInvitation('AQUAGUARD-DEMO-INVITE', 1, INVITATION_TTL_DAYS - 1),
+  demoInvitation('AQUAGUARD-DEMO-EXPIRED', 9, -2),
+  demoInvitation('AQUAGUARD-DEMO-USED', 3, INVITATION_TTL_DAYS - 3, 1),
+  ...loadSavedInvitations(),
+]
+
+// InvitationResponse of the contract: without the code and the mock flags
+function toInvitationResponse(invitation) {
+  const { code, demo, ...response } = invitation
+  return { ...response, status: invitationStatus(invitation) }
+}
+
+// The pending invitation with that code, or the API error:
+// 410 when it expired, 404 when it does not exist, was accepted or was revoked
+function findInvitationByCode(code) {
+  const invitation = invitations.find((item) => item.code === code)
+  const status = invitation ? invitationStatus(invitation) : null
+
+  if (status === 'EXPIRED') {
+    return { error: domainError(410, 'INVITATION_EXPIRED', 'La invitación ha caducado.') }
+  }
+  if (status !== 'PENDING') {
+    return { error: domainError(404, 'INVITATION_NOT_FOUND', 'La invitación no existe o ya no es válida.') }
+  }
+  return { invitation }
+}
+
+// The code inside /api/invitations/by-code/{code}[/accept]
+function codeFromUrl(url) {
+  return decodeURIComponent(url.split('/')[4] ?? '')
+}
+
+// Imitates the Nginx limit on /api/invitations/by-code/ (gateway/nginx.conf):
+// same rule as the register form (10r/m, burst=4), with its own counter
+let invitationsExcess = null
+let invitationsLastTime = 0
+
+function isInvitationsRateLimited() {
+  const now = Date.now()
+
+  if (invitationsExcess === null) {
+    invitationsExcess = 0
+    invitationsLastTime = now
+    return false
+  }
+
+  const excess =
+    Math.max(0, invitationsExcess - (now - invitationsLastTime) / REGISTER_SLOT_MS) + 1
+  if (excess > REGISTER_BURST) {
+    return true
+  }
+
+  invitationsExcess = excess
+  invitationsLastTime = now
+  return false
+}
 
 function organizationNotFound() {
   return {
@@ -420,9 +522,28 @@ const mockAdapter = {
       const params = config.params ?? {}
       const items = invitations
         .filter((item) => !params.organization_id || item.organization_id === params.organization_id)
-        .map((item) => ({ ...item, status: invitationStatus(item) }))
+        .map(toInvitationResponse)
 
       return Promise.resolve({ data: toPage(items, params), status: 200 })
+    }
+
+    // Open an invitation link (B4, public): only what the accept form needs
+    if (url.startsWith('/api/invitations/by-code/')) {
+      if (isInvitationsRateLimited()) {
+        return Promise.reject(rateLimitError())
+      }
+
+      const { invitation, error } = findInvitationByCode(codeFromUrl(url))
+      if (error) return Promise.reject(error)
+
+      return Promise.resolve({
+        data: {
+          organization_name: invitation.organization_name,
+          email: invitation.email,
+          expires_at: invitation.expires_at,
+        },
+        status: 200,
+      })
     }
 
     // Get all sites.
@@ -989,6 +1110,75 @@ const mockAdapter = {
       return Promise.resolve({ data: withCounters(organization), status: 200 })
     }
 
+    // Accept an invitation (B4, public): creates the client user and opens the
+    // session, like the sign-up. Order: 429 (Nginx), 404/410, 422, then 409
+    if (url.startsWith('/api/invitations/by-code/') && url.endsWith('/accept')) {
+      if (isInvitationsRateLimited()) {
+        return Promise.reject(rateLimitError())
+      }
+
+      const { invitation, error } = findInvitationByCode(codeFromUrl(url))
+      if (error) return Promise.reject(error)
+
+      const name = typeof data.name === 'string' ? data.name.trim() : ''
+      const password = typeof data.password === 'string' ? data.password : ''
+
+      // Pydantic checks (generic VALIDATION_ERROR, one detail per field)
+      if (!name || name.length > 120) {
+        return Promise.reject(validationError('name', 'String should have 1-120 characters'))
+      }
+      if (typeof data.accept_terms !== 'boolean') {
+        return Promise.reject(validationError('accept_terms', 'Input should be a valid boolean'))
+      }
+
+      // Domain checks, same as the register (B10)
+      if (!data.accept_terms) {
+        return Promise.reject(domainError(
+          422,
+          'TERMS_NOT_ACCEPTED',
+          'Tienes que aceptar los términos de uso para registrarte.'
+        ))
+      }
+
+      const weakPasswordMessage = checkMockPassword(password, invitation.email)
+      if (weakPasswordMessage) {
+        return Promise.reject(domainError(422, 'WEAK_PASSWORD', weakPasswordMessage))
+      }
+
+      if (mockUser.some((user) => user.email.toLowerCase() === invitation.email)) {
+        return Promise.reject(domainError(409, 'EMAIL_ALREADY_EXISTS', 'Ese email ya está dado de alta.'))
+      }
+
+      const now = new Date()
+      const newUser = {
+        id: crypto.randomUUID(),
+        email: invitation.email,
+        name,
+        role: 'client',
+        organization_id: invitation.organization_id,
+        created_at: now.toISOString(),
+        password,
+      }
+      mockUser.push(newUser)
+
+      // One use only: the same link answers 404 from now on
+      invitation.accepted_at = now.toISOString()
+      saveInvitations()
+
+      const organization = organizations.find((item) => item.id === invitation.organization_id)
+      if (organization) organization.user_count = (organization.user_count ?? 0) + 1
+
+      currentUser = newUser
+      localStorage.setItem(MOCK_SESSION_KEY, newUser.id)
+
+      return Promise.resolve({
+        data: {
+          user: toPublicUser(currentUser),
+        },
+        status: 201,
+      })
+    }
+
     // Create an invitation (B4). No session check: see GET /api/invitations
     if (url === '/api/invitations') {
       const email = typeof data.email === 'string' ? data.email.trim().toLowerCase() : ''
@@ -1014,15 +1204,17 @@ const mockAdapter = {
         revoked_at: null,
         created_by_name: currentUser?.name ?? null,
         created_at: now.toISOString(),
+        // Kept so GET /by-code/{code} can find it; never returned after this answer
+        code,
       }
       invitations.push(invitation)
+      saveInvitations()
 
       // code and url only in this answer, as in the API.
       // Same route and param that F6 (#167) reads: /registro?invitacion=CODE
       return Promise.resolve({
         data: {
-          ...invitation,
-          status: 'PENDING',
+          ...toInvitationResponse(invitation),
           code,
           url: `${window.location.origin}/registro?invitacion=${code}`,
         },
@@ -1577,6 +1769,7 @@ const mockAdapter = {
         users: organization.user_count,
         organizations: removeWhere(organizations, (item) => item.id === organization.id),
       }
+      saveInvitations()
 
       return Promise.resolve({
         data: { id: organization.id, name: organization.name, deleted, detached_admins: 0, deleted_files: 0 },
@@ -1624,6 +1817,8 @@ Orgs          POST      /api/organizations/{id}/suspend | reactivate | extend-tr
 Orgs          DELETE    /api/organizations/{id}
 Invitations   GET       /api/invitations
 Invitations   POST      /api/invitations
+Invitations   GET       /api/invitations/by-code/{code}
+Invitations   POST      /api/invitations/by-code/{code}/accept
 */
 
 /*

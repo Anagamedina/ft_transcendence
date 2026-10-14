@@ -20,6 +20,13 @@ const routes = [
     path: "/register",
     redirect: "/prueba",
   },
+  // Accept an invitation: /registro?invitacion=CODE (F6, #167).
+  // Public, and not in the guard's auth pages: the view itself tells a user
+  // who is already logged in to log out first, instead of redirecting them.
+  {
+    path: "/registro",
+    component: () => import("../views/public/AcceptInvitationView.vue"),
+  },
   {
     path: "/dashboard",
     component: () => import("../layouts/ClientLayout.vue"),
