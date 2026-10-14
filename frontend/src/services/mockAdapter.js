@@ -72,6 +72,27 @@ function toPublicUser(user) {
   return publicUser
 }
 
+function toMeResponse(user) {
+  const organization = user?.organization_id
+    ? [...organizations, ...mockOrganizations].find((item) => item.id === user.organization_id)
+    : null
+
+  return {
+    user: toPublicUser(user),
+    organization: organization
+      ? {
+          id: organization.id,
+          name: organization.name,
+          status: organization.status,
+          trial_ends_at: organization.trial_ends_at,
+        }
+      : null,
+    last_login_at: user?.last_login_at ?? null,
+    terms_version: user?.terms_version ?? null,
+    terms_accepted_at: user?.terms_accepted_at ?? null,
+  }
+}
+
 function authError() {
   return {
     status: 401,
@@ -357,9 +378,7 @@ const mockAdapter = {
       }
 
       return Promise.resolve({
-        data: {
-          user: toPublicUser(currentUser),
-        },
+        data: toMeResponse(currentUser),
         status: 200,
       })
     }
@@ -749,6 +768,19 @@ const mockAdapter = {
       console.log('[MOCK POST]', url, data, config)
     }
 
+    if (url === '/api/me/password') {
+      if (!currentUser) return Promise.reject(authError())
+      if (data.current_password !== currentUser.password) {
+        return Promise.reject(domainError(422, 'WRONG_PASSWORD', 'La contraseña actual no es correcta.'))
+      }
+      const weakPasswordMessage = checkMockPassword(data.new_password ?? '', currentUser.email)
+      if (weakPasswordMessage) {
+        return Promise.reject(domainError(422, 'WEAK_PASSWORD', weakPasswordMessage))
+      }
+      currentUser.password = data.new_password
+      return Promise.resolve({ data: { message: 'Contraseña actualizada.' }, status: 200 })
+    }
+
     // Public sign-up with a 7-day trial (B10, #140). Same order and codes as
     // backend/app/modules/auth/service.py: 429 (Nginx), 422, then 409.
     if (url === '/api/auth/register') {
@@ -860,6 +892,7 @@ const mockAdapter = {
       }
 
       currentUser = user;
+      user.last_login_at = new Date().toISOString();
       localStorage.setItem(MOCK_SESSION_KEY, user.id);
 
       return Promise.resolve({
@@ -1267,9 +1300,19 @@ const mockAdapter = {
     })
   },
 
-  // PATCH requests
+    // PATCH requests
   patch(url, data = {}, config = {}) {
     console.log('[MOCK PATCH]', url, data, config)
+
+    if (url === '/api/me') {
+      if (!currentUser) return Promise.reject(authError())
+      const name = typeof data.name === 'string' ? data.name.trim() : ''
+      if (!name || name.length > 120) {
+        return Promise.reject(domainError(422, 'INVALID_NAME', 'El nombre no puede estar vacío.'))
+      }
+      currentUser.name = name
+      return Promise.resolve({ data: toMeResponse(currentUser), status: 200 })
+    }
 
     // Acknowledge an alert.
     if (url.startsWith('/api/alerts/') && url.endsWith('/acknowledge')) {
