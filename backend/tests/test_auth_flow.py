@@ -162,6 +162,74 @@ def test_me_devuelve_quien_soy(client, datos):
     assert respuesta.status_code == 200
     assert respuesta.json()["user"]["email"] == "cliente@aquaguard.dev"
     assert respuesta.json()["user"]["role"] == "client"
+    assert respuesta.json()["organization"]["name"] == "Hotel Barcelo"
+    assert "last_login_at" in respuesta.json()
+    assert "terms_version" in respuesta.json()
+
+
+def test_me_permite_actualizar_el_nombre(client, datos):
+    _login(client, "cliente@aquaguard.dev")
+
+    respuesta = client.patch("/api/me", json={"name": "Nuevo nombre"})
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["user"]["name"] == "Nuevo nombre"
+    assert client.get("/api/me").json()["user"]["name"] == "Nuevo nombre"
+
+
+def test_me_no_permite_editar_el_email(client, datos):
+    _login(client, "cliente@aquaguard.dev")
+
+    respuesta = client.patch(
+        "/api/me", json={"name": "Nuevo nombre", "email": "otro@dev.test"}
+    )
+
+    assert respuesta.status_code == 422
+
+
+def test_me_cambio_de_contrasena_y_sesion_actual_siguen_validos(client, datos):
+    _login(client, "cliente@aquaguard.dev")
+
+    respuesta = client.post(
+        "/api/me/password",
+        json={
+            "current_password": CONTRASENA,
+            "new_password": "otra-contrasena-larga",
+        },
+    )
+
+    assert respuesta.status_code == 200
+    assert client.get("/api/me").status_code == 200
+
+    client.post("/api/auth/logout")
+    assert _login(client, "cliente@aquaguard.dev", "otra-contrasena-larga").status_code == 200
+
+
+def test_me_rechaza_contrasena_actual_incorrecta(client, datos):
+    _login(client, "cliente@aquaguard.dev")
+
+    respuesta = client.post(
+        "/api/me/password",
+        json={
+            "current_password": "contraseña-equivocada",
+            "new_password": "otra-contrasena-larga",
+        },
+    )
+
+    assert respuesta.status_code == 422
+    assert respuesta.json()["error"]["code"] == "WRONG_PASSWORD"
+
+
+def test_me_rechaza_contrasena_nueva_debil(client, datos):
+    _login(client, "cliente@aquaguard.dev")
+
+    respuesta = client.post(
+        "/api/me/password",
+        json={"current_password": CONTRASENA, "new_password": "123456789012"},
+    )
+
+    assert respuesta.status_code == 422
+    assert respuesta.json()["error"]["code"] == "WEAK_PASSWORD"
 
 
 def test_me_sin_sesion_da_401(client, datos):
