@@ -8,6 +8,7 @@ import { sensors } from './fixtures/sensors.js'
 import { sites } from './fixtures/sites.js'
 import { systemStatus } from './fixtures/status.js'
 import { demoBuilding, demoSensors, demoReadings } from './fixtures/building.js'
+import { organizations } from './fixtures/organizations.js'
 
 // The C-Edificio demo building (8 sensors on 6 floors) also appears in the
 // admin sites and sensors lists, so the floor-by-floor view has real content.
@@ -239,6 +240,106 @@ function getAccessibleAlerts() {
   )
 }
 
+
+// ---------------------------------------------------------------------------
+// Organizations (B1, B16) and invitations (B4)
+// ---------------------------------------------------------------------------
+
+const DAY_MS = 24 * 60 * 60 * 1000
+// TRIAL_DAYS and INVITATION_TTL_DAYS of the API (7 by default)
+const TRIAL_DAYS = 7
+const INVITATION_TTL_DAYS = 7
+
+// Invitations created during this session (B4 has no routes yet: see invitations.service.js)
+const invitations = []
+
+function organizationNotFound() {
+  return {
+    status: 404,
+    code: 'ORGANIZATION_NOT_FOUND',
+    message: 'La organización no existe.',
+    details: null,
+  }
+}
+
+function conflict(code, message) {
+  return { status: 409, code, message, details: null }
+}
+
+// Every organizations route is admin only, as in the API (401 / 403)
+function adminCheck() {
+  if (!currentUser) return authError()
+  if (currentUser.role !== 'admin') return forbiddenError()
+  return null
+}
+
+// The organization with its counters computed from the other fixtures,
+// as the API does with GROUP BY (they are never stored)
+function withCounters(organization) {
+  const orgSites = sites.filter((site) => site.organization_id === organization.id)
+  const orgSensors = sensors.filter((sensor) => sensor.organization_id === organization.id)
+  const openAlerts = alerts.filter(
+    (alert) => alert.organization_id === organization.id && alert.status !== 'RESOLVED'
+  )
+  return {
+    ...organization,
+    site_count: orgSites.length,
+    sensor_count: orgSensors.length,
+    open_alerts: openAlerts.length,
+    critical_alerts: openAlerts.filter((alert) => alert.severity === 'CRITICAL').length,
+  }
+}
+
+function findOrganization(url) {
+  const id = url.split('/')[3]
+  return organizations.find((organization) => organization.id === id) ?? null
+}
+
+// Lowercase text for searching ('es' handles Spanish/Catalan letters correctly)
+function normalize(text) {
+  return String(text).toLocaleLowerCase('es')
+}
+
+// The API compares names without case: 'hotel mar' and 'Hotel Mar' are the same client
+function nameTaken(name, exceptId = null) {
+  return organizations.some(
+    (organization) => organization.id !== exceptId && normalize(organization.name) === normalize(name)
+  )
+}
+
+// Same Page shape as the API, cutting the requested page
+function toPage(items, params = {}) {
+  const page = Number(params.page ?? 1)
+  const pageSize = Number(params.page_size ?? 20)
+  const start = (page - 1) * pageSize
+  return {
+    items: items.slice(start, start + pageSize),
+    total: items.length,
+    page,
+    page_size: pageSize,
+    pages: Math.ceil(items.length / pageSize),
+  }
+}
+
+// Removes in place every item of a fixture list that matches
+function removeWhere(list, matches) {
+  let removed = 0
+  for (let i = list.length - 1; i >= 0; i -= 1) {
+    if (matches(list[i])) {
+      list.splice(i, 1)
+      removed += 1
+    }
+  }
+  return removed
+}
+
+// Invitation status computed from its dates, as InvitationStatus in the API
+function invitationStatus(invitation) {
+  if (invitation.revoked_at) return 'REVOKED'
+  if (invitation.accepted_at) return 'ACCEPTED'
+  return new Date(invitation.expires_at) < new Date() ? 'EXPIRED' : 'PENDING'
+}
+
 /*
  * The mock adapter exposes the same methods as httpAdapter.
  * Each method returns a Promise to simulate an HTTP response.
@@ -269,6 +370,59 @@ const mockAdapter = {
         data: systemStatus,
         status: 200,
       })
+    }
+
+    // List organizations (B1): filters, sorted by name, one page
+    if (url === '/api/organizations') {
+      const denied = adminCheck()
+      if (denied) return Promise.reject(denied)
+
+      const params = config.params ?? {}
+      const text = params.q ? normalize(params.q.trim()) : ''
+
+      const items = organizations
+        .filter((organization) => !params.status || organization.status === params.status)
+        .filter((organization) =>
+          text === ''
+            ? true
+            // Same fields the API searches: name, city, legal name and tax id
+            : [organization.name, organization.city, organization.legal_name, organization.tax_id].some(
+                (field) => field && normalize(field).includes(text)
+              )
+        )
+        .map(withCounters)
+        .filter((organization) =>
+          params.has_open_alerts === undefined
+            ? true
+            : String(params.has_open_alerts) === 'true'
+              ? organization.open_alerts > 0
+              : organization.open_alerts === 0
+        )
+        .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+
+      return Promise.resolve({ data: toPage(items, params), status: 200 })
+    }
+
+    // Get one organization (B1)
+    if (url.startsWith('/api/organizations/')) {
+      const denied = adminCheck()
+      if (denied) return Promise.reject(denied)
+
+      const organization = findOrganization(url)
+      if (!organization) return Promise.reject(organizationNotFound())
+
+      return Promise.resolve({ data: withCounters(organization), status: 200 })
+    }
+
+    // List invitations (B4). No session check: the B4 routes do not exist yet, so
+    // this mock is also used with the real API, where the session is not the mock one
+    if (url === '/api/invitations') {
+      const params = config.params ?? {}
+      const items = invitations
+        .filter((item) => !params.organization_id || item.organization_id === params.organization_id)
+        .map((item) => ({ ...item, status: invitationStatus(item) }))
+
+      return Promise.resolve({ data: toPage(items, params), status: 200 })
     }
 
     // Get all sites.
@@ -729,6 +883,153 @@ const mockAdapter = {
       })
     }
 
+    // Create an organization (B1), with its first building in the same operation.
+    // Created by the admin, so it starts ACTIVE (the public sign-up creates trials)
+    if (url === '/api/organizations') {
+      const denied = adminCheck()
+      if (denied) return Promise.reject(denied)
+
+      const name = typeof data.name === 'string' ? data.name.trim() : ''
+      if (name === '') {
+        return Promise.reject({
+          status: 422,
+          code: 'INVALID_NAME',
+          message: 'El nombre no puede estar vacío.',
+          details: null,
+        })
+      }
+      if (nameTaken(name)) {
+        return Promise.reject(
+          conflict('ORGANIZATION_NAME_TAKEN', 'Ya hay una organización con ese nombre.')
+        )
+      }
+
+      const organization = {
+        id: crypto.randomUUID(),
+        name,
+        status: 'ACTIVE',
+        trial_ends_at: null,
+        city: data.city ?? null,
+        contact_email: data.contact_email ?? null,
+        phone: data.phone ?? null,
+        legal_name: data.legal_name ?? null,
+        tax_id: data.tax_id ?? null,
+        billing_email: data.billing_email ?? null,
+        user_count: 0,
+        created_at: new Date().toISOString(),
+      }
+      organizations.push(organization)
+
+      if (data.first_site) {
+        sites.push({
+          id: crypto.randomUUID(),
+          organization_id: organization.id,
+          organization_name: organization.name,
+          name: data.first_site.name,
+          address: data.first_site.address ?? null,
+          latitude: data.first_site.latitude ?? null,
+          longitude: data.first_site.longitude ?? null,
+          floors: data.first_site.floors ?? 1,
+          basements: data.first_site.basements ?? 0,
+          building_type: data.first_site.building_type ?? 'OTHER',
+          district: null,
+          sensor_count: 0,
+          status: 'OK',
+          created_at: organization.created_at,
+        })
+      }
+
+      return Promise.resolve({ data: withCounters(organization), status: 201 })
+    }
+
+    // Status actions of an organization (B1): suspend, reactivate, extend-trial, activate
+    if (url.startsWith('/api/organizations/')) {
+      const denied = adminCheck()
+      if (denied) return Promise.reject(denied)
+
+      const organization = findOrganization(url)
+      if (!organization) return Promise.reject(organizationNotFound())
+
+      const action = url.split('/')[4]
+
+      if (action === 'suspend') {
+        if (organization.status === 'SUSPENDED') {
+          return Promise.reject(conflict('ORGANIZATION_ALREADY_SUSPENDED', 'Ya estaba suspendida.'))
+        }
+        organization.status = 'SUSPENDED'
+      } else if (action === 'reactivate') {
+        if (organization.status !== 'SUSPENDED') {
+          return Promise.reject(conflict('ORGANIZATION_NOT_SUSPENDED', 'No estaba suspendida.'))
+        }
+        // Back to TRIAL if it still has a trial date, ACTIVE otherwise
+        organization.status = organization.trial_ends_at ? 'TRIAL' : 'ACTIVE'
+      } else if (action === 'extend-trial' || action === 'activate') {
+        if (organization.status !== 'TRIAL') {
+          return Promise.reject(conflict('ORGANIZATION_NOT_IN_TRIAL', 'La organización no está en prueba.'))
+        }
+        if (action === 'activate') {
+          organization.status = 'ACTIVE'
+          organization.trial_ends_at = null
+        } else {
+          // Adds the days to the end date, or to today if the trial already ended
+          const now = new Date()
+          const end = new Date(organization.trial_ends_at)
+          const from = end > now ? end : now
+          organization.trial_ends_at = new Date(from.getTime() + TRIAL_DAYS * DAY_MS).toISOString()
+        }
+      } else {
+        return Promise.reject({
+          status: 404,
+          code: 'UNKNOWN_ENDPOINT',
+          message: 'Mock endpoint not found.',
+          details: null,
+        })
+      }
+
+      return Promise.resolve({ data: withCounters(organization), status: 200 })
+    }
+
+    // Create an invitation (B4). No session check: see GET /api/invitations
+    if (url === '/api/invitations') {
+      const email = typeof data.email === 'string' ? data.email.trim().toLowerCase() : ''
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return Promise.reject(validationError('email', 'A valid email is required.'))
+      }
+
+      if (!data.organization_id) {
+        return Promise.reject(validationError('organization_id', 'organization_id is required.'))
+      }
+      // With the real API the client is not in the fixtures, so its name may be unknown here
+      const organization = organizations.find((item) => item.id === data.organization_id)
+
+      const code = Math.random().toString(36).slice(2, 14)
+      const now = new Date()
+      const invitation = {
+        id: crypto.randomUUID(),
+        organization_id: data.organization_id,
+        organization_name: organization?.name ?? '',
+        email,
+        expires_at: new Date(now.getTime() + INVITATION_TTL_DAYS * DAY_MS).toISOString(),
+        accepted_at: null,
+        revoked_at: null,
+        created_by_name: currentUser?.name ?? null,
+        created_at: now.toISOString(),
+      }
+      invitations.push(invitation)
+
+      // code and url only in this answer, as in the API.
+      // Same route and param that F6 (#167) reads: /registro?invitacion=CODE
+      return Promise.resolve({
+        data: {
+          ...invitation,
+          status: 'PENDING',
+          code,
+          url: `${window.location.origin}/registro?invitacion=${code}`,
+        },
+        status: 201,
+      })
+    }
+
     // Create a reading.
     if (url === '/api/readings') {
       if (!currentUser) {
@@ -930,13 +1231,12 @@ const mockAdapter = {
         })
       }
 
-      // The mock has no organizations table: take the name from another site of the client
-      const owner = sites.find((site) => site.organization_id === data.organization_id)
+      const owner = organizations.find((organization) => organization.id === data.organization_id)
 
       const site = {
         id: crypto.randomUUID(),
         organization_id: data.organization_id,
-        organization_name: owner?.organization_name ?? 'Cliente',
+        organization_name: owner?.name ?? 'Cliente',
         name: String(data.name).trim(),
         address: data.address || null,
         latitude: data.latitude ?? null,
@@ -1174,6 +1474,33 @@ const mockAdapter = {
       })
     }
 
+    // Update an organization (B1): only name, contact and billing fields
+    if (url.startsWith('/api/organizations/')) {
+      const denied = adminCheck()
+      if (denied) return Promise.reject(denied)
+
+      const organization = findOrganization(url)
+      if (!organization) return Promise.reject(organizationNotFound())
+
+      if (data.name !== undefined) {
+        const name = String(data.name).trim()
+        if (name === '') {
+          return Promise.reject({ status: 422, code: 'INVALID_NAME', message: 'El nombre no puede estar vacío.', details: null })
+        }
+        if (nameTaken(name, organization.id)) {
+          return Promise.reject(conflict('ORGANIZATION_NAME_TAKEN', 'Ya hay una organización con ese nombre.'))
+        }
+        organization.name = name
+      }
+
+      const EDITABLE = ['city', 'contact_email', 'phone', 'legal_name', 'tax_id', 'billing_email']
+      for (const field of EDITABLE) {
+        if (data[field] !== undefined) organization[field] = data[field]
+      }
+
+      return Promise.resolve({ data: withCounters(organization), status: 200 })
+    }
+
     // Update a site (B2). Only the fields sent change; the client cannot change.
     if (url.startsWith('/api/sites/')) {
       // Admin only, as in the API (B2)
@@ -1220,6 +1547,43 @@ const mockAdapter = {
   delete(url, config = {}) {
     console.log('[MOCK DELETE]', url, config)
 
+    // Delete an organization and everything it owns (B16). Needs the exact name
+    if (url.startsWith('/api/organizations/')) {
+      const denied = adminCheck()
+      if (denied) return Promise.reject(denied)
+
+      const organization = findOrganization(url)
+      if (!organization) return Promise.reject(organizationNotFound())
+
+      if (config.data?.confirm_name !== organization.name) {
+        return Promise.reject({
+          status: 422,
+          code: 'NAME_CONFIRMATION_MISMATCH',
+          message: 'El nombre no coincide.',
+          details: null,
+        })
+      }
+
+      const owned = (item) => item.organization_id === organization.id
+      const sensorIds = new Set(sensors.filter(owned).map((sensor) => sensor.id))
+
+      const deleted = {
+        readings: removeWhere(readings, (reading) => sensorIds.has(reading.sensor_id)),
+        alerts: removeWhere(alerts, owned),
+        sensors: removeWhere(sensors, owned),
+        documents: 0,
+        sites: removeWhere(sites, owned),
+        invitations: removeWhere(invitations, owned),
+        users: organization.user_count,
+        organizations: removeWhere(organizations, (item) => item.id === organization.id),
+      }
+
+      return Promise.resolve({
+        data: { id: organization.id, name: organization.name, deleted, detached_admins: 0, deleted_files: 0 },
+        status: 200,
+      })
+    }
+
     return Promise.reject({
       status: 404,
       code: 'UNKNOWN_ENDPOINT',
@@ -1252,6 +1616,14 @@ Alerts        GET       /api/alerts
 Alerts        PATCH     /api/alerts/{id}/acknowledge
 Alerts        PATCH     /api/alerts/{id}/resolve
 Analytics     GET       /api/analytics/overview
+Orgs          GET       /api/organizations
+Orgs          GET       /api/organizations/{id}
+Orgs          POST      /api/organizations
+Orgs          PATCH     /api/organizations/{id}
+Orgs          POST      /api/organizations/{id}/suspend | reactivate | extend-trial | activate
+Orgs          DELETE    /api/organizations/{id}
+Invitations   GET       /api/invitations
+Invitations   POST      /api/invitations
 */
 
 /*

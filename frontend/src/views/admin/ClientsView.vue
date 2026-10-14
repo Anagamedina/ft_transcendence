@@ -1,32 +1,39 @@
 <!--
   ADMIN CLIENTS VIEW
-  Lists client organizations with a status filter, search, pagination and
+  Lists client organizations from the API (B1) with a status filter, search, pagination and
   expandable buildings; "+ Nuevo cliente" opens the sign-up wizard on the same page.
-  Rendered inside AdminLayout.
-  Uses temporary mock data until the organizations store exists (data area).
+  Rendered inside AdminLayout. Data: organizations, sites and sensors stores.
+  No district column: OrganizationResponse does not return a district yet.
 -->
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import AdminLayout from '../../layouts/AdminLayout.vue'
 import ClientsList from '../../components/ClientsList.vue'
 import NewClientWizard from '../../components/NewClientWizard.vue'
-// TODO: replace with store data and actions (data area) and delete this import
-import { mockClients, sitesOf, createClient } from './mockClients'
+import { useOrganizationsStore } from '../../stores/organizations'
+import { useSitesStore } from '../../stores/sites'
+import { useSensorsStore } from '../../stores/sensors'
 
 const router = useRouter()
+const organizationsStore = useOrganizationsStore()
+const sitesStore = useSitesStore()
+const sensorsStore = useSensorsStore()
 
 // Filter buttons. value matches OrganizationResponse.status; null means "all"
 const statusOptions = [
-  { value: null, label: 'Todos' },
-  { value: 'TRIAL', label: 'En prueba' },
-  { value: 'ACTIVE', label: 'Activos' },
-  { value: 'SUSPENDED', label: 'Suspendidos' },
+  { value: null, label: 'Todos', countKey: 'all' },
+  { value: 'TRIAL', label: 'En prueba', countKey: 'TRIAL' },
+  { value: 'ACTIVE', label: 'Activos', countKey: 'ACTIVE' },
+  { value: 'SUSPENDED', label: 'Suspendidos', countKey: 'SUSPENDED' },
 ]
 
 // Page sizes offered to the admin (the API accepts up to 100)
 const PAGE_SIZES = [10, 25]
+
+// Wait this long after the last key before searching, so typing a word sends one request
+const SEARCH_DELAY_MS = 300
 
 // Everything the admin can change in the list. These four values are exactly
 // the query params of GET /api/organizations: status, q, page and page_size
@@ -35,61 +42,76 @@ const search = ref('')
 const page = ref(1)
 const pageSize = ref(PAGE_SIZES[0])
 
-// How many clients each filter would show, so every button can display its count
-function countFor(status) {
-  if (status === null) return mockClients.length
-  return mockClients.filter((client) => client.status === status).length
-}
+// Search text actually sent to the API (updated after SEARCH_DELAY_MS)
+const query = ref('')
+let searchTimer = null
 
-// Lowercase text for searching ('es' handles Spanish/Catalan letters correctly)
-function normalize(text) {
-  return text.toLocaleLowerCase('es')
-}
-
-// TODO: replace with the organizations store call (data area).
-// Mimics GET /api/organizations on the mock data: filters, then cuts one page,
-// and returns the same Page shape as the API { items, total, page, page_size, pages },
-// so swapping it for the real call later does not change the template.
-function queryMockClients({ status, q, page, pageSize }) {
-  const text = normalize(q.trim())
-
-  const matches = mockClients.filter((client) => {
-    if (status !== null && client.status !== status) return false
-    if (text === '') return true
-    // Same fields the backend searches: name, city, legal name and tax id
-    return [client.name, client.city, client.legal_name, client.tax_id].some(
-      (field) => field && normalize(field).includes(text)
-    )
-  })
-
-  const start = (page - 1) * pageSize
-  return {
-    items: matches.slice(start, start + pageSize),
-    total: matches.length,
-    page,
-    page_size: pageSize,
-    pages: Math.ceil(matches.length / pageSize),
-  }
-}
-
-// Current page of results. Recomputed when any of the four values changes
-const result = computed(() =>
-  queryMockClients({
-    status: selectedStatus.value,
-    q: search.value,
-    page: page.value,
-    pageSize: pageSize.value,
-  })
-)
-
-// A new filter, search or page size changes the results: go back to page 1,
-// otherwise the admin could stay on a page that no longer exists
-watch([selectedStatus, search, pageSize], () => {
-  page.value = 1
+watch(search, (text) => {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => (query.value = text), SEARCH_DELAY_MS)
 })
 
+onBeforeUnmount(() => clearTimeout(searchTimer))
+
+// Asks the API for the current page with the current filters
+function loadClients() {
+  return organizationsStore
+    .fetchOrganizations({
+      status: selectedStatus.value,
+      q: query.value,
+      page: page.value,
+      page_size: pageSize.value,
+    })
+    .catch(() => {
+      // The store keeps the error; ClientsList shows it with a retry button
+    })
+}
+
+// A new filter, search or page size changes the results: go back to page 1,
+// otherwise the admin could stay on a page that no longer exists.
+// If the page was already 1, the page watcher does not fire, so load here
+watch([selectedStatus, query, pageSize], () => {
+  if (page.value === 1) loadClients()
+  else page.value = 1
+})
+
+watch(page, loadClients)
+
+// The spinner only on the first load; later the current rows stay until the new ones arrive
+const loadedOnce = ref(false)
+watch(
+  () => organizationsStore.status,
+  (value) => {
+    if (value === 'success' || value === 'error') loadedOnce.value = true
+  }
+)
+const loading = computed(() => organizationsStore.status === 'loading' && !loadedOnce.value)
+const errorMessage = computed(() =>
+  organizationsStore.status === 'error'
+    ? organizationsStore.error?.message || 'No se han podido cargar los clientes.'
+    : ''
+)
+
 // True when something hides clients, so the empty state can say "no matches"
-const isFiltered = computed(() => selectedStatus.value !== null || search.value.trim() !== '')
+const isFiltered = computed(() => selectedStatus.value !== null || query.value.trim() !== '')
+
+// Buildings of a client with their sensors, for the expandable rows.
+// Sites and sensors are loaded once for every client; if they fail, rows expand empty
+function sitesOf(clientId) {
+  return sitesStore.sites
+    .filter((site) => site.organization_id === clientId)
+    .map((site) => ({
+      ...site,
+      sensors: sensorsStore.sensors.filter((sensor) => sensor.site_id === site.id),
+    }))
+}
+
+onMounted(() => {
+  loadClients()
+  organizationsStore.fetchCounts()
+  sitesStore.fetchSites().catch(() => {})
+  sensorsStore.fetchSensors().catch(() => {})
+})
 
 function openClient(client) {
   router.push(`/admin/clients/${client.id}`)
@@ -99,14 +121,21 @@ function openClient(client) {
 // New client wizard. Shown instead of the list, on the same route
 // ---------------------------------------------------------------------------
 const creating = ref(false)
+const saving = ref(false)
 // Result of the creation: { client, invitation }. The wizard then shows the invitation link
 const created = ref(null)
+// API error for the wizard: { field, message }
+const createError = ref(null)
 
-// The API rejects a repeated name, so the wizard checks it before sending
-const existingNames = computed(() => mockClients.map((client) => client.name))
+// API error codes that belong to the client name (step 1 of the wizard)
+const NAME_ERRORS = {
+  ORGANIZATION_NAME_TAKEN: 'Ya hay un cliente con este nombre.',
+  INVALID_NAME: 'Escribe el nombre del cliente.',
+}
 
 function startCreating() {
   created.value = null
+  createError.value = null
   creating.value = true
 }
 
@@ -115,9 +144,43 @@ function stopCreating() {
   created.value = null
 }
 
-// TODO: replace with the store action (POST /api/organizations with first_site, then B4 invitation)
-function onCreate(data) {
-  created.value = createClient(data)
+// POST /api/organizations with first_site, then the first invitation (B4).
+// If only the invitation fails, the client exists: the wizard says so and
+// the invitation can be sent again from the client page
+async function onCreate(data) {
+  saving.value = true
+  createError.value = null
+
+  let client
+  try {
+    client = await organizationsStore.createOrganization(data)
+  } catch (err) {
+    createError.value = NAME_ERRORS[err?.code]
+      ? { field: 'name', message: NAME_ERRORS[err.code] }
+      : { field: null, message: err?.message || 'No se ha podido crear el cliente. Inténtalo de nuevo.' }
+    saving.value = false
+    return
+  }
+
+  let invitation = null
+  try {
+    const sent = await organizationsStore.createInvitation({
+      email: data.user.email,
+      organization_id: client.id,
+    })
+    // The contract has no name: the wizard shows the one typed in step 3
+    invitation = { name: data.user.name, email: sent.email, link: sent.url, expires_at: sent.expires_at }
+  } catch {
+    invitation = null
+  }
+
+  created.value = { client, invitation }
+  saving.value = false
+
+  // The new client and its building appear in the list and the counters
+  loadClients()
+  organizationsStore.fetchCounts()
+  sitesStore.fetchSites().catch(() => {})
 }
 </script>
 
@@ -129,8 +192,9 @@ function onCreate(data) {
         ← Volver a clientes
       </button>
       <NewClientWizard
-        :existing-names="existingNames"
         :created="created"
+        :submitting="saving"
+        :server-error="createError"
         @submit="onCreate"
         @cancel="stopCreating"
         @open="openClient"
@@ -154,7 +218,7 @@ function onCreate(data) {
             :aria-pressed="selectedStatus === option.value"
             @click="selectedStatus = option.value"
           >
-            {{ option.label }} ({{ countFor(option.value) }})
+            {{ option.label }} ({{ organizationsStore.counts[option.countKey] }})
           </button>
         </div>
 
@@ -171,14 +235,15 @@ function onCreate(data) {
         v-model:search="search"
         v-model:page="page"
         v-model:pageSize="pageSize"
-        :clients="result.items"
-        :total="result.total"
+        :clients="organizationsStore.organizations"
+        :total="organizationsStore.total"
         :page-sizes="PAGE_SIZES"
         :filtered="isFiltered"
         :sites-of="sitesOf"
-        :loading="false"
-        error=""
+        :loading="loading"
+        :error="errorMessage"
         @select="openClient"
+        @retry="loadClients"
       />
     </div>
   </AdminLayout>

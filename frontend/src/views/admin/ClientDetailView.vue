@@ -2,32 +2,24 @@
   ADMIN CLIENT DETAIL VIEW
   One client organization: header with status and counters, and five tabs
   (Edificios, Usuarios, Documentos, Datos, Acciones). Rendered inside AdminLayout.
-  Uses temporary mock data until the organizations, sites and users stores exist (data area).
+  Data: organizations store (B1, B16; invitations B4 still mocked inside its service)
+  and sites store (B2). There is no users list in the API yet, so Usuarios shows the count.
 -->
 
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AdminLayout from '../../layouts/AdminLayout.vue'
 import Tabs from '../../components/Tabs.vue'
 import SitesSummary from '../../components/SitesSummary.vue'
 import EmptyState from '../../components/EmptyState.vue'
+import LoadingState from '../../components/LoadingState.vue'
+import ErrorState from '../../components/ErrorState.vue'
 import ClientActions from '../../components/ClientActions.vue'
 import InviteLinkCopy from '../../components/InviteLinkCopy.vue'
 import { useClientStatus } from '../../composables/useClientStatus'
-// TODO: replace these mocks with store data and actions (data area) and delete this import
-import {
-  findClient,
-  sitesOf,
-  usersOf,
-  invitationsOf,
-  suspendClient,
-  reactivateClient,
-  extendTrial,
-  activateClient,
-  deleteClient,
-  inviteUser,
-} from './mockClients'
+import { useOrganizationsStore } from '../../stores/organizations'
+import { useSitesStore } from '../../stores/sites'
 
 const props = defineProps({
   // Comes from the route /admin/clients/:id (router option props: true)
@@ -35,13 +27,31 @@ const props = defineProps({
 })
 
 const router = useRouter()
+const organizationsStore = useOrganizationsStore()
+const sitesStore = useSitesStore()
 
-// The mock clients are reactive, so the page updates after each action
-const client = computed(() => findClient(props.id))
+// The store keeps the open client; every action replaces it with the API answer
+const client = computed(() =>
+  organizationsStore.current?.id === props.id ? organizationsStore.current : null
+)
 const status = computed(() => (client.value ? useClientStatus(client.value) : null))
-const clientSites = computed(() => sitesOf(props.id))
-const clientUsers = computed(() => usersOf(props.id))
-const pendingInvitations = computed(() => invitationsOf(props.id))
+const clientSites = computed(() => sitesStore.sites.filter((site) => site.organization_id === props.id))
+const pendingInvitations = computed(() => organizationsStore.invitations)
+
+// 404 is "client not found"; any other error offers a retry
+const notFound = computed(() => organizationsStore.currentError?.code === 'ORGANIZATION_NOT_FOUND')
+const loading = computed(() => !client.value && organizationsStore.currentStatus === 'loading')
+const loadError = computed(() => !client.value && organizationsStore.currentStatus === 'error' && !notFound.value)
+
+function loadClient() {
+  organizationsStore.fetchOrganization(props.id).catch(() => {
+    // The store keeps the error; the template shows it
+  })
+  organizationsStore.fetchInvitations(props.id)
+}
+
+// Buildings of every client; this page keeps only the ones of this client
+sitesStore.fetchSites().catch(() => {})
 
 // Pill text: "En prueba · quedan 4 días" while the trial runs, only the label otherwise
 const pillText = computed(() => {
@@ -81,65 +91,118 @@ const dataFields = computed(() => [
 ])
 
 // ---------------------------------------------------------------------------
-// Status actions: run the action and confirm the result in a status message
+// Status actions: call the API and confirm the result in a status message
 // ---------------------------------------------------------------------------
 const feedback = ref('')
+const feedbackIsError = ref(false)
 const feedbackMessage = ref(null)
+// True while an action is waiting for the API, so it is not sent twice
+const busy = ref(false)
 
 // Shows the result and moves the focus to it: the button that was clicked
 // may disappear (e.g. "Suspender" becomes "Reactivar"), so the focus would be lost
-function showFeedback(text) {
+function showFeedback(text, isError = false) {
   feedback.value = text
+  feedbackIsError.value = isError
   nextTick(() => feedbackMessage.value?.focus())
 }
 
+// Runs one store action and shows its success text, built from the updated client,
+// or the API error (e.g. 409 when another admin already changed the status)
+async function runAction(action, successText) {
+  if (busy.value) return
+  busy.value = true
+  try {
+    const updated = await action(props.id)
+    showFeedback(successText(updated))
+  } catch (err) {
+    showFeedback(err?.message || 'No se ha podido completar la acción. Inténtalo de nuevo.', true)
+  } finally {
+    busy.value = false
+  }
+}
+
 function onExtend() {
-  extendTrial(client.value)
-  showFeedback(`Prueba ampliada hasta el ${formatDate(client.value.trial_ends_at)}.`)
+  runAction(organizationsStore.extendTrial, (updated) => `Prueba ampliada hasta el ${formatDate(updated.trial_ends_at)}.`)
 }
 
 function onActivate() {
-  activateClient(client.value)
-  showFeedback(`${client.value.name} ya es cliente activo.`)
+  runAction(organizationsStore.activate, (updated) => `${updated.name} ya es cliente activo.`)
 }
 
 function onSuspend() {
-  suspendClient(client.value)
-  showFeedback(`${client.value.name} está suspendido.`)
+  runAction(organizationsStore.suspend, (updated) => `${updated.name} está suspendido.`)
 }
 
 function onReactivate() {
-  reactivateClient(client.value)
-  showFeedback(`${client.value.name} se ha reactivado.`)
+  runAction(organizationsStore.reactivate, (updated) => `${updated.name} se ha reactivado.`)
 }
 
-function onDelete() {
-  deleteClient(client.value)
-  router.push('/admin/clients')
+// DELETE sends the exact name as confirmation (B16); the inline confirmation of
+// ClientActions already asked the admin. Then back to the list
+async function onDelete() {
+  if (busy.value) return
+  busy.value = true
+  try {
+    await organizationsStore.deleteOrganization(props.id, client.value.name)
+    sitesStore.fetchSites().catch(() => {})
+    router.push('/admin/clients')
+  } catch (err) {
+    showFeedback(err?.message || 'No se ha podido eliminar el cliente. Inténtalo de nuevo.', true)
+  } finally {
+    busy.value = false
+  }
 }
+
+// Users of the client: the API only returns how many there are
+const usersText = computed(() => {
+  const count = client.value.user_count
+  return count === 1 ? '1 persona tiene acceso a AquaGuard.' : `${count} personas tienen acceso a AquaGuard.`
+})
 
 // ---------------------------------------------------------------------------
 // Usuarios tab: invite a new user and show the link to send
 // ---------------------------------------------------------------------------
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-const invite = ref({ name: '', email: '' })
+// The invitation only carries the email (B4): the person writes their name when accepting
+const inviteEmail = ref('')
 const inviteError = ref('')
+const inviting = ref(false)
+// InvitationSentResponse: the only answer with the link (url)
 const lastInvitation = ref(null)
 const inviteEmailInput = ref(null)
 
-function onInvite() {
-  const email = invite.value.email.trim()
-  const name = invite.value.name.trim()
+async function onInvite() {
+  const email = inviteEmail.value.trim()
   if (!EMAIL_PATTERN.test(email)) {
     inviteError.value = 'Escribe un email válido, por ejemplo nombre@empresa.com.'
     inviteEmailInput.value?.focus()
     return
   }
   inviteError.value = ''
-  lastInvitation.value = inviteUser(client.value, { name: name || email, email })
-  invite.value = { name: '', email: '' }
+  inviting.value = true
+  try {
+    lastInvitation.value = await organizationsStore.createInvitation({ email, organization_id: props.id })
+    inviteEmail.value = ''
+  } catch (err) {
+    inviteError.value = err?.message || 'No se ha podido crear la invitación. Inténtalo de nuevo.'
+    inviteEmailInput.value?.focus()
+  } finally {
+    inviting.value = false
+  }
 }
+
+// Load on open (declared last: it uses the refs above) and when the route changes to another client
+watch(
+  () => props.id,
+  () => {
+    feedback.value = ''
+    lastInvitation.value = null
+    loadClient()
+  },
+  { immediate: true }
+)
 
 const INPUT_CLASS =
   'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-aqua-600'
@@ -152,8 +215,16 @@ const INPUT_CLASS =
         ← Volver a clientes
       </router-link>
 
+      <LoadingState v-if="loading" message="Cargando cliente…" />
+
+      <ErrorState
+        v-else-if="loadError"
+        :message="organizationsStore.currentError?.message"
+        @retry="loadClient"
+      />
+
       <EmptyState
-        v-if="!client"
+        v-else-if="!client"
         title="Cliente no encontrado"
         message="Puede que se haya eliminado o que el enlace no sea correcto."
         icon="building"
@@ -208,8 +279,15 @@ const INPUT_CLASS =
           ref="feedbackMessage"
           role="status"
           tabindex="-1"
-          class="text-sm font-semibold text-green-800"
-          :class="feedback ? 'rounded-lg border border-green-200 bg-green-50 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-aqua-600' : ''"
+          class="text-sm font-semibold"
+          :class="[
+            feedbackIsError ? 'text-red-800' : 'text-green-800',
+            feedback
+              ? `rounded-lg border px-4 py-2 focus:outline-none focus:ring-2 focus:ring-aqua-600 ${
+                  feedbackIsError ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'
+                }`
+              : '',
+          ]"
         >
           {{ feedback }}
         </p>
@@ -224,31 +302,13 @@ const INPUT_CLASS =
           <template #users>
             <div class="space-y-4">
               <EmptyState
-                v-if="clientUsers.length === 0"
+                v-if="client.user_count === 0"
                 title="Este cliente aún no tiene usuarios"
                 message="Invita a alguien de su equipo con el formulario de abajo."
                 icon="users"
                 compact
               />
-              <div v-else class="overflow-x-auto rounded-xl border border-gray-200 bg-white">
-                <table class="w-full min-w-[520px] text-sm">
-                  <caption class="sr-only">Usuarios de {{ client.name }}</caption>
-                  <thead class="bg-gray-50 text-left text-gray-600">
-                    <tr>
-                      <th scope="col" class="px-4 py-3 font-semibold">Nombre</th>
-                      <th scope="col" class="px-4 py-3 font-semibold">Email</th>
-                      <th scope="col" class="px-4 py-3 font-semibold">Alta</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="user in clientUsers" :key="user.id" class="border-t border-gray-200">
-                      <th scope="row" class="px-4 py-3 text-left font-semibold text-gray-800">{{ user.name }}</th>
-                      <td class="px-4 py-3 text-gray-700">{{ user.email }}</td>
-                      <td class="whitespace-nowrap px-4 py-3 text-gray-600">{{ formatDate(user.created_at) }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              <p v-else class="rounded-xl border border-gray-200 bg-white p-5 text-gray-800">{{ usersText }}</p>
 
               <section
                 v-if="pendingInvitations.length > 0"
@@ -266,11 +326,7 @@ const INPUT_CLASS =
               <!-- Invite form: creates an invitation (B4) and shows the link to send -->
               <section class="space-y-4 rounded-xl border border-gray-200 bg-white p-5" aria-labelledby="invite-title">
                 <h2 id="invite-title" class="font-bold text-gray-900">Invitar usuario</h2>
-                <form novalidate class="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end" @submit.prevent="onInvite">
-                  <div class="flex flex-col gap-1">
-                    <label for="invite-name" class="text-sm font-semibold text-gray-700">Nombre</label>
-                    <input id="invite-name" v-model="invite.name" type="text" autocomplete="name" :class="INPUT_CLASS" />
-                  </div>
+                <form novalidate class="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end" @submit.prevent="onInvite">
                   <div class="flex flex-col gap-1">
                     <label for="invite-email" class="text-sm font-semibold text-gray-700">
                       Email <span aria-hidden="true">*</span>
@@ -278,7 +334,7 @@ const INPUT_CLASS =
                     <input
                       id="invite-email"
                       ref="inviteEmailInput"
-                      v-model="invite.email"
+                      v-model="inviteEmail"
                       type="email"
                       required
                       autocomplete="email"
@@ -289,18 +345,20 @@ const INPUT_CLASS =
                   </div>
                   <button
                     type="submit"
-                    class="min-h-10 rounded-lg bg-aqua-600 px-4 text-sm font-semibold text-white hover:bg-aqua-700"
+                    class="min-h-10 rounded-lg bg-aqua-600 px-4 text-sm font-semibold text-white hover:bg-aqua-700 disabled:cursor-wait disabled:opacity-60"
+                    :disabled="inviting"
+                    :aria-busy="inviting"
                   >
-                    Crear invitación
+                    {{ inviting ? 'Creando…' : 'Crear invitación' }}
                   </button>
-                  <p v-if="inviteError" id="invite-email-error" class="text-sm text-red-700 sm:col-span-3">
+                  <p v-if="inviteError" id="invite-email-error" class="text-sm text-red-700 sm:col-span-2">
                     {{ inviteError }}
                   </p>
                 </form>
 
                 <div v-if="lastInvitation" class="space-y-2 border-t border-gray-200 pt-4">
                   <p class="text-sm text-gray-700">Envía este enlace a {{ lastInvitation.email }} para que active su cuenta.</p>
-                  <InviteLinkCopy :link="lastInvitation.link" :expires-at="lastInvitation.expires_at" />
+                  <InviteLinkCopy :link="lastInvitation.url" :expires-at="lastInvitation.expires_at" />
                 </div>
               </section>
             </div>
