@@ -3,8 +3,12 @@
   Four-step form to sign up a client: 1 Cliente, 2 Edificio, 3 Usuario, 4 Facturación.
   It only collects and validates the data; the parent creates the client and passes
   the result back in `created`, then the wizard shows the invitation link to send.
+  While the parent is saving, `submitting` disables the buttons; an API error comes
+  back in `serverError` ({ field, message }): a 'name' error returns to step 1.
+  With `checkName`, step 1 asks the API if the name is free before moving on.
   Usage:
-    <NewClientWizard :existing-names="names" :created="result" @submit="create" @cancel="close" @open="goToClient" />
+    <NewClientWizard :created="result" :check-name="isNameTaken" :submitting="saving"
+      :server-error="apiError" @submit="create" @cancel="close" @open="goToClient" />
 -->
 
 <template>
@@ -17,10 +21,16 @@
           {{ created.client.name }} creado
         </h2>
       </div>
-      <p class="text-gray-700">
-        Envía este enlace a {{ created.invitation.name }} ({{ created.invitation.email }}) para que active su cuenta.
+      <template v-if="created.invitation">
+        <p class="text-gray-700">
+          Envía este enlace a {{ created.invitation.name }} ({{ created.invitation.email }}) para que active su cuenta.
+        </p>
+        <InviteLinkCopy :link="created.invitation.link" :expires-at="created.invitation.expires_at" />
+      </template>
+      <!-- The client exists but the invitation failed: it can be sent again from the client page -->
+      <p v-else role="alert" class="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900">
+        No se ha podido crear la invitación. Puedes enviarla desde la pestaña Usuarios de la ficha del cliente.
       </p>
-      <InviteLinkCopy :link="created.invitation.link" :expires-at="created.invitation.expires_at" />
       <div class="flex flex-wrap gap-3 border-t border-gray-200 pt-4">
         <button type="button" :class="BUTTON_PRIMARY" @click="$emit('open', created.client)">
           Ir a la ficha del cliente
@@ -196,13 +206,24 @@
         </div>
       </div>
 
+      <!-- API error that does not belong to a field of this step -->
+      <p
+        v-if="generalError"
+        ref="generalErrorMessage"
+        role="alert"
+        tabindex="-1"
+        class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 focus:outline-none"
+      >
+        {{ generalError }}
+      </p>
+
       <div class="flex justify-between gap-3 border-t border-gray-200 pt-4">
-        <button type="button" :class="BUTTON_SECONDARY" @click="back">
+        <button type="button" :class="BUTTON_SECONDARY" :disabled="busy" @click="back">
           {{ step === 0 ? 'Cancelar' : 'Atrás' }}
         </button>
         <!-- type="submit": Enter in any field also moves forward -->
-        <button type="submit" :class="BUTTON_PRIMARY">
-          {{ isLastStep ? 'Crear cliente' : 'Siguiente' }}
+        <button type="submit" :class="BUTTON_PRIMARY" :disabled="busy" :aria-busy="busy">
+          {{ submitLabel }}
         </button>
       </div>
     </form>
@@ -215,10 +236,14 @@ import SiteForm, { emptySite } from './SiteForm.vue'
 import InviteLinkCopy from './InviteLinkCopy.vue'
 
 const props = defineProps({
-  // Names already in use: the API rejects a repeated name (case-insensitive)
-  existingNames: { type: Array, default: () => [] },
-  // Set by the parent after creating: { client, invitation: { name, email, link, expires_at } }
+  // Set by the parent after creating: { client, invitation: { name, email, link, expires_at } | null }
   created: { type: Object, default: null },
+  // True while the parent is calling the API
+  submitting: { type: Boolean, default: false },
+  // API error after "Crear cliente": { field, message }. field 'name' goes back to step 1
+  serverError: { type: Object, default: null },
+  // Optional async (name) => true when the name is already used. Checked on "Siguiente" in step 1
+  checkName: { type: Function, default: null },
 })
 
 const emit = defineEmits(['submit', 'cancel', 'open'])
@@ -227,9 +252,9 @@ const STEPS = ['Cliente', 'Edificio', 'Usuario', 'Facturación']
 const STEP_TITLES = ['datos del cliente', 'primer edificio', 'primer usuario', 'facturación']
 
 const BUTTON_PRIMARY =
-  'min-h-10 rounded-lg bg-aqua-600 px-4 text-sm font-semibold text-white hover:bg-aqua-700'
+  'min-h-10 rounded-lg bg-aqua-600 px-4 text-sm font-semibold text-white hover:bg-aqua-700 disabled:cursor-wait disabled:opacity-60'
 const BUTTON_SECONDARY =
-  'min-h-10 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:border-aqua-600'
+  'min-h-10 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:border-aqua-600 disabled:opacity-60'
 
 // Same limit as OrganizationCreate.name (B1)
 const NAME_MAX = 120
@@ -239,6 +264,20 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const step = ref(0)
 const isLastStep = computed(() => step.value === STEPS.length - 1)
+
+// True while step 1 waits for the name check
+const checking = ref(false)
+const busy = computed(() => props.submitting || checking.value)
+
+const submitLabel = computed(() => {
+  if (checking.value) return 'Comprobando…'
+  if (!isLastStep.value) return 'Siguiente'
+  return props.submitting ? 'Creando cliente…' : 'Crear cliente'
+})
+
+// API error shown above the buttons (not tied to a field)
+const generalError = ref('')
+const generalErrorMessage = ref(null)
 
 // Everything the wizard collects, grouped as the parent will send it
 const form = reactive({
@@ -276,9 +315,8 @@ const STEP_RULES = [
     name: () => {
       const name = form.client.name.trim()
       if (name === '') return 'Escribe el nombre del cliente.'
-      if (name.length > NAME_MAX) return `Máximo ${NAME_MAX} caracteres.`
-      const taken = props.existingNames.some((existing) => existing.toLowerCase() === name.toLowerCase())
-      return taken ? 'Ya hay un cliente con este nombre.' : ''
+      // A repeated name is checked by the API (409), which knows every client
+      return name.length > NAME_MAX ? `Máximo ${NAME_MAX} caracteres.` : ''
     },
     contact_email: () => emailError(form.client.contact_email, false),
   },
@@ -306,8 +344,29 @@ function validateStep() {
   return true
 }
 
-function next() {
+// Step 1: asks the API whether the name is free. If the check itself fails
+// (network, server), the admin can go on: "Crear cliente" checks it again (409)
+async function nameIsFree() {
+  if (!props.checkName) return true
+  checking.value = true
+  try {
+    const taken = await props.checkName(form.client.name)
+    if (!taken) return true
+    errors.name = 'Ya hay un cliente con este nombre.'
+    nextTick(() => inputs.name?.focus())
+    return false
+  } catch {
+    return true
+  } finally {
+    checking.value = false
+  }
+}
+
+async function next() {
+  if (busy.value) return
+  generalError.value = ''
   if (!validateStep()) return
+  if (step.value === 0 && !(await nameIsFree())) return
   if (isLastStep.value) {
     emit('submit', {
       client: { ...form.client },
@@ -337,6 +396,36 @@ watch(
   { deep: true }
 )
 
+// Field to focus instead of the title after the next step change (set by an API error)
+let focusAfterStep = null
+
 // Move the focus to the title of the new step, or to the success message
-watch([step, () => props.created], () => nextTick(() => heading.value?.focus()))
+watch([step, () => props.created], () =>
+  nextTick(() => {
+    const target = focusAfterStep ? inputs[focusAfterStep] : heading.value
+    focusAfterStep = null
+    target?.focus()
+  })
+)
+
+// API error after submitting. A repeated or empty name goes back to step 1 and
+// marks the field; any other error is shown above the buttons
+watch(
+  () => props.serverError,
+  (serverError) => {
+    if (!serverError) return
+    if (serverError.field === 'name') {
+      errors.name = serverError.message
+      if (step.value === 0) {
+        nextTick(() => inputs.name?.focus())
+      } else {
+        focusAfterStep = 'name'
+        step.value = 0
+      }
+    } else {
+      generalError.value = serverError.message
+      nextTick(() => generalErrorMessage.value?.focus())
+    }
+  }
+)
 </script>
