@@ -3,6 +3,8 @@
 // Centralized here so the clients table and the client detail page always show
 // the same thing. It never changes data; it only translates what the mock or API sends.
 
+import { formatShortDate } from './useFormat'
+
 const DAY_MS = 24 * 60 * 60 * 1000
 
 // "Trial ended" is not a backend status: it is TRIAL with trial_ends_at in the past.
@@ -17,8 +19,6 @@ const STATUS_MAP = {
 // Fallback so an unexpected status never breaks the table
 const UNKNOWN_STATUS = { label: 'Desconocido', pillClass: 'bg-gray-100 text-gray-700' }
 
-// Short Spanish date, e.g. "8 oct"
-const shortDate = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short' })
 
 // Same date at 00:00, so day differences ignore the hour
 function startOfDay(date) {
@@ -38,7 +38,7 @@ function trialText(client, now) {
   if (client.status !== 'TRIAL' || !client.trial_ends_at) return '—'
 
   const endDate = new Date(client.trial_ends_at)
-  if (endDate <= now) return `Terminó el ${shortDate.format(endDate)}`
+  if (endDate <= now) return `Terminó el ${formatShortDate(endDate)}`
 
   const days = daysUntil(endDate, now)
   if (days === 0) return 'Termina hoy'

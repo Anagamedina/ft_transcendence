@@ -103,6 +103,7 @@
 <script setup>
 import { ref, computed, nextTick } from 'vue'
 import { useClientStatus } from '../composables/useClientStatus'
+import { useFormat } from '../composables/useFormat'
 
 const props = defineProps({
   // OrganizationResponse: uses name, status, trial_ends_at, user_count and site_count
@@ -126,7 +127,8 @@ const suspendButton = ref(null)
 const deleteButton = ref(null)
 const cancelButton = ref(null)
 
-const dateFormat = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })
+// '21 oct 2026'
+const { formatDate } = useFormat()
 
 const status = computed(() => useClientStatus(props.client))
 
@@ -139,7 +141,7 @@ const statusTitle = computed(() => {
 const statusText = computed(() => {
   if (props.client.status === 'SUSPENDED') return 'Sus usuarios no pueden entrar hasta que lo reactives.'
   if (props.client.status === 'ACTIVE') return 'El cliente tiene acceso completo.'
-  const end = dateFormat.format(new Date(props.client.trial_ends_at))
+  const end = formatDate(props.client.trial_ends_at)
   return status.value.trialEnded
     ? `Terminó el ${end}. El cliente está en solo lectura.`
     : `Termina el ${end}. Al terminar, el cliente queda en solo lectura.`

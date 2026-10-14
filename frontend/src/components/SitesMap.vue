@@ -45,7 +45,7 @@
         v-if="validSites.length === 0"
         class="absolute inset-0 z-10 flex items-center justify-center bg-white/70 text-sm text-gray-500"
       >
-        No hay sites con ubicación para mostrar.
+        No hay edificios con ubicación para mostrar.
       </p>
     </div>
   </div>

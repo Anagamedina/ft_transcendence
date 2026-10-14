@@ -207,15 +207,15 @@
               </td>
               <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ floorLabel(sensor.floor ?? 0) }}</td>
               <td class="whitespace-nowrap px-4 py-3 text-right tabular-nums text-slate-600">
-                {{ formatValue(sensor.last_value, sensor.unit) }}
+                {{ formatPressure(sensor.last_value, sensor.unit) }}
               </td>
               <td class="whitespace-nowrap px-4 py-3 tabular-nums text-slate-600">
-                {{ formatRange(sensor) }}
+                {{ formatRange(sensor.min_pressure, sensor.max_pressure, sensor.unit) }}
               </td>
               <td class="px-4 py-3">
                 <StatusPill type="SensorHealth" :value="sensor.health" />
               </td>
-              <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ formatDate(sensor.last_seen_at) }}</td>
+              <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ formatDateTime(sensor.last_seen_at, { empty: 'Nunca' }) }}</td>
             </tr>
           </template>
         </DataTable>
@@ -241,6 +241,7 @@ import { useSensorsStore } from '../../stores/sensors.js'
 import { useReadingsStore } from '../../stores/readings.js'
 import { useAlertsStore } from '../../stores/alerts.js'
 import { useLabels } from '../../composables/useLabels'
+import { useFormat } from '../../composables/useFormat'
 import { floorLabel } from '../../utils/floors'
 
 const route = useRoute()
@@ -503,25 +504,8 @@ const filters = computed(() => [
   },
 ])
 
-// Spanish number format: '4,2 bar' and '2,0–6,0 bar'
-const oneDecimal = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-
-function formatValue(value, unit) {
-  return value === null || value === undefined ? '—' : `${oneDecimal.format(value)} ${unit || 'bar'}`
-}
-
-function formatRange(sensor) {
-  return `${oneDecimal.format(sensor.min_pressure)}–${oneDecimal.format(sensor.max_pressure)} ${sensor.unit || 'bar'}`
-}
-
-// Short Spanish date and time, e.g. "8/9/26, 10:30"
-const dateFormat = new Intl.DateTimeFormat('es-ES', { dateStyle: 'short', timeStyle: 'short' })
-
-function formatDate(value) {
-  if (!value) return 'Nunca'
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '—' : dateFormat.format(date)
-}
+// '4,2 bar', '2,0–6,0 bar' and 'hoy 08:20' (local time)
+const { formatPressure, formatRange, formatDateTime } = useFormat()
 
 onMounted(loadAll)
 </script>

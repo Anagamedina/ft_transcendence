@@ -46,9 +46,9 @@ const alertsStore = useAlertsStore();
 
 // Admin menu. The alerts entry shows how many alerts are still open.
 const adminNav = computed(() => [
-  { label: "Dashboard", to: "/admin", icon: "bar-chart", exact: true },
+  { label: "Panel", to: "/admin", icon: "bar-chart", exact: true },
   { label: "Clientes", to: "/admin/clients", icon: "users" },
-  { label: "Sites", to: "/admin/sites", icon: "building" },
+  { label: "Edificios", to: "/admin/sites", icon: "building" },
   { label: "Sensores", to: "/admin/sensors", icon: "droplet" },
   { label: "Alertas", to: "/admin/alerts", icon: "alert", badge: alertsStore.openCount },
   { label: "Mi cuenta", to: "/admin/account", icon: "users" },

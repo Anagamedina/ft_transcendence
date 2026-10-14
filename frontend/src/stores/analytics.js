@@ -91,7 +91,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     totalAlerts.value ? Math.round((resolvedAlerts.value / totalAlerts.value) * 100) : null
   )
   const alertsBySeverity = computed(() => ({
-    labels: ['Aviso (WARNING)', 'Crítica (CRITICAL)'],
+    labels: ['Aviso', 'Crítica'],
     values: [totalAlerts.value - criticalAlerts.value, criticalAlerts.value],
   }))
 

@@ -46,7 +46,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const sidebarItems = [
-  { label: 'Dashboard', to: '/app', icon: 'building', exact: true },
+  { label: 'Panel', to: '/app', icon: 'building', exact: true },
   { label: 'Sensores', to: '/app#sensors', icon: 'droplet'},
   { label: 'Histórico', to: '/app#history', icon: 'bar-chart' },
   { label: 'Alertas', to: '/app#alerts', icon: 'alert'},

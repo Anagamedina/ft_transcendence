@@ -52,7 +52,7 @@
               :selected="sensor.id === selectedId"
               @select="$emit('select', $event)"
             />
-            <span v-if="!sensorsByFloor[floor]" class="text-xs text-slate-400">Sin sensores</span>
+            <span v-if="!sensorsByFloor[floor]" class="text-xs text-slate-600">Sin sensores</span>
           </div>
         </div>
       </template>

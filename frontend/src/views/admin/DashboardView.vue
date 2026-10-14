@@ -94,7 +94,7 @@ const criticalSites = computed(() => sitesForMap.value.filter((s) => s.alertLeve
 
 <template>
   <AdminLayout>
-    <h1 class="text-2xl font-bold text-gray-800 mb-6">Dashboard Admin</h1>
+    <h1 class="text-2xl font-bold text-gray-800 mb-6">Panel</h1>
 
     <ErrorState
       v-if="overviewStore.status === 'error'"
@@ -142,11 +142,11 @@ const criticalSites = computed(() => sitesForMap.value.filter((s) => s.alertLeve
           <AppIcon name="building" />
         </span>
         <div>
-          <h2 class="text-lg font-bold text-gray-800">Mapa de sites</h2>
+          <h2 class="text-lg font-bold text-gray-800">Mapa de edificios</h2>
           <p class="text-sm text-gray-500">
-            {{ sitesForMap.length }} sites
-            <span v-if="criticalSites" class="ml-2 font-semibold text-danger">· {{ criticalSites }} con alerta crítica</span>
-            <span v-if="warningSites" class="ml-2 font-semibold text-amber-600">· {{ warningSites }} con aviso</span>
+            {{ sitesForMap.length }} {{ sitesForMap.length === 1 ? 'edificio' : 'edificios' }}
+            <span v-if="criticalSites" class="ml-2 font-semibold text-red-700">· {{ criticalSites }} con alerta crítica</span>
+            <span v-if="warningSites" class="ml-2 font-semibold text-amber-700">· {{ warningSites }} con aviso</span>
           </p>
         </div>
       </div>
@@ -159,7 +159,7 @@ const criticalSites = computed(() => sitesForMap.value.filter((s) => s.alertLeve
       </button>
     </section>
 
-    <Modal :show="showMap" title="Mapa de sites · Barcelona" size="xl" @close="showMap = false">
+    <Modal :show="showMap" title="Mapa de edificios · Barcelona" size="xl" @close="showMap = false">
       <SitesMap :sites="sitesForMap" height="70vh" />
     </Modal>
 

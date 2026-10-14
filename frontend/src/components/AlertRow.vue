@@ -19,27 +19,27 @@
   <tr>
     <td class="min-w-48 px-4 py-3 text-slate-800">
       {{ alert.message || '—' }}
-      <span class="block text-xs text-slate-400">{{ label('AlertType', alert.type) }}</span>
+      <span class="block text-xs text-slate-500">{{ label('AlertType', alert.type) }}</span>
     </td>
     <td class="px-4 py-3 text-slate-600">
       {{ alert.organization_name || '—' }}
     </td>
     <td class="px-4 py-3 text-slate-600">
       {{ alert.sensor_name || '—' }}
-      <span class="block text-xs text-slate-400">{{ alert.site_name }}</span>
+      <span class="block text-xs text-slate-500">{{ alert.site_name }}</span>
     </td>
     <td class="px-4 py-3">
       <StatusPill type="AlertSeverity" :value="alert.severity" />
     </td>
     <td class="px-4 py-3">
       <StatusPill type="AlertState" :value="alert.state" />
-      <span v-if="actionDate" class="mt-1 block whitespace-nowrap text-xs text-slate-400">
+      <span v-if="actionDate" class="mt-1 block whitespace-nowrap text-xs text-slate-500">
         {{ actionDate }}
       </span>
     </td>
     <td class="whitespace-nowrap px-4 py-3 text-slate-600">
-      {{ formatDate(alert.created_at) }}
-      <span v-if="durationText" class="block text-xs text-slate-400">{{ durationText }}</span>
+      {{ formatDateTime(alert.created_at) }}
+      <span v-if="durationText" class="block text-xs text-slate-500">{{ durationText }}</span>
     </td>
     <td class="whitespace-nowrap px-4 py-3">
       <div class="flex flex-wrap gap-2">
@@ -75,6 +75,7 @@
 import { computed } from 'vue'
 import StatusPill from './StatusPill.vue'
 import { useLabels } from '../composables/useLabels'
+import { useFormat } from '../composables/useFormat'
 
 const props = defineProps({
   // AlertResponse: message, type, organization_name, sensor_name, site_name,
@@ -89,20 +90,8 @@ const props = defineProps({
 defineEmits(['acknowledge', 'resolve'])
 
 const { label } = useLabels()
-
-// Short Spanish date and time, e.g. "8/9/26, 10:20"
-const dateFormat = new Intl.DateTimeFormat('es-ES', { dateStyle: 'short', timeStyle: 'short' })
-
-function toDate(value) {
-  if (!value) return null
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? null : date
-}
-
-function formatDate(value) {
-  const date = toDate(value)
-  return date ? dateFormat.format(date) : '—'
-}
+// Dates in local time: 'hoy 08:20', 'ayer 17:05', '8 sept 10:20'
+const { parseDate: toDate, formatDateTime } = useFormat()
 
 // Human duration: "menos de 1 min", "25 min", "3 h 10 min", "2 d 4 h"
 function formatDuration(ms) {
@@ -118,8 +107,8 @@ function formatDuration(ms) {
 // When the last action happened: shown under the state pill
 const actionDate = computed(() => {
   const { state, acknowledged_at: acknowledgedAt, resolved_at: resolvedAt } = props.alert
-  if (state === 'RESOLVED' && toDate(resolvedAt)) return `el ${formatDate(resolvedAt)}`
-  if (state === 'ACKNOWLEDGED' && toDate(acknowledgedAt)) return `el ${formatDate(acknowledgedAt)}`
+  if (state === 'RESOLVED' && toDate(resolvedAt)) return formatDateTime(resolvedAt)
+  if (state === 'ACKNOWLEDGED' && toDate(acknowledgedAt)) return formatDateTime(acknowledgedAt)
   return ''
 })
 

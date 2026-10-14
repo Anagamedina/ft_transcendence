@@ -11,7 +11,7 @@
       <header class="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 class="text-2xl font-bold text-slate-900">Alertas</h1>
-          <p class="mt-1 text-sm text-slate-500">
+          <p class="mt-1 text-sm text-slate-600">
             Consulta y gestiona las alertas de los sensores.
           </p>
         </div>
@@ -56,7 +56,7 @@
             :key="sensor.id"
             class="flex items-center gap-3 py-2"
           >
-            <span class="w-5 text-slate-400">{{ index + 1 }}</span>
+            <span class="w-5 text-slate-500">{{ index + 1 }}</span>
             <span class="min-w-0 flex-1 truncate text-slate-800">
               {{ sensor.name }}
               <span class="text-slate-500">· {{ sensor.site }}</span>

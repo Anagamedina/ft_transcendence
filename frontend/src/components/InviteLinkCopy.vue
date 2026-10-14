@@ -39,6 +39,7 @@
 
 <script setup>
 import { ref, useId, onBeforeUnmount } from 'vue'
+import { useFormat } from '../composables/useFormat'
 
 const props = defineProps({
   link: { type: String, required: true },
@@ -54,10 +55,8 @@ const failed = ref(false)
 const message = ref('')
 let resetTimer = null
 
-const dateFormat = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })
-function formatDate(isoDate) {
-  return dateFormat.format(new Date(isoDate))
-}
+// '21 oct 2026'
+const { formatDate } = useFormat()
 
 // Old way to copy, for browsers or http pages where navigator.clipboard is not available
 function copyWithSelection() {

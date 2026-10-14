@@ -18,6 +18,7 @@ import AppIcon from './AppIcon.vue'
 import LoadingState from './LoadingState.vue'
 import EmptyState from './EmptyState.vue'
 import ErrorState from './ErrorState.vue'
+import { useFormat } from '../composables/useFormat'
 
 const REFRESH_MS = 30000
 const PRESETS = [7, 30, 90]
@@ -30,6 +31,8 @@ const COLOR_WARNING = '#eda100'
 
 const store = useAnalyticsStore()
 const { fromDate, toDate, status, error, rangeError, lastUpdated, exporting } = storeToRefs(store)
+// '1234' readings and '08:20' update time
+const { formatNumber, formatTime } = useFormat()
 
 onMounted(() => store.fetchRows())
 useAutoRefresh(() => store.fetchRows({ background: true }), REFRESH_MS)
@@ -69,7 +72,7 @@ const pieData = computed(() => ({
 
 const isEmpty = computed(() => store.totalAlerts === 0 && store.totalReadings === 0)
 const updatedAt = computed(() =>
-  lastUpdated.value ? lastUpdated.value.toLocaleTimeString('es-ES') : null
+  lastUpdated.value ? formatTime(lastUpdated.value) : null
 )
 </script>
 
@@ -142,7 +145,7 @@ const updatedAt = computed(() =>
         <KPICard label="Resueltas" :value="store.resolvedPercent === null ? '—' : `${store.resolvedPercent} %`">
           <template #icon><AppIcon name="bar-chart" /></template>
         </KPICard>
-        <KPICard label="Lecturas recibidas" :value="store.totalReadings.toLocaleString('es-ES')">
+        <KPICard label="Lecturas recibidas" :value="formatNumber(store.totalReadings, 0)">
           <template #icon><AppIcon name="droplet" /></template>
         </KPICard>
       </div>

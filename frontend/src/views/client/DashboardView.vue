@@ -136,7 +136,7 @@
                   {{ formatPressure(reading) }}
                 </td>
                 <td class="px-3 py-3">
-                  {{ formatDate(reading.measured_at) }}
+                  {{ formatDateTime(reading.measured_at) }}
                 </td>
               </tr>
             </tbody>
@@ -194,6 +194,7 @@ import AlertsSummary from '../../components/AlertsSummary.vue'
 import LoadingState from '../../components/LoadingState.vue'
 import ErrorState from '../../components/ErrorState.vue'
 import EmptyState from '../../components/EmptyState.vue'
+import { useFormat } from '../../composables/useFormat'
 
 const authStore = useAuthStore()
 const sensorStore = useSensorsStore()
@@ -228,21 +229,11 @@ function sensorName(sensorId) {
   return findSensor(sensorId)?.name || 'Sensor'
 }
 
-// Spanish number format: '6,8 bar'
-const pressureFormat = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 2 })
+// '6,8 bar' and 'hoy 08:20' (local time)
+const { formatPressure: formatValue, formatDateTime } = useFormat()
 
 function formatPressure(reading) {
-  const unit = findSensor(reading.sensor_id)?.unit || 'bar'
-  return `${pressureFormat.format(reading.pressure)} ${unit}`
-}
-
-function formatDate(value) {
-  if (!value) return '—'
-
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
-
-  return date.toLocaleString('es-ES')
+  return formatValue(reading.pressure, findSensor(reading.sensor_id)?.unit)
 }
 
 async function loadSensors() {
