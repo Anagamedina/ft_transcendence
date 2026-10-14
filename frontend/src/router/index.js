@@ -122,12 +122,16 @@ const routes = [
     },
   },
 
-  // 404 must be last
   {
     path: "/admin/account",
     component: () => import("../views/admin/AccountView.vue"),
-    meta: { requiresAuth: true, requiresAdmin: true },
+    meta: {
+      requiresAuth: true,
+      role: "admin",
+    },
   },
+
+  // 404 must be last
   // Redirects unknown routes to the 404 page
   {
     path: "/:pathMatch(.*)*",
@@ -168,10 +172,6 @@ router.beforeEach(async (to) => {
   const requiredRole = [...to.matched]
     .reverse()
     .find((record) => record.meta.role)?.meta.role;
-
-  const requiresClient = to.matched.some(
-    (record) => record.meta.requiresClient
-  );
 
   const isAuthPage = ["/login", "/prueba"].includes(to.path);
 
