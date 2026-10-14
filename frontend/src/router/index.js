@@ -40,6 +40,12 @@ const routes = [
     component: () => import("../views/public/StatusView.vue"),
   },
 
+  // Old client home, kept so existing links and bookmarks still work
+  {
+    path: "/dashboard",
+    redirect: "/app",
+  },
+
   // Client routes
   {
     path: "/app", ///app becomes the client's home page

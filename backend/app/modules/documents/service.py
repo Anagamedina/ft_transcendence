@@ -16,7 +16,7 @@ Reglas:
   por ser texto. Es lo que se guarda en `content_type` y con lo que se
   sirve la descarga.
 - **Hasta `MAX_UPLOAD_MB`** (413 `FILE_TOO_LARGE`). El gateway ya corta
-  antes, pero el backend no såçe fía de que haya un gateway delante.
+  antes, pero el backend no se fía de que haya un gateway delante.
 
 Archivo y fila no comparten transacción: el archivo se escribe antes del
 INSERT y se borra si el INSERT falla; al borrar, primero se borra la fila y
