@@ -207,16 +207,21 @@ def test_las_escrituras_responden_403_trial_expired(cliente, datos):
         assert _codigo(respuesta) == "TRIAL_EXPIRED", (metodo, ruta)
 
 
-_SIEMPRE_ABIERTAS = {"/api/readings", "/api/me/organization/subscribe"}
+_SIEMPRE_ABIERTAS = {
+    "/api/readings",
+    "/api/me/organization/subscribe",
+    "/api/me/deletion-request",
+    "/api/invitations/by-code/{code}/accept",
+}
 
 
 def _todas_las_escrituras():
     """
     Cada POST, PUT, PATCH y DELETE de la API, salvo los que no piden
     sesión o tienen que funcionar siempre: `auth` (login, logout,
-    registro), la ingesta del simulador y contratar un plan (B14), que
-    es justo lo que tiene que poder hacer un cliente con la prueba
-    vencida.
+    registro), aceptar una invitación pública (B4), la ingesta del
+    simulador, contratar un plan (B14) y pedir la baja (B15). Estas dos
+    últimas tienen que funcionar también con la prueba vencida.
     """
     for ruta in app.routes:
         if not isinstance(ruta, APIRoute):

@@ -7,6 +7,7 @@ Lógica de usuarios.
   contraseña (B8, #144).
 - Gestión de usuarios del admin (B6, #141): listar, ver, editar,
   activar, desactivar y quitar el acceso.
+- Privacidad (B15, #149): exportar mis datos y pedir la baja.
 
 Lo que un admin no puede hacerse a sí mismo (B6): desactivarse, quitarse
 el rol de admin ni borrarse. Así nadie se queda fuera por accidente, y
@@ -15,22 +16,31 @@ siempre queda al menos un admin que pueda deshacer lo que hagan los demás.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.app_config import app_settings
 from app.core.database import transaction
 from app.core.exceptions import ConflictError, DomainValidationError, NotFoundError
 from app.core.security import hash_password, verify_password
 from app.modules.auth.schemas import MessageResponse
 from app.modules.organizations.repository import OrganizationRepository
+from app.modules.sites.model import Site
 from app.modules.users.model import User
 from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import (
+    AccountExport,
+    DeletionRequestResponse,
     MeResponse,
     MeUpdate,
+    MyDataExport,
+    OrganizationExport,
     OrganizationSummary,
     PasswordChange,
+    SiteExport,
     UserAdminResponse,
     UserResponse,
     UserRole,
@@ -83,6 +93,7 @@ class UserService:
             last_login_at=usuario.last_login_at,
             terms_version=usuario.terms_version,
             terms_accepted_at=usuario.terms_accepted_at,
+            deletion_requested_at=usuario.deletion_requested_at,
         )
 
     def update_me(self, usuario: "User", payload: MeUpdate) -> MeResponse:
@@ -243,6 +254,62 @@ class UserService:
         if usuario is None:
             raise NotFoundError("El usuario no existe.", code="USER_NOT_FOUND")
         return usuario
+
+    # ---------------------------------------------------------
+    # B15 — EXPORTAR MIS DATOS Y PEDIR LA BAJA (#149)
+    # ---------------------------------------------------------
+    def export_me(
+        self, usuario: "User", ahora: datetime | None = None
+    ) -> MyDataExport:
+        """
+        La cuenta, su organización y sus edificios, en un JSON.
+
+        **Los edificios se buscan por la organización del usuario, nunca
+        «todos» con un `None`.** Un admin sin organización recibe una
+        lista vacía: exporta sus datos, no los de todos los clientes (el
+        mismo cuidado que explica `get_org_scope`).
+        """
+        sitios: list[Site] = []
+        if usuario.organization_id is not None:
+            sitios = list(
+                self.db.scalars(
+                    select(Site)
+                    .where(Site.organization_id == usuario.organization_id)
+                    .order_by(Site.name)
+                )
+            )
+
+        organizacion = None
+        if usuario.organization is not None:
+            organizacion = OrganizationExport.model_validate(usuario.organization)
+
+        return MyDataExport(
+            exported_at=ahora or datetime.now(timezone.utc),
+            current_terms_version=app_settings.TERMS_VERSION,
+            account=AccountExport.model_validate(usuario),
+            organization=organizacion,
+            sites=[SiteExport.model_validate(sitio) for sitio in sitios],
+        )
+
+    def request_deletion(
+        self, usuario: "User", ahora: datetime | None = None
+    ) -> DeletionRequestResponse:
+        """
+        Registra que el usuario quiere darse de baja. No borra nada: lo
+        tramita un admin a mano (B16 borra la organización entera).
+
+        Es idempotente, como reconocer una alerta: pedirla otra vez no
+        pisa la fecha de la primera, que es la que cuenta.
+        """
+        if usuario.deletion_requested_at is None:
+            with transaction(self.db):
+                usuario.deletion_requested_at = ahora or datetime.now(timezone.utc)
+                self.db.add(usuario)
+
+        return DeletionRequestResponse(
+            deletion_requested_at=usuario.deletion_requested_at,
+            message="Hemos registrado tu petición de baja. Un administrador la tramitará.",
+        )
 
 
 def _to_admin_response(usuario: User) -> UserAdminResponse:

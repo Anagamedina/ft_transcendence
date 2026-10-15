@@ -5,6 +5,7 @@ Endpoints de usuarios. Dos routers:
 
 - `router`, Mi cuenta: `/api/me` (issue #26 y B8). Es `/api/me` y no
   `/api/users/me` (apartado 9.1 del documento), por eso no lleva `prefix`.
+  Incluye exportar mis datos y pedir la baja (B15, #149).
 - `admin_router`, gestión de usuarios (B6, #141):
 
     GET    /api/users                 → lista (organization_id, q, active)
@@ -25,27 +26,27 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
 from app.modules.auth.schemas import MessageResponse
 from app.modules.users.model import User
-from app.modules.users.service import UserService, get_user_service
-from app.modules.users.schemas import MeResponse, MeUpdate, PasswordChange
-from app.shared.dependencies import CurrentUser, require_trial_not_expired
-from app.shared.schemas import error_response
 from app.modules.users.schemas import (
+    DeletionRequestResponse,
     MeResponse,
     MeUpdate,
+    MyDataExport,
     PasswordChange,
     UserAdminResponse,
     UserUpdate,
 )
+from app.modules.users.service import UserService, get_user_service
 from app.shared.dependencies import (
     CurrentUser,
     OrganizationIdFilter,
     Pagination,
     Search,
     require_role,
+    require_trial_not_expired,
 )
 from app.shared.schemas import Page, error_response
 
@@ -272,3 +273,48 @@ def activate_user(
 )
 def delete_user(user_id: UUID, service: UserSvc, admin: Admin) -> None:
     service.delete_user(admin, user_id)
+
+
+_SIN_SESION = error_response(
+    status.HTTP_401_UNAUTHORIZED, "No hay sesión (`UNAUTHORIZED`)."
+)
+
+
+@router.get(
+    "/me/export",
+    response_model=MyDataExport,
+    summary="Descargar mis datos",
+    description=(
+        "Todo lo que AquaGuard guarda de tu cuenta: la cuenta (con la versión "
+        "de los términos que aceptaste), tu organización y sus edificios.\n\n"
+        "Se descarga como `aquaguard-mis-datos_AAAA-MM-DD.json`. Un admin sin "
+        "organización recibe solo su cuenta."
+    ),
+    responses={**_SIN_SESION},
+)
+def export_me(service: UserSvc, user: CurrentUser, response: Response) -> MyDataExport:
+    datos = service.export_me(user)
+    nombre = f"aquaguard-mis-datos_{datos.exported_at:%Y-%m-%d}.json"
+    # attachment: el navegador lo guarda en vez de enseñarlo.
+    response.headers["Content-Disposition"] = f'attachment; filename="{nombre}"'
+    # Datos personales: que no se queden en ninguna caché.
+    response.headers["Cache-Control"] = "no-store"
+    return datos
+
+
+@router.post(
+    "/me/deletion-request",
+    response_model=DeletionRequestResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Pedir la baja",
+    description=(
+        "Registra que quieres darte de baja. **No borra nada:** lo tramita un "
+        "admin. Pedirla otra vez no cambia la fecha de la primera.\n\n"
+        "No se envía email de confirmación: el proyecto no envía emails. "
+        "`GET /api/me` devuelve `deletion_requested_at` para mostrar que ya "
+        "está pedida."
+    ),
+    responses={**_SIN_SESION},
+)
+def request_deletion(service: UserSvc, user: CurrentUser) -> DeletionRequestResponse:
+    return service.request_deletion(user)
