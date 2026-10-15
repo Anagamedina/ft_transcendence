@@ -1,19 +1,20 @@
-import { test, expect } from '@playwright/test'
-import { ADMIN, CLIENT, login, expectDashboard, expectLogin } from './helpers.js'
+import { test } from '@playwright/test'
+import { ADMIN, CLIENT, login, expectDashboard, expectAdminHome, expectLogin } from './helpers.js'
 
-test.fixme('an anonymous visitor cannot open the admin area', async ({ page }) => {
+test('an anonymous visitor cannot open the admin area', async ({ page }) => {
   await page.goto('/admin')
   await expectLogin(page)
 })
 
-test.fixme('a client cannot open the admin area', async ({ page }) => {
+test('a client cannot open the admin area', async ({ page }) => {
   await login(page, CLIENT)
   await expectDashboard(page)
   await page.goto('/admin')
-  await expect(page).not.toHaveURL('/admin')
+  // The guard sends a client back to its own home.
+  await expectDashboard(page)
 })
 
-test.fixme('an admin lands on the admin area after login', async ({ page }) => {
+test('an admin lands on the admin area after login', async ({ page }) => {
   await login(page, ADMIN)
-  await expect(page).toHaveURL('/admin')
+  await expectAdminHome(page)
 })
