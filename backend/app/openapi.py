@@ -107,8 +107,9 @@ CONTRACT_MODELS: list[type] = [
 
 
 # Vocabulario común de la B0 (issue #138). Los enums usados por una ruta
-# aparecen automáticamente junto al modelo que los referencia. Solo queda
-# aquí `InvitationStatus`, que pertenece al contrato B4 y aún no tiene ruta.
+# aparecen automáticamente junto al modelo que los referencia.
+# `InvitationStatus` ya lo usan las rutas de la B4 (#141); sigue aquí
+# porque el `setdefault` de abajo lo deja igual si ya está.
 CONTRACT_ENUMS: list[type] = [
     InvitationStatus,
 ]

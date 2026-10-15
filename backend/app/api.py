@@ -49,6 +49,7 @@ from app.modules.alerts import router as alerts
 from app.modules.analytics import router as analytics
 from app.modules.auth import router as auth
 from app.modules.documents import router as documents
+from app.modules.invitations import router as invitations
 from app.modules.organizations import router as organizations
 from app.modules.readings import router as readings
 from app.modules.search import router as search
@@ -63,6 +64,8 @@ api_router = APIRouter()
 # rutas todavía; el orden aquí es el orden en que Swagger los muestra.
 api_router.include_router(auth.router)
 api_router.include_router(users.router)
+api_router.include_router(users.admin_router)
+api_router.include_router(invitations.router)
 api_router.include_router(organizations.router)
 api_router.include_router(sites.router)
 api_router.include_router(documents.router)
