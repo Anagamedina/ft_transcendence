@@ -91,3 +91,13 @@ class AlertResponse(ApiModel):
         default=None,
         description="Cuándo se resolvió, en UTC. Nulo mientras siga activa.",
     )
+    acknowledged_by_name: str | None = Field(
+        default=None, description="Nombre de quien reconoció; nulo si no consta o fue eliminado."
+    )
+    resolved_by_name: str | None = Field(
+        default=None, description="Nombre de quien resolvió; nulo si no consta o fue eliminado."
+    )
+    resolution_minutes: float | None = Field(
+        default=None,
+        description="Minutos desde creación hasta resolución, con decimales; nulo si sigue abierta o falta la fecha de cierre.",
+    )

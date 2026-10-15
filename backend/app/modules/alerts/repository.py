@@ -14,6 +14,16 @@ from app.modules.sensors.model import Sensor
 from app.modules.sites.model import Site
 from app.shared.utils import matches_text
 
+
+def _con_lectura():
+    """Ubicación y actores en bloque, también cuando hay usuarios distintos por fila."""
+    return (
+        _con_jerarquia(),
+        selectinload(Alert.acknowledged_by_user),
+        selectinload(Alert.resolved_by_user),
+    )
+
+
 def _con_jerarquia():
     """
     Lo que necesita `AlertService._to_response` para los campos de lectura
@@ -61,7 +71,10 @@ class AlertRepository:
     def get_by_id(
             self,
             alert_id: UUID,
-            organization_id: UUID | None) -> Alert | None:
+            organization_id: UUID | None,
+            *,
+            for_update: bool = False,
+    ) -> Alert | None:
         # #27 (Ana): organization_id=None significa TODAS las organizaciones
         # (admin). Lo decide `get_org_scope` en shared/dependencies.py.
         query = (
@@ -70,7 +83,13 @@ class AlertRepository:
         )
         if organization_id is not None:
             query = query.where(Site.organization_id == organization_id)
-        return self.db.scalar(query.options(_con_jerarquia()))
+        if for_update:
+            # Solo la alerta: no bloquear sensor/site ni usar valores obsoletos
+            # del identity map después de esperar a otro operador.
+            query = query.with_for_update(of=Alert).execution_options(
+                populate_existing=True,
+            )
+        return self.db.scalar(query.options(*_con_lectura()))
 
     def list_by_organization(
             self, organization_id: UUID | None, status: str | None = None,
@@ -79,6 +98,10 @@ class AlertRepository:
             q: str | None = None,
             organization_filter: UUID | None = None,
             site_id: UUID | None = None,
+            severity: str | None = None,
+            state: str | None = None,
+            created_from: datetime | None = None,
+            created_to: datetime | None = None,
     ) -> tuple[list[Alert], int]:
         if offset < 0 or limit <= 0:
             raise ValueError("Invalid pagination")
@@ -99,28 +122,52 @@ class AlertRepository:
             query = query.where(Sensor.site_id == site_id)
         if q is not None:
             query = query.where(matches_text(q, Alert.message, Sensor.name))
+        if severity is not None:
+            query = query.where(Alert.severity == severity)
+        if state == "RESOLVED":
+            query = query.where(Alert.status == "RESOLVED")
+        elif state == "ACKNOWLEDGED":
+            query = query.where(
+                Alert.status == "ACTIVE", Alert.acknowledged_at.is_not(None),
+            )
+        elif state == "ACTIVE":
+            query = query.where(Alert.status == "ACTIVE", Alert.acknowledged_at.is_(None))
+        if created_from is not None:
+            query = query.where(Alert.created_at >= created_from)
+        if created_to is not None:
+            query = query.where(Alert.created_at < created_to)
 
         total = self.db.scalar(select(func.count()).select_from(query.subquery()))
         items = list(self.db.scalars(
-            query.options(_con_jerarquia())
-            .order_by(Alert.created_at.desc()).offset(offset).limit(limit)
+            query.options(*_con_lectura())
+            .order_by(Alert.created_at.desc(), Alert.id.desc()).offset(offset).limit(limit)
         ).all())
         return items, int(total or 0)
 
-    def acknowledge(self, alert_id: UUID, when: datetime) -> Alert | None:
+    def acknowledge(
+        self, alert_id: UUID, when: datetime, actor_id: UUID | None = None,
+    ) -> Alert | None:
+        """El service bloquea la fila antes de escribir fecha y actor juntos."""
         alert = self.db.get(Alert, alert_id)
         if alert is None:
             return None
         if alert.acknowledged_at is None:
             alert.acknowledged_at = when
+            alert.acknowledged_by = actor_id
+            self.db.expire(alert, ["acknowledged_by_user"])
         return alert
 
-    def resolve(self, alert_id: UUID, when: datetime) -> Alert | None:
+    def resolve(
+        self, alert_id: UUID, when: datetime, actor_id: UUID | None = None,
+    ) -> Alert | None:
+        """El service comprueba el estado con la fila bloqueada antes de cerrar."""
         alert = self.db.get(Alert, alert_id)
         if alert is None:
             return None
         alert.status = "RESOLVED"
         alert.resolved_at = when
+        alert.resolved_by = actor_id
+        self.db.expire(alert, ["resolved_by_user"])
         return alert
 
     # Añadidos por Ana para las reglas de la #28. Sin filtro por

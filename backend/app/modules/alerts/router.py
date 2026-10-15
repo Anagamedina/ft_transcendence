@@ -28,14 +28,16 @@ lecturas, nunca el cliente (apartado 1.3).
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 
-from app.modules.alerts.schemas import AlertResponse, AlertStatus
+from app.modules.alerts.schemas import AlertResponse, AlertSeverity, AlertState, AlertStatus
 from app.modules.alerts.service import AlertService, get_alert_service
 from app.shared.dependencies import (
+    CurrentUser,
     OrganizationIdFilter,
     OrgScope,
     Pagination,
@@ -87,9 +89,22 @@ _NO_PUEDE_ESCRIBIR = {
         "`sensor_id` para entrar desde el detalle de un sensor.\n\n"
         "Filtros comunes: `q` busca en el mensaje y el nombre del sensor; "
         "`organization_id` y `site_id` dejan solo las de un cliente o un "
-        "edificio."
+        "edificio. Todos los filtros se combinan con AND. `severity` filtra "
+        "gravedad y `state` el estado derivado (ACTIVE sin reconocimiento, "
+        "ACKNOWLEDGED activa reconocida, RESOLVED cerrada). `status=ACTIVE` "
+        "incluye también las reconocidas. Combinaciones incompatibles dan "
+        "lista vacía. `created_from` incluido y `created_to` excluido limitan "
+        "la fecha de creación; sin fechas se muestra todo el histórico. "
+        "Fechas sin zona se interpretan como UTC."
     ),
-    responses={**_NO_AUTORIZADO},
+    responses={
+        **_NO_AUTORIZADO,
+        **error_response(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "Filtros inválidos (`VALIDATION_ERROR`) o created_from >= "
+            "created_to (`INVALID_DATE_RANGE`).",
+        ),
+    },
 )
 def list_alerts(
     service: AlertSvc,
@@ -103,6 +118,16 @@ def list_alerts(
     sensor_id: SensorIdFilter = None,
     organization_id: OrganizationIdFilter = None,
     site_id: SiteIdFilter = None,
+    severity: Annotated[AlertSeverity | None, Query(description="Gravedad de la alerta.")] = None,
+    state: Annotated[AlertState | None, Query(description="Estado derivado para las pantallas.")] = None,
+    created_from: Annotated[
+        datetime | None,
+        Query(description="Creada desde (ISO 8601, incluido). Sin zona: UTC."),
+    ] = None,
+    created_to: Annotated[
+        datetime | None,
+        Query(description="Creada hasta (ISO 8601, excluido). Sin zona: UTC."),
+    ] = None,
 ) -> Page[AlertResponse]:
     # La organización sale de la sesión (`OrgScope`), nunca de la query: si
     # viniera de fuera, cualquiera pediría las alertas de otro cliente.
@@ -115,6 +140,10 @@ def list_alerts(
         q=q,
         organization_filter=organization_id,
         site_id=site_id,
+        severity=severity.value if severity else None,
+        state=state.value if state else None,
+        created_from=created_from,
+        created_to=created_to,
     )
 
 
@@ -126,15 +155,16 @@ def list_alerts(
         "Deja constancia de que alguien está al tanto de la alerta.\n\n"
         "**No la cierra:** la alerta sigue activa. Y es idempotente — si "
         "dos operadores pulsan a la vez, la segunda llamada no falla ni "
-        "pisa la hora de la primera, que es la que interesa conservar."
+        "pisa la hora ni el usuario de la primera. Se registra el usuario "
+        "de la sesión. Puede reconocerse una alerta resuelta: sigue RESOLVED."
     ),
     dependencies=_SOLO_LECTURA_SI_CADUCA,
     responses={**_NO_PUEDE_ESCRIBIR, **_NO_ENCONTRADA},
 )
 def acknowledge_alert(
-    alert_id: UUID, service: AlertSvc, scope: OrgScope
+    alert_id: UUID, service: AlertSvc, scope: OrgScope, user: CurrentUser
 ) -> AlertResponse:
-    return service.acknowledge(alert_id, organization_id=scope)
+    return service.acknowledge(alert_id, organization_id=scope, actor_id=user.id)
 
 
 @router.patch(
@@ -145,7 +175,8 @@ def acknowledge_alert(
         "Da la alerta por atendida.\n\n"
         "Resolver una ya resuelta responde **409**, no un éxito "
         "silencioso: volvería a escribir la fecha de cierre y se perdería "
-        "cuándo se atendió de verdad."
+        "cuándo se atendió de verdad. Se registra el usuario de la sesión; "
+        "no exige reconocimiento previo ni modifica el existente."
     ),
     dependencies=_SOLO_LECTURA_SI_CADUCA,
     responses={
@@ -158,6 +189,6 @@ def acknowledge_alert(
     },
 )
 def resolve_alert(
-    alert_id: UUID, service: AlertSvc, scope: OrgScope
+    alert_id: UUID, service: AlertSvc, scope: OrgScope, user: CurrentUser
 ) -> AlertResponse:
-    return service.resolve(alert_id, organization_id=scope)
+    return service.resolve(alert_id, organization_id=scope, actor_id=user.id)
