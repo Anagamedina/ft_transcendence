@@ -352,6 +352,9 @@ _SCHEMA_EXAMPLES: dict[str, dict[str, Any]] = {
         "created_at": "2026-10-14T09:30:00Z",
         "acknowledged_at": None,
         "resolved_at": None,
+        "acknowledged_by_name": None,
+        "resolved_by_name": None,
+        "resolution_minutes": None,
     },
     "DocumentResponse": {
         "id": "77777777-7777-4777-8777-777777777777",
