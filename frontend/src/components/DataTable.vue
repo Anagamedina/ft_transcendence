@@ -24,7 +24,9 @@
   <div class="space-y-4">
     <!-- Search and filters. flex-wrap: on tablets the selects drop to a second
          line instead of pushing the page wider than the screen -->
-    <div class="flex flex-wrap gap-3 rounded-xl border border-slate-200 bg-white p-4">
+    <div
+      class="flex flex-wrap gap-3 rounded-xl border border-slate-200 bg-white p-4"
+    >
       <input
         v-model.trim="search"
         type="search"
@@ -41,7 +43,11 @@
         class="min-w-0 flex-1 basis-full rounded-lg border border-slate-300 px-3 py-2 text-sm sm:basis-auto xl:flex-none"
       >
         <option value="ALL">{{ filter.allLabel }}</option>
-        <option v-for="option in filter.options" :key="option.value" :value="option.value">
+        <option
+          v-for="option in filter.options"
+          :key="option.value"
+          :value="option.value"
+        >
           {{ option.label }}
         </option>
       </select>
@@ -84,20 +90,35 @@
       </template>
     </EmptyState>
 
-    <div v-else class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+    <div
+      v-else
+      class="overflow-x-auto rounded-xl border border-slate-200 bg-white"
+    >
       <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
-        <caption v-if="caption" class="sr-only">{{ caption }}</caption>
+        <caption v-if="caption" class="sr-only">
+          {{
+            caption
+          }}
+        </caption>
         <thead class="bg-slate-50 text-slate-600">
           <tr>
-            <th v-for="column in columns" :key="column.key" scope="col" class="px-4 py-3 font-medium">
+            <th
+              v-for="column in columns"
+              :key="column.key"
+              scope="col"
+              class="px-4 py-3 font-medium"
+            >
               {{ column.label }}
             </th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
-          <template v-for="row in pageRows" :key="row[rowKey]">
-            <slot name="row" :row="row" />
-          </template>
+          <slot
+            v-for="row in pageRows"
+            :key="row[rowKey]"
+            name="row"
+            :row="row"
+          />
         </tbody>
       </table>
 
@@ -111,16 +132,23 @@
             v-model.number="pageSize"
             class="rounded-lg border border-slate-300 px-2 py-1 text-sm"
           >
-            <option v-for="size in pageSizes" :key="size" :value="size">{{ size }}</option>
+            <option v-for="size in pageSizes" :key="size" :value="size">
+              {{ size }}
+            </option>
           </select>
         </label>
 
         <!-- aria-live: screen readers announce the new range when the page changes -->
         <p aria-live="polite" class="tabular-nums">
-          {{ rangeStart }}–{{ rangeEnd }} de {{ filteredRows.length }} {{ itemName }}
+          {{ rangeStart }}–{{ rangeEnd }} de {{ filteredRows.length }}
+          {{ itemName }}
         </p>
 
-        <nav v-if="pageCount > 1" aria-label="Paginación" class="flex flex-wrap gap-1">
+        <nav
+          v-if="pageCount > 1"
+          aria-label="Paginación"
+          class="flex flex-wrap gap-1"
+        >
           <button
             type="button"
             :class="pageButtonClass(false)"
@@ -154,10 +182,10 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, watch } from 'vue'
-import LoadingState from './LoadingState.vue'
-import ErrorState from './ErrorState.vue'
-import EmptyState from './EmptyState.vue'
+import { computed, reactive, ref, watch } from "vue";
+import LoadingState from "./LoadingState.vue";
+import ErrorState from "./ErrorState.vue";
+import EmptyState from "./EmptyState.vue";
 
 const props = defineProps({
   // Table headers: [{ key: 'name', label: 'Sensor' }, ...]
@@ -165,111 +193,118 @@ const props = defineProps({
   // All the rows; this component filters and paginates them
   rows: { type: Array, default: () => [] },
   // Field used as the v-for key of each row
-  rowKey: { type: String, default: 'id' },
+  rowKey: { type: String, default: "id" },
   // Row fields the search box looks into
   searchFields: { type: Array, default: () => [] },
-  searchPlaceholder: { type: String, default: 'Buscar…' },
+  searchPlaceholder: { type: String, default: "Buscar…" },
   // Filter selects: [{ key, label, allLabel, options: [{ value, label }], match? }]
   // By default a row matches when row[key] === selected value;
   // match(row, value) replaces that rule when the filter needs something else.
   filters: { type: Array, default: () => [] },
   loading: { type: Boolean, default: false },
   // Error message; empty string when there is no error
-  error: { type: String, default: '' },
+  error: { type: String, default: "" },
   // Plural name used in texts: "Cargando sensores…", "1–10 de 23 sensores"
-  itemName: { type: String, default: 'elementos' },
-  emptyTitle: { type: String, default: 'No hay datos todavía' },
-  emptyMessage: { type: String, default: '' },
+  itemName: { type: String, default: "elementos" },
+  emptyTitle: { type: String, default: "No hay datos todavía" },
+  emptyMessage: { type: String, default: "" },
   // Any icon name supported by AppIcon (building, droplet, wifi, alert, bar-chart)
-  icon: { type: String, default: 'droplet' },
+  icon: { type: String, default: "droplet" },
   // Hidden table title for screen readers
-  caption: { type: String, default: '' },
+  caption: { type: String, default: "" },
   pageSizes: { type: Array, default: () => [10, 25] },
-})
+});
 
-defineEmits(['retry'])
+defineEmits(["retry"]);
 
 // ---------------------------------------------------------------------------
 // Search and filters
 // ---------------------------------------------------------------------------
-const search = ref('')
+const search = ref("");
 // Selected value of each filter, by filter key ('ALL' = no filter)
-const filterValues = reactive({})
+const filterValues = reactive({});
 
 // Filters can arrive later (e.g. options built from loaded data): start them at 'ALL'
 watch(
   () => props.filters.map((filter) => filter.key),
   (keys) => {
     for (const key of keys) {
-      if (!(key in filterValues)) filterValues[key] = 'ALL'
+      if (!(key in filterValues)) filterValues[key] = "ALL";
     }
   },
-  { immediate: true }
-)
+  { immediate: true },
+);
 
 function resetFilters() {
-  search.value = ''
-  for (const filter of props.filters) filterValues[filter.key] = 'ALL'
+  search.value = "";
+  for (const filter of props.filters) filterValues[filter.key] = "ALL";
 }
 
 const filteredRows = computed(() => {
-  const query = search.value.toLocaleLowerCase()
+  const query = search.value.toLocaleLowerCase();
 
   return props.rows.filter((row) => {
     const matchesSearch =
       !query ||
       props.searchFields.some((field) =>
-        String(row[field] ?? '').toLocaleLowerCase().includes(query)
-      )
+        String(row[field] ?? "")
+          .toLocaleLowerCase()
+          .includes(query),
+      );
 
     const matchesFilters = props.filters.every((filter) => {
-      const value = filterValues[filter.key]
-      if (value === undefined || value === 'ALL') return true
-      return filter.match ? filter.match(row, value) : row[filter.key] === value
-    })
+      const value = filterValues[filter.key];
+      if (value === undefined || value === "ALL") return true;
+      return filter.match
+        ? filter.match(row, value)
+        : row[filter.key] === value;
+    });
 
-    return matchesSearch && matchesFilters
-  })
-})
+    return matchesSearch && matchesFilters;
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Pagination
 // ---------------------------------------------------------------------------
-const page = ref(1)
-const pageSize = ref(props.pageSizes[0])
+const page = ref(1);
+const pageSize = ref(props.pageSizes[0]);
 
 const pageCount = computed(() =>
-  Math.max(1, Math.ceil(filteredRows.value.length / pageSize.value))
-)
+  Math.max(1, Math.ceil(filteredRows.value.length / pageSize.value)),
+);
 
 // Back to the first page whenever the search, a filter or the page size changes
 watch([search, filterValues, pageSize], () => {
-  page.value = 1
-})
+  page.value = 1;
+});
 
 // Keep the page in range when rows disappear (e.g. the last row of a page is removed)
 watch(pageCount, (count) => {
-  if (page.value > count) page.value = count
-})
+  if (page.value > count) page.value = count;
+});
 
 const pageRows = computed(() =>
-  filteredRows.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value)
-)
+  filteredRows.value.slice(
+    (page.value - 1) * pageSize.value,
+    page.value * pageSize.value,
+  ),
+);
 
 // Range shown in "1–10 de 23"
 const rangeStart = computed(() =>
-  filteredRows.value.length === 0 ? 0 : (page.value - 1) * pageSize.value + 1
-)
+  filteredRows.value.length === 0 ? 0 : (page.value - 1) * pageSize.value + 1,
+);
 const rangeEnd = computed(() =>
-  Math.min(page.value * pageSize.value, filteredRows.value.length)
-)
+  Math.min(page.value * pageSize.value, filteredRows.value.length),
+);
 
 // Same look as the ClientsList pagination; the current page is filled in aqua
 function pageButtonClass(isCurrent) {
   const base =
-    'min-h-9 min-w-9 rounded-lg border px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50'
+    "min-h-9 min-w-9 rounded-lg border px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50";
   return isCurrent
     ? `${base} border-aqua-600 bg-aqua-600 text-white`
-    : `${base} border-gray-300 bg-white text-gray-700 hover:border-aqua-600`
+    : `${base} border-gray-300 bg-white text-gray-700 hover:border-aqua-600`;
 }
 </script>

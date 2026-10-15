@@ -13,5 +13,13 @@ module.exports = {
     ecmaVersion: 'latest',
     sourceType: 'module',
   },
-  rules: {},
+  rules: {
+    // Vue 3 supports fragments; Sidebar needs fixed controls beside its aside.
+    'vue/no-multiple-template-root': 'off',
+    // Kept for backwards-compatible imports. New components use descriptive
+    // multi-word names, while these five are application primitives.
+    'vue/multi-word-component-names': ['error', {
+      ignores: ['Footer', 'Header', 'Modal', 'Sidebar', 'Tabs'],
+    }],
+  },
 }
