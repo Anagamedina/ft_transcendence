@@ -110,6 +110,12 @@ class AppSettings(BaseSettings):
     # se sube aquí. El seed de la demo usa el mismo valor.
     TERMS_VERSION: str = "2026-10"
 
+    # Invitaciones (B4, #141). Lo pide la I0 en el .env, y Compose ya los
+    # pasa al backend. `PUBLIC_BASE_URL` es la base del enlace que recibe
+    # el invitado; `INVITATION_TTL_DAYS`, los días que vale ese enlace.
+    PUBLIC_BASE_URL: str = "https://localhost"
+    INVITATION_TTL_DAYS: int = 7
+
     # Orígenes que el navegador tiene permitido usar para llamar a la API,
     # separados por comas. Vite sirve el frontend en el puerto 5173.
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"

@@ -3,34 +3,54 @@
 """
 Lógica de usuarios.
 
-Hoy solo hay `GET /api/me` (issue #26). La gestión de usuarios
-(listar, editar, activar y desactivar) llega con la B6 (#141), y `PATCH
-/api/me` y el cambio de contraseña con la B8 (#144).
+- Mi cuenta: `GET /api/me` (issue #26), `PATCH /api/me` y el cambio de
+  contraseña (B8, #144).
+- Gestión de usuarios del admin (B6, #141): listar, ver, editar,
+  activar, desactivar y quitar el acceso.
+
+Lo que un admin no puede hacerse a sí mismo (B6): desactivarse, quitarse
+el rol de admin ni borrarse. Así nadie se queda fuera por accidente, y
+siempre queda al menos un admin que pueda deshacer lo que hagan los demás.
 """
 
 from __future__ import annotations
 
+from uuid import UUID
+
 from sqlalchemy.orm import Session
 
 from app.core.database import transaction
-from app.core.exceptions import DomainValidationError
+from app.core.exceptions import ConflictError, DomainValidationError, NotFoundError
 from app.core.security import hash_password, verify_password
 from app.modules.auth.schemas import MessageResponse
+from app.modules.organizations.repository import OrganizationRepository
 from app.modules.users.model import User
+from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import (
     MeResponse,
     MeUpdate,
     OrganizationSummary,
     PasswordChange,
+    UserAdminResponse,
     UserResponse,
+    UserRole,
+    UserUpdate,
 )
 from app.shared.dependencies import DbSession
 from app.shared.passwords import check_password
+from app.shared.schemas import Page
 
 
 class UserService:
-    def __init__(self, db: Session) -> None:
+    def __init__(
+        self,
+        db: Session,
+        users: UserRepository | None = None,
+        organizations: OrganizationRepository | None = None,
+    ) -> None:
         self.db = db
+        self.users = users or UserRepository(db)
+        self.organizations = organizations or OrganizationRepository(db)
 
     def get_me(self, usuario: "User") -> MeResponse:
         """
@@ -97,6 +117,139 @@ class UserService:
             self.db.add(usuario)
 
         return MessageResponse(message="Contraseña actualizada.")
+
+    # ---------------------------------------------------------
+    # GESTIÓN DE USUARIOS (admin) — B6, issue #141
+    # ---------------------------------------------------------
+    def list_users(
+        self,
+        offset: int,
+        limit: int,
+        organization_id: UUID | None = None,
+        q: str | None = None,
+        active: bool | None = None,
+    ) -> Page[UserAdminResponse]:
+        filas, total = self.users.list(
+            offset=offset,
+            limit=limit,
+            organization_id=organization_id,
+            q=q,
+            active=active,
+        )
+        return Page[UserAdminResponse](
+            items=[_to_admin_response(f) for f in filas],
+            total=total,
+            page=offset // limit + 1,
+            page_size=limit,
+        )
+
+    def get_user(self, user_id: UUID) -> UserAdminResponse:
+        return _to_admin_response(self._existente(user_id))
+
+    def update_user(
+        self, admin: User, user_id: UUID, payload: UserUpdate
+    ) -> UserAdminResponse:
+        """
+        Nombre, rol y organización. El email no se edita: no está en
+        `UserUpdate`, y `extra="forbid"` lo rechaza con un 422.
+
+        Se valida el resultado final, no cada campo suelto: un `client`
+        sin organización no puede quedar así (lo impide también el CHECK
+        `ck_users_client_has_organization`), pero sí se puede pasar a
+        `admin` y quitarle la organización en la misma petición.
+        """
+        usuario = self._existente(user_id)
+        cambios = payload.model_dump(exclude_unset=True)
+
+        if "name" in cambios:
+            nombre = (cambios["name"] or "").strip()
+            if not nombre:
+                raise DomainValidationError(
+                    "El nombre no puede estar vacío.", code="INVALID_NAME"
+                )
+            cambios["name"] = nombre
+
+        if "role" in cambios:
+            if cambios["role"] is None:
+                raise DomainValidationError(
+                    "El rol no puede quedar vacío.", code="INVALID_ROLE"
+                )
+            cambios["role"] = cambios["role"].value
+            if usuario.id == admin.id and cambios["role"] != UserRole.ADMIN.value:
+                raise ConflictError(
+                    "No puedes quitarte el rol de admin a ti mismo.",
+                    code="CANNOT_DEMOTE_SELF",
+                )
+
+        organizacion = cambios.get("organization_id", usuario.organization_id)
+        if "organization_id" in cambios and organizacion is not None:
+            if self.organizations.get_by_id(organizacion) is None:
+                raise NotFoundError(
+                    "La organización indicada no existe.",
+                    code="ORGANIZATION_NOT_FOUND",
+                )
+        rol = cambios.get("role", usuario.role)
+        if rol == UserRole.CLIENT.value and organizacion is None:
+            raise DomainValidationError(
+                "Un cliente tiene que pertenecer a una organización.",
+                details={"field": "organization_id", "message": "Obligatoria para un cliente."},
+                code="ORGANIZATION_REQUIRED",
+            )
+
+        with transaction(self.db):
+            for campo, valor in cambios.items():
+                setattr(usuario, campo, valor)
+            self.db.flush()
+        # Si cambió la organización, la relación cargada sería la vieja.
+        self.db.refresh(usuario)
+        return _to_admin_response(usuario)
+
+    def set_active(
+        self, admin: User, user_id: UUID, active: bool
+    ) -> UserAdminResponse:
+        """
+        Activar o desactivar. Un usuario desactivado no puede entrar, y una
+        sesión que ya tuviera abierta deja de valer en la siguiente
+        petición (`ensure_account_enabled`). Repetir la acción no es un
+        error: el usuario ya está como se pedía.
+        """
+        usuario = self._existente(user_id)
+        if not active and usuario.id == admin.id:
+            raise ConflictError(
+                "No puedes desactivar tu propia cuenta.",
+                code="CANNOT_DEACTIVATE_SELF",
+            )
+        with transaction(self.db):
+            usuario.is_active = active
+        return _to_admin_response(usuario)
+
+    def delete_user(self, admin: User, user_id: UUID) -> None:
+        """
+        Quita el acceso borrando el usuario. Lo que hizo no se pierde: las
+        alertas que reconoció, los documentos que subió y las invitaciones
+        que envió se quedan, sin autor (`ondelete="SET NULL"`).
+        """
+        usuario = self._existente(user_id)
+        if usuario.id == admin.id:
+            raise ConflictError(
+                "No puedes eliminar tu propia cuenta.",
+                code="CANNOT_DELETE_SELF",
+            )
+        with transaction(self.db):
+            self.users.delete(usuario)
+
+    def _existente(self, user_id: UUID) -> User:
+        usuario = self.users.get(user_id)
+        if usuario is None:
+            raise NotFoundError("El usuario no existe.", code="USER_NOT_FOUND")
+        return usuario
+
+
+def _to_admin_response(usuario: User) -> UserAdminResponse:
+    respuesta = UserAdminResponse.model_validate(usuario)
+    if usuario.organization is not None:
+        respuesta.organization_name = usuario.organization.name
+    return respuesta
 
 
 def get_user_service(db: DbSession) -> UserService:

@@ -152,6 +152,17 @@ class ConflictError(AppError):
     code = "CONFLICT"
 
 
+class GoneError(AppError):
+    """
+    Existió pero ya no vale, y no va a volver: una invitación caducada
+    (B4). Distinto de 404 para que el frontend diga «pide otra» en vez de
+    «este enlace no existe».
+    """
+
+    status_code = status.HTTP_410_GONE
+    code = "GONE"
+
+
 class DomainValidationError(AppError):
     """
     Regla de negocio incumplida con datos sintácticamente correctos.

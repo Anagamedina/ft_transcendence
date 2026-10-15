@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.modules.users.model import User
+from app.shared.utils import matches_text
 
 
 def normalize_email(email: str) -> str:
@@ -47,6 +48,41 @@ class UserRepository:
         organización.
         """
         return self.db.scalar(select(User).where(User.id == user_id))
+
+    # Añadidos para la gestión de usuarios de la B6 (#141). Sin alcance por
+    # organización: solo los usa el admin, y eso lo comprueba el router.
+    def list(
+        self,
+        offset: int = 0,
+        limit: int = 100,
+        organization_id: UUID | None = None,
+        q: str | None = None,
+        active: bool | None = None,
+    ) -> tuple[list[User], int]:
+        """Usuarios por nombre. `q` busca en el nombre y el email."""
+        if offset < 0 or limit <= 0:
+            raise ValueError("Invalid pagination")
+
+        query = select(User)
+        if organization_id is not None:
+            query = query.where(User.organization_id == organization_id)
+        if q is not None:
+            query = query.where(matches_text(q, User.name, User.email))
+        if active is not None:
+            query = query.where(User.is_active == active)
+
+        total = self.db.scalar(select(func.count()).select_from(query.subquery()))
+        items = list(
+            self.db.scalars(
+                # El id desempata para que la paginación no repita ni salte.
+                query.order_by(User.name, User.id).offset(offset).limit(limit)
+            ).all()
+        )
+        return items, int(total or 0)
+
+    def delete(self, user: User) -> None:
+        self.db.delete(user)
+        self.db.flush()
 
     def create(
         self,
