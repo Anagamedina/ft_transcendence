@@ -21,13 +21,15 @@
   >
     <h2 class="text-xl font-bold mb-6 text-aqua-200">{{ appName }}</h2>
     <nav class="space-y-1 flex-1" aria-label="Navegación principal">
-      <template v-for="item in items" :key="item.label">
+      <div v-for="item in items" :key="item.label">
         <!-- Real link: highlighted when its route (or a child route) is open -->
         <router-link
           v-if="item.to"
           :to="item.to"
           class="flex items-center gap-3 px-4 py-3 rounded-lg transition"
-          :class="isActive(item) ? 'bg-aqua-800 font-semibold' : 'hover:bg-aqua-800'"
+          :class="
+            isActive(item) ? 'bg-aqua-800 font-semibold' : 'hover:bg-aqua-800'
+          "
           :aria-current="isActive(item) ? 'page' : undefined"
           @click="isOpen = false"
         >
@@ -53,36 +55,36 @@
           <span class="w-5 h-5 shrink-0"><AppIcon :name="item.icon" /></span>
           {{ item.label }}
         </span>
-      </template>
+      </div>
     </nav>
   </aside>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRoute } from 'vue-router'
-import AppIcon from './AppIcon.vue'
+import { ref } from "vue";
+import { useRoute } from "vue-router";
+import AppIcon from "./AppIcon.vue";
 
 defineProps({
-  appName: { type: String, default: 'AquaGuard' },
+  appName: { type: String, default: "AquaGuard" },
   // Each item: { label, icon, to?, exact?, disabled?, badge? }
   // Without items, the original three entries are shown (no links yet)
   items: {
     type: Array,
     default: () => [
-      { label: 'Panel', icon: 'bar-chart' },
-      { label: 'Sensores', icon: 'droplet' },
-      { label: 'Alertas', icon: 'alert' },
+      { label: "Panel", icon: "bar-chart" },
+      { label: "Sensores", icon: "droplet" },
+      { label: "Alertas", icon: "alert" },
     ],
   },
-})
+});
 
-const isOpen = ref(false)
-const route = useRoute()
+const isOpen = ref(false);
+const route = useRoute();
 
 // exact: only that path. Otherwise also its children (e.g. /admin/clients/:id)
 function isActive(item) {
-  if (item.exact) return route.path === item.to
-  return route.path === item.to || route.path.startsWith(`${item.to}/`)
+  if (item.exact) return route.path === item.to;
+  return route.path === item.to || route.path.startsWith(`${item.to}/`);
 }
 </script>

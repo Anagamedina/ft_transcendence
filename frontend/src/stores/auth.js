@@ -1,41 +1,41 @@
 import { defineStore } from "pinia";
-import { ref, computed } from 'vue'; //retrieves Vue functions -> ref et computed
+import { ref, computed } from "vue"; //retrieves Vue functions -> ref et computed
 import authService from "../services/auth.service.js"; //so auth.store can communicate with backend but without making HTTP requests directly
 import invitationsService from "../services/invitations.service.js";
 
-export const useAuthStore = defineStore("auth", () =>{
+export const useAuthStore = defineStore("auth", () => {
+  //STATE
+  const user = ref(null); //ref() is used to create reactive data
+  const role = ref(null);
+  const organization = ref(null);
+  const lastLoginAt = ref(null);
+  const termsVersion = ref(null);
+  const termsAcceptedAt = ref(null);
 
-    //STATE
-    const user =ref(null); //ref() is used to create reactive data
-    const role =ref(null);
-    const organization = ref(null);
-    const lastLoginAt = ref(null);
-    const termsVersion = ref(null);
-    const termsAcceptedAt = ref(null);
+  let initializationPromise = null;
 
-    let initializationPromise = null;
+  const status = ref("idle");
+  const error = ref(null);
+  const initialized = ref(false);
 
-    const status = ref("idle");
-    const error = ref(null);
-    const initialized = ref(false);
+  //GETTERS
+  const isAuthenticated = computed(() => user.value !== null); //computed() is used to create a computed value based on other reactive data
+  const isAdmin = computed(() => role.value === "admin");
+  const isClient = computed(() => role.value === "client");
 
-    //GETTERS
-    const isAuthenticated = computed(() => user.value !== null); //computed() is used to create a computed value based on other reactive data
-    const isAdmin = computed(() => role.value === "admin"); 
-    const isClient = computed(() => role.value === "client");
+  function applyMe(data) {
+    user.value = data.user;
+    role.value = data.user.role;
+    organization.value = data.organization ?? null;
+    lastLoginAt.value = data.last_login_at ?? null;
+    termsVersion.value = data.terms_version ?? null;
+    termsAcceptedAt.value = data.terms_accepted_at ?? null;
+  }
 
-    function applyMe(data) {
-      user.value = data.user;
-      role.value = data.user.role;
-      organization.value = data.organization ?? null;
-      lastLoginAt.value = data.last_login_at ?? null;
-      termsVersion.value = data.terms_version ?? null;
-      termsAcceptedAt.value = data.terms_accepted_at ?? null;
-    }
+  //ACTIONS
 
-    //ACTIONS
-
-  async function fetchMe() { //Who is currently logged in?
+  async function fetchMe() {
+    //Who is currently logged in?
     status.value = "loading";
     error.value = null;
 
@@ -47,7 +47,6 @@ export const useAuthStore = defineStore("auth", () =>{
       status.value = "success";
 
       return user.value;
-
     } catch (err) {
       user.value = null;
       role.value = null;
@@ -57,9 +56,9 @@ export const useAuthStore = defineStore("auth", () =>{
       termsAcceptedAt.value = null;
 
       if (err.status === 401 || err.code === "UNAUTHORIZED") {
-      error.value = null;
-      status.value = "idle";
-      return null;
+        error.value = null;
+        status.value = "idle";
+        return null;
       }
 
       error.value = {
@@ -90,13 +89,12 @@ export const useAuthStore = defineStore("auth", () =>{
     return initializationPromise;
   }
 
-
   async function login(credentials) {
     status.value = "loading";
     error.value = null;
 
     try {
-      const response = await authService.login(credentials);
+      await authService.login(credentials);
       // Login keeps the historical SessionResponse contract. Fetch the
       // extended B8 profile before exposing the authenticated state.
       const meResponse = await authService.me();
@@ -106,7 +104,6 @@ export const useAuthStore = defineStore("auth", () =>{
       initialized.value = true;
 
       return user.value;
-
     } catch (err) {
       error.value = {
         code: err.code,
@@ -120,13 +117,12 @@ export const useAuthStore = defineStore("auth", () =>{
     }
   }
 
-
   async function register(data) {
     status.value = "loading";
     error.value = null;
 
     try {
-      const response = await authService.register(data);
+      await authService.register(data);
       const meResponse = await authService.me();
       applyMe(meResponse.data);
 
@@ -134,7 +130,6 @@ export const useAuthStore = defineStore("auth", () =>{
       initialized.value = true;
 
       return user.value;
-
     } catch (err) {
       error.value = {
         code: err.code,
@@ -164,7 +159,6 @@ export const useAuthStore = defineStore("auth", () =>{
       initialized.value = true;
 
       return user.value;
-
     } catch (err) {
       error.value = {
         code: err.code,
@@ -188,21 +182,18 @@ export const useAuthStore = defineStore("auth", () =>{
     return authService.changePassword(data);
   }
 
-
   async function logout() {
     status.value = "loading";
     error.value = null;
 
     try {
       await authService.logout();
-
     } catch (err) {
       error.value = {
         code: err.code,
         message: err.message,
         details: err.details,
       };
-
     } finally {
       // cleaning local state
       user.value = null;
@@ -213,13 +204,13 @@ export const useAuthStore = defineStore("auth", () =>{
       termsAcceptedAt.value = null;
 
       initialized.value = true;
-      
+
       status.value = "idle";
     }
   }
 
   function clearError() {
-  error.value = null
+    error.value = null;
   }
 
   return {
@@ -247,5 +238,4 @@ export const useAuthStore = defineStore("auth", () =>{
     updateMe,
     changePassword,
   };
-
 });
