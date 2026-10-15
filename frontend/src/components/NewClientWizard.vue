@@ -16,26 +16,54 @@
     <!-- Success: the client exists, now the admin sends the invitation link -->
     <div v-if="created" class="space-y-4">
       <div class="flex items-center gap-3">
-        <span class="flex h-9 w-9 items-center justify-center rounded-full bg-green-100 text-green-700" aria-hidden="true">✓</span>
-        <h2 ref="heading" tabindex="-1" class="text-xl font-bold text-gray-900 focus:outline-none">
+        <span
+          class="flex h-9 w-9 items-center justify-center rounded-full bg-green-100 text-green-700"
+          aria-hidden="true"
+          >✓</span
+        >
+        <h2
+          ref="heading"
+          tabindex="-1"
+          class="text-xl font-bold text-gray-900 focus:outline-none"
+        >
           {{ created.client.name }} creado
         </h2>
       </div>
       <template v-if="created.invitation">
         <p class="text-gray-700">
-          Envía este enlace a {{ created.invitation.name }} ({{ created.invitation.email }}) para que active su cuenta.
+          Envía este enlace a {{ created.invitation.name }} ({{
+            created.invitation.email
+          }}) para que active su cuenta.
         </p>
-        <InviteLinkCopy :link="created.invitation.link" :expires-at="created.invitation.expires_at" />
+        <InviteLinkCopy
+          :link="created.invitation.link"
+          :expires-at="created.invitation.expires_at"
+        />
       </template>
       <!-- The client exists but the invitation failed: it can be sent again from the client page -->
-      <p v-else role="alert" class="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900">
-        No se ha podido crear la invitación. Puedes enviarla desde la pestaña Usuarios de la ficha del cliente.
+      <p
+        v-else
+        role="alert"
+        class="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900"
+      >
+        No se ha podido crear la invitación. Puedes enviarla desde la pestaña
+        Usuarios de la ficha del cliente.
       </p>
       <div class="flex flex-wrap gap-3 border-t border-gray-200 pt-4">
-        <button type="button" :class="BUTTON_PRIMARY" @click="$emit('open', created.client)">
+        <button
+          type="button"
+          :class="BUTTON_PRIMARY"
+          @click="$emit('open', created.client)"
+        >
           Ir a la ficha del cliente
         </button>
-        <button type="button" :class="BUTTON_SECONDARY" @click="$emit('cancel')">Volver a la lista</button>
+        <button
+          type="button"
+          :class="BUTTON_SECONDARY"
+          @click="$emit('cancel')"
+        >
+          Volver a la lista
+        </button>
       </div>
     </div>
 
@@ -52,7 +80,10 @@
             :class="index <= step ? 'text-aqua-600' : 'text-gray-500'"
             :aria-current="index === step ? 'step' : undefined"
           >
-            <span class="block h-1.5 rounded-full" :class="index <= step ? 'bg-aqua-600' : 'bg-gray-200'"></span>
+            <span
+              class="block h-1.5 rounded-full"
+              :class="index <= step ? 'bg-aqua-600' : 'bg-gray-200'"
+            ></span>
             <span>
               {{ index + 1 }}. {{ label }}
               <span v-if="index < step" class="sr-only">(completado)</span>
@@ -63,14 +94,21 @@
 
       <!-- Step title receives the focus when the step changes, so keyboard and
            screen reader users start reading the new step from the top -->
-      <h3 ref="heading" tabindex="-1" class="text-lg font-semibold text-gray-800 focus:outline-none">
+      <h3
+        ref="heading"
+        tabindex="-1"
+        class="text-lg font-semibold text-gray-800 focus:outline-none"
+      >
         Paso {{ step + 1 }} de {{ STEPS.length }}: {{ STEP_TITLES[step] }}
       </h3>
 
       <!-- 1. Cliente -->
       <div v-if="step === 0" class="grid gap-4 sm:grid-cols-2">
         <div class="flex flex-col gap-1 sm:col-span-2">
-          <label :for="fieldId('name')" class="text-sm font-semibold text-gray-700">
+          <label
+            :for="fieldId('name')"
+            class="text-sm font-semibold text-gray-700"
+          >
             Nombre del cliente <span aria-hidden="true">*</span>
           </label>
           <input
@@ -85,10 +123,20 @@
             :aria-invalid="Boolean(errors.name)"
             :aria-describedby="errors.name ? fieldId('name-error') : undefined"
           />
-          <p v-if="errors.name" :id="fieldId('name-error')" class="text-sm text-red-700">{{ errors.name }}</p>
+          <p
+            v-if="errors.name"
+            :id="fieldId('name-error')"
+            class="text-sm text-red-700"
+          >
+            {{ errors.name }}
+          </p>
         </div>
         <div class="flex flex-col gap-1">
-          <label :for="fieldId('contact_email')" class="text-sm font-semibold text-gray-700">Email de contacto</label>
+          <label
+            :for="fieldId('contact_email')"
+            class="text-sm font-semibold text-gray-700"
+            >Email de contacto</label
+          >
           <input
             :id="fieldId('contact_email')"
             :ref="(el) => (inputs.contact_email = el)"
@@ -97,14 +145,24 @@
             autocomplete="email"
             :class="inputClass('contact_email')"
             :aria-invalid="Boolean(errors.contact_email)"
-            :aria-describedby="errors.contact_email ? fieldId('contact_email-error') : undefined"
+            :aria-describedby="
+              errors.contact_email ? fieldId('contact_email-error') : undefined
+            "
           />
-          <p v-if="errors.contact_email" :id="fieldId('contact_email-error')" class="text-sm text-red-700">
+          <p
+            v-if="errors.contact_email"
+            :id="fieldId('contact_email-error')"
+            class="text-sm text-red-700"
+          >
             {{ errors.contact_email }}
           </p>
         </div>
         <div class="flex flex-col gap-1">
-          <label :for="fieldId('phone')" class="text-sm font-semibold text-gray-700">Teléfono</label>
+          <label
+            :for="fieldId('phone')"
+            class="text-sm font-semibold text-gray-700"
+            >Teléfono</label
+          >
           <input
             :id="fieldId('phone')"
             v-model="form.client.phone"
@@ -114,7 +172,9 @@
             :class="inputClass('phone')"
           />
         </div>
-        <p class="text-sm text-gray-600 sm:col-span-2">AquaGuard solo da servicio en Barcelona.</p>
+        <p class="text-sm text-gray-600 sm:col-span-2">
+          AquaGuard solo da servicio en Barcelona.
+        </p>
       </div>
 
       <!-- 2. Edificio: the same form the sites view uses -->
@@ -123,10 +183,14 @@
       <!-- 3. Usuario: receives the invitation link -->
       <div v-else-if="step === 2" class="grid gap-4 sm:grid-cols-2">
         <p class="text-sm text-gray-600 sm:col-span-2">
-          Al crear el cliente obtendrás un enlace de invitación para enviar a esta persona.
+          Al crear el cliente obtendrás un enlace de invitación para enviar a
+          esta persona.
         </p>
         <div class="flex flex-col gap-1">
-          <label :for="fieldId('user_name')" class="text-sm font-semibold text-gray-700">
+          <label
+            :for="fieldId('user_name')"
+            class="text-sm font-semibold text-gray-700"
+          >
             Nombre <span aria-hidden="true">*</span>
           </label>
           <input
@@ -138,14 +202,23 @@
             autocomplete="name"
             :class="inputClass('user_name')"
             :aria-invalid="Boolean(errors.user_name)"
-            :aria-describedby="errors.user_name ? fieldId('user_name-error') : undefined"
+            :aria-describedby="
+              errors.user_name ? fieldId('user_name-error') : undefined
+            "
           />
-          <p v-if="errors.user_name" :id="fieldId('user_name-error')" class="text-sm text-red-700">
+          <p
+            v-if="errors.user_name"
+            :id="fieldId('user_name-error')"
+            class="text-sm text-red-700"
+          >
             {{ errors.user_name }}
           </p>
         </div>
         <div class="flex flex-col gap-1">
-          <label :for="fieldId('user_email')" class="text-sm font-semibold text-gray-700">
+          <label
+            :for="fieldId('user_email')"
+            class="text-sm font-semibold text-gray-700"
+          >
             Email <span aria-hidden="true">*</span>
           </label>
           <input
@@ -157,9 +230,15 @@
             autocomplete="email"
             :class="inputClass('user_email')"
             :aria-invalid="Boolean(errors.user_email)"
-            :aria-describedby="errors.user_email ? fieldId('user_email-error') : undefined"
+            :aria-describedby="
+              errors.user_email ? fieldId('user_email-error') : undefined
+            "
           />
-          <p v-if="errors.user_email" :id="fieldId('user_email-error')" class="text-sm text-red-700">
+          <p
+            v-if="errors.user_email"
+            :id="fieldId('user_email-error')"
+            class="text-sm text-red-700"
+          >
             {{ errors.user_email }}
           </p>
         </div>
@@ -167,9 +246,15 @@
 
       <!-- 4. Facturación: optional, it can be completed later -->
       <div v-else class="grid gap-4 sm:grid-cols-2">
-        <p class="text-sm text-gray-600 sm:col-span-2">Opcional: se puede completar más tarde.</p>
+        <p class="text-sm text-gray-600 sm:col-span-2">
+          Opcional: se puede completar más tarde.
+        </p>
         <div class="flex flex-col gap-1">
-          <label :for="fieldId('legal_name')" class="text-sm font-semibold text-gray-700">Razón social</label>
+          <label
+            :for="fieldId('legal_name')"
+            class="text-sm font-semibold text-gray-700"
+            >Razón social</label
+          >
           <input
             :id="fieldId('legal_name')"
             v-model="form.client.legal_name"
@@ -179,7 +264,11 @@
           />
         </div>
         <div class="flex flex-col gap-1">
-          <label :for="fieldId('tax_id')" class="text-sm font-semibold text-gray-700">NIF o CIF</label>
+          <label
+            :for="fieldId('tax_id')"
+            class="text-sm font-semibold text-gray-700"
+            >NIF o CIF</label
+          >
           <input
             :id="fieldId('tax_id')"
             v-model="form.client.tax_id"
@@ -189,7 +278,11 @@
           />
         </div>
         <div class="flex flex-col gap-1 sm:col-span-2">
-          <label :for="fieldId('billing_email')" class="text-sm font-semibold text-gray-700">Email de facturación</label>
+          <label
+            :for="fieldId('billing_email')"
+            class="text-sm font-semibold text-gray-700"
+            >Email de facturación</label
+          >
           <input
             :id="fieldId('billing_email')"
             :ref="(el) => (inputs.billing_email = el)"
@@ -198,9 +291,15 @@
             autocomplete="email"
             :class="inputClass('billing_email')"
             :aria-invalid="Boolean(errors.billing_email)"
-            :aria-describedby="errors.billing_email ? fieldId('billing_email-error') : undefined"
+            :aria-describedby="
+              errors.billing_email ? fieldId('billing_email-error') : undefined
+            "
           />
-          <p v-if="errors.billing_email" :id="fieldId('billing_email-error')" class="text-sm text-red-700">
+          <p
+            v-if="errors.billing_email"
+            :id="fieldId('billing_email-error')"
+            class="text-sm text-red-700"
+          >
             {{ errors.billing_email }}
           </p>
         </div>
@@ -218,11 +317,21 @@
       </p>
 
       <div class="flex justify-between gap-3 border-t border-gray-200 pt-4">
-        <button type="button" :class="BUTTON_SECONDARY" :disabled="busy" @click="back">
-          {{ step === 0 ? 'Cancelar' : 'Atrás' }}
+        <button
+          type="button"
+          :class="BUTTON_SECONDARY"
+          :disabled="busy"
+          @click="back"
+        >
+          {{ step === 0 ? "Cancelar" : "Atrás" }}
         </button>
         <!-- type="submit": Enter in any field also moves forward -->
-        <button type="submit" :class="BUTTON_PRIMARY" :disabled="busy" :aria-busy="busy">
+        <button
+          type="submit"
+          :class="BUTTON_PRIMARY"
+          :disabled="busy"
+          :aria-busy="busy"
+        >
           {{ submitLabel }}
         </button>
       </div>
@@ -231,9 +340,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, nextTick, useId } from 'vue'
-import SiteForm, { emptySite } from './SiteForm.vue'
-import InviteLinkCopy from './InviteLinkCopy.vue'
+import { ref, reactive, computed, watch, nextTick, useId } from "vue";
+import SiteForm, { emptySite } from "./SiteForm.vue";
+import InviteLinkCopy from "./InviteLinkCopy.vue";
 
 const props = defineProps({
   // Set by the parent after creating: { client, invitation: { name, email, link, expires_at } | null }
@@ -244,68 +353,82 @@ const props = defineProps({
   serverError: { type: Object, default: null },
   // Optional async (name) => true when the name is already used. Checked on "Siguiente" in step 1
   checkName: { type: Function, default: null },
-})
+});
 
-const emit = defineEmits(['submit', 'cancel', 'open'])
+const emit = defineEmits(["submit", "cancel", "open"]);
 
-const STEPS = ['Cliente', 'Edificio', 'Usuario', 'Facturación']
-const STEP_TITLES = ['datos del cliente', 'primer edificio', 'primer usuario', 'facturación']
+const STEPS = ["Cliente", "Edificio", "Usuario", "Facturación"];
+const STEP_TITLES = [
+  "datos del cliente",
+  "primer edificio",
+  "primer usuario",
+  "facturación",
+];
 
 const BUTTON_PRIMARY =
-  'min-h-10 rounded-lg bg-aqua-600 px-4 text-sm font-semibold text-white hover:bg-aqua-700 disabled:cursor-wait disabled:opacity-60'
+  "min-h-10 rounded-lg bg-aqua-600 px-4 text-sm font-semibold text-white hover:bg-aqua-700 disabled:cursor-wait disabled:opacity-60";
 const BUTTON_SECONDARY =
-  'min-h-10 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:border-aqua-600 disabled:opacity-60'
+  "min-h-10 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:border-aqua-600 disabled:opacity-60";
 
 // Same limit as OrganizationCreate.name (B1)
-const NAME_MAX = 120
+const NAME_MAX = 120;
 
 // Simple email check; the API does the full validation
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const step = ref(0)
-const isLastStep = computed(() => step.value === STEPS.length - 1)
+const step = ref(0);
+const isLastStep = computed(() => step.value === STEPS.length - 1);
 
 // True while step 1 waits for the name check
-const checking = ref(false)
-const busy = computed(() => props.submitting || checking.value)
+const checking = ref(false);
+const busy = computed(() => props.submitting || checking.value);
 
 const submitLabel = computed(() => {
-  if (checking.value) return 'Comprobando…'
-  if (!isLastStep.value) return 'Siguiente'
-  return props.submitting ? 'Creando cliente…' : 'Crear cliente'
-})
+  if (checking.value) return "Comprobando…";
+  if (!isLastStep.value) return "Siguiente";
+  return props.submitting ? "Creando cliente…" : "Crear cliente";
+});
 
 // API error shown above the buttons (not tied to a field)
-const generalError = ref('')
-const generalErrorMessage = ref(null)
+const generalError = ref("");
+const generalErrorMessage = ref(null);
 
 // Everything the wizard collects, grouped as the parent will send it
 const form = reactive({
-  client: { name: '', contact_email: '', phone: '', legal_name: '', tax_id: '', billing_email: '' },
+  client: {
+    name: "",
+    contact_email: "",
+    phone: "",
+    legal_name: "",
+    tax_id: "",
+    billing_email: "",
+  },
   site: emptySite(),
-  user: { name: '', email: '' },
-})
+  user: { name: "", email: "" },
+});
 
-const errors = reactive({})
-const inputs = {}
-const heading = ref(null)
-const siteForm = ref(null)
+const errors = reactive({});
+const inputs = {};
+const heading = ref(null);
+const siteForm = ref(null);
 
-const uid = useId()
+const uid = useId();
 function fieldId(name) {
-  return `wizard-${uid}-${name}`
+  return `wizard-${uid}-${name}`;
 }
 
 function inputClass(field) {
   const base =
-    'w-full rounded-lg border bg-white px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-aqua-600'
-  return errors[field] ? `${base} border-red-600` : `${base} border-gray-300`
+    "w-full rounded-lg border bg-white px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-aqua-600";
+  return errors[field] ? `${base} border-red-600` : `${base} border-gray-300`;
 }
 
 function emailError(value, required) {
-  const text = value.trim()
-  if (text === '') return required ? 'Escribe el email.' : ''
-  return EMAIL_PATTERN.test(text) ? '' : 'Escribe un email válido, por ejemplo nombre@empresa.com.'
+  const text = value.trim();
+  if (text === "") return required ? "Escribe el email." : "";
+  return EMAIL_PATTERN.test(text)
+    ? ""
+    : "Escribe un email válido, por ejemplo nombre@empresa.com.";
 }
 
 // Rules of each step (the building step is validated by SiteForm itself).
@@ -313,74 +436,75 @@ function emailError(value, required) {
 const STEP_RULES = [
   {
     name: () => {
-      const name = form.client.name.trim()
-      if (name === '') return 'Escribe el nombre del cliente.'
+      const name = form.client.name.trim();
+      if (name === "") return "Escribe el nombre del cliente.";
       // A repeated name is checked by the API (409), which knows every client
-      return name.length > NAME_MAX ? `Máximo ${NAME_MAX} caracteres.` : ''
+      return name.length > NAME_MAX ? `Máximo ${NAME_MAX} caracteres.` : "";
     },
     contact_email: () => emailError(form.client.contact_email, false),
   },
   {},
   {
-    user_name: () => (form.user.name.trim() === '' ? 'Escribe el nombre de la persona.' : ''),
+    user_name: () =>
+      form.user.name.trim() === "" ? "Escribe el nombre de la persona." : "",
     user_email: () => emailError(form.user.email, true),
   },
   {
     billing_email: () => emailError(form.client.billing_email, false),
   },
-]
+];
 
 // Validates the current step; focuses the first wrong field and returns false if any
 function validateStep() {
-  if (step.value === 1) return siteForm.value.validate()
+  if (step.value === 1) return siteForm.value.validate();
 
-  const rules = STEP_RULES[step.value]
-  for (const field of Object.keys(rules)) errors[field] = rules[field]()
-  const firstWrong = Object.keys(rules).find((field) => errors[field])
+  const rules = STEP_RULES[step.value];
+  for (const field of Object.keys(rules)) errors[field] = rules[field]();
+  const firstWrong = Object.keys(rules).find((field) => errors[field]);
   if (firstWrong) {
-    nextTick(() => inputs[firstWrong]?.focus())
-    return false
+    nextTick(() => inputs[firstWrong]?.focus());
+    return false;
   }
-  return true
+  return true;
 }
 
 // Step 1: asks the API whether the name is free. If the check itself fails
 // (network, server), the admin can go on: "Crear cliente" checks it again (409)
 async function nameIsFree() {
-  if (!props.checkName) return true
-  checking.value = true
+  if (!props.checkName) return true;
+  checking.value = true;
   try {
-    const taken = await props.checkName(form.client.name)
-    if (!taken) return true
-    errors.name = 'Ya hay un cliente con este nombre.'
-    nextTick(() => inputs.name?.focus())
-    return false
+    const taken = await props.checkName(form.client.name);
+    if (!taken) return true;
+    errors.name = "Ya hay un cliente con este nombre.";
+    nextTick(() => inputs.name?.focus());
+    return false;
   } catch {
-    return true
+    return true;
   } finally {
-    checking.value = false
+    checking.value = false;
   }
 }
 
 async function next() {
-  if (busy.value) return
-  generalError.value = ''
-  if (!validateStep()) return
-  if (step.value === 0 && !(await nameIsFree())) return
+  if (busy.value) return;
+  generalError.value = "";
+  if (!validateStep()) return;
+  if (step.value === 0 && !(await nameIsFree())) return;
   if (isLastStep.value) {
-    emit('submit', {
+    emit("submit", {
       client: { ...form.client },
       site: { ...form.site },
       user: { name: form.user.name.trim(), email: form.user.email.trim() },
-    })
+    });
   } else {
-    step.value += 1
+    step.value += 1;
   }
 }
 
 function back() {
-  if (step.value === 0) emit('cancel')
-  else step.value -= 1
+  if (step.value === 0) emit("cancel");
+  else step.value -= 1;
 }
 
 // A shown error disappears as soon as the user fixes the field
@@ -389,43 +513,43 @@ watch(
   () => {
     for (const rules of STEP_RULES) {
       for (const field of Object.keys(rules)) {
-        if (errors[field]) errors[field] = rules[field]()
+        if (errors[field]) errors[field] = rules[field]();
       }
     }
   },
-  { deep: true }
-)
+  { deep: true },
+);
 
 // Field to focus instead of the title after the next step change (set by an API error)
-let focusAfterStep = null
+let focusAfterStep = null;
 
 // Move the focus to the title of the new step, or to the success message
 watch([step, () => props.created], () =>
   nextTick(() => {
-    const target = focusAfterStep ? inputs[focusAfterStep] : heading.value
-    focusAfterStep = null
-    target?.focus()
-  })
-)
+    const target = focusAfterStep ? inputs[focusAfterStep] : heading.value;
+    focusAfterStep = null;
+    target?.focus();
+  }),
+);
 
 // API error after submitting. A repeated or empty name goes back to step 1 and
 // marks the field; any other error is shown above the buttons
 watch(
   () => props.serverError,
   (serverError) => {
-    if (!serverError) return
-    if (serverError.field === 'name') {
-      errors.name = serverError.message
+    if (!serverError) return;
+    if (serverError.field === "name") {
+      errors.name = serverError.message;
       if (step.value === 0) {
-        nextTick(() => inputs.name?.focus())
+        nextTick(() => inputs.name?.focus());
       } else {
-        focusAfterStep = 'name'
-        step.value = 0
+        focusAfterStep = "name";
+        step.value = 0;
       }
     } else {
-      generalError.value = serverError.message
-      nextTick(() => generalErrorMessage.value?.focus())
+      generalError.value = serverError.message;
+      nextTick(() => generalErrorMessage.value?.focus());
     }
-  }
-)
+  },
+);
 </script>

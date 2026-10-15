@@ -13,7 +13,11 @@
       <h2 class="text-lg font-bold text-gray-800">Sensores</h2>
     </div>
 
-    <LoadingState v-if="status === 'loading' || status === 'idle'" message="Cargando sensores…" compact />
+    <LoadingState
+      v-if="status === 'loading' || status === 'idle'"
+      message="Cargando sensores…"
+      compact
+    />
 
     <ErrorState
       v-else-if="status === 'error'"
@@ -41,34 +45,38 @@
           <p class="font-semibold text-gray-800 truncate">{{ sensor.name }}</p>
           <p class="text-sm text-gray-500 truncate">{{ sensor.location }}</p>
         </div>
-        <StatusPill type="SensorStatus" :value="sensor.status" class="shrink-0" />
+        <StatusPill
+          type="SensorStatus"
+          :value="sensor.status"
+          class="shrink-0"
+        />
       </li>
     </ul>
   </section>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import AppIcon from './AppIcon.vue'
-import StatusPill from './StatusPill.vue'
-import LoadingState from './LoadingState.vue'
-import ErrorState from './ErrorState.vue'
-import EmptyState from './EmptyState.vue'
+import { ref } from "vue";
+import AppIcon from "./AppIcon.vue";
+import StatusPill from "./StatusPill.vue";
+import LoadingState from "./LoadingState.vue";
+import ErrorState from "./ErrorState.vue";
+import EmptyState from "./EmptyState.vue";
 
 defineProps({
   sensors: { type: Array, default: () => [] },
   // Store status: idle | loading | success | error
-  status: { type: String, default: 'success' },
+  status: { type: String, default: "success" },
   // Store error object ({ code, message, details }) or null
   error: { type: Object, default: null },
-})
+});
 
-const emit = defineEmits(['retry'])
+const emit = defineEmits(["retry"]);
 
 // After a user-triggered retry, a new error moves focus back to the retry button
-const retried = ref(false)
+const retried = ref(false);
 function onRetry() {
-  retried.value = true
-  emit('retry')
+  retried.value = true;
+  emit("retry");
 }
 </script>

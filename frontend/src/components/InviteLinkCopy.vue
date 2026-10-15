@@ -24,68 +24,74 @@
         class="min-h-10 min-w-36 rounded-lg bg-aqua-600 px-4 text-sm font-semibold text-white hover:bg-aqua-700"
         @click="copy"
       >
-        {{ copied ? 'Copiado' : 'Copiar enlace' }}
+        {{ copied ? "Copiado" : "Copiar enlace" }}
       </button>
     </div>
 
-    <p v-if="expiresAt" class="text-xs text-gray-500">Caduca el {{ formatDate(expiresAt) }}</p>
+    <p v-if="expiresAt" class="text-xs text-gray-500">
+      Caduca el {{ formatDate(expiresAt) }}
+    </p>
 
     <!-- role="status": screen readers announce the result without moving the focus -->
-    <p role="status" class="text-sm" :class="failed ? 'text-red-700' : 'text-green-700'">
+    <p
+      role="status"
+      class="text-sm"
+      :class="failed ? 'text-red-700' : 'text-green-700'"
+    >
       {{ message }}
     </p>
   </div>
 </template>
 
 <script setup>
-import { ref, useId, onBeforeUnmount } from 'vue'
-import { useFormat } from '../composables/useFormat'
+import { ref, useId, onBeforeUnmount } from "vue";
+import { useFormat } from "../composables/useFormat";
 
 const props = defineProps({
   link: { type: String, required: true },
   // ISO date when the invitation stops working (INVITATION_TTL_DAYS after it is created)
-  expiresAt: { type: String, default: '' },
-})
+  expiresAt: { type: String, default: "" },
+});
 
-const inputId = `invite-link-${useId()}`
-const input = ref(null)
+const inputId = `invite-link-${useId()}`;
+const input = ref(null);
 
-const copied = ref(false)
-const failed = ref(false)
-const message = ref('')
-let resetTimer = null
+const copied = ref(false);
+const failed = ref(false);
+const message = ref("");
+let resetTimer = null;
 
 // '21 oct 2026'
-const { formatDate } = useFormat()
+const { formatDate } = useFormat();
 
 // Old way to copy, for browsers or http pages where navigator.clipboard is not available
 function copyWithSelection() {
-  input.value.select()
-  return document.execCommand('copy')
+  input.value.select();
+  return document.execCommand("copy");
 }
 
 async function copy() {
-  let ok = false
+  let ok = false;
   try {
     // Clipboard API: only available on https and localhost
-    await navigator.clipboard.writeText(props.link)
-    ok = true
+    await navigator.clipboard.writeText(props.link);
+    ok = true;
   } catch {
-    ok = copyWithSelection()
+    ok = copyWithSelection();
   }
 
-  failed.value = !ok
-  copied.value = ok
+  failed.value = !ok;
+  copied.value = ok;
   message.value = ok
-    ? 'Enlace copiado. Pégalo en un email o un mensaje.'
-    : 'No se ha podido copiar. Selecciona el enlace y cópialo con Ctrl+C.'
+    ? "Enlace copiado. Pégalo en un email o un mensaje."
+    : "No se ha podido copiar. Selecciona el enlace y cópialo con Ctrl+C.";
 
-  if (!ok) input.value.select()
+  if (!ok) input.value.select();
 
   // The button goes back to "Copiar enlace" after a few seconds
-  clearTimeout(resetTimer)
-  resetTimer = setTimeout(() => (copied.value = false), 3000)
+  clearTimeout(resetTimer);
+  resetTimer = setTimeout(() => (copied.value = false), 3000);
 }
 
-onBeforeUnmount(() => clearTimeout(resetTimer))
+onBeforeUnmount(() => clearTimeout(resetTimer));
 </script>

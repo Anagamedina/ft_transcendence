@@ -55,7 +55,7 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue'
+import { ref, nextTick } from "vue";
 
 const props = defineProps({
   // List of tabs: [{ key: 'sites', label: 'Edificios' }, ...]
@@ -66,38 +66,38 @@ const props = defineProps({
   label: { type: String, required: true },
   // Optional prefix for the ids; set it only if one page has two Tabs.
   // Without it the ids are tab-<key> and panel-<key>.
-  idPrefix: { type: String, default: '' },
-})
+  idPrefix: { type: String, default: "" },
+});
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(["update:modelValue"]);
 
-const buttons = ref([])
+const buttons = ref([]);
 
 function tabId(key) {
-  return props.idPrefix ? `${props.idPrefix}-tab-${key}` : `tab-${key}`
+  return props.idPrefix ? `${props.idPrefix}-tab-${key}` : `tab-${key}`;
 }
 
 function panelId(key) {
-  return props.idPrefix ? `${props.idPrefix}-panel-${key}` : `panel-${key}`
+  return props.idPrefix ? `${props.idPrefix}-panel-${key}` : `panel-${key}`;
 }
 
 // Activates a tab and moves the focus to its button
 function select(index) {
-  emit('update:modelValue', props.tabs[index].key)
-  nextTick(() => buttons.value[index]?.focus())
+  emit("update:modelValue", props.tabs[index].key);
+  nextTick(() => buttons.value[index]?.focus());
 }
 
 // Left/Right go to the previous/next tab (wrapping around), Home/End to the first/last
 function onKeydown(event, index) {
-  const last = props.tabs.length - 1
+  const last = props.tabs.length - 1;
   const moves = {
     ArrowRight: index === last ? 0 : index + 1,
     ArrowLeft: index === 0 ? last : index - 1,
     Home: 0,
     End: last,
-  }
-  if (!(event.key in moves)) return
-  event.preventDefault()
-  select(moves[event.key])
+  };
+  if (!(event.key in moves)) return;
+  event.preventDefault();
+  select(moves[event.key]);
 }
 </script>

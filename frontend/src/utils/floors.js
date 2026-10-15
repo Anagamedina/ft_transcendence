@@ -7,17 +7,17 @@
 
 // 'Planta baja', 'Planta 3', 'Sótano 1'
 export function floorLabel(floor) {
-  if (floor === 0) return 'Planta baja'
-  if (floor > 0) return `Planta ${floor}`
-  return `Sótano ${-floor}`
+  if (floor === 0) return "Planta baja";
+  if (floor > 0) return `Planta ${floor}`;
+  return `Sótano ${-floor}`;
 }
 
 // Every floor of the building from top to bottom, ready to draw it.
 // Example: floors 3, basements 1 -> [2, 1, 0, -1]
 export function floorRange(floors, basements) {
-  const top = Math.max(Number(floors) || 1, 1) - 1
-  const bottom = -Math.max(Number(basements) || 0, 0)
-  const list = []
-  for (let floor = top; floor >= bottom; floor--) list.push(floor)
-  return list
+  const top = Math.max(Number(floors) || 1, 1) - 1;
+  const bottom = -Math.max(Number(basements) || 0, 0);
+  const list = [];
+  for (let floor = top; floor >= bottom; floor--) list.push(floor);
+  return list;
 }

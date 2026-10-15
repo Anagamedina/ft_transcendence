@@ -1,29 +1,28 @@
 // STORE alerts — listado y acciones ack/resolve (luego también WS).
 
 import { defineStore } from "pinia";
-import {ref, computed} from "vue";
+import { ref, computed } from "vue";
 import alertsService from "../services/alerts.service.js";
 
-export const useAlertsStore = defineStore("alerts", () =>{
-  
-    // STATE
-    const alerts = ref([]);
-    const status = ref("idle");
-    const error = ref(null);
+export const useAlertsStore = defineStore("alerts", () => {
+  // STATE
+  const alerts = ref([]);
+  const status = ref("idle");
+  const error = ref(null);
 
-    //GETTERS
+  //GETTERS
 
-    const alertCount = computed(() => alerts.value.length);
-    const openCount = computed(
-        () => alerts.value.filter((alert) => alert.status === "ACTIVE").length
-    );
+  const alertCount = computed(() => alerts.value.length);
+  const openCount = computed(
+    () => alerts.value.filter((alert) => alert.status === "ACTIVE").length,
+  );
 
-    //ACTIONS
-    async function fetchAlerts() {
-        if (status.value === "loading") return alerts.value;
+  //ACTIONS
+  async function fetchAlerts() {
+    if (status.value === "loading") return alerts.value;
 
-        status.value = "loading";
-        error.value = null;
+    status.value = "loading";
+    error.value = null;
 
     try {
       const response = await alertsService.getAlerts();
@@ -42,75 +41,69 @@ export const useAlertsStore = defineStore("alerts", () =>{
       status.value = "error";
 
       throw err;
-        }
     }
+  }
 
-    async function acknowledgeAlert(id) {
-        try {
-        const response = await alertsService.acknowledgeAlert(id);
+  async function acknowledgeAlert(id) {
+    try {
+      const response = await alertsService.acknowledgeAlert(id);
 
-        const index = alerts.value.findIndex(
-            (alert) => alert.id === id
-        );
+      const index = alerts.value.findIndex((alert) => alert.id === id);
 
-        if (index !== -1) {
-            alerts.value[index] = { ...response.data };
-        }
+      if (index !== -1) {
+        alerts.value[index] = { ...response.data };
+      }
 
-        return response.data;
+      return response.data;
+    } catch (err) {
+      error.value = {
+        code: err.code,
+        message: err.message,
+        details: err.details,
+      };
 
-        } catch (err) {
-        error.value = {
-            code: err.code,
-            message: err.message,
-            details: err.details,
-        };
-
-        throw err;
-        }
+      throw err;
     }
+  }
 
-    function clearAlerts() {
-        alerts.value = [];
-        status.value = "idle";
-        error.value = null;
+  function clearAlerts() {
+    alerts.value = [];
+    status.value = "idle";
+    error.value = null;
+  }
+
+  async function resolveAlert(id) {
+    try {
+      const response = await alertsService.resolveAlert(id);
+
+      const index = alerts.value.findIndex((alert) => alert.id === id);
+
+      if (index !== -1) {
+        alerts.value[index] = { ...response.data };
+      }
+
+      return response.data;
+    } catch (err) {
+      error.value = {
+        code: err.code,
+        message: err.message,
+        details: err.details,
+      };
+
+      throw err;
     }
+  }
 
-     async function resolveAlert(id) {
-        try {
-        const response = await alertsService.resolveAlert(id);
+  return {
+    alerts,
+    status,
+    error,
+    alertCount,
+    openCount,
 
-        const index = alerts.value.findIndex(
-            (alert) => alert.id === id
-        );
-
-        if (index !== -1) {
-            alerts.value[index] = { ...response.data };
-        }
-
-        return response.data;
-
-        } catch (err) {
-        error.value = {
-            code: err.code,
-            message: err.message,
-            details: err.details,
-        };
-
-        throw err;
-        }
-    }
-   
-    return {
-        alerts,
-        status,
-        error,
-        alertCount,
-        openCount,
-
-        fetchAlerts,
-        acknowledgeAlert,
-        resolveAlert,
-        clearAlerts,
-    };
+    fetchAlerts,
+    acknowledgeAlert,
+    resolveAlert,
+    clearAlerts,
+  };
 });

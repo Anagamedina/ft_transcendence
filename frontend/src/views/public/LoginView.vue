@@ -4,21 +4,14 @@
       class="flex-1 bg-[#0F172A] flex items-center justify-center px-6 py-12"
     >
       <div class="w-full max-w-md">
-
         <div class="bg-white rounded-2xl shadow-xl p-8">
-
           <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold text-gray-900">
-              Iniciar sesión
-            </h1>
+            <h1 class="text-3xl font-bold text-gray-900">Iniciar sesión</h1>
 
-            <p class="mt-2 text-gray-600">
-              Accede a tu cuenta de AquaGuard
-            </p>
+            <p class="mt-2 text-gray-600">Accede a tu cuenta de AquaGuard</p>
           </div>
 
           <form @submit.prevent="handleSubmit" class="space-y-5">
-
             <!-- Email -->
             <div>
               <label
@@ -87,7 +80,6 @@
             >
               {{ isLoading ? "Iniciando sesión..." : "Iniciar sesión" }}
             </button>
-
           </form>
 
           <p class="text-center text-sm text-gray-600 mt-6">
@@ -100,17 +92,13 @@
               Prueba 7 días gratis
             </RouterLink>
           </p>
-
         </div>
-
       </div>
     </section>
   </PublicLayout>
 </template>
 
-
 <script setup>
-
 import { computed, reactive, ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "../../stores/auth.js";
