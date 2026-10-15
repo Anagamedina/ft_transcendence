@@ -137,6 +137,13 @@ class Alert(Base):
         nullable=True,
     )
 
+    acknowledged_by_user: Mapped["User | None"] = relationship(
+        "User", foreign_keys=[acknowledged_by],
+    )
+    resolved_by_user: Mapped["User | None"] = relationship(
+        "User", foreign_keys=[resolved_by],
+    )
+
     sensor: Mapped["Sensor"] = relationship(
         "Sensor",
         back_populates="alerts",
