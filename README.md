@@ -43,10 +43,15 @@ Create the local environment file:
 make env
 ```
 
+For a new checkout, use `make setup`. It verifies Docker Compose, OpenSSL,
+Node.js and npm; creates the local `.env` and TLS certificate; and validates
+the required configuration. `make doctor` reruns those checks and also reports
+the state of an already-running Compose stack.
+
 `make env` copies `.env.example` to `.env` and replaces `SECRET_KEY` and
 `INGEST_API_KEY` with random values from `openssl rand -hex 32`, so a clean
 clone never runs with the keys published in the repository. It does nothing
-when `.env` already exists, and `make up` calls it for you. A plain
+when `.env` already exists, and `make up` or `make all` calls it for you. A plain
 `cp .env.example .env` still works for development, but keeps the example keys.
 
 `.env` is local configuration and must never be committed. `.env.example` ships
@@ -88,6 +93,24 @@ read them are tracked in their own issues.
 
 Frontend-only configuration is documented in
 [`frontend/.env.example`](frontend/.env.example).
+
+### Run the complete local project
+
+The normal local workflow is one command:
+
+```bash
+make all
+```
+
+It builds and starts PostgreSQL, backend and gateway, applies migrations,
+loads the demo when the database is empty, creates an initial backup, starts
+the simulator, and verifies storage plus the end-to-end flow. Repeating it
+preserves existing database rows, documents and backups. Run `make seed` only
+when you explicitly want to refresh the demo.
+
+`make down` stops the services but keeps `postgres_data`, `documents_data` and
+`backups_data`. `make fclean` removes those volumes, so the next `make all`
+performs a fresh bootstrap.
 
 ### Run the stack
 
@@ -172,14 +195,15 @@ Stop the stack with `make down`, which keeps the PostgreSQL volume.
 The `make migrate`, `make migration` and `make migration-check` targets run
 Alembic inside Docker, so they need no published port. Running Alembic directly
 from the host does need the PostgreSQL port, which the delivery topology does
-not publish: `make dev` starts the same stack plus
+not publish: `make dev-infra` starts the same stack plus
 [`compose.dev.yaml`](compose.dev.yaml), which binds PostgreSQL to
-`127.0.0.1:5432` for that purpose only.
+`127.0.0.1:5432` for that purpose only. `make dev` starts that infrastructure
+and then Vite at <https://localhost:5173> with HMR. Vite proxies `/api/` through
+the HTTPS gateway, so its Secure session cookie and the production API path are
+preserved during frontend development.
 
 For backend-specific local setup, Alembic checks, and API verification, see
 [`backend/README.md`](backend/README.md).
-
-The simulator is still being integrated into Compose.
 
 ### Useful commands
 
@@ -187,18 +211,30 @@ The root `Makefile` wraps the Compose commands:
 
 | Target                     | Effect                                                                                                                                       |
 |----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
-| `make` / `make up`         | Creates `.env` and generates certificates if missing, then `docker compose up --build -d` and `docker compose ps`                            |
-| `make dev`                 | Same as `make up` plus `compose.dev.yaml`, which publishes PostgreSQL on `127.0.0.1:5432` for Alembic                                        |
+| `make` / `make all`        | Complete local bootstrap: services, migrations, seed on an empty database, backup, simulator, storage validation and smoke test              |
+| `make up`                  | Creates `.env` and certificates if needed, then starts the base Compose services without altering application data                            |
+| `make setup`               | Checks local prerequisites, creates local configuration and certificates, and validates the Compose configuration                             |
+| `make config-check`        | Validates required `.env` values and rejects unsafe production placeholders                                                                  |
+| `make doctor`              | Checks prerequisites, configuration and the health/state of services already running                                                         |
+| `make dev-infra`           | Starts the stack with `compose.dev.yaml`, which publishes PostgreSQL on `127.0.0.1:5432` for Alembic                                          |
+| `make dev`                 | Starts `make dev-infra`, installs locked frontend dependencies and runs Vite HMR at `https://localhost:5173`                                |
 | `make env`                 | Creates `.env` from `.env.example` with random `SECRET_KEY` and `INGEST_API_KEY`, only when it does not exist                                |
 | `make certs`               | Generates a self-signed TLS certificate in `gateway/certs/` only when it does not exist                                                      |
 | `make build`               | Builds the images without starting them                                                                                                      |
-| `make sim`                 | Same as `make up` plus the `sim` profile, which starts the sensor simulator                                                                  |
-| `make demo`                | Starts everything for a full test: `make up`, `make seed`, the simulator and `make smoke`; warns if `.env` has an old `SIMULATOR_SENSOR_IDS` |
+| `make sim`                 | Validates `.env`, starts the base services, seeds an empty database and then starts the sensor simulator                                      |
+| `make demo`                | Alias of `make all`                                                                                                                           |
 | `make seed`                | Applies pending migrations, then loads the demo data from the working tree (no rebuild needed); safe to run more than once                   |
 | `make migrate`             | Applies pending migrations (`alembic upgrade head`)                                                                                          |
 | `make migration MSG="..."` | Generates a migration with `alembic revision --autogenerate` without applying it; fails without `MSG`                                        |
 | `make migration-check`     | Fails if the database is unreachable, has pending migrations, or the models drifted from the migrations                                      |
+| `make test-backend`        | Starts PostgreSQL if necessary and runs the complete backend pytest suite in its Docker image                                                |
+| `make test-frontend`       | Runs the frontend Vitest suite once                                                                                                           |
+| `make test-e2e`            | Runs the Playwright tests against the running stack with a raised gateway rate limit, then restores the normal limit; needs `make all` first |
+| `make lint`                | Runs ESLint on the frontend source                                                                                                            |
+| `make format`              | Formats frontend JS, Vue and CSS files with Prettier                                                                                         |
+| `make check`               | Runs Compose validation, frontend lint and frontend unit tests                                                                               |
 | `make smoke`               | Smoke test of the stack: health, gateway, and a reading stored end to end; fails with a non-zero code                                        |
+| `make storage-check`       | Verifies service mounts, demo data, document storage access and a valid persisted backup                                                     |
 | `make backup`              | Runs one database backup now, in addition to the automatic ones                                                                              |
 | `make backups`             | Lists the backups kept in the `backups_data` volume                                                                                          |
 | `make restore FILE=...`    | Restores the database from one of those backups; see [`docs/disaster-recovery.md`](docs/disaster-recovery.md)                                |
