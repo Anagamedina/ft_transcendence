@@ -7,21 +7,17 @@ Lógica de usuarios.
   contraseña (B8, #144).
 - Gestión de usuarios del admin (B6, #141): listar, ver, editar,
   activar, desactivar y quitar el acceso.
+- Privacidad (B15, #149): exportar mis datos y pedir la baja.
 
 Lo que un admin no puede hacerse a sí mismo (B6): desactivarse, quitarse
 el rol de admin ni borrarse. Así nadie se queda fuera por accidente, y
 siempre queda al menos un admin que pueda deshacer lo que hagan los demás.
-Hoy solo hay `GET /api/me` (issue #26). La gestión de usuarios
-(listar, editar, activar y desactivar) llega con la B6 (#141), y `PATCH
-/api/me` y el cambio de contraseña con la B8 (#144). Exportar mis datos y
-pedir la baja, con la B15 (#149).
 """
 
 from __future__ import annotations
 
-from uuid import UUID
-
 from datetime import datetime, timezone
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -44,8 +40,8 @@ from app.modules.users.schemas import (
     OrganizationExport,
     OrganizationSummary,
     PasswordChange,
-    UserAdminResponse,
     SiteExport,
+    UserAdminResponse,
     UserResponse,
     UserRole,
     UserUpdate,
@@ -259,13 +255,6 @@ class UserService:
             raise NotFoundError("El usuario no existe.", code="USER_NOT_FOUND")
         return usuario
 
-
-def _to_admin_response(usuario: User) -> UserAdminResponse:
-    respuesta = UserAdminResponse.model_validate(usuario)
-    if usuario.organization is not None:
-        respuesta.organization_name = usuario.organization.name
-    return respuesta
-
     # ---------------------------------------------------------
     # B15 — EXPORTAR MIS DATOS Y PEDIR LA BAJA (#149)
     # ---------------------------------------------------------
@@ -321,6 +310,13 @@ def _to_admin_response(usuario: User) -> UserAdminResponse:
             deletion_requested_at=usuario.deletion_requested_at,
             message="Hemos registrado tu petición de baja. Un administrador la tramitará.",
         )
+
+
+def _to_admin_response(usuario: User) -> UserAdminResponse:
+    respuesta = UserAdminResponse.model_validate(usuario)
+    if usuario.organization is not None:
+        respuesta.organization_name = usuario.organization.name
+    return respuesta
 
 
 def get_user_service(db: DbSession) -> UserService:

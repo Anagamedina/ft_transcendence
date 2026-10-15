@@ -5,6 +5,7 @@ Endpoints de usuarios. Dos routers:
 
 - `router`, Mi cuenta: `/api/me` (issue #26 y B8). Es `/api/me` y no
   `/api/users/me` (apartado 9.1 del documento), por eso no lleva `prefix`.
+  Incluye exportar mis datos y pedir la baja (B15, #149).
 - `admin_router`, gestión de usuarios (B6, #141):
 
     GET    /api/users                 → lista (organization_id, q, active)
@@ -25,36 +26,27 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
 from app.modules.auth.schemas import MessageResponse
 from app.modules.users.model import User
-from app.modules.users.service import UserService, get_user_service
-from app.modules.users.schemas import MeResponse, MeUpdate, PasswordChange
-from app.shared.dependencies import CurrentUser, require_trial_not_expired
 from app.modules.users.schemas import (
     DeletionRequestResponse,
     MeResponse,
     MeUpdate,
     MyDataExport,
     PasswordChange,
-)
-from app.shared.dependencies import CurrentUser
-from app.shared.schemas import error_response
-from app.modules.users.schemas import (
-    MeResponse,
-    MeUpdate,
-    PasswordChange,
     UserAdminResponse,
     UserUpdate,
 )
+from app.modules.users.service import UserService, get_user_service
 from app.shared.dependencies import (
     CurrentUser,
     OrganizationIdFilter,
     Pagination,
     Search,
     require_role,
+    require_trial_not_expired,
 )
 from app.shared.schemas import Page, error_response
 
