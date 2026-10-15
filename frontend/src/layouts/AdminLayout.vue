@@ -13,7 +13,11 @@
           :disabled="authStore.status === 'loading'"
           class="bg-white text-aqua-600 px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 transition shrink-0 disabled:opacity-50"
         >
-          {{ authStore.status === 'loading' ? 'Cerrando sesión...' : 'Cerrar sesión' }}
+          {{
+            authStore.status === "loading"
+              ? "Cerrando sesión..."
+              : "Cerrar sesión"
+          }}
         </button>
       </template>
     </Header>
@@ -50,19 +54,27 @@ const adminNav = computed(() => [
   { label: "Clientes", to: "/admin/clients", icon: "users" },
   { label: "Edificios", to: "/admin/sites", icon: "building" },
   { label: "Sensores", to: "/admin/sensors", icon: "droplet" },
-  { label: "Alertas", to: "/admin/alerts", icon: "alert", badge: alertsStore.openCount },
+  {
+    label: "Alertas",
+    to: "/admin/alerts",
+    icon: "alert",
+    badge: alertsStore.openCount,
+  },
   { label: "Mi cuenta", to: "/admin/account", icon: "users" },
 ]);
 
 // Pages that do not load the alerts themselves still need the counter.
 onMounted(async () => {
   if (alertsStore.status !== "idle") return;
-  try { await alertsStore.fetchAlerts() } catch { /* handled via alertsStore.error */ }
+  try {
+    await alertsStore.fetchAlerts();
+  } catch {
+    /* handled via alertsStore.error */
+  }
 });
 
 async function handleLogout() {
   await authStore.logout();
   await router.replace("/login");
 }
-
 </script>

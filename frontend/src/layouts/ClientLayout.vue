@@ -11,19 +11,16 @@
           @click="handleLogout"
         >
           {{
-            authStore.status === 'loading'
-              ? 'Cerrando sesión...'
-              : 'Cerrar sesión'
+            authStore.status === "loading"
+              ? "Cerrando sesión..."
+              : "Cerrar sesión"
           }}
         </button>
       </template>
     </Header>
 
     <div class="flex flex-1 overflow-hidden">
-      <Sidebar
-        appName="AquaGuard"
-        :items="sidebarItems"
-      />
+      <Sidebar appName="AquaGuard" :items="sidebarItems" />
 
       <main class="min-w-0 flex-1 overflow-y-auto bg-slate-50 p-6">
         <RouterView />
@@ -35,26 +32,26 @@
 </template>
 
 <script setup>
-import { useRouter, RouterView } from 'vue-router'
-import { useAuthStore } from '../stores/auth'
+import { useRouter, RouterView } from "vue-router";
+import { useAuthStore } from "../stores/auth";
 
-import Header from '../components/Header.vue'
-import Sidebar from '../components/Sidebar.vue'
-import Footer from '../components/Footer.vue'
+import Header from "../components/Header.vue";
+import Sidebar from "../components/Sidebar.vue";
+import Footer from "../components/Footer.vue";
 
-const router = useRouter()
-const authStore = useAuthStore()
+const router = useRouter();
+const authStore = useAuthStore();
 
 const sidebarItems = [
-  { label: 'Panel', to: '/app', icon: 'building', exact: true },
-  { label: 'Sensores', to: '/app#sensors', icon: 'droplet'},
-  { label: 'Histórico', to: '/app#history', icon: 'bar-chart' },
-  { label: 'Alertas', to: '/app#alerts', icon: 'alert'},
-  { label: 'Mi cuenta', to: '/app/account', icon: 'users' },
-]
+  { label: "Panel", to: "/app", icon: "building", exact: true },
+  { label: "Sensores", to: "/app#sensors", icon: "droplet" },
+  { label: "Histórico", to: "/app#history", icon: "bar-chart" },
+  { label: "Alertas", to: "/app#alerts", icon: "alert" },
+  { label: "Mi cuenta", to: "/app/account", icon: "users" },
+];
 
 async function handleLogout() {
-  await authStore.logout()
-  await router.replace('/login')
+  await authStore.logout();
+  await router.replace("/login");
 }
 </script>

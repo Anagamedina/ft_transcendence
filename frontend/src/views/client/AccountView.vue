@@ -1,5 +1,5 @@
 <template><AccountPanel /></template>
 
 <script setup>
-import AccountPanel from '../../components/AccountPanel.vue'
+import AccountPanel from "../../components/AccountPanel.vue";
 </script>

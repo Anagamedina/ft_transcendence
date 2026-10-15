@@ -14,7 +14,11 @@
       <h2 class="text-lg font-bold text-gray-800">Alertas activas</h2>
     </div>
 
-    <LoadingState v-if="status === 'loading' || status === 'idle'" message="Cargando alertas…" compact />
+    <LoadingState
+      v-if="status === 'loading' || status === 'idle'"
+      message="Cargando alertas…"
+      compact
+    />
 
     <ErrorState
       v-else-if="status === 'error'"
@@ -39,44 +43,52 @@
         class="py-3 flex items-start justify-between gap-3"
       >
         <div class="min-w-0">
-          <p class="font-semibold text-gray-800">{{ label('AlertType', alert.type) }}</p>
+          <p class="font-semibold text-gray-800">
+            {{ label("AlertType", alert.type) }}
+          </p>
           <p class="text-sm text-gray-500">{{ alert.message }}</p>
-          <p class="text-xs text-gray-500 mt-1">{{ formatDateTime(alert.created_at) }}</p>
+          <p class="text-xs text-gray-500 mt-1">
+            {{ formatDateTime(alert.created_at) }}
+          </p>
         </div>
-        <StatusPill type="AlertSeverity" :value="alert.severity" class="shrink-0" />
+        <StatusPill
+          type="AlertSeverity"
+          :value="alert.severity"
+          class="shrink-0"
+        />
       </li>
     </ul>
   </section>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import AppIcon from './AppIcon.vue'
-import StatusPill from './StatusPill.vue'
-import LoadingState from './LoadingState.vue'
-import ErrorState from './ErrorState.vue'
-import EmptyState from './EmptyState.vue'
-import { useLabels } from '../composables/useLabels'
-import { useFormat } from '../composables/useFormat'
+import { ref } from "vue";
+import AppIcon from "./AppIcon.vue";
+import StatusPill from "./StatusPill.vue";
+import LoadingState from "./LoadingState.vue";
+import ErrorState from "./ErrorState.vue";
+import EmptyState from "./EmptyState.vue";
+import { useLabels } from "../composables/useLabels";
+import { useFormat } from "../composables/useFormat";
 
 defineProps({
   alerts: { type: Array, default: () => [] },
   // Store status: idle | loading | success | error
-  status: { type: String, default: 'success' },
+  status: { type: String, default: "success" },
   // Store error object ({ code, message, details }) or null
   error: { type: Object, default: null },
-})
+});
 
-const emit = defineEmits(['retry'])
+const emit = defineEmits(["retry"]);
 
 // After a user-triggered retry, a new error moves focus back to the retry button
-const retried = ref(false)
+const retried = ref(false);
 function onRetry() {
-  retried.value = true
-  emit('retry')
+  retried.value = true;
+  emit("retry");
 }
 
 // Same texts and colours as the alerts table; dates in local time ('hoy 08:20')
-const { label } = useLabels()
-const { formatDateTime } = useFormat()
+const { label } = useLabels();
+const { formatDateTime } = useFormat();
 </script>

@@ -11,7 +11,9 @@
           <p class="text-xs font-bold uppercase tracking-widest text-aqua-600">
             Prueba gratis de 7 días
           </p>
-          <h1 class="text-3xl md:text-4xl font-bold leading-tight text-aqua-900">
+          <h1
+            class="text-3xl md:text-4xl font-bold leading-tight text-aqua-900"
+          >
             Empieza a vigilar el agua de tu edificio hoy mismo.
           </h1>
           <p class="text-lg text-slate-700">
@@ -28,7 +30,8 @@
               <span
                 class="mt-1 w-5 h-5 shrink-0 rounded-full bg-aqua-600 text-white text-xs font-bold flex items-center justify-center"
                 aria-hidden="true"
-              >✓</span>
+                >✓</span
+              >
               <span>{{ benefit }}</span>
             </li>
           </ul>
@@ -47,7 +50,10 @@
           <form novalidate class="space-y-5" @submit.prevent="handleSubmit">
             <!-- Name -->
             <div>
-              <label for="trial-name" class="block text-sm font-medium text-slate-700 mb-1">
+              <label
+                for="trial-name"
+                class="block text-sm font-medium text-slate-700 mb-1"
+              >
                 Tu nombre
               </label>
               <input
@@ -58,18 +64,27 @@
                 autocomplete="name"
                 maxlength="120"
                 :aria-invalid="Boolean(fieldErrors.name)"
-                :aria-describedby="fieldErrors.name ? 'trial-name-error' : undefined"
+                :aria-describedby="
+                  fieldErrors.name ? 'trial-name-error' : undefined
+                "
                 :class="inputClass('name')"
                 placeholder="Nombre y apellidos"
               />
-              <p v-if="fieldErrors.name" id="trial-name-error" class="mt-1 text-sm text-danger-dark">
+              <p
+                v-if="fieldErrors.name"
+                id="trial-name-error"
+                class="mt-1 text-sm text-danger-dark"
+              >
                 {{ fieldErrors.name }}
               </p>
             </div>
 
             <!-- Email -->
             <div>
-              <label for="trial-email" class="block text-sm font-medium text-slate-700 mb-1">
+              <label
+                for="trial-email"
+                class="block text-sm font-medium text-slate-700 mb-1"
+              >
                 Email
               </label>
               <input
@@ -80,23 +95,33 @@
                 autocomplete="email"
                 inputmode="email"
                 :aria-invalid="Boolean(fieldErrors.email)"
-                :aria-describedby="fieldErrors.email ? 'trial-email-error' : undefined"
+                :aria-describedby="
+                  fieldErrors.email ? 'trial-email-error' : undefined
+                "
                 :class="inputClass('email')"
                 placeholder="tu@empresa.com"
               />
-              <p v-if="fieldErrors.email" id="trial-email-error" class="mt-1 text-sm text-danger-dark">
+              <p
+                v-if="fieldErrors.email"
+                id="trial-email-error"
+                class="mt-1 text-sm text-danger-dark"
+              >
                 {{ fieldErrors.email }}
                 <RouterLink
                   v-if="emailTaken"
                   to="/login"
                   class="font-semibold underline hover:no-underline"
-                >Entrar</RouterLink>
+                  >Entrar</RouterLink
+                >
               </p>
             </div>
 
             <!-- Password -->
             <div>
-              <label for="trial-password" class="block text-sm font-medium text-slate-700 mb-1">
+              <label
+                for="trial-password"
+                class="block text-sm font-medium text-slate-700 mb-1"
+              >
                 Contraseña
               </label>
               <div class="relative">
@@ -108,7 +133,11 @@
                   autocomplete="new-password"
                   maxlength="128"
                   :aria-invalid="Boolean(fieldErrors.password)"
-                  :aria-describedby="fieldErrors.password ? 'trial-password-hint trial-password-error' : 'trial-password-hint'"
+                  :aria-describedby="
+                    fieldErrors.password
+                      ? 'trial-password-hint trial-password-error'
+                      : 'trial-password-hint'
+                  "
                   :class="[inputClass('password'), 'pr-20']"
                 />
                 <button
@@ -123,18 +152,29 @@
               <p id="trial-password-hint" class="mt-1 text-xs text-slate-600">
                 Mínimo {{ PASSWORD_MIN_LENGTH }} caracteres. Evita contraseñas
                 comunes y no incluyas tu email.
-                <span :class="passwordLongEnough ? 'text-success-dark font-semibold' : ''">
+                <span
+                  :class="
+                    passwordLongEnough ? 'text-success-dark font-semibold' : ''
+                  "
+                >
                   ({{ form.password.length }}/{{ PASSWORD_MIN_LENGTH }})
                 </span>
               </p>
-              <p v-if="fieldErrors.password" id="trial-password-error" class="mt-1 text-sm text-danger-dark">
+              <p
+                v-if="fieldErrors.password"
+                id="trial-password-error"
+                class="mt-1 text-sm text-danger-dark"
+              >
                 {{ fieldErrors.password }}
               </p>
             </div>
 
             <!-- Company name -->
             <div>
-              <label for="trial-organization" class="block text-sm font-medium text-slate-700 mb-1">
+              <label
+                for="trial-organization"
+                class="block text-sm font-medium text-slate-700 mb-1"
+              >
                 Nombre de la empresa
               </label>
               <input
@@ -145,7 +185,11 @@
                 autocomplete="organization"
                 maxlength="120"
                 :aria-invalid="Boolean(fieldErrors.organization_name)"
-                :aria-describedby="fieldErrors.organization_name ? 'trial-organization-error' : undefined"
+                :aria-describedby="
+                  fieldErrors.organization_name
+                    ? 'trial-organization-error'
+                    : undefined
+                "
                 :class="inputClass('organization_name')"
                 placeholder="Hotel, escuela, comunidad de vecinos..."
               />
@@ -168,7 +212,9 @@
                   type="checkbox"
                   class="mt-1 w-4 h-4 shrink-0 accent-aqua-600 cursor-pointer"
                   :aria-invalid="Boolean(fieldErrors.accept_terms)"
-                  :aria-describedby="fieldErrors.accept_terms ? 'trial-terms-error' : undefined"
+                  :aria-describedby="
+                    fieldErrors.accept_terms ? 'trial-terms-error' : undefined
+                  "
                 />
                 <label for="trial-terms" class="text-sm text-slate-700">
                   He leído y acepto los
@@ -177,18 +223,24 @@
                     target="_blank"
                     rel="noopener"
                     class="font-semibold text-aqua-700 underline hover:no-underline"
-                  >términos de uso</a>
+                    >términos de uso</a
+                  >
                   y la
                   <a
                     href="/legal#privacidad"
                     target="_blank"
                     rel="noopener"
                     class="font-semibold text-aqua-700 underline hover:no-underline"
-                  >política de privacidad</a>.
+                    >política de privacidad</a
+                  >.
                   <span class="sr-only">(se abren en una pestaña nueva)</span>
                 </label>
               </div>
-              <p v-if="fieldErrors.accept_terms" id="trial-terms-error" class="mt-1 text-sm text-danger-dark">
+              <p
+                v-if="fieldErrors.accept_terms"
+                id="trial-terms-error"
+                class="mt-1 text-sm text-danger-dark"
+              >
                 {{ fieldErrors.accept_terms }}
               </p>
             </div>
@@ -207,13 +259,18 @@
               :disabled="isLoading"
               class="w-full bg-aqua-600 text-white font-semibold py-3 rounded-lg hover:bg-aqua-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {{ isLoading ? "Creando tu cuenta..." : "Empezar la prueba gratis" }}
+              {{
+                isLoading ? "Creando tu cuenta..." : "Empezar la prueba gratis"
+              }}
             </button>
           </form>
 
           <p class="text-center text-sm text-slate-600 mt-6">
             ¿Ya tienes una cuenta?
-            <RouterLink to="/login" class="text-aqua-700 font-semibold hover:underline">
+            <RouterLink
+              to="/login"
+              class="text-aqua-700 font-semibold hover:underline"
+            >
               Entrar
             </RouterLink>
           </p>
@@ -288,10 +345,18 @@ const inputRefs = {
 };
 
 // Fields in screen order: the first one with an error gets the focus
-const FIELD_ORDER = ["name", "email", "password", "organization_name", "accept_terms"];
+const FIELD_ORDER = [
+  "name",
+  "email",
+  "password",
+  "organization_name",
+  "accept_terms",
+];
 
 const isLoading = computed(() => authStore.status === "loading");
-const passwordLongEnough = computed(() => form.password.length >= PASSWORD_MIN_LENGTH);
+const passwordLongEnough = computed(
+  () => form.password.length >= PASSWORD_MIN_LENGTH,
+);
 
 // Backend error codes that belong to one field
 const FIELD_BY_CODE = {
@@ -308,7 +373,8 @@ const MESSAGE_BY_CODE = {
   EMAIL_ALREADY_EXISTS: "Ya hay una cuenta con este email.",
   ORGANIZATION_NAME_TAKEN: "Ya hay una empresa registrada con este nombre.",
   INVALID_NAME: "Escribe el nombre de tu empresa.",
-  TERMS_NOT_ACCEPTED: "Tienes que aceptar los términos y la política de privacidad.",
+  TERMS_NOT_ACCEPTED:
+    "Tienes que aceptar los términos y la política de privacidad.",
 };
 
 // Messages for the generic 422 VALIDATION_ERROR (Pydantic), by field
@@ -395,11 +461,13 @@ function showApiError(err) {
   }
 
   if (err?.code === "NETWORK_ERROR") {
-    generalError.value = "No hemos podido conectar con el servidor. Inténtalo de nuevo.";
+    generalError.value =
+      "No hemos podido conectar con el servidor. Inténtalo de nuevo.";
     return;
   }
 
-  generalError.value = "No hemos podido crear tu cuenta. Inténtalo de nuevo en unos minutos.";
+  generalError.value =
+    "No hemos podido crear tu cuenta. Inténtalo de nuevo en unos minutos.";
 }
 
 async function focusFirstError() {
@@ -444,7 +512,7 @@ for (const field of FIELD_ORDER) {
     () => {
       fieldErrors[field] = "";
       if (field === "email") emailTaken.value = false;
-    }
+    },
   );
 }
 

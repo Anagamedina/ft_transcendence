@@ -164,11 +164,9 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const authStore = useAuthStore();
 
-  const requiresAuth = to.matched.some(
-    (record) => record.meta.requiresAuth
-  );
+  const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
 
-//meta.role replaces the old requiresAdmin and requiresClient
+  //meta.role replaces the old requiresAdmin and requiresClient
   const requiredRole = [...to.matched]
     .reverse()
     .find((record) => record.meta.role)?.meta.role;
@@ -198,7 +196,7 @@ router.beforeEach(async (to) => {
       return "/app";
     }
 
-  // Avoid redirecting indefinitely between protected and login routes
+    // Avoid redirecting indefinitely between protected and login routes
     return { name: "NotFound" };
   }
 

@@ -21,35 +21,41 @@
     :aria-label="ariaLabel"
     @click="$emit('select', sensor.id)"
   >
-    <span class="h-[9px] w-[9px] shrink-0 rounded-full" :class="dotClass" aria-hidden="true"></span>
+    <span
+      class="h-[9px] w-[9px] shrink-0 rounded-full"
+      :class="dotClass"
+      aria-hidden="true"
+    ></span>
     <span class="truncate">{{ sensor.name }}</span>
   </button>
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { useLabels } from '../composables/useLabels'
+import { computed } from "vue";
+import { useLabels } from "../composables/useLabels";
 
 const props = defineProps({
   // SensorResponse (B3): id, name, health, last_value, unit
   sensor: { type: Object, required: true },
   // True when this sensor is the one shown in the detail panel
   selected: { type: Boolean, default: false },
-})
+});
 
-defineEmits(['select'])
+defineEmits(["select"]);
 
-const { label, tone, toneClasses } = useLabels()
+const { label, tone, toneClasses } = useLabels();
 
-const health = computed(() => props.sensor.health || 'OFFLINE')
-const dotClass = computed(() => toneClasses(tone('SensorHealth', health.value)).dot)
+const health = computed(() => props.sensor.health || "OFFLINE");
+const dotClass = computed(
+  () => toneClasses(tone("SensorHealth", health.value)).dot,
+);
 
 // The colour is not enough: screen readers get the state and the value in words
 const ariaLabel = computed(() => {
   const value =
     props.sensor.last_value === null || props.sensor.last_value === undefined
-      ? 'sin lectura'
-      : `${props.sensor.last_value} ${props.sensor.unit || 'bar'}`
-  return `${props.sensor.name}: ${label('SensorHealth', health.value)}, ${value}`
-})
+      ? "sin lectura"
+      : `${props.sensor.last_value} ${props.sensor.unit || "bar"}`;
+  return `${props.sensor.name}: ${label("SensorHealth", health.value)}, ${value}`;
+});
 </script>

@@ -15,12 +15,18 @@
       <header class="flex flex-wrap items-end justify-between gap-4">
         <div class="min-w-0">
           <h1 class="text-2xl font-bold text-slate-900">Sensores</h1>
-          <p v-if="site" class="mt-1 text-sm text-slate-600">{{ siteSummary }}</p>
+          <p v-if="site" class="mt-1 text-sm text-slate-600">
+            {{ siteSummary }}
+          </p>
         </div>
 
         <div class="flex flex-wrap items-end gap-2">
           <div class="flex flex-col gap-1">
-            <label for="sensors-site" class="text-[13px] font-medium text-slate-600">Edificio</label>
+            <label
+              for="sensors-site"
+              class="text-[13px] font-medium text-slate-600"
+              >Edificio</label
+            >
             <select
               id="sensors-site"
               :value="siteId"
@@ -28,7 +34,11 @@
               :disabled="siteOptions.length === 0"
               @change="chooseSite($event.target.value)"
             >
-              <option v-for="option in siteOptions" :key="option.id" :value="option.id">
+              <option
+                v-for="option in siteOptions"
+                :key="option.id"
+                :value="option.id"
+              >
                 {{ option.label }}
               </option>
             </select>
@@ -45,9 +55,20 @@
       </header>
 
       <!-- Building floor by floor + detail or form -->
-      <LoadingState v-if="sitesLoading || (site && sensorsLoading)" message="Cargando edificio…" />
-      <ErrorState v-else-if="sitesError" :message="sitesError" @retry="loadAll" />
-      <ErrorState v-else-if="sensorsError" :message="sensorsError" @retry="loadSensors" />
+      <LoadingState
+        v-if="sitesLoading || (site && sensorsLoading)"
+        message="Cargando edificio…"
+      />
+      <ErrorState
+        v-else-if="sitesError"
+        :message="sitesError"
+        @retry="loadAll"
+      />
+      <ErrorState
+        v-else-if="sensorsError"
+        :message="sensorsError"
+        @retry="loadSensors"
+      />
       <EmptyState
         v-else-if="!site"
         icon="building"
@@ -55,7 +76,10 @@
         message="Da de alta un edificio en la página de edificios para instalar sensores."
       />
 
-      <div v-else class="grid items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      <div
+        v-else
+        class="grid items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]"
+      >
         <BuildingStack
           :name="site.name"
           :floors="site.floors"
@@ -73,15 +97,25 @@
             :aria-labelledby="'sensor-form-title'"
           >
             <div>
-              <p class="text-xs font-bold uppercase tracking-[0.08em] text-aqua-700">
-                {{ formMode === 'create' ? 'Nuevo sensor' : 'Ajustar sensor' }}
+              <p
+                class="text-xs font-bold uppercase tracking-[0.08em] text-aqua-700"
+              >
+                {{ formMode === "create" ? "Nuevo sensor" : "Ajustar sensor" }}
               </p>
-              <h2 id="sensor-form-title" class="text-lg font-bold text-aqua-900">
-                {{ formMode === 'create' ? site.name : selectedSensor?.name }}
+              <h2
+                id="sensor-form-title"
+                class="text-lg font-bold text-aqua-900"
+              >
+                {{ formMode === "create" ? site.name : selectedSensor?.name }}
               </h2>
             </div>
 
-            <form id="sensor-form" novalidate class="space-y-4" @submit.prevent="save">
+            <form
+              id="sensor-form"
+              novalidate
+              class="space-y-4"
+              @submit.prevent="save"
+            >
               <SensorForm
                 ref="sensorForm"
                 v-model="form"
@@ -90,7 +124,11 @@
                 :mode="formMode"
                 :taken-labels="siteSensors.map((sensor) => sensor.external_id)"
               />
-              <p v-if="saveError" role="alert" class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">
+              <p
+                v-if="saveError"
+                role="alert"
+                class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800"
+              >
                 {{ saveError }}
               </p>
             </form>
@@ -110,7 +148,7 @@
                 class="min-h-10 rounded-lg bg-aqua-600 px-4 text-sm font-semibold text-white hover:bg-aqua-700 disabled:opacity-50"
                 :disabled="saving"
               >
-                {{ saving ? 'Guardando…' : 'Guardar sensor' }}
+                {{ saving ? "Guardando…" : "Guardar sensor" }}
               </button>
             </div>
           </section>
@@ -147,7 +185,9 @@
       <!-- Every sensor of every client -->
       <section class="space-y-4 pt-2" aria-labelledby="all-sensors-title">
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="all-sensors-title" class="text-lg font-bold text-slate-900">Todos los sensores</h2>
+          <h2 id="all-sensors-title" class="text-lg font-bold text-slate-900">
+            Todos los sensores
+          </h2>
           <button
             type="button"
             class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50"
@@ -176,7 +216,12 @@
         <DataTable
           :columns="COLUMNS"
           :rows="sensors"
-          :search-fields="['name', 'external_id', 'site_name', 'organization_name']"
+          :search-fields="[
+            'name',
+            'external_id',
+            'site_name',
+            'organization_name',
+          ]"
           search-placeholder="Sensor, etiqueta, edificio o cliente…"
           :filters="filters"
           :loading="sensorsLoading"
@@ -199,23 +244,41 @@
                 >
                   {{ sensor.name }}
                 </button>
-                <span class="block text-xs text-slate-500">{{ sensor.external_id }}</span>
+                <span class="block text-xs text-slate-500">{{
+                  sensor.external_id
+                }}</span>
               </td>
               <td class="px-4 py-3 text-slate-600">
                 {{ sensor.site_name }}
-                <span class="block text-xs text-slate-500">{{ sensor.organization_name }}</span>
+                <span class="block text-xs text-slate-500">{{
+                  sensor.organization_name
+                }}</span>
               </td>
-              <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ floorLabel(sensor.floor ?? 0) }}</td>
-              <td class="whitespace-nowrap px-4 py-3 text-right tabular-nums text-slate-600">
+              <td class="whitespace-nowrap px-4 py-3 text-slate-600">
+                {{ floorLabel(sensor.floor ?? 0) }}
+              </td>
+              <td
+                class="whitespace-nowrap px-4 py-3 text-right tabular-nums text-slate-600"
+              >
                 {{ formatPressure(sensor.last_value, sensor.unit) }}
               </td>
-              <td class="whitespace-nowrap px-4 py-3 tabular-nums text-slate-600">
-                {{ formatRange(sensor.min_pressure, sensor.max_pressure, sensor.unit) }}
+              <td
+                class="whitespace-nowrap px-4 py-3 tabular-nums text-slate-600"
+              >
+                {{
+                  formatRange(
+                    sensor.min_pressure,
+                    sensor.max_pressure,
+                    sensor.unit,
+                  )
+                }}
               </td>
               <td class="px-4 py-3">
                 <StatusPill type="SensorHealth" :value="sensor.health" />
               </td>
-              <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ formatDateTime(sensor.last_seen_at, { empty: 'Nunca' }) }}</td>
+              <td class="whitespace-nowrap px-4 py-3 text-slate-600">
+                {{ formatDateTime(sensor.last_seen_at, { empty: "Nunca" }) }}
+              </td>
             </tr>
           </template>
         </DataTable>
@@ -225,49 +288,57 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import AdminLayout from '../../layouts/AdminLayout.vue'
-import BuildingStack from '../../components/BuildingStack.vue'
-import SensorDetailPanel from '../../components/SensorDetailPanel.vue'
-import SensorForm, { emptySensor } from '../../components/SensorForm.vue'
-import DataTable from '../../components/DataTable.vue'
-import StatusPill from '../../components/StatusPill.vue'
-import LoadingState from '../../components/LoadingState.vue'
-import ErrorState from '../../components/ErrorState.vue'
-import EmptyState from '../../components/EmptyState.vue'
-import { useSitesStore } from '../../stores/sites.js'
-import { useSensorsStore } from '../../stores/sensors.js'
-import { useReadingsStore } from '../../stores/readings.js'
-import { useAlertsStore } from '../../stores/alerts.js'
-import { useLabels } from '../../composables/useLabels'
-import { useFormat } from '../../composables/useFormat'
-import { floorLabel } from '../../utils/floors'
+import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import AdminLayout from "../../layouts/AdminLayout.vue";
+import BuildingStack from "../../components/BuildingStack.vue";
+import SensorDetailPanel from "../../components/SensorDetailPanel.vue";
+import SensorForm, { emptySensor } from "../../components/SensorForm.vue";
+import DataTable from "../../components/DataTable.vue";
+import StatusPill from "../../components/StatusPill.vue";
+import LoadingState from "../../components/LoadingState.vue";
+import ErrorState from "../../components/ErrorState.vue";
+import EmptyState from "../../components/EmptyState.vue";
+import { useSitesStore } from "../../stores/sites.js";
+import { useSensorsStore } from "../../stores/sensors.js";
+import { useReadingsStore } from "../../stores/readings.js";
+import { useAlertsStore } from "../../stores/alerts.js";
+import { useLabels } from "../../composables/useLabels";
+import { useFormat } from "../../composables/useFormat";
+import { floorLabel } from "../../utils/floors";
 
-const route = useRoute()
-const router = useRouter()
-const sitesStore = useSitesStore()
-const sensorsStore = useSensorsStore()
-const readingsStore = useReadingsStore()
-const alertsStore = useAlertsStore()
-const { label } = useLabels()
+const route = useRoute();
+const router = useRouter();
+const sitesStore = useSitesStore();
+const sensorsStore = useSensorsStore();
+const readingsStore = useReadingsStore();
+const alertsStore = useAlertsStore();
+const { label } = useLabels();
 
 // ---------------------------------------------------------------------------
 // Loading
 // ---------------------------------------------------------------------------
-const sitesLoading = computed(() => ['idle', 'loading'].includes(sitesStore.status))
-const sensorsLoading = computed(() => ['idle', 'loading'].includes(sensorsStore.status))
+const sitesLoading = computed(() =>
+  ["idle", "loading"].includes(sitesStore.status),
+);
+const sensorsLoading = computed(() =>
+  ["idle", "loading"].includes(sensorsStore.status),
+);
 
 const sitesError = computed(() =>
-  sitesStore.status === 'error' ? sitesStore.error?.message || 'No se han podido cargar los edificios.' : ''
-)
+  sitesStore.status === "error"
+    ? sitesStore.error?.message || "No se han podido cargar los edificios."
+    : "",
+);
 const sensorsError = computed(() =>
-  sensorsStore.status === 'error' ? sensorsStore.error?.message || 'No se han podido cargar los sensores.' : ''
-)
+  sensorsStore.status === "error"
+    ? sensorsStore.error?.message || "No se han podido cargar los sensores."
+    : "",
+);
 
 async function loadSites() {
   try {
-    await sitesStore.fetchSites()
+    await sitesStore.fetchSites();
   } catch {
     // The store exposes the error state to the view
   }
@@ -275,14 +346,14 @@ async function loadSites() {
 
 async function loadSensors() {
   try {
-    await sensorsStore.fetchSensors()
+    await sensorsStore.fetchSensors();
   } catch {
     // The store exposes the error state to the view
   }
 }
 
 function loadAll() {
-  return Promise.all([loadSites(), loadSensors()])
+  return Promise.all([loadSites(), loadSensors()]);
 }
 
 // ---------------------------------------------------------------------------
@@ -295,139 +366,162 @@ const siteOptions = computed(() =>
   [...sitesStore.sites]
     .sort(
       (a, b) =>
-        a.organization_name.localeCompare(b.organization_name, 'es') || a.name.localeCompare(b.name, 'es')
+        a.organization_name.localeCompare(b.organization_name, "es") ||
+        a.name.localeCompare(b.name, "es"),
     )
-    .map((option) => ({ id: option.id, label: `${option.name} · ${option.organization_name}` }))
-)
+    .map((option) => ({
+      id: option.id,
+      label: `${option.name} · ${option.organization_name}`,
+    })),
+);
 
 // The building in the URL, or the first one of the list when there is none (or it no longer exists)
 const siteId = computed(() => {
-  const fromUrl = route.query.site
-  if (fromUrl && sitesStore.siteById(fromUrl)) return fromUrl
-  return siteOptions.value[0]?.id ?? null
-})
+  const fromUrl = route.query.site;
+  if (fromUrl && sitesStore.siteById(fromUrl)) return fromUrl;
+  return siteOptions.value[0]?.id ?? null;
+});
 
-const site = computed(() => (siteId.value ? sitesStore.siteById(siteId.value) : null))
+const site = computed(() =>
+  siteId.value ? sitesStore.siteById(siteId.value) : null,
+);
 
 function chooseSite(id) {
-  router.replace({ query: { ...route.query, site: id } })
+  router.replace({ query: { ...route.query, site: id } });
 }
 
 // Sensors of the selected building, taken from the full list: creating or
 // editing a sensor updates the building and the table at the same time
-const siteSensors = computed(() => sensorsStore.sensors.filter((sensor) => sensor.site_id === siteId.value))
+const siteSensors = computed(() =>
+  sensorsStore.sensors.filter((sensor) => sensor.site_id === siteId.value),
+);
 
 // "Sant Martí · 4 plantas + 2 sótanos · 8 sensores" as in the mockup.
 // The district only appears once the API returns it (D10).
 const siteSummary = computed(() => {
-  const s = site.value
-  const parts = []
-  if (s.district) parts.push(label('District', s.district))
+  const s = site.value;
+  const parts = [];
+  if (s.district) parts.push(label("District", s.district));
   parts.push(
-    `${s.floors} ${s.floors === 1 ? 'planta' : 'plantas'}` +
-      (s.basements > 0 ? ` + ${s.basements} ${s.basements === 1 ? 'sótano' : 'sótanos'}` : '')
-  )
-  parts.push(`${siteSensors.value.length} ${siteSensors.value.length === 1 ? 'sensor' : 'sensores'}`)
-  return parts.join(' · ')
-})
+    `${s.floors} ${s.floors === 1 ? "planta" : "plantas"}` +
+      (s.basements > 0
+        ? ` + ${s.basements} ${s.basements === 1 ? "sótano" : "sótanos"}`
+        : ""),
+  );
+  parts.push(
+    `${siteSensors.value.length} ${siteSensors.value.length === 1 ? "sensor" : "sensores"}`,
+  );
+  return parts.join(" · ");
+});
 
 // ---------------------------------------------------------------------------
 // Selected sensor and its detail
 // ---------------------------------------------------------------------------
-const selectedId = ref(null)
-const sidePanel = ref(null)
+const selectedId = ref(null);
+const sidePanel = ref(null);
 
-const selectedSensor = computed(() => siteSensors.value.find((sensor) => sensor.id === selectedId.value) ?? null)
+const selectedSensor = computed(
+  () =>
+    siteSensors.value.find((sensor) => sensor.id === selectedId.value) ?? null,
+);
 
 function selectSensor(id) {
-  if (saving.value) return
-  formMode.value = null
-  selectedId.value = id
+  if (saving.value) return;
+  formMode.value = null;
+  selectedId.value = id;
 }
 
 // From the table: open its building and select it, then bring the panel into view
 function showSensor(sensor) {
-  if (sensor.site_id !== siteId.value) chooseSite(sensor.site_id)
-  selectSensor(sensor.id)
-  nextTick(() => sidePanel.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  if (sensor.site_id !== siteId.value) chooseSite(sensor.site_id);
+  selectSensor(sensor.id);
+  nextTick(() =>
+    sidePanel.value?.scrollIntoView({ behavior: "smooth", block: "start" }),
+  );
 }
 
 // Another building: nothing selected and no open form
 watch(siteId, () => {
-  selectedId.value = null
-  formMode.value = null
-})
+  selectedId.value = null;
+  formMode.value = null;
+});
 
-const readings = computed(() => readingsStore.readings)
-const readingsLoading = computed(() => readingsStore.status === 'loading')
+const readings = computed(() => readingsStore.readings);
+const readingsLoading = computed(() => readingsStore.status === "loading");
 const readingsError = computed(() =>
-  readingsStore.status === 'error' ? readingsStore.error?.message || 'No se han podido cargar las lecturas.' : ''
-)
+  readingsStore.status === "error"
+    ? readingsStore.error?.message || "No se han podido cargar las lecturas."
+    : "",
+);
 
 function loadReadings() {
-  if (selectedId.value) readingsStore.fetchReadings(selectedId.value)
+  if (selectedId.value) readingsStore.fetchReadings(selectedId.value);
 }
 
 // The chart follows the selected sensor
-watch(selectedId, loadReadings)
+watch(selectedId, loadReadings);
 
 // Alerts of the selected sensor in the last 7 days. The admin menu already
 // loads the alerts, so this needs no extra request.
-const DAY_MS = 24 * 60 * 60 * 1000
+const DAY_MS = 24 * 60 * 60 * 1000;
 const alertCount = computed(() => {
-  if (!selectedId.value || alertsStore.status !== 'success') return null
-  const since = Date.now() - 7 * DAY_MS
+  if (!selectedId.value || alertsStore.status !== "success") return null;
+  const since = Date.now() - 7 * DAY_MS;
   return alertsStore.alerts.filter(
-    (alert) => alert.sensor_id === selectedId.value && new Date(alert.created_at).getTime() >= since
-  ).length
-})
+    (alert) =>
+      alert.sensor_id === selectedId.value &&
+      new Date(alert.created_at).getTime() >= since,
+  ).length;
+});
 
 // ---------------------------------------------------------------------------
 // Create / edit form (SensorForm)
 // ---------------------------------------------------------------------------
 // null | 'create' | 'edit'
-const formMode = ref(null)
-const form = ref(emptySensor())
-const sensorForm = ref(null)
-const saving = ref(false)
-const saveError = ref('')
+const formMode = ref(null);
+const form = ref(emptySensor());
+const sensorForm = ref(null);
+const saving = ref(false);
+const saveError = ref("");
 
 // Fields that PATCH /api/sensors/{id} accepts and this form edits
-const EDITABLE = ['name', 'floor', 'min_pressure', 'max_pressure']
+const EDITABLE = ["name", "floor", "min_pressure", "max_pressure"];
 
 function openCreate() {
   // No sensor highlighted while a new one is being created
-  selectedId.value = null
-  form.value = emptySensor()
-  saveError.value = ''
-  formMode.value = 'create'
-  nextTick(() => sidePanel.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  selectedId.value = null;
+  form.value = emptySensor();
+  saveError.value = "";
+  formMode.value = "create";
+  nextTick(() =>
+    sidePanel.value?.scrollIntoView({ behavior: "smooth", block: "start" }),
+  );
 }
 
 function openEdit() {
-  const s = selectedSensor.value
+  const s = selectedSensor.value;
   form.value = {
     name: s.name,
     floor: s.floor ?? 0,
     min_pressure: s.min_pressure,
     max_pressure: s.max_pressure,
-  }
-  saveError.value = ''
-  formMode.value = 'edit'
+  };
+  saveError.value = "";
+  formMode.value = "edit";
 }
 
 function closeForm() {
-  if (saving.value) return
-  formMode.value = null
+  if (saving.value) return;
+  formMode.value = null;
 }
 
 async function save() {
-  saveError.value = ''
-  if (!sensorForm.value.validate()) return
+  saveError.value = "";
+  if (!sensorForm.value.validate()) return;
 
-  saving.value = true
+  saving.value = true;
   try {
-    if (formMode.value === 'create') {
+    if (formMode.value === "create") {
       const created = await sensorsStore.createSensor({
         site_id: site.value.id,
         external_id: form.value.external_id.trim(),
@@ -435,25 +529,27 @@ async function save() {
         floor: form.value.floor,
         min_pressure: form.value.min_pressure,
         max_pressure: form.value.max_pressure,
-      })
-      selectedId.value = created.id
+      });
+      selectedId.value = created.id;
     } else {
       // PATCH sends only what changed
-      const data = { ...form.value, name: form.value.name.trim() }
+      const data = { ...form.value, name: form.value.name.trim() };
       const changes = Object.fromEntries(
-        EDITABLE.filter((field) => data[field] !== selectedSensor.value[field]).map((field) => [field, data[field]])
-      )
+        EDITABLE.filter(
+          (field) => data[field] !== selectedSensor.value[field],
+        ).map((field) => [field, data[field]]),
+      );
       if (Object.keys(changes).length > 0) {
-        await sensorsStore.updateSensor(selectedSensor.value.id, changes)
+        await sensorsStore.updateSensor(selectedSensor.value.id, changes);
       }
     }
-    formMode.value = null
+    formMode.value = null;
   } catch (err) {
     // The API explains the problem: repeated device label (409), floor outside
     // the building (FLOOR_OUT_OF_SITE), thresholds... Show it as it comes.
-    saveError.value = err?.message || 'No se ha podido guardar el sensor.'
+    saveError.value = err?.message || "No se ha podido guardar el sensor.";
   } finally {
-    saving.value = false
+    saving.value = false;
   }
 }
 
@@ -461,51 +557,57 @@ async function save() {
 // Table of every sensor
 // ---------------------------------------------------------------------------
 const COLUMNS = [
-  { key: 'name', label: 'Sensor' },
-  { key: 'site_name', label: 'Edificio' },
-  { key: 'floor', label: 'Planta' },
-  { key: 'last_value', label: 'Valor' },
-  { key: 'range', label: 'Rango permitido' },
-  { key: 'health', label: 'Estado' },
-  { key: 'last_seen_at', label: 'Última lectura' },
-]
+  { key: "name", label: "Sensor" },
+  { key: "site_name", label: "Edificio" },
+  { key: "floor", label: "Planta" },
+  { key: "last_value", label: "Valor" },
+  { key: "range", label: "Rango permitido" },
+  { key: "health", label: "Estado" },
+  { key: "last_seen_at", label: "Última lectura" },
+];
 
-const sensors = computed(() => sensorsStore.sensors)
+const sensors = computed(() => sensorsStore.sensors);
 
 const alertingCount = computed(
-  () => sensors.value.filter((sensor) => sensor.health === 'WARNING' || sensor.health === 'CRITICAL').length
-)
-const offlineCount = computed(() => sensors.value.filter((sensor) => sensor.health === 'OFFLINE').length)
+  () =>
+    sensors.value.filter(
+      (sensor) => sensor.health === "WARNING" || sensor.health === "CRITICAL",
+    ).length,
+);
+const offlineCount = computed(
+  () => sensors.value.filter((sensor) => sensor.health === "OFFLINE").length,
+);
 
 // Clients that have sensors, for the client filter
 const clientOptions = computed(() => {
-  const byId = new Map()
-  for (const sensor of sensors.value) byId.set(sensor.organization_id, sensor.organization_name)
+  const byId = new Map();
+  for (const sensor of sensors.value)
+    byId.set(sensor.organization_id, sensor.organization_name);
   return [...byId]
     .map(([value, text]) => ({ value, label: text }))
-    .sort((a, b) => a.label.localeCompare(b.label, 'es'))
-})
+    .sort((a, b) => a.label.localeCompare(b.label, "es"));
+});
 
 const filters = computed(() => [
   {
-    key: 'health',
-    label: 'Estado',
-    allLabel: 'Todos los estados',
-    options: ['OK', 'WARNING', 'CRITICAL', 'OFFLINE'].map((value) => ({
+    key: "health",
+    label: "Estado",
+    allLabel: "Todos los estados",
+    options: ["OK", "WARNING", "CRITICAL", "OFFLINE"].map((value) => ({
       value,
-      label: label('SensorHealth', value),
+      label: label("SensorHealth", value),
     })),
   },
   {
-    key: 'organization_id',
-    label: 'Cliente',
-    allLabel: 'Todos los clientes',
+    key: "organization_id",
+    label: "Cliente",
+    allLabel: "Todos los clientes",
     options: clientOptions.value,
   },
-])
+]);
 
 // '4,2 bar', '2,0–6,0 bar' and 'hoy 08:20' (local time)
-const { formatPressure, formatRange, formatDateTime } = useFormat()
+const { formatPressure, formatRange, formatDateTime } = useFormat();
 
-onMounted(loadAll)
+onMounted(loadAll);
 </script>

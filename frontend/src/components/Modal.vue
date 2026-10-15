@@ -13,7 +13,9 @@
           aria-modal="true"
         >
           <!-- Cabecera -->
-          <div class="flex justify-between items-center border-b border-aqua-100 px-6 py-4">
+          <div
+            class="flex justify-between items-center border-b border-aqua-100 px-6 py-4"
+          >
             <slot name="header">
               <h3 class="text-lg font-bold text-aqua-900">{{ title }}</h3>
             </slot>
@@ -32,7 +34,10 @@
           </div>
 
           <!-- Pie (opcional) -->
-          <div v-if="$slots.footer" class="flex justify-end gap-3 border-t border-aqua-100 px-6 py-4">
+          <div
+            v-if="$slots.footer"
+            class="flex justify-end gap-3 border-t border-aqua-100 px-6 py-4"
+          >
             <slot name="footer" />
           </div>
         </div>
@@ -42,29 +47,29 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted } from "vue";
 
 const props = defineProps({
   show: { type: Boolean, default: false },
-  title: { type: String, default: '' },
+  title: { type: String, default: "" },
   // Width of the window: 'md' (default, forms/messages) | 'lg' | 'xl' (maps, big content)
-  size: { type: String, default: 'md' }
-})
+  size: { type: String, default: "md" },
+});
 
-const SIZES = { md: 'max-w-md', lg: 'max-w-3xl', xl: 'max-w-6xl' }
+const SIZES = { md: "max-w-md", lg: "max-w-3xl", xl: "max-w-6xl" };
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(["close"]);
 
 function close() {
-  emit('close')
+  emit("close");
 }
 
 function handleEsc(e) {
-  if (e.key === 'Escape' && props.show) close()
+  if (e.key === "Escape" && props.show) close();
 }
 
-onMounted(() => document.addEventListener('keydown', handleEsc))
-onUnmounted(() => document.removeEventListener('keydown', handleEsc))
+onMounted(() => document.addEventListener("keydown", handleEsc));
+onUnmounted(() => document.removeEventListener("keydown", handleEsc));
 </script>
 
 <style scoped>
