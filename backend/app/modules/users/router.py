@@ -21,12 +21,19 @@ from fastapi import APIRouter, Depends, status
 from app.modules.auth.schemas import MessageResponse
 from app.modules.users.service import UserService, get_user_service
 from app.modules.users.schemas import MeResponse, MeUpdate, PasswordChange
-from app.shared.dependencies import CurrentUser
+from app.shared.dependencies import CurrentUser, require_trial_not_expired
 from app.shared.schemas import error_response
 
 router = APIRouter(tags=["Users"])
 
 UserSvc = Annotated[UserService, Depends(get_user_service)]
+
+# Escrituras de cliente: con la prueba vencida, solo lectura (B12).
+_SOLO_LECTURA_SI_CADUCA = [Depends(require_trial_not_expired)]
+_PRUEBA_VENCIDA = error_response(
+    status.HTTP_403_FORBIDDEN,
+    "La prueba ha vencido y la cuenta es de solo lectura (`TRIAL_EXPIRED`).",
+)
 
 
 @router.get(
@@ -55,7 +62,9 @@ def get_me(service: UserSvc, user: CurrentUser) -> MeResponse:
     "/me",
     response_model=MeResponse,
     summary="Actualizar mi cuenta",
+    dependencies=_SOLO_LECTURA_SI_CADUCA,
     responses={
+        **_PRUEBA_VENCIDA,
         **error_response(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             "El nombre no es válido (`INVALID_NAME`).",
@@ -72,7 +81,9 @@ def update_me(
     "/me/password",
     response_model=MessageResponse,
     summary="Cambiar mi contraseña",
+    dependencies=_SOLO_LECTURA_SI_CADUCA,
     responses={
+        **_PRUEBA_VENCIDA,
         **error_response(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             "La contraseña actual no coincide (`WRONG_PASSWORD`) o la nueva "
