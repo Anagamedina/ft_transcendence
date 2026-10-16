@@ -22,22 +22,7 @@
       </template>
     </Header>
 
-    <div
-      v-if="trialDays !== null"
-      class="border-b border-amber-200 bg-amber-50 px-6 py-3 text-sm text-amber-900"
-      role="status"
-    >
-      <strong>Periodo de prueba:</strong>
-      <template v-if="trialDays > 1">
-        quedan {{ trialDays }} días.
-      </template>
-      <template v-else-if="trialDays === 1">
-        queda 1 día.
-      </template>
-      <template v-else>
-        la prueba termina hoy.
-      </template>
-    </div>
+    <TrialBanner :organization="authStore.organization" />
 
     <div class="flex flex-1 overflow-hidden">
       <Sidebar appName="AquaGuard" :items="sidebarItems" />
@@ -62,6 +47,7 @@ import { useAutoRefresh } from '../composables/useAutoRefresh'
 import Header from '../components/Header.vue'
 import Sidebar from '../components/Sidebar.vue'
 import Footer from '../components/Footer.vue'
+import TrialBanner from '../components/TrialBanner.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -70,29 +56,6 @@ const overviewStore = useOverviewStore()
 const organizationName = computed(
   () => authStore.organization?.name || 'Mi organización'
 )
-
-const trialDays = computed(() => {
-  const organization = authStore.organization
-
-  if (
-    organization?.status !== 'TRIAL' ||
-    !organization.trial_ends_at
-  ) {
-    return null
-  }
-
-  const end = new Date(organization.trial_ends_at)
-  if (Number.isNaN(end.getTime())) return null
-
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  end.setHours(0, 0, 0, 0)
-
-  return Math.max(
-    0,
-    Math.round((end - today) / (24 * 60 * 60 * 1000))
-  )
-})
 
 // TODO: connect the badge to the exact active-alert field
 // defined by GET /api/analytics/overview.
