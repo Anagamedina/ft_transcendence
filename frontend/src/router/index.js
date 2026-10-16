@@ -68,6 +68,16 @@ const routes = [
         path: "account",
         component: () => import("../views/client/AccountView.vue"),
       },
+      {
+        path: "alerts",
+        name: "ClientAlerts",
+        component: () => import("../views/client/AlertsView.vue"),
+      },
+      {
+        path: "documents",
+        name: "ClientDocuments",
+        component: () => import("../views/client/DocumentsView.vue"),
+      },
     ],
   },
 
