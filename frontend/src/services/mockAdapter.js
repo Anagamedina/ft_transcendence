@@ -83,7 +83,9 @@ function toPublicUser(user) {
 
 function toMeResponse(user) {
   const organization = user?.organization_id
-    ? [...organizations, ...mockOrganizations].find((item) => item.id === user.organization_id)
+    ? organizations.find(
+        (item) => item.id === user.organization_id
+      )
     : null
 
   return {
