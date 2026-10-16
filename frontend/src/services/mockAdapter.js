@@ -56,6 +56,18 @@ const mockUser = [
     last_login_at: null,
     password: "123",
   },
+  {
+  id: "77777777-7777-4777-8777-777777777777",
+  email: "trial@example.com",
+  name: "Mock Trial Client",
+  role: "client",
+  organization_id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  created_at: "2026-10-16T08:00:00Z",
+  organization_name: "Clínica Sarrià",
+  is_active: true,
+  last_login_at: null,
+  password: "123",
+}
 ]
 
 const mockDocuments = []

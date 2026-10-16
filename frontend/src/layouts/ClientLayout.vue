@@ -109,16 +109,14 @@ const sidebarItems = computed(() => [
   },
   {
     label: 'Alertas',
-    to: null,
+    to: '/app/alerts',
     icon: 'alert',
     badge: activeAlertCount.value,
-    disabled: true,
   },
   {
     label: 'Documentos',
-    to: null,
+    to: '/app/documents',
     icon: 'file-text',
-    disabled: true,
   },
   {
     label: 'Mi cuenta',
