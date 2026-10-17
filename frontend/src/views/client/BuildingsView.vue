@@ -88,7 +88,7 @@
       <LoadingState v-if="sensorsLoading" message="Cargando sensores…" />
       <ErrorState v-else-if="sensorsError" :message="sensorsError" @retry="loadSensors" />
 
-      <div v-else class="grid items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      <div v-else class="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <BuildingStack
           :name="site.name"
           :floors="site.floors"
