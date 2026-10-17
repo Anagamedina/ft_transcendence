@@ -1,10 +1,11 @@
 <!--
   ALERT ROW
-  One row of an alerts table (<tr>): message, client, sensor, severity, state
+  One row of an alerts table (<tr>): message, client (optional), sensor, severity, state
   (with when it was acknowledged or resolved), date (with how long it has been
   open or how long it lasted) and the acknowledge / resolve buttons.
   Presentational: it receives the alert by props and emits the chosen action;
   the parent calls the store.
+  Client views pass :show-organization="false" (no client column).
   Usage (inside <tbody>):
     <AlertRow
       v-for="alert in alerts" :key="alert.id"
@@ -21,7 +22,7 @@
       {{ alert.message || '—' }}
       <span class="block text-xs text-slate-500">{{ label('AlertType', alert.type) }}</span>
     </td>
-    <td class="px-4 py-3 text-slate-600">
+    <td v-if="showOrganization" class="px-4 py-3 text-slate-600">
       {{ alert.organization_name || '—' }}
     </td>
     <td class="px-4 py-3 text-slate-600">
@@ -84,6 +85,8 @@ const props = defineProps({
   alert: { type: Object, required: true },
   // True while an action on this alert is running: disables its buttons
   busy: { type: Boolean, default: false },
+  // Client column: the admin needs it, a client only sees its own organization
+  showOrganization: { type: Boolean, default: true },
 })
 
 // Both events send the alert id
