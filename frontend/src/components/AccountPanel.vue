@@ -1,61 +1,95 @@
 <template>
-  <div class="mx-auto max-w-3xl space-y-6">
-    <header>
-      <h1 class="text-3xl font-bold text-gray-900">Mi cuenta</h1>
-      <p class="mt-2 text-sm text-gray-600">Gestiona tus datos y contraseña.</p>
-    </header>
+  <div class="space-y-6">
+    <h1 class="text-3xl font-bold text-gray-900">Mi cuenta</h1>
 
-    <section class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 class="mb-4 text-lg font-bold text-gray-800">Datos personales</h2>
-      <form class="space-y-4" @submit.prevent="saveProfile">
-        <label class="block text-sm font-medium text-gray-700">
-          Nombre
-          <input v-model="name" required maxlength="120" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" />
-        </label>
-        <label class="block text-sm font-medium text-gray-700">
-          Email
-          <input :value="authStore.user?.email" disabled class="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-gray-500" />
-        </label>
-        <p v-if="profileError" class="text-sm text-red-700" role="alert">{{ profileError }}</p>
-        <p v-if="profileSaved" class="text-sm text-green-700" role="status">Datos actualizados.</p>
-        <button type="submit" :disabled="profileLoading" class="rounded-lg bg-aqua-600 px-4 py-2 font-semibold text-white disabled:opacity-50">
-          {{ profileLoading ? 'Guardando…' : 'Guardar cambios' }}
-        </button>
-      </form>
-    </section>
+    <!-- Two columns on desktop, one on mobile. Extra cards come from the slots:
+         the client view adds Suscripción and Privacidad, the admin view adds nothing. -->
+    <div class="grid items-start gap-6 lg:grid-cols-2">
+      <section class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm" aria-labelledby="profile-title">
+        <h2 id="profile-title" class="mb-4 text-lg font-bold text-gray-800">Datos personales</h2>
+        <form class="space-y-4" @submit.prevent="saveProfile">
+          <div>
+            <label for="account-name" class="block text-sm font-medium text-gray-700">Nombre</label>
+            <input
+              id="account-name"
+              v-model="name"
+              required
+              maxlength="120"
+              autocomplete="name"
+              class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+            />
+          </div>
+          <div>
+            <label for="account-email" class="block text-sm font-medium text-gray-700">Email</label>
+            <input
+              id="account-email"
+              :value="authStore.user?.email"
+              readonly
+              aria-describedby="account-email-hint"
+              class="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-gray-500"
+            />
+            <p id="account-email-hint" class="mt-1 text-xs text-gray-500">El email no se puede cambiar.</p>
+          </div>
+          <p class="text-xs text-gray-500">
+            <template v-if="authStore.isAdmin">Rol: Administrador · </template>
+            Último acceso: {{ formatDateTime(authStore.lastLoginAt) }}
+          </p>
+          <p v-if="profileError" class="text-sm text-red-700" role="alert">{{ profileError }}</p>
+          <p v-if="profileSaved" class="text-sm text-green-700" role="status">Datos actualizados.</p>
+          <button type="submit" :disabled="profileLoading" class="rounded-lg bg-aqua-600 px-4 py-2 font-semibold text-white disabled:opacity-50">
+            {{ profileLoading ? 'Guardando…' : 'Guardar cambios' }}
+          </button>
+        </form>
+      </section>
 
-    <section class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 class="mb-4 text-lg font-bold text-gray-800">Cambiar contraseña</h2>
-      <form class="space-y-4" @submit.prevent="savePassword">
-        <label v-for="field in passwordFields" :key="field.key" class="block text-sm font-medium text-gray-700">
-          {{ field.label }}
-          <input v-model="password[field.key]" type="password" :required="true" :maxlength="128" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" />
-        </label>
-        <p v-if="passwordError" class="text-sm text-red-700" role="alert">{{ passwordError }}</p>
-        <p v-if="passwordSaved" class="text-sm text-green-700" role="status">Contraseña actualizada.</p>
-        <button type="submit" :disabled="passwordLoading" class="rounded-lg bg-aqua-600 px-4 py-2 font-semibold text-white disabled:opacity-50">
-          {{ passwordLoading ? 'Actualizando…' : 'Cambiar contraseña' }}
-        </button>
-      </form>
-    </section>
+      <slot name="after-profile" />
 
-    <section v-if="authStore.organization" class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 class="mb-4 text-lg font-bold text-gray-800">Organización y suscripción</h2>
-      <dl class="grid gap-3 sm:grid-cols-2">
-        <div><dt class="text-sm text-gray-500">Organización</dt><dd class="font-medium">{{ authStore.organization.name }}</dd></div>
-        <div><dt class="text-sm text-gray-500">Estado</dt><dd class="font-medium">{{ authStore.organization.status }}</dd></div>
-        <div v-if="authStore.organization.trial_ends_at"><dt class="text-sm text-gray-500">Fin de prueba</dt><dd class="font-medium">{{ formatDate(authStore.organization.trial_ends_at) }}</dd></div>
-        <div v-if="authStore.termsVersion"><dt class="text-sm text-gray-500">Versión de términos</dt><dd class="font-medium">{{ authStore.termsVersion }}</dd></div>
-      </dl>
-    </section>
+      <section class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm" aria-labelledby="password-title">
+        <h2 id="password-title" class="mb-4 text-lg font-bold text-gray-800">Cambiar contraseña</h2>
+        <form class="space-y-4" @submit.prevent="savePassword">
+          <div v-for="field in passwordFields" :key="field.key">
+            <label :for="`account-${field.key}`" class="block text-sm font-medium text-gray-700">{{ field.label }}</label>
+            <input
+              :id="`account-${field.key}`"
+              v-model="password[field.key]"
+              type="password"
+              required
+              maxlength="128"
+              :minlength="field.key === 'current_password' ? undefined : PASSWORD_MIN_LENGTH"
+              :autocomplete="field.key === 'current_password' ? 'current-password' : 'new-password'"
+              :aria-describedby="field.key === 'new_password' ? 'account-password-hint' : undefined"
+              class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+            />
+            <p v-if="field.key === 'new_password'" id="account-password-hint" class="mt-1 text-xs text-gray-500">
+              Mínimo {{ PASSWORD_MIN_LENGTH }} caracteres, la misma regla que el registro.
+            </p>
+          </div>
+          <p v-if="passwordError" class="text-sm text-red-700" role="alert">{{ passwordError }}</p>
+          <p
+            v-if="passwordSaved"
+            role="status"
+            class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
+          >
+            Contraseña cambiada. La próxima vez entra con la nueva.
+          </p>
+          <button type="submit" :disabled="passwordLoading" class="rounded-lg bg-aqua-600 px-4 py-2 font-semibold text-white disabled:opacity-50">
+            {{ passwordLoading ? 'Actualizando…' : 'Cambiar contraseña' }}
+          </button>
+        </form>
+      </section>
 
-    <p v-if="authStore.lastLoginAt" class="text-sm text-gray-500">Último acceso: {{ formatDate(authStore.lastLoginAt) }}</p>
+      <slot name="after-password" />
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, watch } from 'vue'
 import { useAuthStore } from '../stores/auth'
+import { formatDateTime } from '../composables/useFormat'
+
+// Same rule as the sign-up form (/prueba) and the backend (B10)
+const PASSWORD_MIN_LENGTH = 12
 
 const authStore = useAuthStore()
 const name = ref(authStore.user?.name ?? '')
@@ -68,8 +102,8 @@ const passwordSaved = ref(false)
 const password = ref({ current_password: '', new_password: '', confirmation: '' })
 const passwordFields = [
   { key: 'current_password', label: 'Contraseña actual' },
-  { key: 'new_password', label: 'Nueva contraseña' },
-  { key: 'confirmation', label: 'Repite la nueva contraseña' },
+  { key: 'new_password', label: 'Contraseña nueva' },
+  { key: 'confirmation', label: 'Repite la contraseña nueva' },
 ]
 
 watch(() => authStore.user?.name, (value) => { if (value) name.value = value })
@@ -89,14 +123,13 @@ async function saveProfile() {
 }
 
 async function savePassword() {
-  passwordLoading.value = true
   passwordError.value = ''
   passwordSaved.value = false
   if (password.value.new_password !== password.value.confirmation) {
     passwordError.value = 'Las contraseñas nuevas no coinciden.'
-    passwordLoading.value = false
     return
   }
+  passwordLoading.value = true
   try {
     await authStore.changePassword({
       current_password: password.value.current_password,
@@ -113,9 +146,5 @@ async function savePassword() {
   } finally {
     passwordLoading.value = false
   }
-}
-
-function formatDate(value) {
-  return new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 }
 </script>

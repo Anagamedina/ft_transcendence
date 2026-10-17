@@ -113,6 +113,54 @@ function toMeResponse(user) {
     last_login_at: user?.last_login_at ?? null,
     terms_version: user?.terms_version ?? null,
     terms_accepted_at: user?.terms_accepted_at ?? null,
+    deletion_requested_at: user?.deletion_requested_at ?? null,
+  }
+}
+
+// B15 (#149): same shape as MyDataExport. Only stored fields, no counters.
+function toMyDataExport(user) {
+  const organization = user.organization_id
+    ? organizations.find((item) => item.id === user.organization_id)
+    : null
+
+  return {
+    exported_at: new Date().toISOString(),
+    current_terms_version: '2026-10',
+    account: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      is_active: user.is_active !== false,
+      created_at: user.created_at,
+      last_login_at: user.last_login_at ?? null,
+      terms_version: user.terms_version ?? null,
+      terms_accepted_at: user.terms_accepted_at ?? null,
+      deletion_requested_at: user.deletion_requested_at ?? null,
+    },
+    organization: organization
+      ? {
+          id: organization.id,
+          name: organization.name,
+          status: organization.status,
+          trial_ends_at: organization.trial_ends_at ?? null,
+          created_at: organization.created_at ?? null,
+        }
+      : null,
+    // An admin without organization gets no buildings, like the backend
+    sites: organization
+      ? sites
+          .filter((site) => site.organization_id === organization.id)
+          .map((site) => ({
+            id: site.id,
+            name: site.name,
+            address: site.address ?? null,
+            district: site.district ?? null,
+            floors: site.floors,
+            basements: site.basements,
+            created_at: site.created_at,
+          }))
+      : [],
   }
 }
 
@@ -498,6 +546,12 @@ const mockAdapter = {
         data: toMeResponse(currentUser),
         status: 200,
       })
+    }
+
+    // Export my data (B15)
+    if (url === '/api/me/export') {
+      if (!currentUser) return Promise.reject(authError())
+      return Promise.resolve({ data: toMyDataExport(currentUser), status: 200 })
     }
 
     // Users (B6): admin only
@@ -1046,6 +1100,21 @@ const mockAdapter = {
       console.log('[MOCK POST]', url)
     } else {
       console.log('[MOCK POST]', url, data, config)
+    }
+
+    // Deletion request (B15): asking again keeps the first date
+    if (url === '/api/me/deletion-request') {
+      if (!currentUser) return Promise.reject(authError())
+      if (!currentUser.deletion_requested_at) {
+        currentUser.deletion_requested_at = new Date().toISOString()
+      }
+      return Promise.resolve({
+        data: {
+          deletion_requested_at: currentUser.deletion_requested_at,
+          message: 'Hemos registrado tu petición de baja. Un administrador la tramitará.',
+        },
+        status: 202,
+      })
     }
 
     if (url === '/api/me/password') {
