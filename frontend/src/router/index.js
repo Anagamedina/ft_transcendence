@@ -29,6 +29,8 @@ const routes = [
   {
     path: "/legal",
     component: () => import("../views/public/LegalView.vue"),
+    // LegalView scrolls to its own anchors, after switching to the right tab
+    meta: { handlesHashScroll: true },
   },
   {
     path: "/privacy",
@@ -155,6 +157,11 @@ const router = createRouter({
   routes,
 
   scrollBehavior(to, from, savedPosition) {
+    // Checked first: on reload the saved position would override the view's scroll
+    if (to.hash && to.meta.handlesHashScroll) {
+      return false;
+    }
+
     if (savedPosition) {
       return savedPosition;
     }
