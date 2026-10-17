@@ -17,6 +17,7 @@
               maxlength="120"
               autocomplete="name"
               class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+              @input="profileSaved = false; profileError = ''"
             />
           </div>
           <div>
@@ -49,19 +50,35 @@
         <form class="space-y-4" @submit.prevent="savePassword">
           <div v-for="field in passwordFields" :key="field.key">
             <label :for="`account-${field.key}`" class="block text-sm font-medium text-gray-700">{{ field.label }}</label>
-            <input
-              :id="`account-${field.key}`"
-              v-model="password[field.key]"
-              type="password"
-              required
-              maxlength="128"
-              :minlength="field.key === 'current_password' ? undefined : PASSWORD_MIN_LENGTH"
-              :autocomplete="field.key === 'current_password' ? 'current-password' : 'new-password'"
-              :aria-describedby="field.key === 'new_password' ? 'account-password-hint' : undefined"
-              class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-            />
+            <div class="relative mt-1">
+              <input
+                :id="`account-${field.key}`"
+                v-model="password[field.key]"
+                :type="visible[field.key] ? 'text' : 'password'"
+                required
+                maxlength="128"
+                :minlength="field.key === 'current_password' ? undefined : PASSWORD_MIN_LENGTH"
+                :autocomplete="field.key === 'current_password' ? 'current-password' : 'new-password'"
+                :aria-describedby="field.key === 'new_password' ? 'account-password-hint' : undefined"
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 pr-20"
+                @input="passwordSaved = false; passwordError = ''"
+              />
+              <!-- Same show / hide button as the sign-up form (/prueba) -->
+              <button
+                type="button"
+                class="absolute inset-y-0 right-0 px-3 text-sm font-semibold text-aqua-700 hover:underline"
+                :aria-pressed="visible[field.key]"
+                :aria-label="`${visible[field.key] ? 'Ocultar' : 'Mostrar'} ${field.label.toLowerCase()}`"
+                @click="visible[field.key] = !visible[field.key]"
+              >
+                {{ visible[field.key] ? 'Ocultar' : 'Mostrar' }}
+              </button>
+            </div>
             <p v-if="field.key === 'new_password'" id="account-password-hint" class="mt-1 text-xs text-gray-500">
               Mínimo {{ PASSWORD_MIN_LENGTH }} caracteres, la misma regla que el registro.
+              <span :class="password.new_password.length >= PASSWORD_MIN_LENGTH ? 'font-semibold text-emerald-700' : ''">
+                ({{ password.new_password.length }}/{{ PASSWORD_MIN_LENGTH }})
+              </span>
             </p>
           </div>
           <p v-if="passwordError" class="text-sm text-red-700" role="alert">{{ passwordError }}</p>
@@ -100,6 +117,8 @@ const passwordLoading = ref(false)
 const passwordError = ref('')
 const passwordSaved = ref(false)
 const password = ref({ current_password: '', new_password: '', confirmation: '' })
+// Which password fields are shown as plain text (all hidden by default)
+const visible = ref({ current_password: false, new_password: false, confirmation: false })
 const passwordFields = [
   { key: 'current_password', label: 'Contraseña actual' },
   { key: 'new_password', label: 'Contraseña nueva' },
@@ -136,6 +155,7 @@ async function savePassword() {
       new_password: password.value.new_password,
     })
     password.value = { current_password: '', new_password: '', confirmation: '' }
+    visible.value = { current_password: false, new_password: false, confirmation: false }
     passwordSaved.value = true
   } catch (error) {
     passwordError.value = error.code === 'WRONG_PASSWORD'
