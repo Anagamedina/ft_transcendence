@@ -809,6 +809,45 @@ const mockAdapter = {
       })
     }
 
+    // Pressure series of a sensor for the chart (B7). The demo readings are
+    // already hourly, so each one becomes a point with avg = min = max.
+    if (
+      url.startsWith('/api/sensors/') &&
+      url.endsWith('/readings/series')
+    ) {
+      if (!currentUser) return Promise.reject(authError())
+
+      const sensorId = url.split('/')[3]
+      const sensor = sensors.find((item) => item.id === sensorId)
+      if (!sensor || !canAccessSensor(sensorId)) {
+        return Promise.reject(domainError(404, 'SENSOR_NOT_FOUND', 'El sensor no existe.'))
+      }
+
+      const days = Number(config.params?.days ?? 7)
+      const to = new Date()
+      const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000)
+      const points = (sensor.last_seen_at ? demoReadings(sensor, days) : []).map((reading) => ({
+        t: reading.measured_at,
+        avg: reading.pressure,
+        min: reading.pressure,
+        max: reading.pressure,
+      }))
+
+      return Promise.resolve({
+        data: {
+          sensor_id: sensor.id,
+          unit: sensor.unit || 'bar',
+          min_pressure: sensor.min_pressure,
+          max_pressure: sensor.max_pressure,
+          bucket: config.params?.bucket ?? '2h',
+          from: from.toISOString(),
+          to: to.toISOString(),
+          points,
+        },
+        status: 200,
+      })
+    }
+
     // Get readings belonging to a specific sensor.
     if (
       url.startsWith('/api/sensors/') &&
@@ -894,9 +933,25 @@ const mockAdapter = {
         return Promise.reject(authError());
       }
 
-      const items = getAccessibleAlerts().map((alert) => ({
-        ...alert,
-      }));
+      // Same filters as B5 (combined with AND); created_to is exclusive
+      const params = config?.params ?? {};
+      const from = params.created_from ? new Date(params.created_from).getTime() : null;
+      const to = params.created_to ? new Date(params.created_to).getTime() : null;
+
+      const items = getAccessibleAlerts()
+        .filter((alert) => {
+          const created = new Date(alert.created_at).getTime();
+          return (
+            (!params.site_id || alert.site_id === params.site_id) &&
+            (!params.sensor_id || alert.sensor_id === params.sensor_id) &&
+            (!params.status || alert.status === params.status) &&
+            (!params.state || alert.state === params.state) &&
+            (!params.severity || alert.severity === params.severity) &&
+            (from === null || created >= from) &&
+            (to === null || created < to)
+          );
+        })
+        .map((alert) => ({ ...alert }));
 
       return Promise.resolve({
         data: {
