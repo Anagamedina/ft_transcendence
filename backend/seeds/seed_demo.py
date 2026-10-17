@@ -224,7 +224,7 @@ SENSORS = [
     {"n": 1, "site": "sant_gervasi", "external_id": "SENS-001", "name": "Presión entrada",
      "location": "Sótano - Sala de bombas", "floor": -1, "low": "1.500", "high": "6.000"},
     {"n": 2, "site": "sant_gervasi", "external_id": "SENS-002", "name": "Presión cubierta",
-     "location": "Cubierta - Depósito", "floor": 4, "low": "1.000", "high": "5.500"},
+     "location": "Cubierta - Depósito", "floor": 3, "low": "1.000", "high": "5.500"},
     {"n": 3, "site": "gotic", "external_id": "SENS-003", "name": "Presión general",
      "location": "Sótano 2 - Cuarto de bombas", "floor": -2, "low": "1.500", "high": "6.000"},
     {"n": 4, "site": "gotic", "external_id": "SENS-004", "name": "Presión planta 6",
