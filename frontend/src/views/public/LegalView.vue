@@ -25,53 +25,53 @@
         <!-- One tab per document. #privacidad and #terminos (footer and forms) open the right tab -->
         <!-- The anchor sits on the tab bar, so #privacidad / #terminos show the tabs too -->
         <div :id="activeTab" class="scroll-mt-24">
-        <Tabs v-model="activeTab" :tabs="TABS" label="Documentos legales">
-          <template v-for="docBlock in documents" :key="docBlock.id" #[docBlock.id]>
-            <section>
-              <h2 class="sr-only">{{ docBlock.title }}</h2>
+          <Tabs v-model="activeTab" :tabs="TABS" label="Documentos legales">
+            <template v-for="docBlock in documents" :key="docBlock.id" #[docBlock.id]>
+              <section>
+                <h2 class="sr-only">{{ docBlock.title }}</h2>
 
-              <section
-                v-for="(item, index) in docBlock.sections"
-                :id="`${docBlock.id}-${item.id}`"
-                :key="item.id"
-                class="mb-10 scroll-mt-24"
-              >
-                <h3 class="text-lg font-semibold text-aqua-800 mb-3">{{ index + 1 }}. {{ item.title }}</h3>
+                <section
+                  v-for="(item, index) in docBlock.sections"
+                  :id="`${docBlock.id}-${item.id}`"
+                  :key="item.id"
+                  class="mb-10 scroll-mt-24"
+                >
+                  <h3 class="text-lg font-semibold text-aqua-800 mb-3">{{ index + 1 }}. {{ item.title }}</h3>
 
-                <p v-for="text in item.body" :key="text" class="text-slate-600 mb-3">{{ text }}</p>
+                  <p v-for="text in item.body" :key="text" class="text-slate-600 mb-3">{{ text }}</p>
 
-                <ul v-if="item.list" class="list-disc pl-5 text-slate-600 space-y-1 mb-3">
-                  <li v-for="entry in item.list" :key="entry">{{ entry }}</li>
-                </ul>
+                  <ul v-if="item.list" class="list-disc pl-5 text-slate-600 space-y-1 mb-3">
+                    <li v-for="entry in item.list" :key="entry">{{ entry }}</li>
+                  </ul>
 
-                <!-- Data table: scrolls inside its own box on narrow screens -->
-                <div v-if="item.rows" class="overflow-x-auto mb-3">
-                  <table class="w-full text-sm text-left border border-slate-200 rounded-lg">
-                    <thead class="bg-slate-50 text-slate-700">
-                      <tr>
-                        <th
-                          v-for="header in item.rowHeaders || DEFAULT_ROW_HEADERS"
-                          :key="header"
-                          scope="col"
-                          class="px-3 py-2 font-semibold"
-                        >
-                          {{ header }}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody class="text-slate-600">
-                      <tr v-for="row in item.rows" :key="row.data" class="border-t border-slate-200 align-top">
-                        <td class="px-3 py-2 font-medium text-slate-700">{{ row.data }}</td>
-                        <td class="px-3 py-2">{{ row.purpose }}</td>
-                        <td class="px-3 py-2">{{ row.time }}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
+                  <!-- Data table: scrolls inside its own box on narrow screens -->
+                  <div v-if="item.rows" class="overflow-x-auto mb-3">
+                    <table class="w-full min-w-[36rem] text-sm text-left border border-slate-200 rounded-lg">
+                      <thead class="bg-slate-50 text-slate-700">
+                        <tr>
+                          <th
+                            v-for="header in item.rowHeaders || DEFAULT_ROW_HEADERS"
+                            :key="header"
+                            scope="col"
+                            class="px-3 py-2 font-semibold"
+                          >
+                            {{ header }}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody class="text-slate-600">
+                        <tr v-for="row in item.rows" :key="row.data" class="border-t border-slate-200 align-top">
+                          <td class="px-3 py-2 font-medium text-slate-700">{{ row.data }}</td>
+                          <td class="px-3 py-2">{{ row.purpose }}</td>
+                          <td class="px-3 py-2">{{ row.time }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
               </section>
-            </section>
-          </template>
-        </Tabs>
+            </template>
+          </Tabs>
         </div>
       </div>
 
@@ -154,6 +154,8 @@ const privacySections = [
       { data: "Nombre y email", purpose: "Identificarte y que puedas entrar", time: "Mientras tu cuenta exista" },
       { data: "Contraseña", purpose: "Comprobar que eres tú. Se guarda solo como hash Argon2, nunca en claro", time: "Mientras tu cuenta exista" },
       { data: "Organización y rol", purpose: "Decidir qué edificios, sensores y alertas puedes ver", time: "Mientras tu cuenta exista" },
+      { data: "Aceptación de los términos", purpose: "Poder demostrar qué versión aceptaste y cuándo", time: "Mientras tu cuenta exista" },
+      { data: "Datos de la organización y facturación", purpose: "Contactar con la organización y gestionar la suscripción: plan, razón social, NIF/CIF, dirección y email de facturación, email y teléfono de contacto. Del IBAN solo guardamos el país y las 4 últimas cifras", time: "Mientras la organización tenga cuenta" },
       { data: "Edificios y sensores", purpose: "Dirección, distrito, plantas y ubicación de cada sensor, para mostrar el edificio planta a planta", time: "Mientras la organización tenga cuenta" },
       { data: "Lecturas y alertas", purpose: "Mostrar el estado de la red, generar alertas y saber quién las reconoció o resolvió", time: "Mientras la organización tenga cuenta" },
       { data: "Documentos", purpose: "Guardar los archivos de cada edificio (ver punto 5)", time: "Hasta que se borren o se elimine la organización" },
