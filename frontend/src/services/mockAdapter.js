@@ -879,9 +879,25 @@ const mockAdapter = {
         return Promise.reject(authError());
       }
 
-      const items = getAccessibleAlerts().map((alert) => ({
-        ...alert,
-      }));
+      // Same filters as B5 (combined with AND); created_to is exclusive
+      const params = config?.params ?? {};
+      const from = params.created_from ? new Date(params.created_from).getTime() : null;
+      const to = params.created_to ? new Date(params.created_to).getTime() : null;
+
+      const items = getAccessibleAlerts()
+        .filter((alert) => {
+          const created = new Date(alert.created_at).getTime();
+          return (
+            (!params.site_id || alert.site_id === params.site_id) &&
+            (!params.sensor_id || alert.sensor_id === params.sensor_id) &&
+            (!params.status || alert.status === params.status) &&
+            (!params.state || alert.state === params.state) &&
+            (!params.severity || alert.severity === params.severity) &&
+            (from === null || created >= from) &&
+            (to === null || created < to)
+          );
+        })
+        .map((alert) => ({ ...alert }));
 
       return Promise.resolve({
         data: {
