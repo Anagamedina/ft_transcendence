@@ -12,6 +12,7 @@ export const useAuthStore = defineStore("auth", () =>{
     const lastLoginAt = ref(null);
     const termsVersion = ref(null);
     const termsAcceptedAt = ref(null);
+    const deletionRequestedAt = ref(null); // B15: set when the user asked to be removed
 
     let initializationPromise = null;
 
@@ -31,6 +32,7 @@ export const useAuthStore = defineStore("auth", () =>{
       lastLoginAt.value = data.last_login_at ?? null;
       termsVersion.value = data.terms_version ?? null;
       termsAcceptedAt.value = data.terms_accepted_at ?? null;
+      deletionRequestedAt.value = data.deletion_requested_at ?? null;
     }
 
     //ACTIONS
@@ -55,6 +57,7 @@ export const useAuthStore = defineStore("auth", () =>{
       lastLoginAt.value = null;
       termsVersion.value = null;
       termsAcceptedAt.value = null;
+      deletionRequestedAt.value = null;
 
       if (err.status === 401 || err.code === "UNAUTHORIZED") {
       error.value = null;
@@ -188,6 +191,19 @@ export const useAuthStore = defineStore("auth", () =>{
     return authService.changePassword(data);
   }
 
+  // B15: returns the exported data; the view turns it into a .json download
+  async function exportMyData() {
+    const response = await authService.exportMe();
+    return response.data;
+  }
+
+  // B15: asking again keeps the first date, so the store just stores what comes back
+  async function requestDeletion() {
+    const response = await authService.requestDeletion();
+    deletionRequestedAt.value = response.data.deletion_requested_at;
+    return response.data;
+  }
+
 
   async function logout() {
     status.value = "loading";
@@ -211,6 +227,7 @@ export const useAuthStore = defineStore("auth", () =>{
       lastLoginAt.value = null;
       termsVersion.value = null;
       termsAcceptedAt.value = null;
+      deletionRequestedAt.value = null;
 
       initialized.value = true;
       
@@ -229,6 +246,7 @@ export const useAuthStore = defineStore("auth", () =>{
     lastLoginAt,
     termsVersion,
     termsAcceptedAt,
+    deletionRequestedAt,
     status,
     error,
 
@@ -246,6 +264,8 @@ export const useAuthStore = defineStore("auth", () =>{
     clearError,
     updateMe,
     changePassword,
+    exportMyData,
+    requestDeletion,
   };
 
 });
