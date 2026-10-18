@@ -60,7 +60,7 @@ const adminNav = computed(() => [
     icon: "alert",
     badge: alertsStore.openCount,
   },
-  { label: "Mi cuenta", to: "/admin/account", icon: "users" },
+  { label: "Mi cuenta", to: "/admin/account", icon: "user" },
 ]);
 
 // Pages that do not load the alerts themselves still need the counter.

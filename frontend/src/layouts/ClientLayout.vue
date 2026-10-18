@@ -86,7 +86,7 @@ const sidebarItems = computed(() => [
   {
     label: "Mi cuenta",
     to: "/app/account",
-    icon: "users",
+    icon: "user",
   },
 ]);
 

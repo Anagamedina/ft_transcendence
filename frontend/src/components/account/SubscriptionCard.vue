@@ -18,7 +18,7 @@
       </div>
 
       <!-- Trial still running: progress bar and end date -->
-      <template v-if="trial">
+      <template v-if="trial && !trial.extended">
         <div
           class="h-2 rounded bg-gray-200"
           role="progressbar"
@@ -34,6 +34,19 @@
         </div>
         <p class="text-sm text-gray-700">
           Día {{ trial.day }} de {{ TRIAL_DAYS }} · termina el
+          <strong>{{ formatDate(organization.trial_ends_at) }}</strong
+          >.
+        </p>
+        <p class="text-xs text-gray-500">
+          Al terminar, tus datos quedan en solo lectura hasta que el equipo
+          AquaGuard active la cuenta.
+        </p>
+      </template>
+
+      <!-- Extended by an admin: longer than TRIAL_DAYS, so only the end date -->
+      <template v-else-if="trial">
+        <p class="text-sm text-gray-700">
+          Tu prueba termina el
           <strong>{{ formatDate(organization.trial_ends_at) }}</strong
           >.
         </p>
@@ -90,7 +103,8 @@ const status = computed(() =>
     : { label: "", pillClass: "", trialEnded: false },
 );
 
-// Current day of a running trial (1..7) and the bar width; null if there is no running trial
+// Current day of a running trial (1..7) and the bar width; null if there is no running trial.
+// The sign-up day is day 1 (7 days left). An extended trial has more than 7 days left.
 const trial = computed(() => {
   const org = organization.value;
   if (!org || org.status !== "TRIAL" || status.value.trialEnded) return null;
@@ -104,7 +118,11 @@ const trial = computed(() => {
   endDay.setHours(0, 0, 0, 0);
 
   const daysLeft = Math.round((endDay - today) / DAY_MS);
-  const day = Math.min(TRIAL_DAYS, Math.max(1, TRIAL_DAYS - daysLeft));
-  return { day, percent: Math.round((day / TRIAL_DAYS) * 100) };
+  const day = Math.min(TRIAL_DAYS, Math.max(1, TRIAL_DAYS - daysLeft + 1));
+  return {
+    day,
+    percent: Math.round((day / TRIAL_DAYS) * 100),
+    extended: daysLeft > TRIAL_DAYS,
+  };
 });
 </script>

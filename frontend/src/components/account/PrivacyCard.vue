@@ -36,14 +36,15 @@
         role="status"
         class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
       >
-        Pediste la baja el {{ formatDate(authStore.deletionRequestedAt) }}. El
-        equipo AquaGuard la tramitará y borrará tu cuenta.
+        Pediste la baja el {{ formatDate(authStore.deletionRequestedAt) }}. Un
+        administrador la tramitará; hasta entonces puedes seguir entrando y
+        descargar tus datos.
       </p>
 
       <template v-else>
         <p class="text-sm text-gray-700">
-          Si pides la baja, el equipo borrará tu cuenta y te escribirá para
-          confirmarlo.
+          Si pides la baja, un administrador revisará la petición y cerrará tu
+          cuenta. Hasta entonces puedes seguir entrando y descargar tus datos.
         </p>
 
         <!-- Confirmation on the page itself, no browser dialog -->
@@ -102,6 +103,7 @@
 import { ref, nextTick } from "vue";
 import { useAuthStore } from "../../stores/auth";
 import { formatDate } from "../../composables/useFormat";
+import { apiErrorMessage } from "../../utils/apiError";
 
 const authStore = useAuthStore();
 
@@ -132,8 +134,10 @@ async function downloadMyData() {
     link.remove();
     URL.revokeObjectURL(url);
   } catch (error) {
-    exportError.value =
-      error.message || "No se han podido descargar tus datos.";
+    exportError.value = apiErrorMessage(
+      error,
+      "No se han podido descargar tus datos.",
+    );
   } finally {
     exporting.value = false;
   }
@@ -160,8 +164,10 @@ async function confirmDeletion() {
     await authStore.requestDeletion();
     confirming.value = false;
   } catch (error) {
-    deletionError.value =
-      error.message || "No se ha podido registrar la petición de baja.";
+    deletionError.value = apiErrorMessage(
+      error,
+      "No se ha podido registrar la petición de baja.",
+    );
   } finally {
     requesting.value = false;
   }
