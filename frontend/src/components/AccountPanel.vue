@@ -16,7 +16,8 @@
               required
               maxlength="120"
               autocomplete="name"
-              class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+              :disabled="trialExpired"
+              class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 disabled:bg-gray-50 disabled:text-gray-500"
               @input="profileSaved = false; profileError = ''"
             />
           </div>
@@ -33,13 +34,15 @@
           </div>
           <p class="text-xs text-gray-500">
             <template v-if="authStore.isAdmin">Rol: Administrador · </template>
-            Último acceso: {{ formatDateTime(authStore.lastLoginAt) }}
+            <!-- The backend sets last_login_at on every login -->
+            Último inicio de sesión: {{ formatDateTime(authStore.lastLoginAt) }}
           </p>
           <p v-if="profileError" class="text-sm text-red-700" role="alert">{{ profileError }}</p>
           <p v-if="profileSaved" class="text-sm text-green-700" role="status">Datos actualizados.</p>
-          <button type="submit" :disabled="profileLoading" class="rounded-lg bg-aqua-600 px-4 py-2 font-semibold text-white disabled:opacity-50">
+          <button type="submit" :disabled="trialExpired || profileLoading" class="rounded-lg bg-aqua-600 px-4 py-2 font-semibold text-white disabled:opacity-50">
             {{ profileLoading ? 'Guardando…' : 'Guardar cambios' }}
           </button>
+          <p v-if="trialExpired" class="text-xs text-gray-500">No disponible con la prueba terminada.</p>
         </form>
       </section>
 
@@ -56,17 +59,19 @@
                 v-model="password[field.key]"
                 :type="visible[field.key] ? 'text' : 'password'"
                 required
-                maxlength="128"
+                :maxlength="PASSWORD_MAX_LENGTH"
+                :disabled="trialExpired"
                 :minlength="field.key === 'current_password' ? undefined : PASSWORD_MIN_LENGTH"
                 :autocomplete="field.key === 'current_password' ? 'current-password' : 'new-password'"
                 :aria-describedby="field.key === 'new_password' ? 'account-password-hint' : undefined"
-                class="w-full rounded-lg border border-gray-300 px-3 py-2 pr-20"
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 pr-20 disabled:bg-gray-50"
                 @input="passwordSaved = false; passwordError = ''"
               />
               <!-- Same show / hide button as the sign-up form (/prueba) -->
               <button
                 type="button"
-                class="absolute inset-y-0 right-0 px-3 text-sm font-semibold text-aqua-700 hover:underline"
+                class="absolute inset-y-0 right-0 px-3 text-sm font-semibold text-aqua-700 hover:underline disabled:opacity-50"
+                :disabled="trialExpired"
                 :aria-pressed="visible[field.key]"
                 :aria-label="`${visible[field.key] ? 'Ocultar' : 'Mostrar'} ${field.label.toLowerCase()}`"
                 @click="visible[field.key] = !visible[field.key]"
@@ -75,7 +80,7 @@
               </button>
             </div>
             <p v-if="field.key === 'new_password'" id="account-password-hint" class="mt-1 text-xs text-gray-500">
-              Mínimo {{ PASSWORD_MIN_LENGTH }} caracteres, la misma regla que el registro.
+              Mínimo {{ PASSWORD_MIN_LENGTH }} caracteres y sin tu email, la misma regla que el registro.
               <span :class="password.new_password.length >= PASSWORD_MIN_LENGTH ? 'font-semibold text-emerald-700' : ''">
                 ({{ password.new_password.length }}/{{ PASSWORD_MIN_LENGTH }})
               </span>
@@ -89,26 +94,49 @@
           >
             Contraseña cambiada. La próxima vez entra con la nueva.
           </p>
-          <button type="submit" :disabled="passwordLoading" class="rounded-lg bg-aqua-600 px-4 py-2 font-semibold text-white disabled:opacity-50">
+          <button type="submit" :disabled="trialExpired || passwordLoading" class="rounded-lg bg-aqua-600 px-4 py-2 font-semibold text-white disabled:opacity-50">
             {{ passwordLoading ? 'Actualizando…' : 'Cambiar contraseña' }}
           </button>
+          <p v-if="trialExpired" class="text-xs text-gray-500">No disponible con la prueba terminada.</p>
         </form>
       </section>
 
       <slot name="after-password" />
+
+      <section class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm" aria-labelledby="session-title">
+        <h2 id="session-title" class="mb-4 text-lg font-bold text-gray-800">Sesión</h2>
+        <p class="mb-4 text-sm text-gray-700">Cierra la sesión en este navegador.</p>
+        <button
+          type="button"
+          :disabled="authStore.status === 'loading'"
+          class="rounded-lg border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          @click="logout"
+        >
+          {{ authStore.status === 'loading' ? 'Cerrando sesión…' : 'Cerrar sesión' }}
+        </button>
+      </section>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { formatDateTime } from '../composables/useFormat'
-
+import { useClientStatus } from '../composables/useClientStatus'
 // Same rule as the sign-up form (/prueba) and the backend (B10)
-const PASSWORD_MIN_LENGTH = 12
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, passwordProblem } from '../utils/passwords'
+import { apiErrorMessage } from '../utils/apiError'
 
+const router = useRouter()
 const authStore = useAuthStore()
+// Expired trial: the backend answers 403 TRIAL_EXPIRED to both forms (B12), so they
+// are disabled; TrialBanner in ClientLayout already explains why.
+// Only a client's organization can be on an expired trial
+const trialExpired = computed(() =>
+  authStore.isClient && Boolean(authStore.organization) && useClientStatus(authStore.organization).trialEnded
+)
 const name = ref(authStore.user?.name ?? '')
 const profileLoading = ref(false)
 const profileError = ref('')
@@ -128,14 +156,20 @@ const passwordFields = [
 watch(() => authStore.user?.name, (value) => { if (value) name.value = value })
 
 async function saveProfile() {
-  profileLoading.value = true
   profileError.value = ''
   profileSaved.value = false
+  // Only spaces passes `required`; the backend trims and would answer a generic 422
+  const trimmed = name.value.trim()
+  if (!trimmed) {
+    profileError.value = 'Escribe tu nombre.'
+    return
+  }
+  profileLoading.value = true
   try {
-    await authStore.updateMe({ name: name.value })
+    await authStore.updateMe({ name: trimmed })
     profileSaved.value = true
   } catch (error) {
-    profileError.value = error.message || 'No se han podido guardar los datos.'
+    profileError.value = apiErrorMessage(error, 'No se han podido guardar los datos.')
   } finally {
     profileLoading.value = false
   }
@@ -144,6 +178,11 @@ async function saveProfile() {
 async function savePassword() {
   passwordError.value = ''
   passwordSaved.value = false
+  const problem = passwordProblem(password.value.new_password, authStore.user?.email ?? '')
+  if (problem) {
+    passwordError.value = problem
+    return
+  }
   if (password.value.new_password !== password.value.confirmation) {
     passwordError.value = 'Las contraseñas nuevas no coinciden.'
     return
@@ -162,9 +201,14 @@ async function savePassword() {
       ? 'La contraseña actual no es correcta.'
       : error.code === 'WEAK_PASSWORD'
         ? error.message
-        : (error.message || 'No se ha podido cambiar la contraseña.')
+        : apiErrorMessage(error, 'No se ha podido cambiar la contraseña.')
   } finally {
     passwordLoading.value = false
   }
+}
+
+async function logout() {
+  await authStore.logout()
+  await router.replace('/login')
 }
 </script>
