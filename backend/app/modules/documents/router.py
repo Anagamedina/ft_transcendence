@@ -26,6 +26,7 @@ from app.shared.dependencies import (
     OrgScope,
     Pagination,
     SiteIdFilter,
+    require_trial_not_expired,
 )
 from app.shared.enums import DocumentKind
 from app.shared.schemas import Page, error_response
@@ -45,6 +46,8 @@ _NO_EXISTE = error_response(
     status.HTTP_404_NOT_FOUND,
     "El documento no existe, o no es de tu organización (`DOCUMENT_NOT_FOUND`).",
 )
+# Escrituras de cliente: con la prueba vencida, solo lectura (B12).
+_SOLO_LECTURA_SI_CADUCA = [Depends(require_trial_not_expired)]
 
 
 @router.post(
@@ -59,8 +62,14 @@ _NO_EXISTE = error_response(
         "tipo se comprueba por el contenido, no por la extensión: un `.exe` "
         "renombrado a `.pdf` se rechaza."
     ),
+    dependencies=_SOLO_LECTURA_SI_CADUCA,
     responses={
         **_NO_AUTORIZADO,
+        **error_response(
+            status.HTTP_403_FORBIDDEN,
+            "Cuenta de cliente sin organización (`FORBIDDEN`), o la prueba ha "
+            "vencido y la cuenta es de solo lectura (`TRIAL_EXPIRED`).",
+        ),
         **error_response(
             status.HTTP_404_NOT_FOUND,
             "El site no existe, o no es de tu organización (`SITE_NOT_FOUND`).",
@@ -176,12 +185,14 @@ def download_document(
         "Borra el documento y su archivo. Un admin borra cualquiera; un "
         "cliente, los de su organización que no haya subido un admin."
     ),
+    dependencies=_SOLO_LECTURA_SI_CADUCA,
     responses={
         **error_response(status.HTTP_401_UNAUTHORIZED, "No hay sesión (`UNAUTHORIZED`)."),
         **error_response(
             status.HTTP_403_FORBIDDEN,
-            "Cuenta de cliente sin organización (`FORBIDDEN`), o el documento "
-            "lo subió un admin (`DOCUMENT_UPLOADED_BY_ADMIN`).",
+            "Cuenta de cliente sin organización (`FORBIDDEN`), el documento "
+            "lo subió un admin (`DOCUMENT_UPLOADED_BY_ADMIN`), o la prueba ha "
+            "vencido y la cuenta es de solo lectura (`TRIAL_EXPIRED`).",
         ),
         **_NO_EXISTE,
     },

@@ -24,7 +24,7 @@ from uuid import UUID
 
 from pydantic import EmailStr, Field
 
-from app.shared.enums import OrganizationStatus
+from app.shared.enums import BuildingType, OrganizationStatus, SubscriptionPlan
 from app.shared.schemas import ApiModel, ApiRequest
 
 
@@ -181,6 +181,10 @@ class MeResponse(ApiModel):
         examples=["2026-10"],
     )
     terms_accepted_at: datetime | None = None
+    deletion_requested_at: datetime | None = Field(
+        default=None,
+        description="Cuándo pidió la baja (B15), en UTC. Nulo si no la ha pedido.",
+    )
 
 
 class MeUpdate(ApiRequest):
@@ -203,4 +207,98 @@ class PasswordChange(ApiRequest):
         max_length=128,
         description="Misma regla que el registro (B10): al menos 12 caracteres, no común, sin el email.",
         examples=["agua-que-no-se-escapa"],
+    )
+
+
+# ---------------------------------------------------------
+# B15 — EXPORTAR MIS DATOS Y PEDIR LA BAJA (#149)
+# ---------------------------------------------------------
+#   GET  /api/me/export            → MyDataExport (se descarga como .json)
+#   POST /api/me/deletion-request  → DeletionRequestResponse
+#
+# Los schemas de la exportación son propios, no `SiteResponse` ni
+# `OrganizationResponse`: llevan solo lo que está guardado (sin contadores
+# ni estados calculados) y no cambian si cambian las pantallas.
+class AccountExport(ApiModel):
+    """La cuenta de quien exporta. Sin `password_hash`, como `UserResponse`."""
+
+    id: UUID
+    email: EmailStr
+    name: str
+    role: UserRole
+    is_active: bool
+    created_at: datetime
+    last_login_at: datetime | None = None
+    terms_version: str | None = Field(
+        default=None,
+        description="Versión de los términos que aceptó (B10). Nula en cuentas anteriores.",
+        examples=["2026-10"],
+    )
+    terms_accepted_at: datetime | None = None
+    deletion_requested_at: datetime | None = None
+
+
+class OrganizationExport(ApiModel):
+    """La organización tal y como está guardada. El IBAN, solo enmascarado."""
+
+    id: UUID
+    name: str
+    status: OrganizationStatus
+    trial_ends_at: datetime | None = None
+    city: str | None = None
+    contact_email: str | None = None
+    phone: str | None = None
+    legal_name: str | None = None
+    tax_id: str | None = None
+    billing_email: str | None = None
+    billing_address: str | None = None
+    plan: SubscriptionPlan | None = None
+    subscribed_at: datetime | None = None
+    iban_masked: str | None = None
+    created_at: datetime
+
+
+class SiteExport(ApiModel):
+    """Un edificio de la organización, con lo que está guardado."""
+
+    id: UUID
+    name: str
+    address: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    district: str | None = None
+    floors: int
+    basements: int
+    building_type: BuildingType
+    created_at: datetime
+
+
+class MyDataExport(ApiModel):
+    """
+    Todo lo que AquaGuard guarda de la cuenta (B15): la cuenta, su
+    organización y sus edificios. Un admin sin organización recibe
+    `organization` nula y `sites` vacía, no los edificios de todos.
+    """
+
+    exported_at: datetime = Field(description="Cuándo se generó, en UTC.")
+    current_terms_version: str = Field(
+        description=(
+            "Versión de los términos vigente. Si no coincide con "
+            "`account.terms_version`, la cuenta aceptó unos anteriores."
+        ),
+        examples=["2026-10"],
+    )
+    account: AccountExport
+    organization: OrganizationExport | None = None
+    sites: list[SiteExport] = Field(default_factory=list)
+
+
+class DeletionRequestResponse(ApiModel):
+    """Petición de baja registrada (B15). Nada se borra todavía."""
+
+    deletion_requested_at: datetime = Field(
+        description="Cuándo se pidió por primera vez, en UTC. Repetir la petición no la cambia."
+    )
+    message: str = Field(
+        examples=["Hemos registrado tu petición de baja. Un administrador la tramitará."]
     )

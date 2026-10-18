@@ -33,10 +33,10 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.core.database import transaction
-from app.core.exceptions import ConflictError, NotFoundError
+from app.core.exceptions import ConflictError, DomainValidationError, NotFoundError
 from app.modules.alerts.repository import AlertRepository
 from app.modules.alerts.schemas import AlertResponse, AlertState
-from app.shared.dependencies import DbSession
+from app.shared.dependencies import DbSession, _as_utc
 from app.shared.schemas import Page
 
 
@@ -55,13 +55,17 @@ class AlertService:
         q: str | None = None,
         organization_filter: UUID | None = None,
         site_id: UUID | None = None,
+        severity: str | None = None,
+        state: str | None = None,
+        created_from: datetime | None = None,
+        created_to: datetime | None = None,
     ) -> Page[AlertResponse]:
         """
         Alertas de la organización, paginadas.
 
-        Los dos filtros son los que pide el panel: `status` para ver solo
-        las activas, que es la vista por defecto de quien atiende, y
-        `sensor_id` para entrar desde el detalle de un sensor.
+        `status` conserva el ciclo de vida guardado; `state` distingue las
+        activas sin reconocer de las reconocidas. Gravedad y fechas se
+        combinan con los filtros comunes antes de contar y paginar.
 
         `organization_id` sale siempre de `get_org_scope`: sin él,
         cualquiera vería las alertas de otro cliente. `None` significa
@@ -70,6 +74,14 @@ class AlertService:
         `q` busca en el mensaje y el nombre del sensor; `organization_filter`
         y `site_id` son los filtros comunes de la B0.
         """
+        created_from = _as_utc(created_from) if created_from is not None else None
+        created_to = _as_utc(created_to) if created_to is not None else None
+        if created_from is not None and created_to is not None and created_from >= created_to:
+            raise DomainValidationError(
+                "`created_from` tiene que ser anterior a `created_to`.",
+                code="INVALID_DATE_RANGE",
+                details={"field": "created_from", "message": "Debe ser anterior a `created_to`."},
+            )
         filas, total = self.alerts.list_by_organization(
             organization_id=organization_id,
             status=status,
@@ -79,6 +91,10 @@ class AlertService:
             q=q,
             organization_filter=organization_filter,
             site_id=site_id,
+            severity=severity,
+            state=state,
+            created_from=created_from,
+            created_to=created_to,
         )
         return Page[AlertResponse](
             items=[self._to_response(f) for f in filas],
@@ -87,7 +103,9 @@ class AlertService:
             page_size=limit,
         )
 
-    def acknowledge(self, alert_id: UUID, organization_id: UUID | None) -> AlertResponse:
+    def acknowledge(
+        self, alert_id: UUID, organization_id: UUID | None, actor_id: UUID,
+    ) -> AlertResponse:
         """
         Marca la alerta como reconocida: alguien la ha visto.
 
@@ -100,14 +118,15 @@ class AlertService:
         Reconocer no es resolver: la alerta sigue activa, solo consta que
         alguien está al tanto.
         """
-        alerta = self._propia_o_404(alert_id, organization_id)
-
         with transaction(self.db):
-            self.alerts.acknowledge(alerta.id, datetime.now(timezone.utc))
+            alerta = self._propia_o_404(alert_id, organization_id)
+            self.alerts.acknowledge(alerta.id, datetime.now(timezone.utc), actor_id)
 
         return self._to_response(alerta)
 
-    def resolve(self, alert_id: UUID, organization_id: UUID | None) -> AlertResponse:
+    def resolve(
+        self, alert_id: UUID, organization_id: UUID | None, actor_id: UUID,
+    ) -> AlertResponse:
         """
         Cierra la alerta.
 
@@ -116,19 +135,17 @@ class AlertService:
         se atendió de verdad. Y esa fecha es el dato con el que luego se
         mide cuánto se tarda en responder.
 
-        Aquí no se puede delegar en el repository como en `acknowledge`:
-        el suyo sobrescribe sin mirar, así que la comprobación va antes.
+        La comprobación se hace con la fila bloqueada para conservar la
+        primera resolución incluso con dos peticiones simultáneas.
         """
-        alerta = self._propia_o_404(alert_id, organization_id)
-
-        if alerta.status == "RESOLVED":
-            raise ConflictError(
-                "Esa alerta ya estaba resuelta.",
-                code="ALERT_ALREADY_RESOLVED",
-            )
-
         with transaction(self.db):
-            self.alerts.resolve(alerta.id, datetime.now(timezone.utc))
+            alerta = self._propia_o_404(alert_id, organization_id)
+            if alerta.status == "RESOLVED":
+                raise ConflictError(
+                    "Esa alerta ya estaba resuelta.",
+                    code="ALERT_ALREADY_RESOLVED",
+                )
+            self.alerts.resolve(alerta.id, datetime.now(timezone.utc), actor_id)
 
         return self._to_response(alerta)
 
@@ -145,7 +162,7 @@ class AlertService:
         existe: decir «existe pero no es tuya» ya confirma que ese
         identificador es real.
         """
-        alerta = self.alerts.get_by_id(alert_id, organization_id)
+        alerta = self.alerts.get_by_id(alert_id, organization_id, for_update=True)
         if alerta is None:
             raise NotFoundError(
                 "La alerta indicada no existe.",
@@ -184,9 +201,19 @@ class AlertService:
             message=alerta.message,
             status=alerta.status,
             state=AlertState.derive(alerta.status, alerta.acknowledged_at),
-            created_at=alerta.created_at,
-            acknowledged_at=alerta.acknowledged_at,
-            resolved_at=alerta.resolved_at,
+            created_at=_as_utc(alerta.created_at),
+            acknowledged_at=_as_utc(alerta.acknowledged_at) if alerta.acknowledged_at else None,
+            resolved_at=_as_utc(alerta.resolved_at) if alerta.resolved_at else None,
+            acknowledged_by_name=(
+                alerta.acknowledged_by_user.name if alerta.acknowledged_by_user else None
+            ),
+            resolved_by_name=(
+                alerta.resolved_by_user.name if alerta.resolved_by_user else None
+            ),
+            resolution_minutes=(
+                (_as_utc(alerta.resolved_at) - _as_utc(alerta.created_at)).total_seconds() / 60
+                if alerta.status == "RESOLVED" and alerta.resolved_at is not None else None
+            ),
         )
 
 

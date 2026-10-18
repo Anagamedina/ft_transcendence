@@ -4,283 +4,137 @@
       class="max-w-6xl mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-[1fr_240px] gap-10"
     >
       <!-- Main content: privacy policy and terms of service on one page -->
-      <div class="max-w-3xl">
+      <div class="max-w-3xl min-w-0">
         <h1 class="text-3xl font-bold text-aqua-900 mb-2">Información legal</h1>
-        <p class="text-sm text-slate-500 mb-8">
-          Última actualización: pendiente de acordar con el equipo
+        <p class="text-sm text-slate-600 mb-8">
+          Versión {{ LEGAL_VERSION }} · última actualización: {{ LAST_UPDATED }}
         </p>
 
+        <!-- Kept on purpose until the texts get a legal review (#195) -->
         <div
-          class="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg p-4 mb-10"
+          role="note"
+          class="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg p-4 mb-8"
         >
-          Este contenido es un borrador de referencia y no ha sido validado
-          legalmente. No debe considerarse asesoramiento legal hasta su revisión
-          por el equipo del proyecto.
+          AquaGuard es un proyecto académico de 42 Barcelona (ft_transcendence).
+          Este texto describe cómo funciona la aplicación, pero es un borrador
+          que no ha pasado una revisión jurídica.
         </div>
 
-        <!-- Privacy policy -->
-        <section id="privacidad" class="mb-14 scroll-mt-24">
-          <h2 class="text-2xl font-bold text-aqua-900 mb-6">
-            Política de privacidad
-          </h2>
+        <!-- Short summary before the full text -->
+        <div class="bg-aqua-50 border border-aqua-100 rounded-lg p-5 mb-12">
+          <h2 class="font-semibold text-aqua-900 mb-3">En 30 segundos</h2>
+          <ul class="list-disc pl-5 text-slate-700 space-y-1.5">
+            <li v-for="line in summary" :key="line">{{ line }}</li>
+          </ul>
+        </div>
 
-          <section id="privacidad-datos-recogidos" class="mb-10 scroll-mt-24">
-            <h3 class="text-lg font-semibold text-aqua-800 mb-3">
-              1. Qué datos recogemos
-            </h3>
-            <p class="text-slate-600 mb-3">
-              AquaGuard recoge la información necesaria para ofrecer el servicio
-              de monitorización de sensores de agua:
-            </p>
-            <ul class="list-disc list-inside text-slate-600 space-y-1">
-              <li>Datos de cuenta: nombre, email, organización.</li>
-              <li>
-                Datos de sensores: lecturas de presión, ubicación, estado y
-                alertas.
-              </li>
-              <li>
-                Datos técnicos: dirección IP y registros de acceso, con fines de
-                seguridad.
-              </li>
-            </ul>
-          </section>
+        <!-- One tab per document. #privacidad and #terminos (footer and forms) open the right tab -->
+        <!-- The anchor sits on the tab bar, so #privacidad / #terminos show the tabs too -->
+        <div :id="activeTab" class="scroll-mt-24">
+          <Tabs v-model="activeTab" :tabs="TABS" label="Documentos legales">
+            <template
+              v-for="docBlock in documents"
+              :key="docBlock.id"
+              #[docBlock.id]
+            >
+              <section>
+                <h2 class="sr-only">{{ docBlock.title }}</h2>
 
-          <section id="privacidad-como-usamos" class="mb-10 scroll-mt-24">
-            <h3 class="text-lg font-semibold text-aqua-800 mb-3">
-              2. Cómo usamos los datos
-            </h3>
-            <p class="text-slate-600">
-              Los datos se utilizan exclusivamente para prestar el servicio:
-              mostrar el estado de tus sensores, generar alertas y facilitar la
-              gestión de tu organización. No se venden datos a terceros.
-            </p>
-          </section>
+                <section
+                  v-for="(item, index) in docBlock.sections"
+                  :id="`${docBlock.id}-${item.id}`"
+                  :key="item.id"
+                  class="mb-10 scroll-mt-24"
+                >
+                  <h3 class="text-lg font-semibold text-aqua-800 mb-3">
+                    {{ index + 1 }}. {{ item.title }}
+                  </h3>
 
-          <section
-            id="privacidad-con-quien-compartimos"
-            class="mb-10 scroll-mt-24"
-          >
-            <h3 class="text-lg font-semibold text-aqua-800 mb-3">
-              3. Con quién compartimos los datos
-            </h3>
-            <p class="text-slate-600">
-              No compartimos tus datos con terceros para fines comerciales. Solo
-              se comparten con proveedores técnicos estrictamente necesarios
-              para operar el servicio (por ejemplo, hospedaje de la plataforma),
-              y siempre bajo obligación de confidencialidad.
-            </p>
-          </section>
+                  <p
+                    v-for="text in item.body"
+                    :key="text"
+                    class="text-slate-600 mb-3"
+                  >
+                    {{ text }}
+                  </p>
 
-          <section id="privacidad-conservacion" class="mb-10 scroll-mt-24">
-            <h3 class="text-lg font-semibold text-aqua-800 mb-3">
-              4. Conservación de datos
-            </h3>
-            <p class="text-slate-600">
-              Los datos se conservan mientras la cuenta esté activa. Puedes
-              solicitar su eliminación contactando con el responsable del
-              proyecto.
-            </p>
-          </section>
+                  <ul
+                    v-if="item.list"
+                    class="list-disc pl-5 text-slate-600 space-y-1 mb-3"
+                  >
+                    <li v-for="entry in item.list" :key="entry">{{ entry }}</li>
+                  </ul>
 
-          <section id="privacidad-tus-derechos" class="mb-10 scroll-mt-24">
-            <h3 class="text-lg font-semibold text-aqua-800 mb-3">
-              5. Tus derechos
-            </h3>
-            <p class="text-slate-600">
-              Puedes solicitar en cualquier momento acceder, corregir o eliminar
-              tus datos personales, escribiendo al equipo del proyecto a través
-              de los canales habituales.
-            </p>
-          </section>
-
-          <section id="privacidad-seguridad" class="mb-10 scroll-mt-24">
-            <h3 class="text-lg font-semibold text-aqua-800 mb-3">
-              6. Seguridad
-            </h3>
-            <p class="text-slate-600">
-              Aplicamos medidas técnicas razonables para proteger tus datos
-              frente a accesos no autorizados, aunque ningún sistema puede
-              garantizar seguridad absoluta.
-            </p>
-          </section>
-
-          <section id="privacidad-menores" class="mb-10 scroll-mt-24">
-            <h3 class="text-lg font-semibold text-aqua-800 mb-3">
-              7. Información para menores
-            </h3>
-            <p class="text-slate-600">
-              AquaGuard no está dirigido a menores de edad y no recogemos
-              intencionadamente datos de menores.
-            </p>
-          </section>
-
-          <section id="privacidad-cambios" class="mb-10 scroll-mt-24">
-            <h3 class="text-lg font-semibold text-aqua-800 mb-3">
-              8. Cambios en esta política
-            </h3>
-            <p class="text-slate-600">
-              Esta política puede actualizarse. Los cambios relevantes se
-              comunicarán a través de la plataforma.
-            </p>
-          </section>
-
-          <section id="privacidad-contacto" class="scroll-mt-24">
-            <h3 class="text-lg font-semibold text-aqua-800 mb-3">
-              9. Contacto
-            </h3>
-            <p class="text-slate-600">
-              Para cualquier duda sobre esta política, puedes contactar con el
-              equipo de AquaGuard a través de los canales del proyecto.
-            </p>
-          </section>
-        </section>
-
-        <!-- Terms of service -->
-        <section id="terminos" class="scroll-mt-24">
-          <h2 class="text-2xl font-bold text-aqua-900 mb-6">
-            Términos de servicio
-          </h2>
-
-          <section id="terminos-aceptacion" class="mb-10 scroll-mt-24">
-            <h3 class="text-lg font-semibold text-aqua-800 mb-3">
-              1. Aceptación de los términos
-            </h3>
-            <p class="text-slate-600">
-              Al acceder o usar AquaGuard, aceptas estos términos de servicio.
-              Si no estás de acuerdo, no debes utilizar la plataforma.
-            </p>
-          </section>
-
-          <section id="terminos-uso-servicio" class="mb-10 scroll-mt-24">
-            <h3 class="text-lg font-semibold text-aqua-800 mb-3">
-              2. Uso del servicio
-            </h3>
-            <p class="text-slate-600 mb-3">
-              AquaGuard proporciona monitorización de sensores de presión de
-              agua para detectar fugas. Te comprometes a:
-            </p>
-            <ul class="list-disc list-inside text-slate-600 space-y-1">
-              <li>Usar el servicio conforme a la ley y a estos términos.</li>
-              <li>
-                No intentar acceder a datos de otras organizaciones sin
-                autorización.
-              </li>
-              <li>
-                No interferir con el funcionamiento normal de la plataforma.
-              </li>
-            </ul>
-          </section>
-
-          <section id="terminos-cuentas" class="mb-10 scroll-mt-24">
-            <h3 class="text-lg font-semibold text-aqua-800 mb-3">
-              3. Cuentas de usuario
-            </h3>
-            <p class="text-slate-600">
-              Eres responsable de mantener la confidencialidad de tus
-              credenciales de acceso y de toda la actividad que ocurra bajo tu
-              cuenta.
-            </p>
-          </section>
-
-          <section id="terminos-propiedad" class="mb-10 scroll-mt-24">
-            <h3 class="text-lg font-semibold text-aqua-800 mb-3">
-              4. Propiedad de los datos
-            </h3>
-            <p class="text-slate-600">
-              Los datos generados por tus sensores (lecturas, alertas,
-              histórico) te pertenecen a ti o a tu organización. AquaGuard los
-              procesa únicamente para prestar el servicio.
-            </p>
-          </section>
-
-          <section id="terminos-disponibilidad" class="mb-10 scroll-mt-24">
-            <h3 class="text-lg font-semibold text-aqua-800 mb-3">
-              5. Disponibilidad del servicio
-            </h3>
-            <p class="text-slate-600">
-              AquaGuard procura mantener el servicio disponible de forma
-              continua, pero no garantiza un funcionamiento ininterrumpido.
-              Puede haber mantenimientos o interrupciones puntuales.
-            </p>
-          </section>
-
-          <section id="terminos-limitacion" class="mb-10 scroll-mt-24">
-            <h3 class="text-lg font-semibold text-aqua-800 mb-3">
-              6. Limitación de responsabilidad
-            </h3>
-            <p class="text-slate-600">
-              AquaGuard es una herramienta de apoyo a la monitorización y no
-              sustituye la inspección física de instalaciones. No nos hacemos
-              responsables de daños derivados de fugas no detectadas por fallos
-              técnicos ajenos a nuestro control.
-            </p>
-          </section>
-
-          <section id="terminos-cancelacion" class="mb-10 scroll-mt-24">
-            <h3 class="text-lg font-semibold text-aqua-800 mb-3">
-              7. Cancelación de cuenta
-            </h3>
-            <p class="text-slate-600">
-              Puedes solicitar la cancelación de tu cuenta en cualquier momento
-              contactando con el equipo del proyecto. Tras la cancelación, tus
-              datos se tratarán según lo indicado en la
-              <a
-                href="#privacidad"
-                class="text-aqua-600 underline hover:text-aqua-900"
-                >política de privacidad</a
-              >.
-            </p>
-          </section>
-
-          <section id="terminos-cambios" class="mb-10 scroll-mt-24">
-            <h3 class="text-lg font-semibold text-aqua-800 mb-3">
-              8. Cambios en estos términos
-            </h3>
-            <p class="text-slate-600">
-              Estos términos pueden actualizarse. Los cambios relevantes se
-              comunicarán a través de la plataforma.
-            </p>
-          </section>
-
-          <section id="terminos-contacto" class="scroll-mt-24">
-            <h3 class="text-lg font-semibold text-aqua-800 mb-3">
-              9. Contacto
-            </h3>
-            <p class="text-slate-600">
-              Para cualquier duda sobre estos términos, puedes contactar con el
-              equipo de AquaGuard a través de los canales del proyecto.
-            </p>
-          </section>
-        </section>
+                  <!-- Data table: scrolls inside its own box on narrow screens -->
+                  <div v-if="item.rows" class="overflow-x-auto mb-3">
+                    <table
+                      class="w-full min-w-[36rem] text-sm text-left border border-slate-200 rounded-lg"
+                    >
+                      <thead class="bg-slate-50 text-slate-700">
+                        <tr>
+                          <th
+                            v-for="header in item.rowHeaders ||
+                            DEFAULT_ROW_HEADERS"
+                            :key="header"
+                            scope="col"
+                            class="px-3 py-2 font-semibold"
+                          >
+                            {{ header }}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody class="text-slate-600">
+                        <tr
+                          v-for="row in item.rows"
+                          :key="row.data"
+                          class="border-t border-slate-200 align-top"
+                        >
+                          <td class="px-3 py-2 font-medium text-slate-700">
+                            {{ row.data }}
+                          </td>
+                          <td class="px-3 py-2">{{ row.purpose }}</td>
+                          <td class="px-3 py-2">{{ row.time }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              </section>
+            </template>
+          </Tabs>
+        </div>
       </div>
 
-      <!-- Side index (desktop only) -->
+      <!-- Side index (desktop only), built from the same data as the content -->
       <aside class="hidden lg:block">
         <nav aria-label="Índice del documento" class="sticky top-24 text-sm">
-          <p class="font-semibold text-aqua-900 mb-2">
-            <a href="#privacidad" class="hover:text-aqua-600"
-              >Política de privacidad</a
-            >
-          </p>
-          <ul class="space-y-1.5 text-slate-500 mb-5">
-            <li v-for="item in privacyIndex" :key="item.id">
-              <a :href="`#privacidad-${item.id}`" class="hover:text-aqua-600">{{
-                item.label
-              }}</a>
-            </li>
-          </ul>
-          <p class="font-semibold text-aqua-900 mb-2">
-            <a href="#terminos" class="hover:text-aqua-600"
-              >Términos de servicio</a
-            >
-          </p>
-          <ul class="space-y-1.5 text-slate-500 mb-5">
-            <li v-for="item in termsIndex" :key="item.id">
-              <a :href="`#terminos-${item.id}`" class="hover:text-aqua-600">{{
-                item.label
-              }}</a>
-            </li>
-          </ul>
+          <!-- Both documents; a link to the other one switches tab (see the hash watcher) -->
+          <template v-for="docBlock in documents" :key="docBlock.id">
+            <p class="mb-2">
+              <a
+                :href="`#${docBlock.id}`"
+                @click.prevent="goTo(`#${docBlock.id}`)"
+                :aria-current="docBlock.id === activeTab ? 'true' : undefined"
+                class="font-semibold hover:text-aqua-600"
+                :class="
+                  docBlock.id === activeTab ? 'text-aqua-900' : 'text-slate-600'
+                "
+              >
+                {{ docBlock.title }}
+              </a>
+            </p>
+            <ul class="space-y-1.5 text-slate-600 mb-5">
+              <li v-for="(item, index) in docBlock.sections" :key="item.id">
+                <a
+                  :href="`#${docBlock.id}-${item.id}`"
+                  class="hover:text-aqua-600"
+                  @click.prevent="goTo(`#${docBlock.id}-${item.id}`)"
+                >
+                  {{ index + 1 }}. {{ item.short || item.title }}
+                </a>
+              </li>
+            </ul>
+          </template>
           <router-link
             to="/"
             class="font-semibold text-aqua-600 hover:text-aqua-900"
@@ -294,30 +148,365 @@
 </template>
 
 <script setup>
+import { nextTick, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import PublicLayout from "../../layouts/PublicLayout.vue";
+import Tabs from "../../components/Tabs.vue";
 
-// Side index entries; ids match the section ids above (with their prefix)
-const privacyIndex = [
-  { id: "datos-recogidos", label: "1. Qué datos recogemos" },
-  { id: "como-usamos", label: "2. Cómo usamos los datos" },
-  { id: "con-quien-compartimos", label: "3. Con quién compartimos" },
-  { id: "conservacion", label: "4. Conservación" },
-  { id: "tus-derechos", label: "5. Tus derechos" },
-  { id: "seguridad", label: "6. Seguridad" },
-  { id: "menores", label: "7. Menores" },
-  { id: "cambios", label: "8. Cambios" },
-  { id: "contacto", label: "9. Contacto" },
+// Same value as TERMS_VERSION in the backend: it is saved with the user when they accept the terms
+const LEGAL_VERSION = "2026-10";
+const LAST_UPDATED = "octubre de 2026";
+
+const summary = [
+  "Solo damos servicio a edificios de Barcelona ciudad.",
+  "La prueba gratuita dura 7 días. Al terminar, tus datos quedan en solo lectura hasta que el equipo active la cuenta.",
+  "Los sensores los instala el equipo técnico de AquaGuard: necesitamos acceso al edificio.",
+  "Guardamos solo lo necesario: tu cuenta, tus edificios, las lecturas de los sensores y los documentos que se suben.",
+  "Una sola cookie, técnica y de sesión. Sin analítica ni publicidad. No vendemos ni cedemos datos.",
 ];
 
-const termsIndex = [
-  { id: "aceptacion", label: "1. Aceptación" },
-  { id: "uso-servicio", label: "2. Uso del servicio" },
-  { id: "cuentas", label: "3. Cuentas de usuario" },
-  { id: "propiedad", label: "4. Propiedad de los datos" },
-  { id: "disponibilidad", label: "5. Disponibilidad" },
-  { id: "limitacion", label: "6. Limitación de responsabilidad" },
-  { id: "cancelacion", label: "7. Cancelación" },
-  { id: "cambios", label: "8. Cambios" },
-  { id: "contacto", label: "9. Contacto" },
+// Column titles of the data tables, unless a section sets its own rowHeaders
+const DEFAULT_ROW_HEADERS = ["Dato", "Para qué", "Cuánto tiempo"];
+
+// Each section: title, short (index label, optional), body (paragraphs), list and rows (optional)
+const privacySections = [
+  {
+    id: "responsable",
+    title: "Quiénes somos",
+    short: "Titular",
+    body: [
+      "AquaGuard es un proyecto estrictamente académico, desarrollado por un equipo de estudiantes de 42 Barcelona para el currículo de 42 (ft_transcendence).",
+      "No hay una sociedad detrás ni actividad comercial real, por eso no hay razón social, NIF ni domicilio social. Si el servicio pasara a ofrecerse de verdad, aquí aparecerían esos datos, como exigen la LSSI-CE (art. 10) y el RGPD (art. 13).",
+      "Para cualquier cuestión sobre tus datos, contacta con el equipo de AquaGuard.",
+    ],
+  },
+  {
+    id: "datos",
+    title: "Qué datos tratamos y durante cuánto tiempo",
+    short: "Datos y plazos",
+    body: ["Solo los que hacen falta para que el servicio funcione:"],
+    rows: [
+      {
+        data: "Nombre y email",
+        purpose: "Identificarte y que puedas entrar",
+        time: "Mientras tu cuenta exista",
+      },
+      {
+        data: "Contraseña",
+        purpose:
+          "Comprobar que eres tú. Se guarda solo como hash Argon2, nunca en claro",
+        time: "Mientras tu cuenta exista",
+      },
+      {
+        data: "Organización y rol",
+        purpose: "Decidir qué edificios, sensores y alertas puedes ver",
+        time: "Mientras tu cuenta exista",
+      },
+      {
+        data: "Aceptación de los términos",
+        purpose: "Poder demostrar qué versión aceptaste y cuándo",
+        time: "Mientras tu cuenta exista",
+      },
+      {
+        data: "Datos de la organización y facturación",
+        purpose:
+          "Contactar con la organización y gestionar la suscripción: plan, razón social, NIF/CIF, dirección y email de facturación, email y teléfono de contacto. Del IBAN solo guardamos el país y las 4 últimas cifras",
+        time: "Mientras la organización tenga cuenta",
+      },
+      {
+        data: "Edificios y sensores",
+        purpose:
+          "Dirección, distrito, plantas y ubicación de cada sensor, para mostrar el edificio planta a planta",
+        time: "Mientras la organización tenga cuenta",
+      },
+      {
+        data: "Lecturas y alertas",
+        purpose:
+          "Mostrar el estado de la red, generar alertas y saber quién las reconoció o resolvió",
+        time: "Mientras la organización tenga cuenta",
+      },
+      {
+        data: "Documentos",
+        purpose: "Guardar los archivos de cada edificio (ver punto 5)",
+        time: "Hasta que se borren o se elimine la organización",
+      },
+      {
+        data: "Dirección IP",
+        purpose: "Seguridad: registros del servidor",
+        time: "El tiempo imprescindible para la seguridad",
+      },
+    ],
+  },
+  {
+    id: "base",
+    title: "Por qué podemos tratarlos",
+    short: "Base legal",
+    body: [
+      "Porque son necesarios para prestar el servicio que tu organización ha solicitado, también durante la prueba gratuita (ejecución de un contrato, art. 6.1.b del RGPD). Los registros de seguridad se basan en nuestro interés legítimo en proteger la plataforma (art. 6.1.f del RGPD).",
+    ],
+  },
+  {
+    id: "quien",
+    title: "Quién más los ve",
+    short: "Quién los ve",
+    body: [
+      "Las personas de tu organización ven los datos de tu organización. El equipo de administración de AquaGuard ve los de todas, para dar soporte e instalar los sensores.",
+      "No vendemos ni cedemos datos. Solo intervienen proveedores técnicos imprescindibles:",
+    ],
+    list: [
+      "Alojamiento de la plataforma.",
+      "Mapa: las teselas se cargan desde OpenFreeMap, que recibe tu dirección IP al mostrar el mapa.",
+    ],
+  },
+  {
+    id: "documentos",
+    title: "Documentos",
+    body: [
+      "Cada edificio puede tener documentos asociados: informes de instalación, planos, fotos o exportaciones de lecturas. Se guardan los archivos (PDF, JPG, PNG o CSV de hasta 10 MB), su nombre, tipo, tamaño, el edificio al que pertenecen, quién los subió y cuándo.",
+      "Los documentos de un edificio solo los ven las personas de su organización y el equipo de AquaGuard. Ninguna otra organización puede verlos.",
+      "No subas documentos con datos personales que no sean necesarios para el servicio (por ejemplo, datos de vecinos o inquilinos).",
+    ],
+  },
+  {
+    id: "conservacion",
+    title: "Qué pasa con los datos al terminar la prueba",
+    short: "Fin de la prueba",
+    body: [
+      "Cuando terminan los 7 días de prueba, tus datos no se borran: quedan en solo lectura. Puedes seguir viendo tus edificios, lecturas y documentos, pero no hacer cambios.",
+      "Si el equipo activa la cuenta, todo sigue como estaba. Si la cuenta no se activa, el equipo de AquaGuard puede eliminar la organización; al hacerlo se borran de forma definitiva sus usuarios, edificios, sensores, lecturas, alertas y documentos.",
+    ],
+  },
+  {
+    id: "cookies",
+    title: "Cookies",
+    body: [
+      "AquaGuard solo usa una cookie técnica de sesión, estrictamente necesaria para la autenticación y la seguridad. Las cookies de este tipo están exentas de consentimiento (art. 22.2 de la LSSI-CE), por eso no mostramos un aviso para aceptarlas.",
+      "No usamos cookies de analítica, de publicidad ni de terceros.",
+    ],
+    rows: [
+      {
+        data: "aquaguard_session",
+        purpose:
+          "Mantener la sesión iniciada. Es propia, httpOnly (el navegador no la deja leer por JavaScript) y solo viaja por HTTPS",
+        time: "8 horas, o hasta que cierres la sesión",
+      },
+    ],
+    rowHeaders: ["Cookie", "Para qué", "Duración"],
+  },
+  {
+    id: "derechos",
+    title: "Tus derechos",
+    body: [
+      "Puedes pedir en cualquier momento acceder a tus datos, corregirlos, borrarlos, limitar su uso, oponerte a su tratamiento o llevártelos en un formato estándar. Para hacerlo, contacta con el equipo de AquaGuard.",
+      "Si crees que no lo hemos hecho bien, puedes reclamar ante la Agencia Española de Protección de Datos (aepd.es).",
+    ],
+  },
+  {
+    id: "seguridad",
+    title: "Cómo los protegemos",
+    short: "Seguridad",
+    body: [
+      "Todo el tráfico va cifrado con HTTPS. Las contraseñas se guardan con hash. Cada usuario solo puede ver lo de su organización, y esto se comprueba en el servidor, no solo en la pantalla.",
+      "Si hubiera una brecha de seguridad (un acceso indebido o una filtración de datos) que suponga un riesgo para las personas, la notificaremos a la Agencia Española de Protección de Datos en un plazo máximo de 72 horas desde que la conozcamos (art. 33 del RGPD). Si el riesgo es alto, también avisaremos sin demora a las personas afectadas (art. 34 del RGPD).",
+    ],
+  },
+  {
+    id: "menores",
+    title: "Menores",
+    body: [
+      "AquaGuard es una herramienta profesional. No está pensada para menores de 14 años y no creamos cuentas para ellos.",
+    ],
+  },
+  {
+    id: "cambios",
+    title: "Cambios en esta política",
+    short: "Cambios",
+    body: [
+      "Si cambiamos algo importante, actualizaremos la versión y la fecha de esta página y te lo comunicaremos a través de la plataforma.",
+    ],
+  },
 ];
+
+const termsSections = [
+  {
+    id: "quien-usa",
+    title: "Quién puede usar AquaGuard",
+    short: "Quién puede usarlo",
+    body: [
+      "Hay dos formas de tener cuenta: empezar la prueba gratuita de 7 días desde la web, o recibir una invitación de un administrador de AquaGuard que te asigna a tu organización. Al crear la cuenta aceptas estos términos y la política de privacidad.",
+    ],
+  },
+  {
+    id: "ambito",
+    title: "Solo edificios de Barcelona",
+    short: "Ámbito: Barcelona",
+    body: [
+      "AquaGuard solo da servicio a edificios situados en el término municipal de Barcelona. El equipo comprueba la dirección del edificio antes de instalar los sensores: si está fuera de Barcelona, no podremos instalarlos ni activar la cuenta.",
+    ],
+  },
+  {
+    id: "prueba",
+    title: "Prueba gratuita de 7 días",
+    short: "Prueba gratuita",
+    body: [
+      "La prueba es gratuita, no pide tarjeta y no te compromete a nada. Dura 7 días desde el registro.",
+      "Al terminar, la cuenta queda en solo lectura: puedes ver tus edificios, lecturas y documentos, pero no hacer cambios. Para seguir usando AquaGuard, pide al equipo que active tu cuenta. El equipo también puede ampliar la prueba.",
+      "Si la cuenta no se activa, el equipo puede eliminar la organización y todos sus datos, como explica la política de privacidad.",
+    ],
+  },
+  {
+    id: "instalacion",
+    title: "Instalación de los sensores",
+    short: "Instalación",
+    body: [
+      "Los sensores los instala el equipo técnico de AquaGuard. Para hacerlo, tu organización se compromete a:",
+    ],
+    list: [
+      "Dar acceso al edificio en la fecha acordada: zonas comunes, cuartos de contadores y plantas donde vayan los sensores.",
+      "Tener los permisos necesarios (por ejemplo, de la comunidad de propietarios o de la propiedad del edificio).",
+      "No mover, desconectar ni manipular los sensores. Si hay que cambiarlos de sitio, avísanos.",
+    ],
+  },
+  {
+    id: "cuenta",
+    title: "Tu cuenta",
+    body: [
+      "Es personal. No compartas tu contraseña. Si crees que alguien ha entrado con ella, cámbiala desde Mi cuenta y avísanos.",
+    ],
+  },
+  {
+    id: "uso",
+    title: "Uso aceptable",
+    body: [
+      "No intentes acceder a datos de otras organizaciones, saturar el servicio ni alterar las lecturas de los sensores.",
+    ],
+  },
+  {
+    id: "documentos",
+    title: "Documentos",
+    body: [
+      "Puedes subir documentos de tus edificios (PDF, JPG, PNG o CSV de hasta 10 MB). Eres responsable de lo que subes y de tener derecho a compartirlo.",
+      "Puedes borrar los documentos que sube tu organización. Los que sube el equipo de AquaGuard (por ejemplo, el informe de instalación) solo los puede borrar el equipo.",
+    ],
+  },
+  {
+    id: "alertas",
+    title: "Las alertas no sustituyen a un sistema de emergencia",
+    short: "Alertas",
+    body: [
+      "AquaGuard te avisa cuando una lectura sale de rango o un sensor deja de enviar datos, pero una alerta puede llegar tarde o no llegar (por ejemplo, si cae la conexión). Ante una fuga real, actúa según tus protocolos y avisa a los servicios de emergencia si hace falta.",
+    ],
+  },
+  {
+    id: "disponibilidad",
+    title: "Disponibilidad",
+    body: [
+      "Es un proyecto académico. Intentamos que funcione siempre, pero no garantizamos un tiempo mínimo de servicio. Puede haber mantenimientos o interrupciones puntuales.",
+    ],
+  },
+  {
+    id: "datos-org",
+    title: "Los datos de tu organización",
+    short: "Datos de tu organización",
+    body: [
+      "Las lecturas, alertas y documentos son de tu organización. Nosotros solo los usamos para prestarte el servicio, como explica la política de privacidad.",
+    ],
+  },
+  {
+    id: "baja",
+    title: "Darse de baja",
+    short: "Baja",
+    body: [
+      "Puedes pedir al equipo de AquaGuard que borre tu cuenta en cualquier momento. Un administrador también puede suspender o eliminar una cuenta si se incumplen estos términos.",
+    ],
+  },
+  {
+    id: "cambios",
+    title: "Cambios en estos términos",
+    short: "Cambios",
+    body: [
+      "Si cambian de forma importante, actualizaremos la versión y la fecha de esta página y te lo comunicaremos a través de la plataforma.",
+    ],
+  },
+  {
+    id: "ley",
+    title: "Ley aplicable y tribunales",
+    short: "Ley y tribunales",
+    body: [
+      "Estos términos se rigen por la legislación española.",
+      "Las partes se someten a los Juzgados y Tribunales de la ciudad de Barcelona, salvo que la ley atribuya la competencia a otro fuero de forma imperativa, como ocurre cuando el cliente actúa como consumidor.",
+    ],
+  },
+];
+
+const documents = [
+  {
+    id: "privacidad",
+    title: "Política de privacidad",
+    sections: privacySections,
+  },
+  { id: "terminos", title: "Términos de servicio", sections: termsSections },
+];
+
+const TABS = documents.map((docBlock) => ({
+  key: docBlock.id,
+  label: docBlock.title,
+}));
+
+const route = useRoute();
+const router = useRouter();
+
+// The tab comes from the URL hash: #terminos or #terminos-<section> opens the terms
+function tabFromHash(hash) {
+  return hash.startsWith("#terminos") ? "terminos" : "privacidad";
+}
+
+const activeTab = ref(tabFromHash(route.hash));
+
+// Scrolls to the element of the hash, leaving room for the sticky header.
+// The router does not scroll on this page (meta.handlesHashScroll), because the
+// target may be in the other tab, which is not rendered yet.
+function scrollToHash(hash) {
+  const target = hash && document.getElementById(hash.slice(1));
+  if (!target) return;
+
+  const header = document.querySelector("header");
+  const offset = (header?.offsetHeight ?? 0) + 16;
+  const top = target.getBoundingClientRect().top + window.scrollY - offset;
+
+  window.scrollTo({ top: Math.max(0, top) });
+}
+
+// Waits until the tab is rendered and painted, then scrolls
+async function scrollAfterRender(hash) {
+  await nextTick();
+  requestAnimationFrame(() => scrollToHash(hash));
+}
+
+// Side index links: same hash again still scrolls (the watcher only sees changes)
+function goTo(hash) {
+  if (route.hash === hash) {
+    scrollAfterRender(hash);
+  } else {
+    router.push({ hash });
+  }
+}
+
+// Any hash change on this page (side index, footer links): switch tab, then scroll
+watch(
+  () => route.hash,
+  (hash) => {
+    if (!hash) return;
+    activeTab.value = tabFromHash(hash);
+    scrollAfterRender(hash);
+  },
+);
+
+// Opening /legal#... from another page
+onMounted(() => scrollAfterRender(route.hash));
+
+// Clicking a tab updates the hash, so the URL can be shared and the back button works
+watch(activeTab, (tab) => {
+  if (tabFromHash(route.hash) !== tab) router.replace({ hash: `#${tab}` });
+});
 </script>

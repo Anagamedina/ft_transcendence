@@ -98,6 +98,13 @@ class User(Base):
         nullable=True,
     )
 
+    # When the user asked to close the account (B15). NULL if never asked.
+    # An admin acts on it by hand; nothing is deleted automatically.
+    deletion_requested_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

@@ -25,6 +25,16 @@ const authService = {
   changePassword(data) {
     return adapter.post("/api/me/password", data);
   },
+
+  // B15 (#149): everything AquaGuard stores about the account, as JSON
+  exportMe() {
+    return adapter.get("/api/me/export");
+  },
+
+  // B15 (#149): registers the deletion request; an admin processes it
+  requestDeletion() {
+    return adapter.post("/api/me/deletion-request");
+  },
 };
 
 export default authService;

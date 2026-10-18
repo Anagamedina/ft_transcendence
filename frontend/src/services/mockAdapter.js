@@ -64,6 +64,18 @@ const mockUser = [
     last_login_at: null,
     password: "123",
   },
+  {
+    id: "77777777-7777-4777-8777-777777777777",
+    email: "trial@example.com",
+    name: "Mock Trial Client",
+    role: "client",
+    organization_id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+    created_at: "2026-10-16T08:00:00Z",
+    organization_name: "Clínica Sarrià",
+    is_active: true,
+    last_login_at: null,
+    password: "123",
+  },
 ];
 
 const mockDocuments = [];
@@ -107,6 +119,54 @@ function toMeResponse(user) {
     last_login_at: user?.last_login_at ?? null,
     terms_version: user?.terms_version ?? null,
     terms_accepted_at: user?.terms_accepted_at ?? null,
+    deletion_requested_at: user?.deletion_requested_at ?? null,
+  };
+}
+
+// B15 (#149): same shape as MyDataExport. Only stored fields, no counters.
+function toMyDataExport(user) {
+  const organization = user.organization_id
+    ? organizations.find((item) => item.id === user.organization_id)
+    : null;
+
+  return {
+    exported_at: new Date().toISOString(),
+    current_terms_version: "2026-10",
+    account: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      is_active: user.is_active !== false,
+      created_at: user.created_at,
+      last_login_at: user.last_login_at ?? null,
+      terms_version: user.terms_version ?? null,
+      terms_accepted_at: user.terms_accepted_at ?? null,
+      deletion_requested_at: user.deletion_requested_at ?? null,
+    },
+    organization: organization
+      ? {
+          id: organization.id,
+          name: organization.name,
+          status: organization.status,
+          trial_ends_at: organization.trial_ends_at ?? null,
+          created_at: organization.created_at ?? null,
+        }
+      : null,
+    // An admin without organization gets no buildings, like the backend
+    sites: organization
+      ? sites
+          .filter((site) => site.organization_id === organization.id)
+          .map((site) => ({
+            id: site.id,
+            name: site.name,
+            address: site.address ?? null,
+            district: site.district ?? null,
+            floors: site.floors,
+            basements: site.basements,
+            created_at: site.created_at,
+          }))
+      : [],
   };
 }
 
@@ -520,6 +580,15 @@ const mockAdapter = {
       });
     }
 
+    // Export my data (B15)
+    if (url === "/api/me/export") {
+      if (!currentUser) return Promise.reject(authError());
+      return Promise.resolve({
+        data: toMyDataExport(currentUser),
+        status: 200,
+      });
+    }
+
     // Users (B6): admin only
     if (url === "/api/users") {
       const denied = adminCheck();
@@ -784,6 +853,46 @@ const mockAdapter = {
       });
     }
 
+    // Pressure series of a sensor for the chart (B7). The demo readings are
+    // already hourly, so each one becomes a point with avg = min = max.
+    if (url.startsWith("/api/sensors/") && url.endsWith("/readings/series")) {
+      if (!currentUser) return Promise.reject(authError());
+
+      const sensorId = url.split("/")[3];
+      const sensor = sensors.find((item) => item.id === sensorId);
+      if (!sensor || !canAccessSensor(sensorId)) {
+        return Promise.reject(
+          domainError(404, "SENSOR_NOT_FOUND", "El sensor no existe."),
+        );
+      }
+
+      const days = Number(config.params?.days ?? 7);
+      const to = new Date();
+      const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000);
+      const points = (
+        sensor.last_seen_at ? demoReadings(sensor, days) : []
+      ).map((reading) => ({
+        t: reading.measured_at,
+        avg: reading.pressure,
+        min: reading.pressure,
+        max: reading.pressure,
+      }));
+
+      return Promise.resolve({
+        data: {
+          sensor_id: sensor.id,
+          unit: sensor.unit || "bar",
+          min_pressure: sensor.min_pressure,
+          max_pressure: sensor.max_pressure,
+          bucket: config.params?.bucket ?? "2h",
+          from: from.toISOString(),
+          to: to.toISOString(),
+          points,
+        },
+        status: 200,
+      });
+    }
+
     // Get readings belonging to a specific sensor.
     if (url.startsWith("/api/sensors/") && url.endsWith("/readings")) {
       if (!currentUser) {
@@ -864,9 +973,29 @@ const mockAdapter = {
         return Promise.reject(authError());
       }
 
-      const items = getAccessibleAlerts().map((alert) => ({
-        ...alert,
-      }));
+      // Same filters as B5 (combined with AND); created_to is exclusive
+      const params = config?.params ?? {};
+      const from = params.created_from
+        ? new Date(params.created_from).getTime()
+        : null;
+      const to = params.created_to
+        ? new Date(params.created_to).getTime()
+        : null;
+
+      const items = getAccessibleAlerts()
+        .filter((alert) => {
+          const created = new Date(alert.created_at).getTime();
+          return (
+            (!params.site_id || alert.site_id === params.site_id) &&
+            (!params.sensor_id || alert.sensor_id === params.sensor_id) &&
+            (!params.status || alert.status === params.status) &&
+            (!params.state || alert.state === params.state) &&
+            (!params.severity || alert.severity === params.severity) &&
+            (from === null || created >= from) &&
+            (to === null || created < to)
+          );
+        })
+        .map((alert) => ({ ...alert }));
 
       return Promise.resolve({
         data: {
@@ -1106,6 +1235,22 @@ const mockAdapter = {
       console.log("[MOCK POST]", url);
     } else {
       console.log("[MOCK POST]", url, data, config);
+    }
+
+    // Deletion request (B15): asking again keeps the first date
+    if (url === "/api/me/deletion-request") {
+      if (!currentUser) return Promise.reject(authError());
+      if (!currentUser.deletion_requested_at) {
+        currentUser.deletion_requested_at = new Date().toISOString();
+      }
+      return Promise.resolve({
+        data: {
+          deletion_requested_at: currentUser.deletion_requested_at,
+          message:
+            "Hemos registrado tu petición de baja. Un administrador la tramitará.",
+        },
+        status: 202,
+      });
     }
 
     if (url === "/api/me/password") {

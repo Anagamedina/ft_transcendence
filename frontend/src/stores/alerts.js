@@ -18,30 +18,53 @@ export const useAlertsStore = defineStore("alerts", () => {
   );
 
   //ACTIONS
-  async function fetchAlerts() {
-    if (status.value === "loading") return alerts.value;
+  // params: filters of GET /api/alerts (site_id, created_from, …); without
+  // them, every alert. The same request already running is reused; with
+  // different params the last one wins (changing week or building fast does
+  // not leave the list of the previous one).
+  let requestId = 0;
+  let pending = null;
+  let pendingKey = null;
 
+  function fetchAlerts(params = {}) {
+    const key = JSON.stringify(params);
+    if (pending && pendingKey === key) return pending;
+
+    const id = ++requestId;
     status.value = "loading";
     error.value = null;
+    pendingKey = key;
 
-    try {
-      const response = await alertsService.getAlerts();
+    pending = (async () => {
+      try {
+        const response = await alertsService.getAlerts(params);
+        if (id !== requestId) return alerts.value;
 
-      alerts.value = response.data.items;
-      status.value = "success";
+        alerts.value = response.data.items;
+        status.value = "success";
 
-      return alerts.value;
-    } catch (err) {
-      alerts.value = [];
-      error.value = {
-        code: err.code,
-        message: err.message,
-        details: err.details,
-      };
-      status.value = "error";
+        return alerts.value;
+      } catch (err) {
+        if (id !== requestId) return alerts.value;
 
-      throw err;
-    }
+        alerts.value = [];
+        error.value = {
+          code: err.code,
+          message: err.message,
+          details: err.details,
+        };
+        status.value = "error";
+
+        throw err;
+      } finally {
+        if (id === requestId) {
+          pending = null;
+          pendingKey = null;
+        }
+      }
+    })();
+
+    return pending;
   }
 
   async function acknowledgeAlert(id) {

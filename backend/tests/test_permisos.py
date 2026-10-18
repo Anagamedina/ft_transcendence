@@ -44,6 +44,9 @@ RUTAS_PUBLICAS = {
     ("POST", "/api/auth/logout"),  # salir tiene que funcionar siempre
     ("POST", "/api/auth/register"),  # registro público, B10 (#140)
     ("GET", "/api/plans"),  # precios públicos, como en la portada, B14 (#150)
+    # Quien abre el enlace de una invitación aún no tiene cuenta, B4 (#141)
+    ("GET", "/api/invitations/by-code/{code}"),
+    ("POST", "/api/invitations/by-code/{code}/accept"),
 }
 
 
