@@ -728,6 +728,7 @@ One pull request groups five tasks of the database and backend area:
 | Client Layout and Navigation | [#235] | Completed the client layout navigation. Displayed the organization name, 
 trial information when applicable, and the active alerts counter using the analytics overview store. | Connected 
 the client sidebar to the corresponding Vue Router routes and preserved role-based access control. |
+| Client Documents | [#242] | Implemented the client documents page to display, upload, and delete organization documents. Reused shared components and added loading, error, and empty states. | Issue | Integrated the existing stores and services to keep document fetching consistent with the rest of the application. Ensured the document list and total count update after upload and deletion. |
 
 
 | Eduardo (`egalindo`) | Features/modules                           | Pull requests | Challenges and solutions |

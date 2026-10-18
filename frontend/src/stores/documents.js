@@ -66,6 +66,17 @@ export const useDocumentsStore = defineStore("documents", () => {
     }
   }
 
+
+  async function downloadDocument(id) {
+    try {
+      return await documentsService.downloadDocument(id);
+    } catch (err) {
+      error.value = err.message ?? "Unable to download the document.";
+      throw err;
+    }
+  }
+
+
   async function deleteDocument(id) {
     error.value = null;
 
@@ -104,6 +115,7 @@ export const useDocumentsStore = defineStore("documents", () => {
     error,
     fetchDocuments,
     fetchDocument,
+    downloadDocument,
     uploadDocument,
     deleteDocument,
     reset,
