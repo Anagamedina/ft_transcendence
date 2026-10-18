@@ -299,10 +299,10 @@ import invitationsService from "../../services/invitations.service.js";
 import PublicLayout from "../../layouts/PublicLayout.vue";
 import LoadingState from "../../components/LoadingState.vue";
 import ErrorState from "../../components/ErrorState.vue";
-
-// Same rule as the backend (backend/app/shared/passwords.py) and /prueba.
+// Same rule as the backend (backend/app/shared/passwords.py), /prueba and Mi cuenta.
 // The backend also rejects common passwords.
-const PASSWORD_MIN_LENGTH = 12;
+import { PASSWORD_MIN_LENGTH } from "../../utils/passwords.js";
+
 const MAX_NAME_LENGTH = 120;
 
 // Where the new client lands. The session is already open: the accept

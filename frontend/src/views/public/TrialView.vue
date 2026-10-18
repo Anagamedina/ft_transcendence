@@ -228,10 +228,10 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../../stores/auth.js";
 import PublicLayout from "../../layouts/PublicLayout.vue";
-
-// Same rule as the backend (backend/app/shared/passwords.py).
+// Same rule as the backend (backend/app/shared/passwords.py) and Mi cuenta.
 // The backend also rejects common passwords and passwords containing the email.
-const PASSWORD_MIN_LENGTH = 12;
+import { PASSWORD_MIN_LENGTH } from "../../utils/passwords.js";
+
 const MAX_NAME_LENGTH = 120;
 
 // Where a new client lands after signing up.
