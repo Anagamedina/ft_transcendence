@@ -25,7 +25,9 @@
     </div>
 
     <LoadingState
-      v-if="documentsStore.status === 'loading' || documentsStore.status === 'idle'"
+      v-if="
+        documentsStore.status === 'loading' || documentsStore.status === 'idle'
+      "
       message="Cargando documentos…"
     />
 
@@ -42,7 +44,10 @@
       icon="file-text"
     />
 
-    <div v-else class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+    <div
+      v-else
+      class="overflow-x-auto rounded-xl border border-slate-200 bg-white"
+    >
       <table class="min-w-full divide-y divide-slate-200 text-sm">
         <thead class="bg-slate-50 text-left text-xs uppercase text-slate-500">
           <tr>
@@ -54,18 +59,17 @@
         </thead>
 
         <tbody class="divide-y divide-slate-100">
-          <tr
-            v-for="document in documentsStore.items"
-            :key="document.id"
-          >
+          <tr v-for="document in documentsStore.items" :key="document.id">
             <td class="px-4 py-3 font-medium text-slate-800">
-              {{ document.filename || document.name || `Documento ${document.id}` }}
+              {{
+                document.filename || document.name || `Documento ${document.id}`
+              }}
             </td>
             <td class="px-4 py-3 text-slate-600">
-              {{ document.kind || '—' }}
+              {{ document.kind || "—" }}
             </td>
             <td class="px-4 py-3 text-slate-600">
-              {{ document.site_name || document.site_id || '—' }}
+              {{ document.site_name || document.site_id || "—" }}
             </td>
             <td class="px-4 py-3 text-slate-600">
               {{ formatDate(document.created_at) }}
@@ -81,7 +85,9 @@
         <button
           type="button"
           class="rounded-md border border-slate-300 px-3 py-2 text-sm disabled:opacity-40"
-          :disabled="documentsStore.page <= 1 || documentsStore.status === 'loading'"
+          :disabled="
+            documentsStore.page <= 1 || documentsStore.status === 'loading'
+          "
           @click="changePage(documentsStore.page - 1)"
         >
           Anterior
@@ -94,7 +100,10 @@
         <button
           type="button"
           class="rounded-md border border-slate-300 px-3 py-2 text-sm disabled:opacity-40"
-          :disabled="documentsStore.page >= documentsStore.pages || documentsStore.status === 'loading'"
+          :disabled="
+            documentsStore.page >= documentsStore.pages ||
+            documentsStore.status === 'loading'
+          "
           @click="changePage(documentsStore.page + 1)"
         >
           Siguiente
@@ -105,37 +114,37 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
-import { useDocumentsStore } from '../../stores/documents'
-import LoadingState from '../../components/LoadingState.vue'
-import ErrorState from '../../components/ErrorState.vue'
-import EmptyState from '../../components/EmptyState.vue'
+import { onMounted } from "vue";
+import { useDocumentsStore } from "../../stores/documents";
+import LoadingState from "../../components/LoadingState.vue";
+import ErrorState from "../../components/ErrorState.vue";
+import EmptyState from "../../components/EmptyState.vue";
 
-const documentsStore = useDocumentsStore()
+const documentsStore = useDocumentsStore();
 
 async function loadDocuments(page = 1) {
   try {
-    await documentsStore.fetchDocuments({ page })
+    await documentsStore.fetchDocuments({ page });
   } catch {
     // El estado de error ya lo gestiona el store.
   }
 }
 
 async function changePage(page) {
-  await loadDocuments(page)
+  await loadDocuments(page);
 }
 
 function formatDate(value) {
-  if (!value) return '—'
+  if (!value) return "—";
 
-  const date = new Date(value)
+  const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) return '—'
+  if (Number.isNaN(date.getTime())) return "—";
 
-  return new Intl.DateTimeFormat('es-ES', {
-    dateStyle: 'medium',
-  }).format(date)
+  return new Intl.DateTimeFormat("es-ES", {
+    dateStyle: "medium",
+  }).format(date);
 }
 
-onMounted(() => loadDocuments())
+onMounted(() => loadDocuments());
 </script>

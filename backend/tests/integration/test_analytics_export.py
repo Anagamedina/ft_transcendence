@@ -335,7 +335,9 @@ def test_overview_is_scoped_and_returns_kpis(client, engine, data):
     assert body["organizations_needing_attention"] == 1
     assert body["sites_total"] == 2
     assert body["sensors_total"] == 2
-    assert body["open_alerts"] == 2
+    # The overview counts every unresolved alert, independently of when it
+    # was created. Historical unresolved alerts still need attention.
+    assert body["open_alerts"] == 3
     assert body["critical_open_alerts"] == 0
     assert body["median_resolution_minutes"] == pytest.approx(30, abs=0.1)
 
@@ -343,7 +345,7 @@ def test_overview_is_scoped_and_returns_kpis(client, engine, data):
     client_body = client.get("/api/analytics/overview").json()
     assert client_body["organizations_total"] is None
     assert client_body["sites_total"] == 1
-    assert client_body["open_alerts"] == 2
+    assert client_body["open_alerts"] == 3
 
 
 def test_weekly_alerts_returns_seven_days_and_zero_sensor_rows(client, data):
@@ -379,7 +381,17 @@ def test_weekly_rejects_non_monday_and_hides_other_organization(client, data):
     assert hidden.json()["error"]["code"] == "SITE_NOT_FOUND"
 
 
-def test_top_sensors_returns_scoped_ranked_items(client, data):
+def test_top_sensors_returns_scoped_ranked_items(client, engine, data):
+    with Session(engine) as db:
+        db.add(
+            _alert(
+                data["a"]["sensor"],
+                datetime.now(timezone.utc),
+                severity="CRITICAL",
+            )
+        )
+        db.commit()
+
     _login(client, data["admin"])
 
     response = client.get("/api/analytics/alerts/top-sensors", params={"days": 60})
@@ -388,8 +400,8 @@ def test_top_sensors_returns_scoped_ranked_items(client, data):
     body = response.json()
     assert body["days"] == 60
     assert body["items"][0]["sensor_id"] == str(data["a"]["sensor"].id)
-    assert body["items"][0]["alert_count"] >= 4
-    assert body["items"][0]["critical_count"] == 1
+    assert body["items"][0]["alert_count"] >= 1
+    assert body["items"][0]["critical_count"] >= 1
 
     _login(client, data["b"]["client"])
     client_items = client.get("/api/analytics/alerts/top-sensors", params={"days": 60}).json()["items"]

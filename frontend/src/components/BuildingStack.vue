@@ -28,7 +28,7 @@
     />
 
     <template v-else>
-      <template v-for="floor in floorList" :key="floor">
+      <div v-for="floor in floorList" :key="floor" class="contents">
         <!-- Street level, between the ground floor and the first basement -->
         <div
           v-if="floor === -1"
@@ -43,7 +43,9 @@
           class="grid grid-cols-[96px_minmax(0,1fr)] items-center gap-2.5 rounded-lg px-3 py-2.5"
           :class="floor < 0 ? 'bg-slate-100' : 'bg-slate-50'"
         >
-          <span class="text-[13px] font-semibold text-slate-700">{{ floorLabel(floor) }}</span>
+          <span class="text-[13px] font-semibold text-slate-700">{{
+            floorLabel(floor)
+          }}</span>
           <div class="flex flex-wrap gap-1.5">
             <SensorPin
               v-for="sensor in sensorsByFloor[floor] || []"
@@ -52,14 +54,17 @@
               :selected="sensor.id === selectedId"
               @select="$emit('select', $event)"
             />
-            <span v-if="!sensorsByFloor[floor]" class="text-xs text-slate-600">Sin sensores</span>
+            <span v-if="!sensorsByFloor[floor]" class="text-xs text-slate-600"
+              >Sin sensores</span
+            >
           </div>
         </div>
-      </template>
+      </div>
 
       <!-- Sensors whose floor is outside the building (should not happen: B3 validates it) -->
       <p v-if="outOfRange.length" class="text-xs text-warning-dark">
-        {{ outOfRange.length }} sensor(es) en una planta que no existe en este edificio.
+        {{ outOfRange.length }} sensor(es) en una planta que no existe en este
+        edificio.
       </p>
 
       <SensorLegend v-if="showLegend" class="mt-2" />
@@ -68,11 +73,11 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import EmptyState from './EmptyState.vue'
-import SensorPin from './SensorPin.vue'
-import SensorLegend from './SensorLegend.vue'
-import { floorLabel, floorRange } from '../utils/floors'
+import { computed } from "vue";
+import EmptyState from "./EmptyState.vue";
+import SensorPin from "./SensorPin.vue";
+import SensorLegend from "./SensorLegend.vue";
+import { floorLabel, floorRange } from "../utils/floors";
 
 const props = defineProps({
   // Building name, used by screen readers to name the section
@@ -85,24 +90,24 @@ const props = defineProps({
   // Id of the sensor shown in the detail panel, to highlight its pin
   selectedId: { type: String, default: null },
   showLegend: { type: Boolean, default: true },
-})
+});
 
-defineEmits(['select'])
+defineEmits(["select"]);
 
-const floorList = computed(() => floorRange(props.floors, props.basements))
+const floorList = computed(() => floorRange(props.floors, props.basements));
 
 // { 3: [sensor, …], 0: […], -1: […] }
 const sensorsByFloor = computed(() => {
-  const groups = {}
+  const groups = {};
   for (const sensor of props.sensors) {
-    const floor = sensor.floor ?? 0
-    if (!groups[floor]) groups[floor] = []
-    groups[floor].push(sensor)
+    const floor = sensor.floor ?? 0;
+    if (!groups[floor]) groups[floor] = [];
+    groups[floor].push(sensor);
   }
-  return groups
-})
+  return groups;
+});
 
 const outOfRange = computed(() =>
   props.sensors.filter((s) => !floorList.value.includes(s.floor ?? 0)),
-)
+);
 </script>

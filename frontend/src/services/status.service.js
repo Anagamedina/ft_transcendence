@@ -1,9 +1,9 @@
-import adapter from './adapter.js'
+import adapter from "./adapter.js";
 
 const statusService = {
   getStatus() {
-    return adapter.get('/api/status')
+    return adapter.get("/api/status");
   },
-}
+};
 
-export default statusService
+export default statusService;

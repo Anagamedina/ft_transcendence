@@ -20,16 +20,26 @@
   >
     <header class="flex items-center justify-between gap-3">
       <div class="flex min-w-0 flex-col gap-0.5">
-        <h2 class="break-words text-lg font-bold text-aqua-900">{{ sensor.name }}</h2>
-        <span class="text-[13px] text-slate-600">{{ floorLabel(sensor.floor ?? 0) }}</span>
+        <h2 class="break-words text-lg font-bold text-aqua-900">
+          {{ sensor.name }}
+        </h2>
+        <span class="text-[13px] text-slate-600">{{
+          floorLabel(sensor.floor ?? 0)
+        }}</span>
       </div>
       <StatusPill type="SensorHealth" :value="sensor.health" class="shrink-0" />
     </header>
 
     <dl class="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-      <div v-for="item in figures" :key="item.label" class="flex flex-col gap-0.5 rounded-lg bg-slate-50 px-3 py-2.5">
+      <div
+        v-for="item in figures"
+        :key="item.label"
+        class="flex flex-col gap-0.5 rounded-lg bg-slate-50 px-3 py-2.5"
+      >
         <dt class="text-xs text-slate-600">{{ item.label }}</dt>
-        <dd class="text-[17px] font-bold tabular-nums text-aqua-900">{{ item.value }}</dd>
+        <dd class="text-[17px] font-bold tabular-nums text-aqua-900">
+          {{ item.value }}
+        </dd>
       </div>
     </dl>
 
@@ -38,7 +48,12 @@
         Presión de los últimos {{ days }} días ({{ unit }})
       </figcaption>
       <LoadingState v-if="loading" message="Cargando lecturas…" compact />
-      <ErrorState v-else-if="error" :message="error" compact @retry="$emit('retry')" />
+      <ErrorState
+        v-else-if="error"
+        :message="error"
+        compact
+        @retry="$emit('retry')"
+      />
       <PressureChart
         v-else
         :readings="readings"
@@ -49,19 +64,20 @@
     </figure>
 
     <p class="text-xs text-slate-500">
-      La franja verde es el rango permitido del sensor. Toca otro sensor del edificio para ver su gráfica.
+      La franja verde es el rango permitido del sensor. Toca otro sensor del
+      edificio para ver su gráfica.
     </p>
   </section>
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import StatusPill from './StatusPill.vue'
-import PressureChart from './PressureChart.vue'
-import LoadingState from './LoadingState.vue'
-import ErrorState from './ErrorState.vue'
-import { floorLabel } from '../utils/floors'
-import { useFormat } from '../composables/useFormat'
+import { computed } from "vue";
+import StatusPill from "./StatusPill.vue";
+import PressureChart from "./PressureChart.vue";
+import LoadingState from "./LoadingState.vue";
+import ErrorState from "./ErrorState.vue";
+import { floorLabel } from "../utils/floors";
+import { useFormat } from "../composables/useFormat";
 
 const props = defineProps({
   // SensorResponse (B3); null hides the panel
@@ -72,26 +88,32 @@ const props = defineProps({
   alertCount: { type: Number, default: null },
   loading: { type: Boolean, default: false },
   // Error message from the parent; shows ErrorState with a retry button
-  error: { type: String, default: '' },
+  error: { type: String, default: "" },
   // Period of the chart, only used in the caption
   days: { type: Number, default: 7 },
-})
+});
 
-defineEmits(['retry'])
+defineEmits(["retry"]);
 
-const unit = computed(() => props.sensor?.unit || 'bar')
+const unit = computed(() => props.sensor?.unit || "bar");
 
 // '1,3 bar', '2,0–6,0 bar' and 'hace 3 min', as in the mockup
-const { formatPressure, formatRange, formatRelative } = useFormat()
+const { formatPressure, formatRange, formatRelative } = useFormat();
 
 const figures = computed(() => {
-  const s = props.sensor
-  if (!s) return []
+  const s = props.sensor;
+  if (!s) return [];
   return [
-    { label: 'Valor actual', value: formatPressure(s.last_value, unit.value) },
-    { label: 'Rango permitido', value: formatRange(s.min_pressure, s.max_pressure, unit.value) },
-    { label: 'Última lectura', value: formatRelative(s.last_seen_at, { empty: 'Nunca' }) },
-    { label: `Alertas (${props.days} días)`, value: props.alertCount ?? '—' },
-  ]
-})
+    { label: "Valor actual", value: formatPressure(s.last_value, unit.value) },
+    {
+      label: "Rango permitido",
+      value: formatRange(s.min_pressure, s.max_pressure, unit.value),
+    },
+    {
+      label: "Última lectura",
+      value: formatRelative(s.last_seen_at, { empty: "Nunca" }),
+    },
+    { label: `Alertas (${props.days} días)`, value: props.alertCount ?? "—" },
+  ];
+});
 </script>

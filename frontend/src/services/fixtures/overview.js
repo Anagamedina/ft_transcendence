@@ -10,4 +10,4 @@ export const overview = {
   open_alerts: 2,
   critical_open_alerts: 1,
   median_resolution_minutes: 42.5,
-}
+};

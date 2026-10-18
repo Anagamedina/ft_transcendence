@@ -13,13 +13,22 @@
     <!-- Legend -->
     <ul class="flex flex-wrap justify-end gap-4 mb-3 text-xs text-gray-500">
       <li class="flex items-center gap-1.5">
-        <span class="w-3 h-3 rounded-full bg-aqua-400 border border-aqua-600"></span> Sin alertas
+        <span
+          class="w-3 h-3 rounded-full bg-aqua-400 border border-aqua-600"
+        ></span>
+        Sin alertas
       </li>
       <li class="flex items-center gap-1.5">
-        <span class="w-3 h-3 rounded-full bg-warning border border-amber-600"></span> Aviso
+        <span
+          class="w-3 h-3 rounded-full bg-warning border border-amber-600"
+        ></span>
+        Aviso
       </li>
       <li class="flex items-center gap-1.5">
-        <span class="w-3 h-3 rounded-full bg-danger border border-red-700"></span> Crítica
+        <span
+          class="w-3 h-3 rounded-full bg-danger border border-red-700"
+        ></span>
+        Crítica
       </li>
     </ul>
 
@@ -52,179 +61,211 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
-import maplibregl from 'maplibre-gl'
-import 'maplibre-gl/dist/maplibre-gl.css'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
+import maplibregl from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 // Official municipal boundary of Barcelona (Ajuntament de Barcelona / CartoBCN, CC-BY),
 // simplified. Imported as a static file: bundled by Vite, no HTTP call.
-import barcelonaLimit from '../assets/geo/barcelona-limit.json'
+import barcelonaLimit from "../assets/geo/barcelona-limit.json";
 
 const props = defineProps({
   sites: { type: Array, default: () => [] },
-  height: { type: String, default: '560px' },
-})
+  height: { type: String, default: "560px" },
+});
 
 // Free base map, no API key: OpenFreeMap "Liberty" (coloured style, OpenStreetMap data)
-const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty'
+const MAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
 // -45: coast horizontal, sea at the bottom, Collserola at the top
-const BEARING = -45
-const PADDING = 16
+const BEARING = -45;
+const PADDING = 16;
 
 // Marker look per alert level (Tailwind classes from the AquaGuard palette)
 const MARKER_CLASSES = {
-  none: 'bg-aqua-400 border-aqua-600',
-  warning: 'bg-warning border-amber-600',
-  critical: 'bg-danger border-red-700 animate-pulse',
-}
+  none: "bg-aqua-400 border-aqua-600",
+  warning: "bg-warning border-amber-600",
+  critical: "bg-danger border-red-700 animate-pulse",
+};
 const ALERT_TEXT = {
-  warning: 'Aviso activo',
-  critical: 'Alerta crítica activa',
-}
+  warning: "Aviso activo",
+  critical: "Alerta crítica activa",
+};
 
 // Outer rings of the boundary, as [lng, lat] (GeoJSON order)
 const BOUNDARY_RINGS = barcelonaLimit.features.flatMap((feature) => {
-  const geom = feature.geometry
-  const polygons = geom.type === 'Polygon' ? [geom.coordinates] : geom.coordinates
-  return polygons.map((polygon) => polygon[0])
-})
+  const geom = feature.geometry;
+  const polygons =
+    geom.type === "Polygon" ? [geom.coordinates] : geom.coordinates;
+  return polygons.map((polygon) => polygon[0]);
+});
 
 // Lng/lat box of the boundary: keeps the view inside the city
 const BOUNDARY_BOX = (() => {
-  const pts = BOUNDARY_RINGS.flat()
+  const pts = BOUNDARY_RINGS.flat();
   return {
     minLng: Math.min(...pts.map((p) => p[0])),
     maxLng: Math.max(...pts.map((p) => p[0])),
     minLat: Math.min(...pts.map((p) => p[1])),
     maxLat: Math.max(...pts.map((p) => p[1])),
-  }
-})()
+  };
+})();
 
-const mapContainer = ref(null)
+const mapContainer = ref(null);
 // true when the user has zoomed in (shows the "Ver toda la ciudad" button)
-const zoomedIn = ref(false)
+const zoomedIn = ref(false);
 
 // Map objects are kept OUT of Vue reactivity on purpose:
 // wrapping them in ref() makes Vue proxy MapLibre internals and breaks it.
-let map = null
-let markers = []
-let resizeObserver = null
-let mapReady = false
-let fittedZoom = null // zoom that shows the whole city: the user cannot zoom out further
+let map = null;
+let markers = [];
+let resizeObserver = null;
+let mapReady = false;
+let fittedZoom = null; // zoom that shows the whole city: the user cannot zoom out further
 
 // Only sites with real numeric coordinates can be drawn
 const validSites = computed(() =>
   props.sites.filter(
-    (s) => Number.isFinite(Number(s.latitude)) && Number.isFinite(Number(s.longitude))
-  )
-)
+    (s) =>
+      Number.isFinite(Number(s.latitude)) &&
+      Number.isFinite(Number(s.longitude)),
+  ),
+);
 
 // Popup built with textContent (not an HTML string) so data coming
 // from the API can never inject HTML.
 function buildPopup(site, level) {
-  const box = document.createElement('div')
-  const name = document.createElement('p')
-  name.className = 'font-semibold text-gray-800'
-  name.textContent = site.name
-  box.appendChild(name)
+  const box = document.createElement("div");
+  const name = document.createElement("p");
+  name.className = "font-semibold text-gray-800";
+  name.textContent = site.name;
+  box.appendChild(name);
   if (site.address) {
-    const address = document.createElement('p')
-    address.className = 'text-sm text-gray-500'
-    address.textContent = site.address
-    box.appendChild(address)
+    const address = document.createElement("p");
+    address.className = "text-sm text-gray-500";
+    address.textContent = site.address;
+    box.appendChild(address);
   }
   if (ALERT_TEXT[level]) {
-    const alert = document.createElement('p')
-    alert.className = `mt-1 text-sm font-semibold ${level === 'critical' ? 'text-danger' : 'text-amber-600'}`
-    alert.textContent = ALERT_TEXT[level]
-    box.appendChild(alert)
+    const alert = document.createElement("p");
+    alert.className = `mt-1 text-sm font-semibold ${level === "critical" ? "text-danger" : "text-amber-600"}`;
+    alert.textContent = ALERT_TEXT[level];
+    box.appendChild(alert);
   }
-  return box
+  return box;
 }
 
 function drawMarkers() {
-  if (!map) return
-  markers.forEach((m) => m.remove())
+  if (!map) return;
+  markers.forEach((m) => m.remove());
   markers = validSites.value.map((site) => {
-    const level = MARKER_CLASSES[site.alertLevel] ? site.alertLevel : 'none'
-    const el = document.createElement('div')
-    el.className = `w-[18px] h-[18px] rounded-full border-2 shadow-md cursor-pointer ${MARKER_CLASSES[level]}`
-    el.title = site.name
+    const level = MARKER_CLASSES[site.alertLevel] ? site.alertLevel : "none";
+    const el = document.createElement("div");
+    el.className = `w-[18px] h-[18px] rounded-full border-2 shadow-md cursor-pointer ${MARKER_CLASSES[level]}`;
+    el.title = site.name;
     return new maplibregl.Marker({ element: el })
       .setLngLat([Number(site.longitude), Number(site.latitude)]) // MapLibre: [lng, lat]
-      .setPopup(new maplibregl.Popup({ offset: 12 }).setDOMContent(buildPopup(site, level)))
-      .addTo(map)
-  })
+      .setPopup(
+        new maplibregl.Popup({ offset: 12 }).setDOMContent(
+          buildPopup(site, level),
+        ),
+      )
+      .addTo(map);
+  });
 }
 
 // Frames the rotated city as tightly as possible in the box.
 // (fitBounds only knows north-up lat/lng rectangles, which are too big once rotated.)
 function fitCity(animate = false) {
-  if (!map || !mapReady) return
-  map.resize()
-  const width = map.getContainer().clientWidth - 2 * PADDING
-  const height = map.getContainer().clientHeight - 2 * PADDING
-  if (width <= 0 || height <= 0) return
+  if (!map || !mapReady) return;
+  map.resize();
+  const width = map.getContainer().clientWidth - 2 * PADDING;
+  const height = map.getContainer().clientHeight - 2 * PADDING;
+  if (width <= 0 || height <= 0) return;
 
   // Rotate Mercator coordinates the same way the screen is rotated
-  const phi = (-BEARING * Math.PI) / 180
-  const cos = Math.cos(phi)
-  const sin = Math.sin(phi)
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
+  const phi = (-BEARING * Math.PI) / 180;
+  const cos = Math.cos(phi);
+  const sin = Math.sin(phi);
+  let minX = Infinity,
+    maxX = -Infinity,
+    minY = Infinity,
+    maxY = -Infinity;
   BOUNDARY_RINGS.flat().forEach(([lng, lat]) => {
-    const m = maplibregl.MercatorCoordinate.fromLngLat([lng, lat])
-    const x = m.x * cos - m.y * sin
-    const y = m.x * sin + m.y * cos
-    minX = Math.min(minX, x); maxX = Math.max(maxX, x)
-    minY = Math.min(minY, y); maxY = Math.max(maxY, y)
-  })
+    const m = maplibregl.MercatorCoordinate.fromLngLat([lng, lat]);
+    const x = m.x * cos - m.y * sin;
+    const y = m.x * sin + m.y * cos;
+    minX = Math.min(minX, x);
+    maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y);
+    maxY = Math.max(maxY, y);
+  });
 
   // 512 = size of the world in pixels at zoom 0 in MapLibre
-  const zoom = Math.log2(Math.min(width / ((maxX - minX) * 512), height / ((maxY - minY) * 512)))
+  const zoom = Math.log2(
+    Math.min(width / ((maxX - minX) * 512), height / ((maxY - minY) * 512)),
+  );
   // Centre of the rotated box, rotated back to normal Mercator coordinates
-  const cx = (minX + maxX) / 2
-  const cy = (minY + maxY) / 2
-  const center = new maplibregl.MercatorCoordinate(cx * cos + cy * sin, -cx * sin + cy * cos).toLngLat()
-  fittedZoom = zoom
-  map.setMinZoom(zoom) // never further out than the whole city
-  const view = { center, zoom, bearing: BEARING, pitch: 0 }
-  if (animate) map.easeTo({ ...view, duration: 800 })
-  else map.jumpTo(view)
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  const center = new maplibregl.MercatorCoordinate(
+    cx * cos + cy * sin,
+    -cx * sin + cy * cos,
+  ).toLngLat();
+  fittedZoom = zoom;
+  map.setMinZoom(zoom); // never further out than the whole city
+  const view = { center, zoom, bearing: BEARING, pitch: 0 };
+  if (animate) map.easeTo({ ...view, duration: 800 });
+  else map.jumpTo(view);
 }
 
 // If the centre goes out of the city, bring it back inside
 function keepInsideCity() {
-  if (!map) return
-  const { lng, lat } = map.getCenter()
-  const clampedLng = Math.min(Math.max(lng, BOUNDARY_BOX.minLng), BOUNDARY_BOX.maxLng)
-  const clampedLat = Math.min(Math.max(lat, BOUNDARY_BOX.minLat), BOUNDARY_BOX.maxLat)
+  if (!map) return;
+  const { lng, lat } = map.getCenter();
+  const clampedLng = Math.min(
+    Math.max(lng, BOUNDARY_BOX.minLng),
+    BOUNDARY_BOX.maxLng,
+  );
+  const clampedLat = Math.min(
+    Math.max(lat, BOUNDARY_BOX.minLat),
+    BOUNDARY_BOX.maxLat,
+  );
   if (clampedLng !== lng || clampedLat !== lat) {
-    map.easeTo({ center: [clampedLng, clampedLat], duration: 300 })
+    map.easeTo({ center: [clampedLng, clampedLat], duration: 300 });
   }
 }
 
 function drawBoundary() {
   // Mask: the whole world with the city cut out as "holes", faded.
   // Mercator maps cannot draw the poles: ±85° is their real limit.
-  const world = [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]]
-  map.addSource('city-mask', {
-    type: 'geojson',
-    data: { type: 'Feature', geometry: { type: 'Polygon', coordinates: [world, ...BOUNDARY_RINGS] } },
-  })
+  const world = [
+    [-180, -85],
+    [180, -85],
+    [180, 85],
+    [-180, 85],
+    [-180, -85],
+  ];
+  map.addSource("city-mask", {
+    type: "geojson",
+    data: {
+      type: "Feature",
+      geometry: { type: "Polygon", coordinates: [world, ...BOUNDARY_RINGS] },
+    },
+  });
   map.addLayer({
-    id: 'city-mask',
-    type: 'fill',
-    source: 'city-mask',
-    paint: { 'fill-color': '#f1f5f9', 'fill-opacity': 0.88 },
-  })
+    id: "city-mask",
+    type: "fill",
+    source: "city-mask",
+    paint: { "fill-color": "#f1f5f9", "fill-opacity": 0.88 },
+  });
 
   // Outline of the city
-  map.addSource('city-limit', { type: 'geojson', data: barcelonaLimit })
+  map.addSource("city-limit", { type: "geojson", data: barcelonaLimit });
   map.addLayer({
-    id: 'city-limit',
-    type: 'line',
-    source: 'city-limit',
-    paint: { 'line-color': '#0369a1', 'line-width': 2 }, // aqua-600
-  })
+    id: "city-limit",
+    type: "line",
+    source: "city-limit",
+    paint: { "line-color": "#0369a1", "line-width": 2 }, // aqua-600
+  });
 }
 
 // The base style compares some values as numbers (road shields, building
@@ -233,31 +274,35 @@ function drawBoundary() {
 
 // A filter like ['<=', ['get', 'ref_length'], 6] becomes
 // ['all', ['has', 'ref_length'], ['<=', ['get', 'ref_length'], 6]].
-const ORDER_OPERATORS = ['<', '<=', '>', '>=']
+const ORDER_OPERATORS = ["<", "<=", ">", ">="];
 function guardFilter(filter) {
-  if (!Array.isArray(filter)) return filter
-  const [operator, left] = filter
-  if (ORDER_OPERATORS.includes(operator) && Array.isArray(left) && left[0] === 'get') {
-    return ['all', ['has', left[1]], filter]
+  if (!Array.isArray(filter)) return filter;
+  const [operator, left] = filter;
+  if (
+    ORDER_OPERATORS.includes(operator) &&
+    Array.isArray(left) &&
+    left[0] === "get"
+  ) {
+    return ["all", ["has", left[1]], filter];
   }
-  return filter.map(guardFilter)
+  return filter.map(guardFilter);
 }
 
 function fixBaseStyle(previousStyle, nextStyle) {
   const layers = nextStyle.layers.map((layer) => {
-    const fixed = { ...layer }
-    if (layer.filter) fixed.filter = guardFilter(layer.filter)
+    const fixed = { ...layer };
+    if (layer.filter) fixed.filter = guardFilter(layer.filter);
     // A building without height gets a height of 0
-    if (layer.id === 'building-3d') {
+    if (layer.id === "building-3d") {
       fixed.paint = {
         ...layer.paint,
-        'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0],
-        'fill-extrusion-height': ['coalesce', ['get', 'render_height'], 0],
-      }
+        "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
+        "fill-extrusion-height": ["coalesce", ["get", "render_height"], 0],
+      };
     }
-    return fixed
-  })
-  return { ...nextStyle, layers }
+    return fixed;
+  });
+  return { ...nextStyle, layers };
 }
 
 onMounted(() => {
@@ -266,58 +311,64 @@ onMounted(() => {
     center: [2.16, 41.39],
     zoom: 11.5,
     bearing: BEARING,
-    attributionControl: { compact: true, customAttribution: 'Límite: Ajuntament de Barcelona (CC-BY)' },
+    attributionControl: {
+      compact: true,
+      customAttribution: "Límite: Ajuntament de Barcelona (CC-BY)",
+    },
     // Rotation and tilt are off, so the map keeps its orientation (sea at the bottom)
     boxZoom: false,
     dragRotate: false,
     touchPitch: false,
     pitchWithRotate: false,
-  })
-  map.setStyle(MAP_STYLE, { transformStyle: fixBaseStyle })
-  map.touchZoomRotate.disableRotation()
-  map.keyboard.disableRotation()
+  });
+  map.setStyle(MAP_STYLE, { transformStyle: fixBaseStyle });
+  map.touchZoomRotate.disableRotation();
+  map.keyboard.disableRotation();
   // + / − buttons (no compass: the map cannot be rotated)
-  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
+  map.addControl(
+    new maplibregl.NavigationControl({ showCompass: false }),
+    "top-right",
+  );
   // The base style names some icons that its sprite does not have. An empty
   // 1x1 image answers each request, so MapLibre does not warn in the console.
-  map.on('styleimagemissing', (event) => {
+  map.on("styleimagemissing", (event) => {
     if (!map.hasImage(event.id)) {
-      map.addImage(event.id, { width: 1, height: 1, data: new Uint8Array(4) })
+      map.addImage(event.id, { width: 1, height: 1, data: new Uint8Array(4) });
     }
-  })
-  map.on('moveend', keepInsideCity)
-  map.on('zoom', () => {
-    zoomedIn.value = fittedZoom !== null && map.getZoom() > fittedZoom + 0.05
-  })
+  });
+  map.on("moveend", keepInsideCity);
+  map.on("zoom", () => {
+    zoomedIn.value = fittedZoom !== null && map.getZoom() > fittedZoom + 0.05;
+  });
 
-  map.on('load', () => {
-    mapReady = true
-    drawBoundary()
-    fitCity()
-  })
-  drawMarkers()
+  map.on("load", () => {
+    mapReady = true;
+    drawBoundary();
+    fitCity();
+  });
+  drawMarkers();
 
   // Keep the whole city visible when the box is resized, unless the user zoomed in
   resizeObserver = new ResizeObserver(() => {
-    if (zoomedIn.value) map.resize()
-    else fitCity()
-  })
-  resizeObserver.observe(mapContainer.value)
-})
+    if (zoomedIn.value) map.resize();
+    else fitCity();
+  });
+  resizeObserver.observe(mapContainer.value);
+});
 
 // New list of sites (e.g. the store finished loading, or an alert changed a colour):
 // only the markers are redrawn. The framing depends on the city boundary, not on the
 // sites, so the user's zoom is never reset.
-watch(validSites, drawMarkers)
+watch(validSites, drawMarkers);
 
 // Free map resources when leaving the page
 onBeforeUnmount(() => {
-  if (resizeObserver) resizeObserver.disconnect()
-  markers.forEach((m) => m.remove())
-  markers = []
+  if (resizeObserver) resizeObserver.disconnect();
+  markers.forEach((m) => m.remove());
+  markers = [];
   if (map) {
-    map.remove()
-    map = null
+    map.remove();
+    map = null;
   }
-})
+});
 </script>

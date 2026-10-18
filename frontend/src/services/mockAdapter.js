@@ -1,33 +1,41 @@
 // MOCK ADAPTER — responses adhering to the same OpenAPI contract (Week 1 parallel)
 
-import { alerts } from './fixtures/alerts.js'
-import { dailyRows } from './fixtures/analytics.js'
-import { overview } from './fixtures/overview.js'
-import { readings } from './fixtures/readings.js'
-import { sensors } from './fixtures/sensors.js'
-import { sites } from './fixtures/sites.js'
-import { systemStatus } from './fixtures/status.js'
-import { demoBuilding, demoSensors, demoReadings } from './fixtures/building.js'
-import { organizations } from './fixtures/organizations.js'
+import { alerts } from "./fixtures/alerts.js";
+import { dailyRows } from "./fixtures/analytics.js";
+import { overview } from "./fixtures/overview.js";
+import { readings } from "./fixtures/readings.js";
+import { sensors } from "./fixtures/sensors.js";
+import { sites } from "./fixtures/sites.js";
+import { systemStatus } from "./fixtures/status.js";
+import {
+  demoBuilding,
+  demoSensors,
+  demoReadings,
+} from "./fixtures/building.js";
+import { organizations } from "./fixtures/organizations.js";
 
 // The C-Edificio demo building (8 sensors on 6 floors) also appears in the
 // admin sites and sensors lists, so the floor-by-floor view has real content.
 // Clients do not see it (see getAccessibleSites).
-sites.push(demoBuilding)
-sensors.push(...demoSensors)
+sites.push(demoBuilding);
+sensors.push(...demoSensors);
 
 // Floors of a site from -basements to floors - 1, as the API checks (B3)
 function floorInSite(floor, site) {
-  return Number.isInteger(floor) && floor >= -site.basements && floor <= site.floors - 1
+  return (
+    Number.isInteger(floor) &&
+    floor >= -site.basements &&
+    floor <= site.floors - 1
+  );
 }
 
 function floorOutOfSite(site) {
   return {
     status: 422,
-    code: 'FLOOR_OUT_OF_SITE',
+    code: "FLOOR_OUT_OF_SITE",
     message: `La planta tiene que estar entre ${-site.basements} y ${site.floors - 1} en este edificio.`,
     details: null,
-  }
+  };
 }
 
 // Mock users used for authentication tests.
@@ -39,7 +47,7 @@ const mockUser = [
     role: "admin",
     organization_id: null,
     created_at: "2026-08-01T08:00:00Z",
-    organization_name: 'Organisation de démonstration',
+    organization_name: "Organisation de démonstration",
     is_active: true,
     last_login_at: null,
     password: "123",
@@ -51,28 +59,28 @@ const mockUser = [
     role: "client",
     organization_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     created_at: "2026-08-01T08:00:00Z",
-    organization_name: 'Organisation de démonstration',
+    organization_name: "Organisation de démonstration",
     is_active: true,
     last_login_at: null,
     password: "123",
   },
   {
-  id: "77777777-7777-4777-8777-777777777777",
-  email: "trial@example.com",
-  name: "Mock Trial Client",
-  role: "client",
-  organization_id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
-  created_at: "2026-10-16T08:00:00Z",
-  organization_name: "Clínica Sarrià",
-  is_active: true,
-  last_login_at: null,
-  password: "123",
-}
-]
+    id: "77777777-7777-4777-8777-777777777777",
+    email: "trial@example.com",
+    name: "Mock Trial Client",
+    role: "client",
+    organization_id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+    created_at: "2026-10-16T08:00:00Z",
+    organization_name: "Clínica Sarrià",
+    is_active: true,
+    last_login_at: null,
+    password: "123",
+  },
+];
 
-const mockDocuments = []
+const mockDocuments = [];
 
-let currentUser = null
+let currentUser = null;
 
 const MOCK_SESSION_KEY = "aquaguard_mock_user_id";
 
@@ -86,19 +94,17 @@ restoreMockUser();
 
 // Remove the password before returning a user to the frontend.
 function toPublicUser(user) {
-  if (!user) return null
+  if (!user) return null;
 
-  const publicUser = { ...user }
-  delete publicUser.password
-  return publicUser
+  const publicUser = { ...user };
+  delete publicUser.password;
+  return publicUser;
 }
 
 function toMeResponse(user) {
   const organization = user?.organization_id
-    ? organizations.find(
-        (item) => item.id === user.organization_id
-      )
-    : null
+    ? organizations.find((item) => item.id === user.organization_id)
+    : null;
 
   return {
     user: toPublicUser(user),
@@ -114,18 +120,18 @@ function toMeResponse(user) {
     terms_version: user?.terms_version ?? null,
     terms_accepted_at: user?.terms_accepted_at ?? null,
     deletion_requested_at: user?.deletion_requested_at ?? null,
-  }
+  };
 }
 
 // B15 (#149): same shape as MyDataExport. Only stored fields, no counters.
 function toMyDataExport(user) {
   const organization = user.organization_id
     ? organizations.find((item) => item.id === user.organization_id)
-    : null
+    : null;
 
   return {
     exported_at: new Date().toISOString(),
-    current_terms_version: '2026-10',
+    current_terms_version: "2026-10",
     account: {
       id: user.id,
       email: user.email,
@@ -161,7 +167,7 @@ function toMyDataExport(user) {
             created_at: site.created_at,
           }))
       : [],
-  }
+  };
 }
 
 function authError() {
@@ -197,96 +203,98 @@ function validationError(field, message) {
   };
 }
 
-const MOCK_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const MOCK_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Error with the backend shape: { status, code, message, details }
 function domainError(status, code, message) {
-  return { status, code, message, details: null }
+  return { status, code, message, details: null };
 }
 
 // Same rule as backend/app/shared/passwords.py (short list of common ones).
 // Returns the error message, or null when the password is valid.
-const MOCK_PASSWORD_MIN_LENGTH = 12
+const MOCK_PASSWORD_MIN_LENGTH = 12;
 const MOCK_COMMON_PASSWORDS = [
-  'password1234',
-  'contraseña123',
-  'qwertyuiop12',
-  '123456789012',
-  'abcdefghijkl',
-  'aquaguard123',
-  'aquaguard2026',
-]
+  "password1234",
+  "contraseña123",
+  "qwertyuiop12",
+  "123456789012",
+  "abcdefghijkl",
+  "aquaguard123",
+  "aquaguard2026",
+];
 
 function checkMockPassword(password, email) {
   if (password.length < MOCK_PASSWORD_MIN_LENGTH) {
-    return `La contraseña tiene que tener al menos ${MOCK_PASSWORD_MIN_LENGTH} caracteres.`
+    return `La contraseña tiene que tener al menos ${MOCK_PASSWORD_MIN_LENGTH} caracteres.`;
   }
   if (password.length > 128) {
-    return 'La contraseña no puede pasar de 128 caracteres.'
+    return "La contraseña no puede pasar de 128 caracteres.";
   }
 
-  const lower = password.toLowerCase()
+  const lower = password.toLowerCase();
   if (MOCK_COMMON_PASSWORDS.includes(lower) || new Set(lower).size < 5) {
-    return 'Esa contraseña es demasiado fácil de adivinar. Elige otra.'
+    return "Esa contraseña es demasiado fácil de adivinar. Elige otra.";
   }
 
-  const normalizedEmail = email.toLowerCase()
-  const localPart = normalizedEmail.split('@')[0]
-  if (lower.includes(normalizedEmail) || (localPart.length >= 4 && lower.includes(localPart))) {
-    return 'La contraseña no puede contener tu email.'
+  const normalizedEmail = email.toLowerCase();
+  const localPart = normalizedEmail.split("@")[0];
+  if (
+    lower.includes(normalizedEmail) ||
+    (localPart.length >= 4 && lower.includes(localPart))
+  ) {
+    return "La contraseña no puede contener tu email.";
   }
 
-  return null
+  return null;
 }
 
 // Imitates the Nginx limit on the register form (gateway/nginx.conf):
 // rate=10r/m (one slot every 6 s) and burst=4, same algorithm as Nginx.
 // Five quick attempts pass, the 6th gets 429, then one more every 6 s.
-const REGISTER_SLOT_MS = 6 * 1000
-const REGISTER_BURST = 4
-let registerExcess = null
-let registerLastTime = 0
+const REGISTER_SLOT_MS = 6 * 1000;
+const REGISTER_BURST = 4;
+let registerExcess = null;
+let registerLastTime = 0;
 
 function isRegisterRateLimited() {
-  const now = Date.now()
+  const now = Date.now();
 
   // First request: Nginx lets it through without counting it as excess
   if (registerExcess === null) {
-    registerExcess = 0
-    registerLastTime = now
-    return false
+    registerExcess = 0;
+    registerLastTime = now;
+    return false;
   }
 
-  const excess = Math.max(0, registerExcess - (now - registerLastTime) / REGISTER_SLOT_MS) + 1
+  const excess =
+    Math.max(0, registerExcess - (now - registerLastTime) / REGISTER_SLOT_MS) +
+    1;
   if (excess > REGISTER_BURST) {
-    return true
+    return true;
   }
 
-  registerExcess = excess
-  registerLastTime = now
-  return false
+  registerExcess = excess;
+  registerLastTime = now;
+  return false;
 }
 
 function rateLimitError() {
   return domainError(
     429,
-    'TOO_MANY_REQUESTS',
-    'Demasiadas peticiones. Espera un minuto y vuelve a intentarlo.'
-  )
+    "TOO_MANY_REQUESTS",
+    "Demasiadas peticiones. Espera un minuto y vuelve a intentarlo.",
+  );
 }
 
 function getAccessibleSites() {
-  if (!currentUser) return []
+  if (!currentUser) return [];
 
   if (currentUser.role === "admin") {
-    return sites
+    return sites;
   }
 
-  if (
-    currentUser.role !== "client" ||
-    !currentUser.organization_id
-  ) {
-    return []
+  if (currentUser.role !== "client" || !currentUser.organization_id) {
+    return [];
   }
 
   // The demo building is only for the admin views (#169); the client
@@ -294,45 +302,34 @@ function getAccessibleSites() {
   return sites.filter(
     (site) =>
       site.organization_id === currentUser.organization_id &&
-      site.id !== demoBuilding.id
-  )
+      site.id !== demoBuilding.id,
+  );
 }
 
 function getAccessibleSensors() {
-  const siteIds = new Set(
-    getAccessibleSites().map((site) => site.id)
-  )
+  const siteIds = new Set(getAccessibleSites().map((site) => site.id));
 
-  return sensors.filter((sensor) =>
-    siteIds.has(sensor.site_id)
-  )
+  return sensors.filter((sensor) => siteIds.has(sensor.site_id));
 }
 
 function canAccessSensor(sensorId) {
-  return getAccessibleSensors().some(
-    (sensor) => sensor.id === sensorId
-  )
+  return getAccessibleSensors().some((sensor) => sensor.id === sensorId);
 }
 
 function getAccessibleAlerts() {
-  const sensorIds = new Set(
-    getAccessibleSensors().map((sensor) => sensor.id)
-  )
+  const sensorIds = new Set(getAccessibleSensors().map((sensor) => sensor.id));
 
-  return alerts.filter((alert) =>
-    sensorIds.has(alert.sensor_id)
-  )
+  return alerts.filter((alert) => sensorIds.has(alert.sensor_id));
 }
-
 
 // ---------------------------------------------------------------------------
 // Organizations (B1, B16) and invitations (B4)
 // ---------------------------------------------------------------------------
 
-const DAY_MS = 24 * 60 * 60 * 1000
+const DAY_MS = 24 * 60 * 60 * 1000;
 // TRIAL_DAYS and INVITATION_TTL_DAYS of the API (7 by default)
-const TRIAL_DAYS = 7
-const INVITATION_TTL_DAYS = 7
+const TRIAL_DAYS = 7;
+const INVITATION_TTL_DAYS = 7;
 
 // Invitations (B4 has no routes yet: see invitations.service.js).
 // Each one keeps its `code` here so F6 (#167) can find it by code; the API stores
@@ -344,186 +341,221 @@ const INVITATION_TTL_DAYS = 7
 //   AQUAGUARD-DEMO-USED     accepted -> 404 INVITATION_NOT_FOUND
 // They start again on every page load. The ones the admin creates are saved in
 // localStorage, so their link still works after a reload in the same browser.
-const MOCK_INVITATIONS_KEY = 'aquaguard_mock_invitations'
+const MOCK_INVITATIONS_KEY = "aquaguard_mock_invitations";
 
-function demoInvitation(code, createdDaysAgo, expiresInDays, acceptedDaysAgo = null) {
-  const now = Date.now()
+function demoInvitation(
+  code,
+  createdDaysAgo,
+  expiresInDays,
+  acceptedDaysAgo = null,
+) {
+  const now = Date.now();
   return {
     id: crypto.randomUUID(),
-    organization_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-    organization_name: 'Hotel Diagonal Mar',
-    email: 'nuevo.gestor@hoteldiagonal.example.com',
+    organization_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    organization_name: "Hotel Diagonal Mar",
+    email: "nuevo.gestor@hoteldiagonal.example.com",
     expires_at: new Date(now + expiresInDays * DAY_MS).toISOString(),
-    accepted_at: acceptedDaysAgo === null ? null : new Date(now - acceptedDaysAgo * DAY_MS).toISOString(),
+    accepted_at:
+      acceptedDaysAgo === null
+        ? null
+        : new Date(now - acceptedDaysAgo * DAY_MS).toISOString(),
     revoked_at: null,
-    created_by_name: 'Mock Admin',
+    created_by_name: "Mock Admin",
     created_at: new Date(now - createdDaysAgo * DAY_MS).toISOString(),
     code,
     demo: true,
-  }
+  };
 }
 
 function loadSavedInvitations() {
   try {
-    const saved = JSON.parse(localStorage.getItem(MOCK_INVITATIONS_KEY) ?? '[]')
-    return Array.isArray(saved) ? saved : []
+    const saved = JSON.parse(
+      localStorage.getItem(MOCK_INVITATIONS_KEY) ?? "[]",
+    );
+    return Array.isArray(saved) ? saved : [];
   } catch {
-    return []
+    return [];
   }
 }
 
 function saveInvitations() {
   try {
-    const own = invitations.filter((item) => !item.demo)
-    localStorage.setItem(MOCK_INVITATIONS_KEY, JSON.stringify(own))
+    const own = invitations.filter((item) => !item.demo);
+    localStorage.setItem(MOCK_INVITATIONS_KEY, JSON.stringify(own));
   } catch {
     // Storage full or blocked: the invitations still work until the page reloads
   }
 }
 
 const invitations = [
-  demoInvitation('AQUAGUARD-DEMO-INVITE', 1, INVITATION_TTL_DAYS - 1),
-  demoInvitation('AQUAGUARD-DEMO-EXPIRED', 9, -2),
-  demoInvitation('AQUAGUARD-DEMO-USED', 3, INVITATION_TTL_DAYS - 3, 1),
+  demoInvitation("AQUAGUARD-DEMO-INVITE", 1, INVITATION_TTL_DAYS - 1),
+  demoInvitation("AQUAGUARD-DEMO-EXPIRED", 9, -2),
+  demoInvitation("AQUAGUARD-DEMO-USED", 3, INVITATION_TTL_DAYS - 3, 1),
   ...loadSavedInvitations(),
-]
+];
 
 // InvitationResponse of the contract: without the code and the mock flags
 function toInvitationResponse(invitation) {
-  const { code, demo, ...response } = invitation
-  return { ...response, status: invitationStatus(invitation) }
+  const response = { ...invitation };
+  delete response.code;
+  delete response.demo;
+  return { ...response, status: invitationStatus(invitation) };
 }
 
 // The pending invitation with that code, or the API error:
 // 410 when it expired, 404 when it does not exist, was accepted or was revoked
 function findInvitationByCode(code) {
-  const invitation = invitations.find((item) => item.code === code)
-  const status = invitation ? invitationStatus(invitation) : null
+  const invitation = invitations.find((item) => item.code === code);
+  const status = invitation ? invitationStatus(invitation) : null;
 
-  if (status === 'EXPIRED') {
-    return { error: domainError(410, 'INVITATION_EXPIRED', 'La invitación ha caducado.') }
+  if (status === "EXPIRED") {
+    return {
+      error: domainError(
+        410,
+        "INVITATION_EXPIRED",
+        "La invitación ha caducado.",
+      ),
+    };
   }
-  if (status !== 'PENDING') {
-    return { error: domainError(404, 'INVITATION_NOT_FOUND', 'La invitación no existe o ya no es válida.') }
+  if (status !== "PENDING") {
+    return {
+      error: domainError(
+        404,
+        "INVITATION_NOT_FOUND",
+        "La invitación no existe o ya no es válida.",
+      ),
+    };
   }
-  return { invitation }
+  return { invitation };
 }
 
 // The code inside /api/invitations/by-code/{code}[/accept]
 function codeFromUrl(url) {
-  return decodeURIComponent(url.split('/')[4] ?? '')
+  return decodeURIComponent(url.split("/")[4] ?? "");
 }
 
 // Imitates the Nginx limit on /api/invitations/by-code/ (gateway/nginx.conf):
 // same rule as the register form (10r/m, burst=4), with its own counter
-let invitationsExcess = null
-let invitationsLastTime = 0
+let invitationsExcess = null;
+let invitationsLastTime = 0;
 
 function isInvitationsRateLimited() {
-  const now = Date.now()
+  const now = Date.now();
 
   if (invitationsExcess === null) {
-    invitationsExcess = 0
-    invitationsLastTime = now
-    return false
+    invitationsExcess = 0;
+    invitationsLastTime = now;
+    return false;
   }
 
   const excess =
-    Math.max(0, invitationsExcess - (now - invitationsLastTime) / REGISTER_SLOT_MS) + 1
+    Math.max(
+      0,
+      invitationsExcess - (now - invitationsLastTime) / REGISTER_SLOT_MS,
+    ) + 1;
   if (excess > REGISTER_BURST) {
-    return true
+    return true;
   }
 
-  invitationsExcess = excess
-  invitationsLastTime = now
-  return false
+  invitationsExcess = excess;
+  invitationsLastTime = now;
+  return false;
 }
 
 function organizationNotFound() {
   return {
     status: 404,
-    code: 'ORGANIZATION_NOT_FOUND',
-    message: 'La organización no existe.',
+    code: "ORGANIZATION_NOT_FOUND",
+    message: "La organización no existe.",
     details: null,
-  }
+  };
 }
 
 function conflict(code, message) {
-  return { status: 409, code, message, details: null }
+  return { status: 409, code, message, details: null };
 }
 
 // Every organizations route is admin only, as in the API (401 / 403)
 function adminCheck() {
-  if (!currentUser) return authError()
-  if (currentUser.role !== 'admin') return forbiddenError()
-  return null
+  if (!currentUser) return authError();
+  if (currentUser.role !== "admin") return forbiddenError();
+  return null;
 }
 
 // The organization with its counters computed from the other fixtures,
 // as the API does with GROUP BY (they are never stored)
 function withCounters(organization) {
-  const orgSites = sites.filter((site) => site.organization_id === organization.id)
-  const orgSensors = sensors.filter((sensor) => sensor.organization_id === organization.id)
+  const orgSites = sites.filter(
+    (site) => site.organization_id === organization.id,
+  );
+  const orgSensors = sensors.filter(
+    (sensor) => sensor.organization_id === organization.id,
+  );
   const openAlerts = alerts.filter(
-    (alert) => alert.organization_id === organization.id && alert.status !== 'RESOLVED'
-  )
+    (alert) =>
+      alert.organization_id === organization.id && alert.status !== "RESOLVED",
+  );
   return {
     ...organization,
     site_count: orgSites.length,
     sensor_count: orgSensors.length,
     open_alerts: openAlerts.length,
-    critical_alerts: openAlerts.filter((alert) => alert.severity === 'CRITICAL').length,
-  }
+    critical_alerts: openAlerts.filter((alert) => alert.severity === "CRITICAL")
+      .length,
+  };
 }
 
 function findOrganization(url) {
-  const id = url.split('/')[3]
-  return organizations.find((organization) => organization.id === id) ?? null
+  const id = url.split("/")[3];
+  return organizations.find((organization) => organization.id === id) ?? null;
 }
 
 // Lowercase text for searching ('es' handles Spanish/Catalan letters correctly)
 function normalize(text) {
-  return String(text).toLocaleLowerCase('es')
+  return String(text).toLocaleLowerCase("es");
 }
 
 // The API compares names without case: 'hotel mar' and 'Hotel Mar' are the same client
 function nameTaken(name, exceptId = null) {
   return organizations.some(
-    (organization) => organization.id !== exceptId && normalize(organization.name) === normalize(name)
-  )
+    (organization) =>
+      organization.id !== exceptId &&
+      normalize(organization.name) === normalize(name),
+  );
 }
 
 // Same Page shape as the API, cutting the requested page
 function toPage(items, params = {}) {
-  const page = Number(params.page ?? 1)
-  const pageSize = Number(params.page_size ?? 20)
-  const start = (page - 1) * pageSize
+  const page = Number(params.page ?? 1);
+  const pageSize = Number(params.page_size ?? 20);
+  const start = (page - 1) * pageSize;
   return {
     items: items.slice(start, start + pageSize),
     total: items.length,
     page,
     page_size: pageSize,
     pages: Math.ceil(items.length / pageSize),
-  }
+  };
 }
 
 // Removes in place every item of a fixture list that matches
 function removeWhere(list, matches) {
-  let removed = 0
+  let removed = 0;
   for (let i = list.length - 1; i >= 0; i -= 1) {
     if (matches(list[i])) {
-      list.splice(i, 1)
-      removed += 1
+      list.splice(i, 1);
+      removed += 1;
     }
   }
-  return removed
+  return removed;
 }
 
 // Invitation status computed from its dates, as InvitationStatus in the API
 function invitationStatus(invitation) {
-  if (invitation.revoked_at) return 'REVOKED'
-  if (invitation.accepted_at) return 'ACCEPTED'
-  return new Date(invitation.expires_at) < new Date() ? 'EXPIRED' : 'PENDING'
+  if (invitation.revoked_at) return "REVOKED";
+  if (invitation.accepted_at) return "ACCEPTED";
+  return new Date(invitation.expires_at) < new Date() ? "EXPIRED" : "PENDING";
 }
 
 /*
@@ -534,151 +566,168 @@ function invitationStatus(invitation) {
 const mockAdapter = {
   // GET requests
   get(url, config = {}) {
-    console.log('[MOCK GET]', url, config)
+    console.log("[MOCK GET]", url, config);
 
     // Get the currently authenticated user.
-    if (url === '/api/me') {
+    if (url === "/api/me") {
       if (!currentUser) {
-        return Promise.reject(authError())
+        return Promise.reject(authError());
       }
 
       return Promise.resolve({
         data: toMeResponse(currentUser),
         status: 200,
-      })
+      });
     }
 
     // Export my data (B15)
-    if (url === '/api/me/export') {
-      if (!currentUser) return Promise.reject(authError())
-      return Promise.resolve({ data: toMyDataExport(currentUser), status: 200 })
+    if (url === "/api/me/export") {
+      if (!currentUser) return Promise.reject(authError());
+      return Promise.resolve({
+        data: toMyDataExport(currentUser),
+        status: 200,
+      });
     }
 
     // Users (B6): admin only
-    if (url === '/api/users') {
-      const denied = adminCheck()
-      if (denied) return Promise.reject(denied)
+    if (url === "/api/users") {
+      const denied = adminCheck();
+      if (denied) return Promise.reject(denied);
 
-      const params = config.params ?? {}
-      const q = normalize(String(params.q ?? '').trim())
+      const params = config.params ?? {};
+      const q = normalize(String(params.q ?? "").trim());
 
       const items = mockUser
         .filter((user) => {
           if (
             params.organization_id &&
             user.organization_id !== params.organization_id
-          ) return false
+          )
+            return false;
 
           if (
             params.active !== undefined &&
             String(user.is_active !== false) !== String(params.active)
-          ) return false
+          )
+            return false;
 
           if (
             q &&
-            ![user.name, user.email, user.organization_name]
-              .some((value) => normalize(value ?? '').includes(q))
-          ) return false
+            ![user.name, user.email, user.organization_name].some((value) =>
+              normalize(value ?? "").includes(q),
+            )
+          )
+            return false;
 
-          return true
+          return true;
         })
         .map(toPublicUser)
-        .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+        .sort((a, b) => a.name.localeCompare(b.name, "es"));
 
       return Promise.resolve({
         data: toPage(items, params),
         status: 200,
-      })
+      });
     }
 
-    if (url.startsWith('/api/users/')) {
-      const denied = adminCheck()
-      if (denied) return Promise.reject(denied)
+    if (url.startsWith("/api/users/")) {
+      const denied = adminCheck();
+      if (denied) return Promise.reject(denied);
 
-      const id = url.split('/')[3]
-      const user = mockUser.find((item) => item.id === id)
+      const id = url.split("/")[3];
+      const user = mockUser.find((item) => item.id === id);
 
       if (!user) {
         return Promise.reject(
-          domainError(404, 'USER_NOT_FOUND', 'El usuario no existe.')
-        )
+          domainError(404, "USER_NOT_FOUND", "El usuario no existe."),
+        );
       }
 
-  return Promise.resolve({
-    data: toPublicUser(user),
-    status: 200,
-  })
-}
+      return Promise.resolve({
+        data: toPublicUser(user),
+        status: 200,
+      });
+    }
 
     // Get the public status page data.
-    if (url === '/api/status') {
+    if (url === "/api/status") {
       return Promise.resolve({
         data: systemStatus,
         status: 200,
-      })
+      });
     }
 
     // List organizations (B1): filters, sorted by name, one page
-    if (url === '/api/organizations') {
-      const denied = adminCheck()
-      if (denied) return Promise.reject(denied)
+    if (url === "/api/organizations") {
+      const denied = adminCheck();
+      if (denied) return Promise.reject(denied);
 
-      const params = config.params ?? {}
-      const text = params.q ? normalize(params.q.trim()) : ''
+      const params = config.params ?? {};
+      const text = params.q ? normalize(params.q.trim()) : "";
 
       const items = organizations
-        .filter((organization) => !params.status || organization.status === params.status)
+        .filter(
+          (organization) =>
+            !params.status || organization.status === params.status,
+        )
         .filter((organization) =>
-          text === ''
+          text === ""
             ? true
-            // Same fields the API searches: name, city, legal name and tax id
-            : [organization.name, organization.city, organization.legal_name, organization.tax_id].some(
-                (field) => field && normalize(field).includes(text)
-              )
+            : // Same fields the API searches: name, city, legal name and tax id
+              [
+                organization.name,
+                organization.city,
+                organization.legal_name,
+                organization.tax_id,
+              ].some((field) => field && normalize(field).includes(text)),
         )
         .map(withCounters)
         .filter((organization) =>
           params.has_open_alerts === undefined
             ? true
-            : String(params.has_open_alerts) === 'true'
+            : String(params.has_open_alerts) === "true"
               ? organization.open_alerts > 0
-              : organization.open_alerts === 0
+              : organization.open_alerts === 0,
         )
-        .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+        .sort((a, b) => a.name.localeCompare(b.name, "es"));
 
-      return Promise.resolve({ data: toPage(items, params), status: 200 })
+      return Promise.resolve({ data: toPage(items, params), status: 200 });
     }
 
     // Get one organization (B1)
-    if (url.startsWith('/api/organizations/')) {
-      const denied = adminCheck()
-      if (denied) return Promise.reject(denied)
+    if (url.startsWith("/api/organizations/")) {
+      const denied = adminCheck();
+      if (denied) return Promise.reject(denied);
 
-      const organization = findOrganization(url)
-      if (!organization) return Promise.reject(organizationNotFound())
+      const organization = findOrganization(url);
+      if (!organization) return Promise.reject(organizationNotFound());
 
-      return Promise.resolve({ data: withCounters(organization), status: 200 })
+      return Promise.resolve({ data: withCounters(organization), status: 200 });
     }
 
     // List invitations (B4). No session check: the B4 routes do not exist yet, so
     // this mock is also used with the real API, where the session is not the mock one
-    if (url === '/api/invitations') {
-      const params = config.params ?? {}
+    if (url === "/api/invitations") {
+      const params = config.params ?? {};
       const items = invitations
-        .filter((item) => !params.organization_id || item.organization_id === params.organization_id)
-        .map(toInvitationResponse)
+        .filter(
+          (item) =>
+            !params.organization_id ||
+            item.organization_id === params.organization_id,
+        )
+        .map(toInvitationResponse);
 
-      return Promise.resolve({ data: toPage(items, params), status: 200 })
+      return Promise.resolve({ data: toPage(items, params), status: 200 });
     }
 
     // Open an invitation link (B4, public): only what the accept form needs
-    if (url.startsWith('/api/invitations/by-code/')) {
+    if (url.startsWith("/api/invitations/by-code/")) {
       if (isInvitationsRateLimited()) {
-        return Promise.reject(rateLimitError())
+        return Promise.reject(rateLimitError());
       }
 
-      const { invitation, error } = findInvitationByCode(codeFromUrl(url))
-      if (error) return Promise.reject(error)
+      const { invitation, error } = findInvitationByCode(codeFromUrl(url));
+      if (error) return Promise.reject(error);
 
       return Promise.resolve({
         data: {
@@ -687,7 +736,7 @@ const mockAdapter = {
           expires_at: invitation.expires_at,
         },
         status: 200,
-      })
+      });
     }
 
     // Get all sites.
@@ -713,7 +762,7 @@ const mockAdapter = {
     // Get all sensors.
     if (url === "/api/sensors") {
       // Temporary test: simulate a slow API response
-      //await new Promise((resolve) => setTimeout(resolve, 2000));  
+      //await new Promise((resolve) => setTimeout(resolve, 2000));
       if (!currentUser) {
         return Promise.reject(authError());
       }
@@ -733,37 +782,32 @@ const mockAdapter = {
     }
 
     // Get sensors belonging to a specific site.
-    if (
-      url.startsWith('/api/sites/') &&
-      url.endsWith('/sensors')
-    ) {
+    if (url.startsWith("/api/sites/") && url.endsWith("/sensors")) {
       if (!currentUser) {
-        return Promise.reject(authError())
+        return Promise.reject(authError());
       }
 
-      const siteId = url.split('/')[3]
-      const site = sites.find((site) => site.id === siteId)
+      const siteId = url.split("/")[3];
+      const site = sites.find((site) => site.id === siteId);
 
       if (!site) {
         return Promise.reject({
           status: 404,
-          code: 'SITE_NOT_FOUND',
-          message: 'Site not found.',
+          code: "SITE_NOT_FOUND",
+          message: "Site not found.",
           details: null,
-        })
+        });
       }
 
       const accessibleSite = getAccessibleSites().some(
-        (accessibleSite) => accessibleSite.id === siteId
-      )
+        (accessibleSite) => accessibleSite.id === siteId,
+      );
 
       if (!accessibleSite) {
-        return Promise.reject(forbiddenError())
+        return Promise.reject(forbiddenError());
       }
 
-      const siteSensors = sensors.filter(
-        (sensor) => sensor.site_id === siteId
-      )
+      const siteSensors = sensors.filter((sensor) => sensor.site_id === siteId);
 
       return Promise.resolve({
         data: {
@@ -774,116 +818,114 @@ const mockAdapter = {
           pages: siteSensors.length === 0 ? 0 : 1,
         },
         status: 200,
-      })
+      });
     }
 
     // Get a specific site.
-    if (url.startsWith('/api/sites/')) {
+    if (url.startsWith("/api/sites/")) {
       if (!currentUser) {
-        return Promise.reject(authError())
+        return Promise.reject(authError());
       }
 
-      const id = url.split('/')[3]
-      const site = sites.find((site) => site.id === id)
+      const id = url.split("/")[3];
+      const site = sites.find((site) => site.id === id);
 
       if (!site) {
         return Promise.reject({
           status: 404,
-          code: 'SITE_NOT_FOUND',
-          message: 'Site not found.',
+          code: "SITE_NOT_FOUND",
+          message: "Site not found.",
           details: null,
-        })
+        });
       }
 
       const accessibleSite = getAccessibleSites().some(
-        (accessibleSite) => accessibleSite.id === id
-      )
+        (accessibleSite) => accessibleSite.id === id,
+      );
 
       if (!accessibleSite) {
-        return Promise.reject(forbiddenError())
+        return Promise.reject(forbiddenError());
       }
 
       return Promise.resolve({
         data: site,
         status: 200,
-      })
+      });
     }
 
     // Pressure series of a sensor for the chart (B7). The demo readings are
     // already hourly, so each one becomes a point with avg = min = max.
-    if (
-      url.startsWith('/api/sensors/') &&
-      url.endsWith('/readings/series')
-    ) {
-      if (!currentUser) return Promise.reject(authError())
+    if (url.startsWith("/api/sensors/") && url.endsWith("/readings/series")) {
+      if (!currentUser) return Promise.reject(authError());
 
-      const sensorId = url.split('/')[3]
-      const sensor = sensors.find((item) => item.id === sensorId)
+      const sensorId = url.split("/")[3];
+      const sensor = sensors.find((item) => item.id === sensorId);
       if (!sensor || !canAccessSensor(sensorId)) {
-        return Promise.reject(domainError(404, 'SENSOR_NOT_FOUND', 'El sensor no existe.'))
+        return Promise.reject(
+          domainError(404, "SENSOR_NOT_FOUND", "El sensor no existe."),
+        );
       }
 
-      const days = Number(config.params?.days ?? 7)
-      const to = new Date()
-      const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000)
-      const points = (sensor.last_seen_at ? demoReadings(sensor, days) : []).map((reading) => ({
+      const days = Number(config.params?.days ?? 7);
+      const to = new Date();
+      const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000);
+      const points = (
+        sensor.last_seen_at ? demoReadings(sensor, days) : []
+      ).map((reading) => ({
         t: reading.measured_at,
         avg: reading.pressure,
         min: reading.pressure,
         max: reading.pressure,
-      }))
+      }));
 
       return Promise.resolve({
         data: {
           sensor_id: sensor.id,
-          unit: sensor.unit || 'bar',
+          unit: sensor.unit || "bar",
           min_pressure: sensor.min_pressure,
           max_pressure: sensor.max_pressure,
-          bucket: config.params?.bucket ?? '2h',
+          bucket: config.params?.bucket ?? "2h",
           from: from.toISOString(),
           to: to.toISOString(),
           points,
         },
         status: 200,
-      })
+      });
     }
 
     // Get readings belonging to a specific sensor.
-    if (
-      url.startsWith('/api/sensors/') &&
-      url.endsWith('/readings')
-    ) {
+    if (url.startsWith("/api/sensors/") && url.endsWith("/readings")) {
       if (!currentUser) {
-        return Promise.reject(authError())
+        return Promise.reject(authError());
       }
 
-      const sensorId = url.split('/')[3]
-      const sensor = sensors.find(
-        (sensor) => sensor.id === sensorId
-      )
+      const sensorId = url.split("/")[3];
+      const sensor = sensors.find((sensor) => sensor.id === sensorId);
 
       if (!sensor) {
         return Promise.reject({
           status: 404,
-          code: 'SENSOR_NOT_FOUND',
-          message: 'Sensor not found.',
+          code: "SENSOR_NOT_FOUND",
+          message: "Sensor not found.",
           details: null,
-        })
+        });
       }
 
       if (!canAccessSensor(sensorId)) {
-        return Promise.reject(forbiddenError())
+        return Promise.reject(forbiddenError());
       }
 
       // Sensors without fixture readings get 7 days of demo readings for the chart.
       // A sensor that never reported (last_seen_at null) has none, as in the API.
       const fixtureReadings = readings.filter(
-        (reading) => reading.sensor_id === sensorId
-      )
+        (reading) => reading.sensor_id === sensorId,
+      );
       // Demo readings only for the admin sensors view, so the client history stays as it was
       const useDemo =
-        currentUser.role === 'admin' && fixtureReadings.length === 0 && sensor.last_seen_at
-      const sensorReadings = useDemo ? demoReadings(sensor) : fixtureReadings
+        currentUser.role === "admin" &&
+        fixtureReadings.length === 0 &&
+        sensor.last_seen_at;
+      const sensorReadings = useDemo ? demoReadings(sensor) : fixtureReadings;
 
       return Promise.resolve({
         data: {
@@ -894,37 +936,35 @@ const mockAdapter = {
           pages: sensorReadings.length === 0 ? 0 : 1,
         },
         status: 200,
-      })
+      });
     }
 
     // Get a specific sensor.
-    if (url.startsWith('/api/sensors/')) {
+    if (url.startsWith("/api/sensors/")) {
       if (!currentUser) {
-        return Promise.reject(authError())
+        return Promise.reject(authError());
       }
 
-      const id = url.split('/')[3]
-      const sensor = sensors.find(
-        (sensor) => sensor.id === id
-      )
+      const id = url.split("/")[3];
+      const sensor = sensors.find((sensor) => sensor.id === id);
 
       if (!sensor) {
         return Promise.reject({
           status: 404,
-          code: 'SENSOR_NOT_FOUND',
-          message: 'Sensor not found.',
+          code: "SENSOR_NOT_FOUND",
+          message: "Sensor not found.",
           details: null,
-        })
+        });
       }
 
       if (!canAccessSensor(id)) {
-        return Promise.reject(forbiddenError())
+        return Promise.reject(forbiddenError());
       }
 
       return Promise.resolve({
         data: sensor,
         status: 200,
-      })
+      });
     }
 
     // Get all alerts.
@@ -935,8 +975,12 @@ const mockAdapter = {
 
       // Same filters as B5 (combined with AND); created_to is exclusive
       const params = config?.params ?? {};
-      const from = params.created_from ? new Date(params.created_from).getTime() : null;
-      const to = params.created_to ? new Date(params.created_to).getTime() : null;
+      const from = params.created_from
+        ? new Date(params.created_from).getTime()
+        : null;
+      const to = params.created_to
+        ? new Date(params.created_to).getTime()
+        : null;
 
       const items = getAccessibleAlerts()
         .filter((alert) => {
@@ -966,13 +1010,13 @@ const mockAdapter = {
     }
 
     // KPI cards of the dashboard (F12).
-    if (url === '/api/analytics/overview') {
+    if (url === "/api/analytics/overview") {
       if (!currentUser) {
-        return Promise.reject(authError())
+        return Promise.reject(authError());
       }
 
       // A client has no "clients": both fields are null, as in the contract.
-      if (currentUser.role !== 'admin') {
+      if (currentUser.role !== "admin") {
         return Promise.resolve({
           data: {
             ...overview,
@@ -980,35 +1024,53 @@ const mockAdapter = {
             organizations_needing_attention: null,
           },
           status: 200,
-        })
+        });
       }
 
       return Promise.resolve({
         data: { ...overview },
         status: 200,
-      })
+      });
     }
 
-    if (url === '/api/analytics/alerts/weekly') {
-      if (!currentUser) return Promise.reject(authError())
-      const params = config.params ?? {}
-      const site = getAccessibleSites().find((item) => item.id === params.site_id)
+    if (url === "/api/analytics/alerts/weekly") {
+      if (!currentUser) return Promise.reject(authError());
+      const params = config.params ?? {};
+      const site = getAccessibleSites().find(
+        (item) => item.id === params.site_id,
+      );
       if (!site) {
-        return Promise.reject(domainError(404, 'SITE_NOT_FOUND', 'El site no existe.'))
+        return Promise.reject(
+          domainError(404, "SITE_NOT_FOUND", "El site no existe."),
+        );
       }
-      const requestedStart = params.week_start ? new Date(`${params.week_start}T00:00:00Z`) : new Date()
-      const mondayOffset = (requestedStart.getUTCDay() + 6) % 7
+      const requestedStart = params.week_start
+        ? new Date(`${params.week_start}T00:00:00Z`)
+        : new Date();
+      const mondayOffset = (requestedStart.getUTCDay() + 6) % 7;
       if (params.week_start && mondayOffset !== 0) {
-        return Promise.reject(domainError(422, 'INVALID_WEEK_START', 'week_start tiene que ser un lunes.'))
+        return Promise.reject(
+          domainError(
+            422,
+            "INVALID_WEEK_START",
+            "week_start tiene que ser un lunes.",
+          ),
+        );
       }
-      requestedStart.setUTCDate(requestedStart.getUTCDate() - mondayOffset)
+      requestedStart.setUTCDate(requestedStart.getUTCDate() - mondayOffset);
       const days = Array.from({ length: 7 }, (_, index) => {
-        const day = new Date(requestedStart)
-        day.setUTCDate(day.getUTCDate() + index)
-        return day.toISOString().slice(0, 10)
-      })
-      const siteSensors = getAccessibleSensors().filter((sensor) => sensor.site_id === site.id)
-      const siteAlerts = getAccessibleAlerts().filter((alert) => alert.site_id === site.id || siteSensors.some((sensor) => sensor.id === alert.sensor_id))
+        const day = new Date(requestedStart);
+        day.setUTCDate(day.getUTCDate() + index);
+        return day.toISOString().slice(0, 10);
+      });
+      const siteSensors = getAccessibleSensors().filter(
+        (sensor) => sensor.site_id === site.id,
+      );
+      const siteAlerts = getAccessibleAlerts().filter(
+        (alert) =>
+          alert.site_id === site.id ||
+          siteSensors.some((sensor) => sensor.id === alert.sensor_id),
+      );
       return Promise.resolve({
         data: {
           site_id: site.id,
@@ -1019,56 +1081,75 @@ const mockAdapter = {
             sensor_id: sensor.id,
             sensor_name: sensor.name,
             floor: sensor.floor,
-            counts: days.map((day) => siteAlerts.filter((alert) => alert.sensor_id === sensor.id && String(alert.created_at).slice(0, 10) === day).length),
+            counts: days.map(
+              (day) =>
+                siteAlerts.filter(
+                  (alert) =>
+                    alert.sensor_id === sensor.id &&
+                    String(alert.created_at).slice(0, 10) === day,
+                ).length,
+            ),
           })),
         },
         status: 200,
-      })
+      });
     }
 
-    if (url === '/api/analytics/alerts/top-sensors') {
-      if (!currentUser) return Promise.reject(authError())
-      const days = Number(config.params?.days ?? 30)
-      const cutoff = Date.now() - days * 24 * 60 * 60 * 1000
-      const grouped = new Map()
-      getAccessibleAlerts().filter((alert) => new Date(alert.created_at).getTime() >= cutoff).forEach((alert) => {
-        const sensor = getAccessibleSensors().find((item) => item.id === alert.sensor_id)
-        if (!sensor) return
-        const site = sites.find((item) => item.id === sensor.site_id)
-        const organization = organizations.find((item) => item.id === site?.organization_id)
-        const item = grouped.get(sensor.id) ?? {
-          sensor_id: sensor.id,
-          sensor_name: sensor.name,
-          site_id: sensor.site_id,
-          site_name: site?.name,
-          organization_name: organization?.name,
-          alert_count: 0,
-          critical_count: 0,
-          last_alert_at: null,
-        }
-        item.alert_count += 1
-        if (alert.severity === 'CRITICAL') item.critical_count += 1
-        if (!item.last_alert_at || alert.created_at > item.last_alert_at) item.last_alert_at = alert.created_at
-        grouped.set(sensor.id, item)
-      })
+    if (url === "/api/analytics/alerts/top-sensors") {
+      if (!currentUser) return Promise.reject(authError());
+      const days = Number(config.params?.days ?? 30);
+      const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+      const grouped = new Map();
+      getAccessibleAlerts()
+        .filter((alert) => new Date(alert.created_at).getTime() >= cutoff)
+        .forEach((alert) => {
+          const sensor = getAccessibleSensors().find(
+            (item) => item.id === alert.sensor_id,
+          );
+          if (!sensor) return;
+          const site = sites.find((item) => item.id === sensor.site_id);
+          const organization = organizations.find(
+            (item) => item.id === site?.organization_id,
+          );
+          const item = grouped.get(sensor.id) ?? {
+            sensor_id: sensor.id,
+            sensor_name: sensor.name,
+            site_id: sensor.site_id,
+            site_name: site?.name,
+            organization_name: organization?.name,
+            alert_count: 0,
+            critical_count: 0,
+            last_alert_at: null,
+          };
+          item.alert_count += 1;
+          if (alert.severity === "CRITICAL") item.critical_count += 1;
+          if (!item.last_alert_at || alert.created_at > item.last_alert_at)
+            item.last_alert_at = alert.created_at;
+          grouped.set(sensor.id, item);
+        });
       return Promise.resolve({
-        data: { days, items: [...grouped.values()].sort((a, b) => b.alert_count - a.alert_count).slice(0, 10) },
+        data: {
+          days,
+          items: [...grouped.values()]
+            .sort((a, b) => b.alert_count - a.alert_count)
+            .slice(0, 10),
+        },
         status: 200,
-      })
+      });
     }
 
     // Analytics export (F19): JSON rows for the charts or a CSV Blob.
-    if (url === '/api/analytics/export') {
+    if (url === "/api/analytics/export") {
       if (!currentUser) {
-        return Promise.reject(authError())
+        return Promise.reject(authError());
       }
 
-      const { format = 'csv', from, to } = config.params ?? {}
+      const { format = "csv", from, to } = config.params ?? {};
 
-      const end = to ? new Date(to) : new Date()
+      const end = to ? new Date(to) : new Date();
       const start = from
         ? new Date(from)
-        : new Date(end.getTime() - 30 * 86400000)
+        : new Date(end.getTime() - 30 * 86400000);
 
       if (
         Number.isNaN(start.getTime()) ||
@@ -1077,198 +1158,244 @@ const mockAdapter = {
       ) {
         return Promise.reject({
           status: 422,
-          code: 'INVALID_DATE_RANGE',
-          message: '`from` tiene que ser anterior a `to`.',
+          code: "INVALID_DATE_RANGE",
+          message: "`from` tiene que ser anterior a `to`.",
           details: null,
-        })
+        });
       }
 
-      const rows = dailyRows(start, end)
+      const rows = dailyRows(start, end);
 
-      if (format === 'json') {
+      if (format === "json") {
         return Promise.resolve({
           data: rows,
           status: 200,
-        })
+        });
       }
 
-      if (format !== 'csv') {
+      if (format !== "csv") {
         return Promise.reject({
           status: 422,
-          code: 'INVALID_FORMAT',
-          message: 'Format must be csv or json.',
+          code: "INVALID_FORMAT",
+          message: "Format must be csv or json.",
           details: null,
-        })
+        });
       }
 
-      const header = Object.keys(rows[0] ?? { date: '' })
+      const header = Object.keys(rows[0] ?? { date: "" });
 
       const csv = [
-        header.join(','),
-        ...rows.map((r) =>
-          header.map((k) => r[k] ?? '').join(',')
-        ),
-      ].join('\n')
+        header.join(","),
+        ...rows.map((r) => header.map((k) => r[k] ?? "").join(",")),
+      ].join("\n");
 
       return Promise.resolve({
-        data: new Blob([csv], { type: 'text/csv' }),
+        data: new Blob([csv], { type: "text/csv" }),
         headers: {
-          'content-disposition':
+          "content-disposition":
             'attachment; filename="aquaguard-analytics-mock.csv"',
         },
         status: 200,
-      })
+      });
     }
 
     // Documents (B11): list
-    if (url === '/api/documents') {
-      if (!currentUser) return Promise.reject(authError())
+    if (url === "/api/documents") {
+      if (!currentUser) return Promise.reject(authError());
 
-      const params = config.params ?? {}
+      const params = config.params ?? {};
       const items = mockDocuments
-        .filter((document) =>
-          currentUser.role === 'admin' ||
-          document.organization_id === currentUser.organization_id
+        .filter(
+          (document) =>
+            currentUser.role === "admin" ||
+            document.organization_id === currentUser.organization_id,
         )
-        .filter((document) =>
-          !params.site_id || document.site_id === params.site_id
-        )
+        .filter(
+          (document) => !params.site_id || document.site_id === params.site_id,
+        );
 
       return Promise.resolve({
         data: toPage(items, params),
         status: 200,
-      })
+      });
     }
 
     // Handle unknown endpoints.
     return Promise.reject({
       status: 404,
-      code: 'UNKNOWN_ENDPOINT',
-      message: 'Mock endpoint not found.',
+      code: "UNKNOWN_ENDPOINT",
+      message: "Mock endpoint not found.",
       details: null,
-    })
+    });
   },
 
   // POST requests
   post(url, data = {}, config = {}) {
-    if (url.startsWith('/api/auth/')) {
-      console.log('[MOCK POST]', url)
+    if (url.startsWith("/api/auth/")) {
+      console.log("[MOCK POST]", url);
     } else {
-      console.log('[MOCK POST]', url, data, config)
+      console.log("[MOCK POST]", url, data, config);
     }
 
     // Deletion request (B15): asking again keeps the first date
-    if (url === '/api/me/deletion-request') {
-      if (!currentUser) return Promise.reject(authError())
+    if (url === "/api/me/deletion-request") {
+      if (!currentUser) return Promise.reject(authError());
       if (!currentUser.deletion_requested_at) {
-        currentUser.deletion_requested_at = new Date().toISOString()
+        currentUser.deletion_requested_at = new Date().toISOString();
       }
       return Promise.resolve({
         data: {
           deletion_requested_at: currentUser.deletion_requested_at,
-          message: 'Hemos registrado tu petición de baja. Un administrador la tramitará.',
+          message:
+            "Hemos registrado tu petición de baja. Un administrador la tramitará.",
         },
         status: 202,
-      })
+      });
     }
 
-    if (url === '/api/me/password') {
-      if (!currentUser) return Promise.reject(authError())
+    if (url === "/api/me/password") {
+      if (!currentUser) return Promise.reject(authError());
       if (data.current_password !== currentUser.password) {
-        return Promise.reject(domainError(422, 'WRONG_PASSWORD', 'La contraseña actual no es correcta.'))
+        return Promise.reject(
+          domainError(
+            422,
+            "WRONG_PASSWORD",
+            "La contraseña actual no es correcta.",
+          ),
+        );
       }
-      const weakPasswordMessage = checkMockPassword(data.new_password ?? '', currentUser.email)
+      const weakPasswordMessage = checkMockPassword(
+        data.new_password ?? "",
+        currentUser.email,
+      );
       if (weakPasswordMessage) {
-        return Promise.reject(domainError(422, 'WEAK_PASSWORD', weakPasswordMessage))
+        return Promise.reject(
+          domainError(422, "WEAK_PASSWORD", weakPasswordMessage),
+        );
       }
-      currentUser.password = data.new_password
-      return Promise.resolve({ data: { message: 'Contraseña actualizada.' }, status: 200 })
+      currentUser.password = data.new_password;
+      return Promise.resolve({
+        data: { message: "Contraseña actualizada." },
+        status: 200,
+      });
     }
 
     // Public sign-up with a 7-day trial (B10, #140). Same order and codes as
     // backend/app/modules/auth/service.py: 429 (Nginx), 422, then 409.
-    if (url === '/api/auth/register') {
+    if (url === "/api/auth/register") {
       if (isRegisterRateLimited()) {
-        return Promise.reject(rateLimitError())
+        return Promise.reject(rateLimitError());
       }
 
-      const name = typeof data.name === 'string' ? data.name.trim() : ''
-      const email = typeof data.email === 'string' ? data.email.trim() : ''
-      const password = typeof data.password === 'string' ? data.password : ''
+      const name = typeof data.name === "string" ? data.name.trim() : "";
+      const email = typeof data.email === "string" ? data.email.trim() : "";
+      const password = typeof data.password === "string" ? data.password : "";
       const organizationName =
-        typeof data.organization_name === 'string'
+        typeof data.organization_name === "string"
           ? data.organization_name.trim()
-          : ''
+          : "";
 
       // Pydantic checks (generic VALIDATION_ERROR, one detail per field)
       if (!name || name.length > 120) {
-        return Promise.reject(validationError('name', 'String should have 1-120 characters'))
+        return Promise.reject(
+          validationError("name", "String should have 1-120 characters"),
+        );
       }
       if (!MOCK_EMAIL_PATTERN.test(email)) {
-        return Promise.reject(validationError('email', 'value is not a valid email address'))
+        return Promise.reject(
+          validationError("email", "value is not a valid email address"),
+        );
       }
-      if (typeof data.organization_name !== 'string' || data.organization_name.length > 120) {
-        return Promise.reject(validationError('organization_name', 'String should have at most 120 characters'))
+      if (
+        typeof data.organization_name !== "string" ||
+        data.organization_name.length > 120
+      ) {
+        return Promise.reject(
+          validationError(
+            "organization_name",
+            "String should have at most 120 characters",
+          ),
+        );
       }
-      if (typeof data.accept_terms !== 'boolean') {
-        return Promise.reject(validationError('accept_terms', 'Input should be a valid boolean'))
+      if (typeof data.accept_terms !== "boolean") {
+        return Promise.reject(
+          validationError("accept_terms", "Input should be a valid boolean"),
+        );
       }
 
       // Domain checks
       if (!data.accept_terms) {
-        return Promise.reject(domainError(
-          422,
-          'TERMS_NOT_ACCEPTED',
-          'Tienes que aceptar los términos de uso para registrarte.'
-        ))
+        return Promise.reject(
+          domainError(
+            422,
+            "TERMS_NOT_ACCEPTED",
+            "Tienes que aceptar los términos de uso para registrarte.",
+          ),
+        );
       }
 
-      const weakPasswordMessage = checkMockPassword(password, email)
+      const weakPasswordMessage = checkMockPassword(password, email);
       if (weakPasswordMessage) {
-        return Promise.reject(domainError(422, 'WEAK_PASSWORD', weakPasswordMessage))
+        return Promise.reject(
+          domainError(422, "WEAK_PASSWORD", weakPasswordMessage),
+        );
       }
 
       if (!organizationName) {
-        return Promise.reject(domainError(422, 'INVALID_NAME', 'El nombre no puede estar vacío.'))
+        return Promise.reject(
+          domainError(422, "INVALID_NAME", "El nombre no puede estar vacío."),
+        );
       }
 
-      if (mockUser.some((user) => user.email.toLowerCase() === email.toLowerCase())) {
-        return Promise.reject(domainError(409, 'EMAIL_ALREADY_EXISTS', 'Ese email ya está dado de alta.'))
+      if (
+        mockUser.some(
+          (user) => user.email.toLowerCase() === email.toLowerCase(),
+        )
+      ) {
+        return Promise.reject(
+          domainError(
+            409,
+            "EMAIL_ALREADY_EXISTS",
+            "Ese email ya está dado de alta.",
+          ),
+        );
       }
 
       // Organization in TRIAL for 7 days, and its first client user
-      const now = new Date()
+      const now = new Date();
       const organization = {
         id: crypto.randomUUID(),
         name: organizationName,
-        status: 'TRIAL',
-        trial_ends_at: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      }
+        status: "TRIAL",
+        trial_ends_at: new Date(
+          now.getTime() + 7 * 24 * 60 * 60 * 1000,
+        ).toISOString(),
+      };
 
       if (nameTaken(organizationName)) {
         return Promise.reject(
           conflict(
-            'ORGANIZATION_NAME_TAKEN',
-            'Ya hay una organización con ese nombre.'
-          )
-        )
+            "ORGANIZATION_NAME_TAKEN",
+            "Ya hay una organización con ese nombre.",
+          ),
+        );
       }
 
       organizations.push({
         ...organization,
         user_count: 1,
         created_at: now.toISOString(),
-      })
+      });
 
       const newUser = {
         id: crypto.randomUUID(),
         email,
         name,
-        role: 'client',
+        role: "client",
         organization_id: organization.id,
         created_at: now.toISOString(),
         password,
-      }
+      };
 
       mockUser.push(newUser);
       currentUser = newUser;
@@ -1279,24 +1406,22 @@ const mockAdapter = {
           user: toPublicUser(currentUser),
         },
         status: 201,
-      })
+      });
     }
 
     // Log in a mock user.
-    if (url === '/api/auth/login') {
+    if (url === "/api/auth/login") {
       const user = mockUser.find(
-        (item) =>
-          item.email === data.email &&
-          item.password === data.password
-      )
+        (item) => item.email === data.email && item.password === data.password,
+      );
 
       if (!user) {
         return Promise.reject({
           status: 401,
-          code: 'INVALID_CREDENTIALS',
-          message: 'Invalid email or password.',
+          code: "INVALID_CREDENTIALS",
+          message: "Invalid email or password.",
           details: null,
-        })
+        });
       }
 
       currentUser = user;
@@ -1307,74 +1432,77 @@ const mockAdapter = {
           user: toPublicUser(currentUser),
         },
         status: 200,
-      })
+      });
     }
 
     // Log out the current mock user.
-    if (url === '/api/auth/logout') {
+    if (url === "/api/auth/logout") {
       currentUser = null;
       localStorage.removeItem(MOCK_SESSION_KEY);
 
       return Promise.resolve({
         data: {
-          message: 'Session closed.',
+          message: "Session closed.",
         },
         status: 200,
-      })
+      });
     }
 
-      // Users (B6): activate / deactivate
-      if (
-        url.startsWith('/api/users/') &&
-        (url.endsWith('/activate') || url.endsWith('/deactivate'))
-      ) {
-        const denied = adminCheck()
-        if (denied) return Promise.reject(denied)
+    // Users (B6): activate / deactivate
+    if (
+      url.startsWith("/api/users/") &&
+      (url.endsWith("/activate") || url.endsWith("/deactivate"))
+    ) {
+      const denied = adminCheck();
+      if (denied) return Promise.reject(denied);
 
-        const parts = url.split('/')
-        const id = parts[3]
-        const action = parts[4]
-        const user = mockUser.find((item) => item.id === id)
+      const parts = url.split("/");
+      const id = parts[3];
+      const action = parts[4];
+      const user = mockUser.find((item) => item.id === id);
 
-        if (!user) {
-          return Promise.reject(
-            domainError(404, 'USER_NOT_FOUND', 'El usuario no existe.')
-          )
-        }
-
-        user.is_active = action === 'activate'
-
-        return Promise.resolve({
-          data: toPublicUser(user),
-          status: 200,
-        })
+      if (!user) {
+        return Promise.reject(
+          domainError(404, "USER_NOT_FOUND", "El usuario no existe."),
+        );
       }
+
+      user.is_active = action === "activate";
+
+      return Promise.resolve({
+        data: toPublicUser(user),
+        status: 200,
+      });
+    }
 
     // Create an organization (B1), with its first building in the same operation.
     // Created by the admin, so it starts ACTIVE (the public sign-up creates trials)
-    if (url === '/api/organizations') {
-      const denied = adminCheck()
-      if (denied) return Promise.reject(denied)
+    if (url === "/api/organizations") {
+      const denied = adminCheck();
+      if (denied) return Promise.reject(denied);
 
-      const name = typeof data.name === 'string' ? data.name.trim() : ''
-      if (name === '') {
+      const name = typeof data.name === "string" ? data.name.trim() : "";
+      if (name === "") {
         return Promise.reject({
           status: 422,
-          code: 'INVALID_NAME',
-          message: 'El nombre no puede estar vacío.',
+          code: "INVALID_NAME",
+          message: "El nombre no puede estar vacío.",
           details: null,
-        })
+        });
       }
       if (nameTaken(name)) {
         return Promise.reject(
-          conflict('ORGANIZATION_NAME_TAKEN', 'Ya hay una organización con ese nombre.')
-        )
+          conflict(
+            "ORGANIZATION_NAME_TAKEN",
+            "Ya hay una organización con ese nombre.",
+          ),
+        );
       }
 
       const organization = {
         id: crypto.randomUUID(),
         name,
-        status: 'ACTIVE',
+        status: "ACTIVE",
         trial_ends_at: null,
         city: data.city ?? null,
         contact_email: data.contact_email ?? null,
@@ -1384,8 +1512,8 @@ const mockAdapter = {
         billing_email: data.billing_email ?? null,
         user_count: 0,
         created_at: new Date().toISOString(),
-      }
-      organizations.push(organization)
+      };
+      organizations.push(organization);
 
       if (data.first_site) {
         sites.push({
@@ -1398,163 +1526,205 @@ const mockAdapter = {
           longitude: data.first_site.longitude ?? null,
           floors: data.first_site.floors ?? 1,
           basements: data.first_site.basements ?? 0,
-          building_type: data.first_site.building_type ?? 'OTHER',
+          building_type: data.first_site.building_type ?? "OTHER",
           district: null,
           sensor_count: 0,
-          status: 'OK',
+          status: "OK",
           created_at: organization.created_at,
-        })
+        });
       }
 
-      return Promise.resolve({ data: withCounters(organization), status: 201 })
+      return Promise.resolve({ data: withCounters(organization), status: 201 });
     }
 
     // Status actions of an organization (B1): suspend, reactivate, extend-trial, activate
-    if (url.startsWith('/api/organizations/')) {
-      const denied = adminCheck()
-      if (denied) return Promise.reject(denied)
+    if (url.startsWith("/api/organizations/")) {
+      const denied = adminCheck();
+      if (denied) return Promise.reject(denied);
 
-      const organization = findOrganization(url)
-      if (!organization) return Promise.reject(organizationNotFound())
+      const organization = findOrganization(url);
+      if (!organization) return Promise.reject(organizationNotFound());
 
-      const action = url.split('/')[4]
+      const action = url.split("/")[4];
 
-      if (action === 'suspend') {
-        if (organization.status === 'SUSPENDED') {
-          return Promise.reject(conflict('ORGANIZATION_ALREADY_SUSPENDED', 'Ya estaba suspendida.'))
+      if (action === "suspend") {
+        if (organization.status === "SUSPENDED") {
+          return Promise.reject(
+            conflict("ORGANIZATION_ALREADY_SUSPENDED", "Ya estaba suspendida."),
+          );
         }
-        organization.status = 'SUSPENDED'
-      } else if (action === 'reactivate') {
-        if (organization.status !== 'SUSPENDED') {
-          return Promise.reject(conflict('ORGANIZATION_NOT_SUSPENDED', 'No estaba suspendida.'))
+        organization.status = "SUSPENDED";
+      } else if (action === "reactivate") {
+        if (organization.status !== "SUSPENDED") {
+          return Promise.reject(
+            conflict("ORGANIZATION_NOT_SUSPENDED", "No estaba suspendida."),
+          );
         }
         // Back to TRIAL if it still has a trial date, ACTIVE otherwise
-        organization.status = organization.trial_ends_at ? 'TRIAL' : 'ACTIVE'
-      } else if (action === 'extend-trial' || action === 'activate') {
-        if (organization.status !== 'TRIAL') {
-          return Promise.reject(conflict('ORGANIZATION_NOT_IN_TRIAL', 'La organización no está en prueba.'))
+        organization.status = organization.trial_ends_at ? "TRIAL" : "ACTIVE";
+      } else if (action === "extend-trial" || action === "activate") {
+        if (organization.status !== "TRIAL") {
+          return Promise.reject(
+            conflict(
+              "ORGANIZATION_NOT_IN_TRIAL",
+              "La organización no está en prueba.",
+            ),
+          );
         }
-        if (action === 'activate') {
-          organization.status = 'ACTIVE'
-          organization.trial_ends_at = null
+        if (action === "activate") {
+          organization.status = "ACTIVE";
+          organization.trial_ends_at = null;
         } else {
           // Adds the days to the end date, or to today if the trial already ended
-          const now = new Date()
-          const end = new Date(organization.trial_ends_at)
-          const from = end > now ? end : now
-          organization.trial_ends_at = new Date(from.getTime() + TRIAL_DAYS * DAY_MS).toISOString()
+          const now = new Date();
+          const end = new Date(organization.trial_ends_at);
+          const from = end > now ? end : now;
+          organization.trial_ends_at = new Date(
+            from.getTime() + TRIAL_DAYS * DAY_MS,
+          ).toISOString();
         }
       } else {
         return Promise.reject({
           status: 404,
-          code: 'UNKNOWN_ENDPOINT',
-          message: 'Mock endpoint not found.',
+          code: "UNKNOWN_ENDPOINT",
+          message: "Mock endpoint not found.",
           details: null,
-        })
+        });
       }
 
-      return Promise.resolve({ data: withCounters(organization), status: 200 })
+      return Promise.resolve({ data: withCounters(organization), status: 200 });
     }
 
     // Accept an invitation (B4, public): creates the client user and opens the
     // session, like the sign-up. Order: 429 (Nginx), 404/410, 422, then 409
-    if (url.startsWith('/api/invitations/by-code/') && url.endsWith('/accept')) {
+    if (
+      url.startsWith("/api/invitations/by-code/") &&
+      url.endsWith("/accept")
+    ) {
       if (isInvitationsRateLimited()) {
-        return Promise.reject(rateLimitError())
+        return Promise.reject(rateLimitError());
       }
 
-      const { invitation, error } = findInvitationByCode(codeFromUrl(url))
-      if (error) return Promise.reject(error)
+      const { invitation, error } = findInvitationByCode(codeFromUrl(url));
+      if (error) return Promise.reject(error);
 
-      const name = typeof data.name === 'string' ? data.name.trim() : ''
-      const password = typeof data.password === 'string' ? data.password : ''
+      const name = typeof data.name === "string" ? data.name.trim() : "";
+      const password = typeof data.password === "string" ? data.password : "";
 
       // Pydantic checks (generic VALIDATION_ERROR, one detail per field)
       if (!name || name.length > 120) {
-        return Promise.reject(validationError('name', 'String should have 1-120 characters'))
+        return Promise.reject(
+          validationError("name", "String should have 1-120 characters"),
+        );
       }
-      if (typeof data.accept_terms !== 'boolean') {
-        return Promise.reject(validationError('accept_terms', 'Input should be a valid boolean'))
+      if (typeof data.accept_terms !== "boolean") {
+        return Promise.reject(
+          validationError("accept_terms", "Input should be a valid boolean"),
+        );
       }
 
       // Domain checks, same as the register (B10)
       if (!data.accept_terms) {
-        return Promise.reject(domainError(
-          422,
-          'TERMS_NOT_ACCEPTED',
-          'Tienes que aceptar los términos de uso para registrarte.'
-        ))
+        return Promise.reject(
+          domainError(
+            422,
+            "TERMS_NOT_ACCEPTED",
+            "Tienes que aceptar los términos de uso para registrarte.",
+          ),
+        );
       }
 
-      const weakPasswordMessage = checkMockPassword(password, invitation.email)
+      const weakPasswordMessage = checkMockPassword(password, invitation.email);
       if (weakPasswordMessage) {
-        return Promise.reject(domainError(422, 'WEAK_PASSWORD', weakPasswordMessage))
+        return Promise.reject(
+          domainError(422, "WEAK_PASSWORD", weakPasswordMessage),
+        );
       }
 
-      if (mockUser.some((user) => user.email.toLowerCase() === invitation.email)) {
-        return Promise.reject(domainError(409, 'EMAIL_ALREADY_EXISTS', 'Ese email ya está dado de alta.'))
+      if (
+        mockUser.some((user) => user.email.toLowerCase() === invitation.email)
+      ) {
+        return Promise.reject(
+          domainError(
+            409,
+            "EMAIL_ALREADY_EXISTS",
+            "Ese email ya está dado de alta.",
+          ),
+        );
       }
 
-      const now = new Date()
+      const now = new Date();
       const newUser = {
         id: crypto.randomUUID(),
         email: invitation.email,
         name,
-        role: 'client',
+        role: "client",
         organization_id: invitation.organization_id,
         created_at: now.toISOString(),
         password,
-      }
-      mockUser.push(newUser)
+      };
+      mockUser.push(newUser);
 
       // One use only: the same link answers 404 from now on
-      invitation.accepted_at = now.toISOString()
-      saveInvitations()
+      invitation.accepted_at = now.toISOString();
+      saveInvitations();
 
-      const organization = organizations.find((item) => item.id === invitation.organization_id)
-      if (organization) organization.user_count = (organization.user_count ?? 0) + 1
+      const organization = organizations.find(
+        (item) => item.id === invitation.organization_id,
+      );
+      if (organization)
+        organization.user_count = (organization.user_count ?? 0) + 1;
 
-      currentUser = newUser
-      localStorage.setItem(MOCK_SESSION_KEY, newUser.id)
+      currentUser = newUser;
+      localStorage.setItem(MOCK_SESSION_KEY, newUser.id);
 
       return Promise.resolve({
         data: {
           user: toPublicUser(currentUser),
         },
         status: 201,
-      })
+      });
     }
 
     // Create an invitation (B4). No session check: see GET /api/invitations
-    if (url === '/api/invitations') {
-      const email = typeof data.email === 'string' ? data.email.trim().toLowerCase() : ''
+    if (url === "/api/invitations") {
+      const email =
+        typeof data.email === "string" ? data.email.trim().toLowerCase() : "";
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        return Promise.reject(validationError('email', 'A valid email is required.'))
+        return Promise.reject(
+          validationError("email", "A valid email is required."),
+        );
       }
 
       if (!data.organization_id) {
-        return Promise.reject(validationError('organization_id', 'organization_id is required.'))
+        return Promise.reject(
+          validationError("organization_id", "organization_id is required."),
+        );
       }
       // With the real API the client is not in the fixtures, so its name may be unknown here
-      const organization = organizations.find((item) => item.id === data.organization_id)
+      const organization = organizations.find(
+        (item) => item.id === data.organization_id,
+      );
 
-      const code = Math.random().toString(36).slice(2, 14)
-      const now = new Date()
+      const code = Math.random().toString(36).slice(2, 14);
+      const now = new Date();
       const invitation = {
         id: crypto.randomUUID(),
         organization_id: data.organization_id,
-        organization_name: organization?.name ?? '',
+        organization_name: organization?.name ?? "",
         email,
-        expires_at: new Date(now.getTime() + INVITATION_TTL_DAYS * DAY_MS).toISOString(),
+        expires_at: new Date(
+          now.getTime() + INVITATION_TTL_DAYS * DAY_MS,
+        ).toISOString(),
         accepted_at: null,
         revoked_at: null,
         created_by_name: currentUser?.name ?? null,
         created_at: now.toISOString(),
         // Kept so GET /by-code/{code} can find it; never returned after this answer
         code,
-      }
-      invitations.push(invitation)
-      saveInvitations()
+      };
+      invitations.push(invitation);
+      saveInvitations();
 
       // code and url only in this answer, as in the API.
       // Same route and param that F6 (#167) reads: /registro?invitacion=CODE
@@ -1565,64 +1735,59 @@ const mockAdapter = {
           url: `${window.location.origin}/registro?invitacion=${code}`,
         },
         status: 201,
-      })
+      });
     }
 
     // Create a reading.
-    if (url === '/api/readings') {
+    if (url === "/api/readings") {
       if (!currentUser) {
-        return Promise.reject(authError())
+        return Promise.reject(authError());
       }
 
-      const sensor = sensors.find(
-        (sensor) => sensor.id === data.sensor_id
-      )
+      const sensor = sensors.find((sensor) => sensor.id === data.sensor_id);
 
       if (!sensor) {
         return Promise.reject({
           status: 404,
-          code: 'SENSOR_NOT_FOUND',
-          message: 'Sensor not found.',
+          code: "SENSOR_NOT_FOUND",
+          message: "Sensor not found.",
           details: null,
-        })
+        });
       }
 
       if (!canAccessSensor(data.sensor_id)) {
-        return Promise.reject(forbiddenError())
+        return Promise.reject(forbiddenError());
       }
 
       if (
-        typeof data.pressure !== 'number' ||
+        typeof data.pressure !== "number" ||
         !Number.isFinite(data.pressure) ||
         data.pressure < 0 ||
         data.pressure > 25
       ) {
         return Promise.reject(
           validationError(
-            'pressure',
-            'Pressure must be a number between 0 and 25 bar.'
-          )
-        )
+            "pressure",
+            "Pressure must be a number between 0 and 25 bar.",
+          ),
+        );
       }
 
-      let measuredAt = new Date().toISOString()
+      let measuredAt = new Date().toISOString();
 
       if (data.measured_at !== undefined) {
-        const parsedDate = new Date(data.measured_at)
+        const parsedDate = new Date(data.measured_at);
 
         if (
-          typeof data.measured_at !== 'string' ||
+          typeof data.measured_at !== "string" ||
           Number.isNaN(parsedDate.getTime())
         ) {
           return Promise.reject(
-            validationError(
-              'measured_at',
-              'measured_at must be a valid date.'
-            )
-          )
+            validationError("measured_at", "measured_at must be a valid date."),
+          );
         }
 
-        measuredAt = parsedDate.toISOString()
+        measuredAt = parsedDate.toISOString();
       }
 
       const reading = {
@@ -1631,56 +1796,51 @@ const mockAdapter = {
         pressure: data.pressure,
         measured_at: measuredAt,
         created_at: new Date().toISOString(),
-      }
+      };
 
-      readings.push(reading)
+      readings.push(reading);
 
       return Promise.resolve({
         data: reading,
         status: 201,
-      })
+      });
     }
 
     // Create a sensor.
-    if (url === '/api/sensors') {
+    if (url === "/api/sensors") {
       if (!currentUser) {
-        return Promise.reject(authError())
+        return Promise.reject(authError());
       }
 
-      const site = sites.find(
-        (site) => site.id === data.site_id
-      )
+      const site = sites.find((site) => site.id === data.site_id);
 
       if (!site) {
         return Promise.reject({
           status: 404,
-          code: 'SITE_NOT_FOUND',
-          message: 'Site not found.',
+          code: "SITE_NOT_FOUND",
+          message: "Site not found.",
           details: null,
-        })
+        });
       }
 
       if (
         !getAccessibleSites().some(
-          (accessibleSite) => accessibleSite.id === data.site_id
+          (accessibleSite) => accessibleSite.id === data.site_id,
         )
       ) {
-        return Promise.reject(forbiddenError())
+        return Promise.reject(forbiddenError());
       }
 
-      if (
-        typeof data.name !== 'string' ||
-        !data.name.trim()
-      ) {
+      if (typeof data.name !== "string" || !data.name.trim()) {
         return Promise.reject(
-          validationError('name', 'A sensor name is required.')
-        )
+          validationError("name", "A sensor name is required."),
+        );
       }
 
       if (
-        typeof data.min_pressure !== 'number' ||
+        typeof data.min_pressure !== "number" ||
         !Number.isFinite(data.min_pressure) ||
-        typeof data.max_pressure !== 'number' ||
+        typeof data.max_pressure !== "number" ||
         !Number.isFinite(data.max_pressure) ||
         data.min_pressure < 0 ||
         data.min_pressure > 25 ||
@@ -1690,26 +1850,31 @@ const mockAdapter = {
       ) {
         return Promise.reject(
           validationError(
-            'min_pressure',
-            'Pressure limits must be numbers between 0 and 25, with min_pressure lower than max_pressure.'
-          )
-        )
+            "min_pressure",
+            "Pressure limits must be numbers between 0 and 25, with min_pressure lower than max_pressure.",
+          ),
+        );
       }
 
-      const floor = data.floor ?? 0
+      const floor = data.floor ?? 0;
       if (!floorInSite(floor, site)) {
-        return Promise.reject(floorOutOfSite(site))
+        return Promise.reject(floorOutOfSite(site));
       }
 
       // external_id is unique inside its site (409, as the API: exact match).
       // Case variants ('sens-001') are rejected earlier by SensorForm.
-      if (sensors.some((item) => item.site_id === site.id && item.external_id === data.external_id)) {
+      if (
+        sensors.some(
+          (item) =>
+            item.site_id === site.id && item.external_id === data.external_id,
+        )
+      ) {
         return Promise.reject({
           status: 409,
-          code: 'EXTERNAL_ID_TAKEN',
-          message: 'Ya hay un sensor con esa etiqueta en este edificio.',
+          code: "EXTERNAL_ID_TAKEN",
+          message: "Ya hay un sensor con esa etiqueta en este edificio.",
           details: null,
-        })
+        });
       }
 
       // A new sensor has never sent a reading: OFFLINE until the first one arrives
@@ -1723,114 +1888,114 @@ const mockAdapter = {
         external_id: data.external_id,
         name: data.name.trim(),
         location: data.location ?? null,
-        sensor_type: data.sensor_type ?? 'PRESSURE',
-        unit: data.unit ?? 'bar',
+        sensor_type: data.sensor_type ?? "PRESSURE",
+        unit: data.unit ?? "bar",
         min_pressure: data.min_pressure,
         max_pressure: data.max_pressure,
-        status: 'OFFLINE',
-        health: 'OFFLINE',
+        status: "OFFLINE",
+        health: "OFFLINE",
         last_seen_at: null,
         last_value: null,
         created_at: new Date().toISOString(),
-      }
+      };
 
-      sensors.push(sensor)
-      site.sensor_count = (site.sensor_count ?? 0) + 1
+      sensors.push(sensor);
+      site.sensor_count = (site.sensor_count ?? 0) + 1;
 
       return Promise.resolve({
         data: { ...sensor },
         status: 201,
-      })
+      });
     }
 
     // Create a site (B2). Same 409 as the API: exact name inside the same client.
     // Case variants ('torre sofia') are rejected earlier by SiteForm.
-    if (url === '/api/sites') {
+    if (url === "/api/sites") {
       // Admin only, as in the API (B2)
       if (!currentUser) {
-        return Promise.reject(authError())
+        return Promise.reject(authError());
       }
-      if (currentUser.role !== 'admin') {
-        return Promise.reject(forbiddenError())
+      if (currentUser.role !== "admin") {
+        return Promise.reject(forbiddenError());
       }
 
       const sameName = sites.some(
         (site) =>
           site.organization_id === data.organization_id &&
-          site.name === String(data.name).trim()
-      )
+          site.name === String(data.name).trim(),
+      );
 
       if (sameName) {
         return Promise.reject({
           status: 409,
-          code: 'SITE_NAME_TAKEN',
-          message: 'Ese cliente ya tiene un edificio con ese nombre.',
+          code: "SITE_NAME_TAKEN",
+          message: "Ese cliente ya tiene un edificio con ese nombre.",
           details: null,
-        })
+        });
       }
 
-      const owner = organizations.find((organization) => organization.id === data.organization_id)
+      const owner = organizations.find(
+        (organization) => organization.id === data.organization_id,
+      );
 
       const site = {
         id: crypto.randomUUID(),
         organization_id: data.organization_id,
-        organization_name: owner?.name ?? 'Cliente',
+        organization_name: owner?.name ?? "Cliente",
         name: String(data.name).trim(),
         address: data.address || null,
         latitude: data.latitude ?? null,
         longitude: data.longitude ?? null,
         floors: data.floors ?? 1,
         basements: data.basements ?? 0,
-        building_type: data.building_type ?? 'OTHER',
+        building_type: data.building_type ?? "OTHER",
         district: null,
         sensor_count: 0,
-        status: 'OK',
+        status: "OK",
         created_at: new Date().toISOString(),
-      }
+      };
 
-      sites.push(site)
+      sites.push(site);
 
       return Promise.resolve({
         data: { ...site },
         status: 201,
-      })
+      });
     }
 
     // Documents (B11): upload multipart/form-data
-    if (url === '/api/documents') {
-      if (!currentUser) return Promise.reject(authError())
+    if (url === "/api/documents") {
+      if (!currentUser) return Promise.reject(authError());
 
-      const file = data instanceof FormData ? data.get('file') : null
-      const siteId = data instanceof FormData ? data.get('site_id') : null
-      const kind = data instanceof FormData ? data.get('kind') : null
+      const file = data instanceof FormData ? data.get("file") : null;
+      const siteId = data instanceof FormData ? data.get("site_id") : null;
+      const kind = data instanceof FormData ? data.get("kind") : null;
 
-      if (!file || typeof file.name !== 'string') {
+      if (!file || typeof file.name !== "string") {
         return Promise.reject(
-          validationError('file', 'Un fichier est obligatoire.')
-        )
+          validationError("file", "Un fichier est obligatoire."),
+        );
       }
 
       if (!siteId) {
         return Promise.reject(
-          validationError('site_id', 'site_id est obligatoire.')
-        )
+          validationError("site_id", "site_id est obligatoire."),
+        );
       }
 
       if (!kind) {
-        return Promise.reject(
-          validationError('kind', 'kind est obligatoire.')
-        )
+        return Promise.reject(validationError("kind", "kind est obligatoire."));
       }
 
-      const site = sites.find((item) => item.id === siteId)
+      const site = sites.find((item) => item.id === siteId);
       if (!site) {
         return Promise.reject(
-          domainError(404, 'SITE_NOT_FOUND', 'El edificio no existe.')
-        )
+          domainError(404, "SITE_NOT_FOUND", "El edificio no existe."),
+        );
       }
 
       if (!getAccessibleSites().some((item) => item.id === siteId)) {
-        return Promise.reject(forbiddenError())
+        return Promise.reject(forbiddenError());
       }
 
       const document = {
@@ -1840,259 +2005,241 @@ const mockAdapter = {
         site_name: site.name,
         kind,
         filename: file.name,
-        content_type: file.type || 'application/octet-stream',
+        content_type: file.type || "application/octet-stream",
         size: file.size,
         uploaded_by: currentUser.id,
         can_delete: true,
         created_at: new Date().toISOString(),
-      }
+      };
 
-      mockDocuments.push(document)
+      mockDocuments.push(document);
 
-      return Promise.resolve({ data: document, status: 201 })
+      return Promise.resolve({ data: document, status: 201 });
     }
 
     // Handle unknown endpoints.
     return Promise.reject({
       status: 404,
-      code: 'UNKNOWN_ENDPOINT',
-      message: 'Mock endpoint not found.',
+      code: "UNKNOWN_ENDPOINT",
+      message: "Mock endpoint not found.",
       details: null,
-    })
+    });
   },
 
-    // PATCH requests
+  // PATCH requests
   patch(url, data = {}, config = {}) {
-    console.log('[MOCK PATCH]', url, data, config)
+    console.log("[MOCK PATCH]", url, data, config);
 
     // Users (B6): partial update
-    if (url.startsWith('/api/users/')) {
-      const denied = adminCheck()
-      if (denied) return Promise.reject(denied)
+    if (url.startsWith("/api/users/")) {
+      const denied = adminCheck();
+      if (denied) return Promise.reject(denied);
 
-      const id = url.split('/')[3]
-      const user = mockUser.find((item) => item.id === id)
+      const id = url.split("/")[3];
+      const user = mockUser.find((item) => item.id === id);
 
       if (!user) {
         return Promise.reject(
-          domainError(404, 'USER_NOT_FOUND', 'El usuario no existe.')
-        )
+          domainError(404, "USER_NOT_FOUND", "El usuario no existe."),
+        );
       }
 
       if (data.name !== undefined) {
-        if (typeof data.name !== 'string' || !data.name.trim()) {
+        if (typeof data.name !== "string" || !data.name.trim()) {
           return Promise.reject(
-            validationError('name', 'El nombre no puede estar vacío.')
-          )
+            validationError("name", "El nombre no puede estar vacío."),
+          );
         }
-        user.name = data.name.trim()
+        user.name = data.name.trim();
       }
 
       if (data.role !== undefined) {
-        if (!['admin', 'client'].includes(data.role)) {
+        if (!["admin", "client"].includes(data.role)) {
           return Promise.reject(
-            validationError('role', 'El rol no es válido.')
-          )
+            validationError("role", "El rol no es válido."),
+          );
         }
-        user.role = data.role
+        user.role = data.role;
       }
 
       if (data.organization_id !== undefined) {
-        user.organization_id = data.organization_id
+        user.organization_id = data.organization_id;
       }
 
       return Promise.resolve({
         data: toPublicUser(user),
         status: 200,
-      })
+      });
     }
 
-    if (url === '/api/me') {
-      if (!currentUser) return Promise.reject(authError())
-      const name = typeof data.name === 'string' ? data.name.trim() : ''
+    if (url === "/api/me") {
+      if (!currentUser) return Promise.reject(authError());
+      const name = typeof data.name === "string" ? data.name.trim() : "";
       if (!name || name.length > 120) {
-        return Promise.reject(domainError(422, 'INVALID_NAME', 'El nombre no puede estar vacío.'))
+        return Promise.reject(
+          domainError(422, "INVALID_NAME", "El nombre no puede estar vacío."),
+        );
       }
-      currentUser.name = name
-      return Promise.resolve({ data: toMeResponse(currentUser), status: 200 })
+      currentUser.name = name;
+      return Promise.resolve({ data: toMeResponse(currentUser), status: 200 });
     }
 
     // Acknowledge an alert.
-    if (url.startsWith('/api/alerts/') && url.endsWith('/acknowledge')) {
+    if (url.startsWith("/api/alerts/") && url.endsWith("/acknowledge")) {
       if (!currentUser) {
-        return Promise.reject(authError())
+        return Promise.reject(authError());
       }
 
-      const id = url.split('/')[3]
-      const alert = alerts.find(
-        (alert) => alert.id === id
-      )
+      const id = url.split("/")[3];
+      const alert = alerts.find((alert) => alert.id === id);
 
       if (!alert) {
         return Promise.reject({
           status: 404,
-          code: 'ALERT_NOT_FOUND',
-          message: 'Alert not found.',
+          code: "ALERT_NOT_FOUND",
+          message: "Alert not found.",
           details: null,
-        })
+        });
       }
 
       if (
         !getAccessibleAlerts().some(
-          (accessibleAlert) => accessibleAlert.id === id
+          (accessibleAlert) => accessibleAlert.id === id,
         )
       ) {
-        return Promise.reject(forbiddenError())
+        return Promise.reject(forbiddenError());
       }
 
-      alert.acknowledged_at = new Date().toISOString()
-      alert.state = 'ACKNOWLEDGED'
+      alert.acknowledged_at = new Date().toISOString();
+      alert.state = "ACKNOWLEDGED";
 
       return Promise.resolve({
         data: { ...alert },
         status: 200,
-      })
+      });
     }
 
     // Resolve an alert.
-    if (url.startsWith('/api/alerts/') && url.endsWith('/resolve')) {
+    if (url.startsWith("/api/alerts/") && url.endsWith("/resolve")) {
       if (!currentUser) {
-        return Promise.reject(authError())
+        return Promise.reject(authError());
       }
 
-      const id = url.split('/')[3]
-      const alert = alerts.find(
-        (alert) => alert.id === id
-      )
+      const id = url.split("/")[3];
+      const alert = alerts.find((alert) => alert.id === id);
 
       if (!alert) {
         return Promise.reject({
           status: 404,
-          code: 'ALERT_NOT_FOUND',
-          message: 'Alert not found.',
+          code: "ALERT_NOT_FOUND",
+          message: "Alert not found.",
           details: null,
-        })
+        });
       }
 
       if (
         !getAccessibleAlerts().some(
-          (accessibleAlert) => accessibleAlert.id === id
+          (accessibleAlert) => accessibleAlert.id === id,
         )
       ) {
-        return Promise.reject(forbiddenError())
+        return Promise.reject(forbiddenError());
       }
 
-      alert.status = 'RESOLVED'
-      alert.state = 'RESOLVED'
-      alert.resolved_at = new Date().toISOString()
+      alert.status = "RESOLVED";
+      alert.state = "RESOLVED";
+      alert.resolved_at = new Date().toISOString();
 
       return Promise.resolve({
         data: { ...alert },
         status: 200,
-      })
+      });
     }
 
     // Update a sensor.
-    if (
-      url.startsWith('/api/sensors/') &&
-      !url.endsWith('/readings')
-    ) {
+    if (url.startsWith("/api/sensors/") && !url.endsWith("/readings")) {
       if (!currentUser) {
-        return Promise.reject(authError())
+        return Promise.reject(authError());
       }
 
-      const id = url.split('/')[3]
-      const sensor = sensors.find(
-        (sensor) => sensor.id === id
-      )
+      const id = url.split("/")[3];
+      const sensor = sensors.find((sensor) => sensor.id === id);
 
       if (!sensor) {
         return Promise.reject({
           status: 404,
-          code: 'SENSOR_NOT_FOUND',
-          message: 'Sensor not found.',
+          code: "SENSOR_NOT_FOUND",
+          message: "Sensor not found.",
           details: null,
-        })
+        });
       }
 
       if (!canAccessSensor(id)) {
-        return Promise.reject(forbiddenError())
+        return Promise.reject(forbiddenError());
       }
 
       // Validate pressure values only when they are provided.
       if (
-        (
-          data.min_pressure !== undefined &&
-          (
-            typeof data.min_pressure !== 'number' ||
+        (data.min_pressure !== undefined &&
+          (typeof data.min_pressure !== "number" ||
             !Number.isFinite(data.min_pressure) ||
             data.min_pressure < 0 ||
-            data.min_pressure > 25
-          )
-        ) ||
-        (
-          data.max_pressure !== undefined &&
-          (
-            typeof data.max_pressure !== 'number' ||
+            data.min_pressure > 25)) ||
+        (data.max_pressure !== undefined &&
+          (typeof data.max_pressure !== "number" ||
             !Number.isFinite(data.max_pressure) ||
             data.max_pressure < 0 ||
-            data.max_pressure > 25
-          )
-        )
+            data.max_pressure > 25))
       ) {
         return Promise.reject(
           validationError(
-            'min_pressure',
-            'Pressure limits must be numbers between 0 and 25.'
-          )
-        )
+            "min_pressure",
+            "Pressure limits must be numbers between 0 and 25.",
+          ),
+        );
       }
 
       const nextMin =
         data.min_pressure !== undefined
           ? data.min_pressure
-          : sensor.min_pressure
+          : sensor.min_pressure;
 
       const nextMax =
         data.max_pressure !== undefined
           ? data.max_pressure
-          : sensor.max_pressure
+          : sensor.max_pressure;
 
       if (nextMin >= nextMax) {
         return Promise.reject(
           validationError(
-            'min_pressure',
-            'min_pressure must be lower than max_pressure.'
-          )
-        )
+            "min_pressure",
+            "min_pressure must be lower than max_pressure.",
+          ),
+        );
       }
 
       if (
         data.name !== undefined &&
-        (
-          typeof data.name !== 'string' ||
-          !data.name.trim()
-        )
+        (typeof data.name !== "string" || !data.name.trim())
       ) {
         return Promise.reject(
-          validationError('name', 'Sensor name cannot be empty.')
-        )
+          validationError("name", "Sensor name cannot be empty."),
+        );
       }
 
       if (
         data.location !== undefined &&
         data.location !== null &&
-        typeof data.location !== 'string'
+        typeof data.location !== "string"
       ) {
         return Promise.reject(
-          validationError('location', 'Location must be a string or null.')
-        )
+          validationError("location", "Location must be a string or null."),
+        );
       }
 
       if (data.floor !== undefined) {
-        const site = sites.find((item) => item.id === sensor.site_id)
+        const site = sites.find((item) => item.id === sensor.site_id);
         if (site && !floorInSite(data.floor, site)) {
-          return Promise.reject(floorOutOfSite(site))
+          return Promise.reject(floorOutOfSite(site));
         }
       }
 
@@ -2112,192 +2259,236 @@ const mockAdapter = {
         ...(data.max_pressure !== undefined && {
           max_pressure: data.max_pressure,
         }),
-      })
+      });
 
       return Promise.resolve({
         data: { ...sensor },
         status: 200,
-      })
+      });
     }
 
     // Update an organization (B1): only name, contact and billing fields
-    if (url.startsWith('/api/organizations/')) {
-      const denied = adminCheck()
-      if (denied) return Promise.reject(denied)
+    if (url.startsWith("/api/organizations/")) {
+      const denied = adminCheck();
+      if (denied) return Promise.reject(denied);
 
-      const organization = findOrganization(url)
-      if (!organization) return Promise.reject(organizationNotFound())
+      const organization = findOrganization(url);
+      if (!organization) return Promise.reject(organizationNotFound());
 
       if (data.name !== undefined) {
-        const name = String(data.name).trim()
-        if (name === '') {
-          return Promise.reject({ status: 422, code: 'INVALID_NAME', message: 'El nombre no puede estar vacío.', details: null })
+        const name = String(data.name).trim();
+        if (name === "") {
+          return Promise.reject({
+            status: 422,
+            code: "INVALID_NAME",
+            message: "El nombre no puede estar vacío.",
+            details: null,
+          });
         }
         if (nameTaken(name, organization.id)) {
-          return Promise.reject(conflict('ORGANIZATION_NAME_TAKEN', 'Ya hay una organización con ese nombre.'))
+          return Promise.reject(
+            conflict(
+              "ORGANIZATION_NAME_TAKEN",
+              "Ya hay una organización con ese nombre.",
+            ),
+          );
         }
-        organization.name = name
+        organization.name = name;
       }
 
-      const EDITABLE = ['city', 'contact_email', 'phone', 'legal_name', 'tax_id', 'billing_email']
+      const EDITABLE = [
+        "city",
+        "contact_email",
+        "phone",
+        "legal_name",
+        "tax_id",
+        "billing_email",
+      ];
       for (const field of EDITABLE) {
-        if (data[field] !== undefined) organization[field] = data[field]
+        if (data[field] !== undefined) organization[field] = data[field];
       }
 
-      return Promise.resolve({ data: withCounters(organization), status: 200 })
+      return Promise.resolve({ data: withCounters(organization), status: 200 });
     }
 
     // Update a site (B2). Only the fields sent change; the client cannot change.
-    if (url.startsWith('/api/sites/')) {
+    if (url.startsWith("/api/sites/")) {
       // Admin only, as in the API (B2)
       if (!currentUser) {
-        return Promise.reject(authError())
+        return Promise.reject(authError());
       }
-      if (currentUser.role !== 'admin') {
-        return Promise.reject(forbiddenError())
+      if (currentUser.role !== "admin") {
+        return Promise.reject(forbiddenError());
       }
 
-      const id = url.split('/')[3]
-      const site = sites.find((site) => site.id === id)
+      const id = url.split("/")[3];
+      const site = sites.find((site) => site.id === id);
 
       if (!site) {
         return Promise.reject({
           status: 404,
-          code: 'SITE_NOT_FOUND',
-          message: 'El site indicado no existe.',
+          code: "SITE_NOT_FOUND",
+          message: "El site indicado no existe.",
           details: null,
-        })
+        });
       }
 
-      const EDITABLE = ['name', 'address', 'latitude', 'longitude', 'floors', 'basements', 'building_type']
+      const EDITABLE = [
+        "name",
+        "address",
+        "latitude",
+        "longitude",
+        "floors",
+        "basements",
+        "building_type",
+      ];
       for (const field of EDITABLE) {
-        if (data[field] !== undefined) site[field] = data[field]
+        if (data[field] !== undefined) site[field] = data[field];
       }
 
       return Promise.resolve({
         data: { ...site },
         status: 200,
-      })
+      });
     }
 
     // Handle unknown endpoints.
     return Promise.reject({
       status: 404,
-      code: 'UNKNOWN_ENDPOINT',
-      message: 'Mock endpoint not found.',
+      code: "UNKNOWN_ENDPOINT",
+      message: "Mock endpoint not found.",
       details: null,
-    })
+    });
   },
 
   // DELETE requests
   delete(url, config = {}) {
-    console.log('[MOCK DELETE]', url, config)
+    console.log("[MOCK DELETE]", url, config);
 
     // Users (B6): delete
-    if (url.startsWith('/api/users/')) {
-      const denied = adminCheck()
-      if (denied) return Promise.reject(denied)
+    if (url.startsWith("/api/users/")) {
+      const denied = adminCheck();
+      if (denied) return Promise.reject(denied);
 
-      const id = url.split('/')[3]
-      const index = mockUser.findIndex((item) => item.id === id)
+      const id = url.split("/")[3];
+      const index = mockUser.findIndex((item) => item.id === id);
 
       if (index === -1) {
         return Promise.reject(
-          domainError(404, 'USER_NOT_FOUND', 'El usuario no existe.')
-        )
+          domainError(404, "USER_NOT_FOUND", "El usuario no existe."),
+        );
       }
 
       if (mockUser[index].id === currentUser?.id) {
         return Promise.reject(
-          domainError(409, 'CANNOT_DELETE_SELF', 'No puedes eliminar tu propia cuenta.')
-        )
+          domainError(
+            409,
+            "CANNOT_DELETE_SELF",
+            "No puedes eliminar tu propia cuenta.",
+          ),
+        );
       }
 
-      mockUser.splice(index, 1)
+      mockUser.splice(index, 1);
 
-      return Promise.resolve({ data: null, status: 204 })
+      return Promise.resolve({ data: null, status: 204 });
     }
 
     // Delete an organization and everything it owns (B16). Needs the exact name
-    if (url.startsWith('/api/organizations/')) {
-      const denied = adminCheck()
-      if (denied) return Promise.reject(denied)
+    if (url.startsWith("/api/organizations/")) {
+      const denied = adminCheck();
+      if (denied) return Promise.reject(denied);
 
-      const organization = findOrganization(url)
-      if (!organization) return Promise.reject(organizationNotFound())
+      const organization = findOrganization(url);
+      if (!organization) return Promise.reject(organizationNotFound());
 
       if (config.data?.confirm_name !== organization.name) {
         return Promise.reject({
           status: 422,
-          code: 'NAME_CONFIRMATION_MISMATCH',
-          message: 'El nombre no coincide.',
+          code: "NAME_CONFIRMATION_MISMATCH",
+          message: "El nombre no coincide.",
           details: null,
-        })
+        });
       }
 
-      const owned = (item) => item.organization_id === organization.id
-      const sensorIds = new Set(sensors.filter(owned).map((sensor) => sensor.id))
+      const owned = (item) => item.organization_id === organization.id;
+      const sensorIds = new Set(
+        sensors.filter(owned).map((sensor) => sensor.id),
+      );
 
       const deleted = {
-        readings: removeWhere(readings, (reading) => sensorIds.has(reading.sensor_id)),
+        readings: removeWhere(readings, (reading) =>
+          sensorIds.has(reading.sensor_id),
+        ),
         alerts: removeWhere(alerts, owned),
         sensors: removeWhere(sensors, owned),
         documents: 0,
         sites: removeWhere(sites, owned),
         invitations: removeWhere(invitations, owned),
         users: organization.user_count,
-        organizations: removeWhere(organizations, (item) => item.id === organization.id),
-      }
-      saveInvitations()
+        organizations: removeWhere(
+          organizations,
+          (item) => item.id === organization.id,
+        ),
+      };
+      saveInvitations();
 
       return Promise.resolve({
-        data: { id: organization.id, name: organization.name, deleted, detached_admins: 0, deleted_files: 0 },
+        data: {
+          id: organization.id,
+          name: organization.name,
+          deleted,
+          detached_admins: 0,
+          deleted_files: 0,
+        },
         status: 200,
-      })
+      });
     }
 
     // Documents (B11): delete
-    if (url.startsWith('/api/documents/')) {
-      if (!currentUser) return Promise.reject(authError())
+    if (url.startsWith("/api/documents/")) {
+      if (!currentUser) return Promise.reject(authError());
 
-      const id = url.split('/')[3]
-      const index = mockDocuments.findIndex((item) => item.id === id)
+      const id = url.split("/")[3];
+      const index = mockDocuments.findIndex((item) => item.id === id);
 
       if (index === -1) {
         return Promise.reject(
-          domainError(404, 'DOCUMENT_NOT_FOUND', 'El documento no existe.')
-        )
+          domainError(404, "DOCUMENT_NOT_FOUND", "El documento no existe."),
+        );
       }
 
-      const document = mockDocuments[index]
+      const document = mockDocuments[index];
 
       if (
         document.organization_id !== currentUser.organization_id &&
-        currentUser.role !== 'admin'
+        currentUser.role !== "admin"
       ) {
-        return Promise.reject(forbiddenError())
+        return Promise.reject(forbiddenError());
       }
 
       // A client cannot delete a document uploaded by an admin.
-      const uploader = mockUser.find((user) => user.id === document.uploaded_by)
-      if (currentUser.role === 'client' && uploader?.role === 'admin') {
-        return Promise.reject(forbiddenError())
+      const uploader = mockUser.find(
+        (user) => user.id === document.uploaded_by,
+      );
+      if (currentUser.role === "client" && uploader?.role === "admin") {
+        return Promise.reject(forbiddenError());
       }
 
-      mockDocuments.splice(index, 1)
-      return Promise.resolve({ data: null, status: 204 })
+      mockDocuments.splice(index, 1);
+      return Promise.resolve({ data: null, status: 204 });
     }
 
     return Promise.reject({
       status: 404,
-      code: 'UNKNOWN_ENDPOINT',
-      message: 'Mock endpoint not found.',
+      code: "UNKNOWN_ENDPOINT",
+      message: "Mock endpoint not found.",
       details: null,
-    })
+    });
   },
-}
+};
 
-export default mockAdapter
+export default mockAdapter;
 
 /*
 Here is exactly what the services tell us the MockAdapter must support:

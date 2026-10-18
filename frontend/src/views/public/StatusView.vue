@@ -24,7 +24,9 @@
             class="flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-white px-6 py-4"
           >
             <div>
-              <p class="font-semibold text-gray-900">{{ NAMES[component.name] }}</p>
+              <p class="font-semibold text-gray-900">
+                {{ NAMES[component.name] }}
+              </p>
               <p class="text-sm text-gray-500">{{ describe(component) }}</p>
             </div>
             <span
@@ -109,7 +111,9 @@ function describe(component) {
       ? `Última copia: ${formatDate(component.last_event_at)} (${formatSize(component.size_bytes)})`
       : "Todavía no hay ninguna copia";
   }
-  return component.status === "OPERATIONAL" ? "Responde con normalidad" : "No responde";
+  return component.status === "OPERATIONAL"
+    ? "Responde con normalidad"
+    : "No responde";
 }
 
 // If the request itself fails, the API is the component that is down.

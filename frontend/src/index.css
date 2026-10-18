@@ -10,9 +10,17 @@
    focus (:focus-visible), not for mouse clicks. Components that need another
    colour (e.g. ErrorState) override it with Tailwind focus-visible: classes. */
 @layer base {
-	:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
-		outline: 2px solid theme('colors.aqua.600');
-		outline-offset: 2px;
-		box-shadow: 0 0 0 2px #fff;
-	}
+  :where(
+    a,
+    button,
+    input,
+    select,
+    textarea,
+    summary,
+    [tabindex]
+  ):focus-visible {
+    outline: 2px solid theme("colors.aqua.600");
+    outline-offset: 2px;
+    box-shadow: 0 0 0 2px #fff;
+  }
 }

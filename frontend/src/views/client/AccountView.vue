@@ -12,7 +12,7 @@
 </template>
 
 <script setup>
-import AccountPanel from '../../components/AccountPanel.vue'
-import SubscriptionCard from '../../components/account/SubscriptionCard.vue'
-import PrivacyCard from '../../components/account/PrivacyCard.vue'
+import AccountPanel from "../../components/AccountPanel.vue";
+import SubscriptionCard from "../../components/account/SubscriptionCard.vue";
+import PrivacyCard from "../../components/account/PrivacyCard.vue";
 </script>

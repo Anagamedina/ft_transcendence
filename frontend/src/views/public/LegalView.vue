@@ -1,6 +1,8 @@
 <template>
   <PublicLayout>
-    <div class="max-w-6xl mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-[1fr_240px] gap-10">
+    <div
+      class="max-w-6xl mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-[1fr_240px] gap-10"
+    >
       <!-- Main content: privacy policy and terms of service on one page -->
       <div class="max-w-3xl min-w-0">
         <h1 class="text-3xl font-bold text-aqua-900 mb-2">Información legal</h1>
@@ -9,9 +11,13 @@
         </p>
 
         <!-- Kept on purpose until the texts get a legal review (#195) -->
-        <div role="note" class="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg p-4 mb-8">
-          AquaGuard es un proyecto académico de 42 Barcelona (ft_transcendence). Este texto describe
-          cómo funciona la aplicación, pero es un borrador que no ha pasado una revisión jurídica.
+        <div
+          role="note"
+          class="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg p-4 mb-8"
+        >
+          AquaGuard es un proyecto académico de 42 Barcelona (ft_transcendence).
+          Este texto describe cómo funciona la aplicación, pero es un borrador
+          que no ha pasado una revisión jurídica.
         </div>
 
         <!-- Short summary before the full text -->
@@ -26,7 +32,11 @@
         <!-- The anchor sits on the tab bar, so #privacidad / #terminos show the tabs too -->
         <div :id="activeTab" class="scroll-mt-24">
           <Tabs v-model="activeTab" :tabs="TABS" label="Documentos legales">
-            <template v-for="docBlock in documents" :key="docBlock.id" #[docBlock.id]>
+            <template
+              v-for="docBlock in documents"
+              :key="docBlock.id"
+              #[docBlock.id]
+            >
               <section>
                 <h2 class="sr-only">{{ docBlock.title }}</h2>
 
@@ -36,21 +46,35 @@
                   :key="item.id"
                   class="mb-10 scroll-mt-24"
                 >
-                  <h3 class="text-lg font-semibold text-aqua-800 mb-3">{{ index + 1 }}. {{ item.title }}</h3>
+                  <h3 class="text-lg font-semibold text-aqua-800 mb-3">
+                    {{ index + 1 }}. {{ item.title }}
+                  </h3>
 
-                  <p v-for="text in item.body" :key="text" class="text-slate-600 mb-3">{{ text }}</p>
+                  <p
+                    v-for="text in item.body"
+                    :key="text"
+                    class="text-slate-600 mb-3"
+                  >
+                    {{ text }}
+                  </p>
 
-                  <ul v-if="item.list" class="list-disc pl-5 text-slate-600 space-y-1 mb-3">
+                  <ul
+                    v-if="item.list"
+                    class="list-disc pl-5 text-slate-600 space-y-1 mb-3"
+                  >
                     <li v-for="entry in item.list" :key="entry">{{ entry }}</li>
                   </ul>
 
                   <!-- Data table: scrolls inside its own box on narrow screens -->
                   <div v-if="item.rows" class="overflow-x-auto mb-3">
-                    <table class="w-full min-w-[36rem] text-sm text-left border border-slate-200 rounded-lg">
+                    <table
+                      class="w-full min-w-[36rem] text-sm text-left border border-slate-200 rounded-lg"
+                    >
                       <thead class="bg-slate-50 text-slate-700">
                         <tr>
                           <th
-                            v-for="header in item.rowHeaders || DEFAULT_ROW_HEADERS"
+                            v-for="header in item.rowHeaders ||
+                            DEFAULT_ROW_HEADERS"
                             :key="header"
                             scope="col"
                             class="px-3 py-2 font-semibold"
@@ -60,8 +84,14 @@
                         </tr>
                       </thead>
                       <tbody class="text-slate-600">
-                        <tr v-for="row in item.rows" :key="row.data" class="border-t border-slate-200 align-top">
-                          <td class="px-3 py-2 font-medium text-slate-700">{{ row.data }}</td>
+                        <tr
+                          v-for="row in item.rows"
+                          :key="row.data"
+                          class="border-t border-slate-200 align-top"
+                        >
+                          <td class="px-3 py-2 font-medium text-slate-700">
+                            {{ row.data }}
+                          </td>
                           <td class="px-3 py-2">{{ row.purpose }}</td>
                           <td class="px-3 py-2">{{ row.time }}</td>
                         </tr>
@@ -86,7 +116,9 @@
                 @click.prevent="goTo(`#${docBlock.id}`)"
                 :aria-current="docBlock.id === activeTab ? 'true' : undefined"
                 class="font-semibold hover:text-aqua-600"
-                :class="docBlock.id === activeTab ? 'text-aqua-900' : 'text-slate-600'"
+                :class="
+                  docBlock.id === activeTab ? 'text-aqua-900' : 'text-slate-600'
+                "
               >
                 {{ docBlock.title }}
               </a>
@@ -103,7 +135,10 @@
               </li>
             </ul>
           </template>
-          <router-link to="/" class="font-semibold text-aqua-600 hover:text-aqua-900">
+          <router-link
+            to="/"
+            class="font-semibold text-aqua-600 hover:text-aqua-900"
+          >
             ← Volver al inicio
           </router-link>
         </nav>
@@ -151,15 +186,55 @@ const privacySections = [
     short: "Datos y plazos",
     body: ["Solo los que hacen falta para que el servicio funcione:"],
     rows: [
-      { data: "Nombre y email", purpose: "Identificarte y que puedas entrar", time: "Mientras tu cuenta exista" },
-      { data: "Contraseña", purpose: "Comprobar que eres tú. Se guarda solo como hash Argon2, nunca en claro", time: "Mientras tu cuenta exista" },
-      { data: "Organización y rol", purpose: "Decidir qué edificios, sensores y alertas puedes ver", time: "Mientras tu cuenta exista" },
-      { data: "Aceptación de los términos", purpose: "Poder demostrar qué versión aceptaste y cuándo", time: "Mientras tu cuenta exista" },
-      { data: "Datos de la organización y facturación", purpose: "Contactar con la organización y gestionar la suscripción: plan, razón social, NIF/CIF, dirección y email de facturación, email y teléfono de contacto. Del IBAN solo guardamos el país y las 4 últimas cifras", time: "Mientras la organización tenga cuenta" },
-      { data: "Edificios y sensores", purpose: "Dirección, distrito, plantas y ubicación de cada sensor, para mostrar el edificio planta a planta", time: "Mientras la organización tenga cuenta" },
-      { data: "Lecturas y alertas", purpose: "Mostrar el estado de la red, generar alertas y saber quién las reconoció o resolvió", time: "Mientras la organización tenga cuenta" },
-      { data: "Documentos", purpose: "Guardar los archivos de cada edificio (ver punto 5)", time: "Hasta que se borren o se elimine la organización" },
-      { data: "Dirección IP", purpose: "Seguridad: registros del servidor", time: "El tiempo imprescindible para la seguridad" },
+      {
+        data: "Nombre y email",
+        purpose: "Identificarte y que puedas entrar",
+        time: "Mientras tu cuenta exista",
+      },
+      {
+        data: "Contraseña",
+        purpose:
+          "Comprobar que eres tú. Se guarda solo como hash Argon2, nunca en claro",
+        time: "Mientras tu cuenta exista",
+      },
+      {
+        data: "Organización y rol",
+        purpose: "Decidir qué edificios, sensores y alertas puedes ver",
+        time: "Mientras tu cuenta exista",
+      },
+      {
+        data: "Aceptación de los términos",
+        purpose: "Poder demostrar qué versión aceptaste y cuándo",
+        time: "Mientras tu cuenta exista",
+      },
+      {
+        data: "Datos de la organización y facturación",
+        purpose:
+          "Contactar con la organización y gestionar la suscripción: plan, razón social, NIF/CIF, dirección y email de facturación, email y teléfono de contacto. Del IBAN solo guardamos el país y las 4 últimas cifras",
+        time: "Mientras la organización tenga cuenta",
+      },
+      {
+        data: "Edificios y sensores",
+        purpose:
+          "Dirección, distrito, plantas y ubicación de cada sensor, para mostrar el edificio planta a planta",
+        time: "Mientras la organización tenga cuenta",
+      },
+      {
+        data: "Lecturas y alertas",
+        purpose:
+          "Mostrar el estado de la red, generar alertas y saber quién las reconoció o resolvió",
+        time: "Mientras la organización tenga cuenta",
+      },
+      {
+        data: "Documentos",
+        purpose: "Guardar los archivos de cada edificio (ver punto 5)",
+        time: "Hasta que se borren o se elimine la organización",
+      },
+      {
+        data: "Dirección IP",
+        purpose: "Seguridad: registros del servidor",
+        time: "El tiempo imprescindible para la seguridad",
+      },
     ],
   },
   {
@@ -209,7 +284,12 @@ const privacySections = [
       "No usamos cookies de analítica, de publicidad ni de terceros.",
     ],
     rows: [
-      { data: "aquaguard_session", purpose: "Mantener la sesión iniciada. Es propia, httpOnly (el navegador no la deja leer por JavaScript) y solo viaja por HTTPS", time: "8 horas, o hasta que cierres la sesión" },
+      {
+        data: "aquaguard_session",
+        purpose:
+          "Mantener la sesión iniciada. Es propia, httpOnly (el navegador no la deja leer por JavaScript) y solo viaja por HTTPS",
+        time: "8 horas, o hasta que cierres la sesión",
+      },
     ],
     rowHeaders: ["Cookie", "Para qué", "Duración"],
   },
@@ -360,11 +440,18 @@ const termsSections = [
 ];
 
 const documents = [
-  { id: "privacidad", title: "Política de privacidad", sections: privacySections },
+  {
+    id: "privacidad",
+    title: "Política de privacidad",
+    sections: privacySections,
+  },
   { id: "terminos", title: "Términos de servicio", sections: termsSections },
 ];
 
-const TABS = documents.map((docBlock) => ({ key: docBlock.id, label: docBlock.title }));
+const TABS = documents.map((docBlock) => ({
+  key: docBlock.id,
+  label: docBlock.title,
+}));
 
 const route = useRoute();
 const router = useRouter();
@@ -412,7 +499,7 @@ watch(
     if (!hash) return;
     activeTab.value = tabFromHash(hash);
     scrollAfterRender(hash);
-  }
+  },
 );
 
 // Opening /legal#... from another page

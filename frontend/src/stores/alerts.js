@@ -1,139 +1,132 @@
 // STORE alerts — listado y acciones ack/resolve (luego también WS).
 
 import { defineStore } from "pinia";
-import {ref, computed} from "vue";
+import { ref, computed } from "vue";
 import alertsService from "../services/alerts.service.js";
 
-export const useAlertsStore = defineStore("alerts", () =>{
-  
-    // STATE
-    const alerts = ref([]);
-    const status = ref("idle");
-    const error = ref(null);
+export const useAlertsStore = defineStore("alerts", () => {
+  // STATE
+  const alerts = ref([]);
+  const status = ref("idle");
+  const error = ref(null);
 
-    //GETTERS
+  //GETTERS
 
-    const alertCount = computed(() => alerts.value.length);
-    const openCount = computed(
-        () => alerts.value.filter((alert) => alert.status === "ACTIVE").length
-    );
+  const alertCount = computed(() => alerts.value.length);
+  const openCount = computed(
+    () => alerts.value.filter((alert) => alert.status === "ACTIVE").length,
+  );
 
-    //ACTIONS
-    // params: filters of GET /api/alerts (site_id, created_from, …); without
-    // them, every alert. The same request already running is reused; with
-    // different params the last one wins (changing week or building fast does
-    // not leave the list of the previous one).
-    let requestId = 0;
-    let pending = null;
-    let pendingKey = null;
+  //ACTIONS
+  // params: filters of GET /api/alerts (site_id, created_from, …); without
+  // them, every alert. The same request already running is reused; with
+  // different params the last one wins (changing week or building fast does
+  // not leave the list of the previous one).
+  let requestId = 0;
+  let pending = null;
+  let pendingKey = null;
 
-    function fetchAlerts(params = {}) {
-        const key = JSON.stringify(params);
-        if (pending && pendingKey === key) return pending;
+  function fetchAlerts(params = {}) {
+    const key = JSON.stringify(params);
+    if (pending && pendingKey === key) return pending;
 
-        const id = ++requestId;
-        status.value = "loading";
-        error.value = null;
-        pendingKey = key;
+    const id = ++requestId;
+    status.value = "loading";
+    error.value = null;
+    pendingKey = key;
 
-        pending = (async () => {
-            try {
-                const response = await alertsService.getAlerts(params);
-                if (id !== requestId) return alerts.value;
+    pending = (async () => {
+      try {
+        const response = await alertsService.getAlerts(params);
+        if (id !== requestId) return alerts.value;
 
-                alerts.value = response.data.items;
-                status.value = "success";
+        alerts.value = response.data.items;
+        status.value = "success";
 
-                return alerts.value;
-            } catch (err) {
-                if (id !== requestId) return alerts.value;
+        return alerts.value;
+      } catch (err) {
+        if (id !== requestId) return alerts.value;
 
-                alerts.value = [];
-                error.value = {
-                    code: err.code,
-                    message: err.message,
-                    details: err.details,
-                };
-                status.value = "error";
-
-                throw err;
-            } finally {
-                if (id === requestId) {
-                    pending = null;
-                    pendingKey = null;
-                }
-            }
-        })();
-
-        return pending;
-    }
-
-    async function acknowledgeAlert(id) {
-        try {
-        const response = await alertsService.acknowledgeAlert(id);
-
-        const index = alerts.value.findIndex(
-            (alert) => alert.id === id
-        );
-
-        if (index !== -1) {
-            alerts.value[index] = { ...response.data };
-        }
-
-        return response.data;
-
-        } catch (err) {
-        error.value = {
-            code: err.code,
-            message: err.message,
-            details: err.details,
-        };
-
-        throw err;
-        }
-    }
-
-    function clearAlerts() {
         alerts.value = [];
-        status.value = "idle";
-        error.value = null;
-    }
-
-     async function resolveAlert(id) {
-        try {
-        const response = await alertsService.resolveAlert(id);
-
-        const index = alerts.value.findIndex(
-            (alert) => alert.id === id
-        );
-
-        if (index !== -1) {
-            alerts.value[index] = { ...response.data };
-        }
-
-        return response.data;
-
-        } catch (err) {
         error.value = {
-            code: err.code,
-            message: err.message,
-            details: err.details,
+          code: err.code,
+          message: err.message,
+          details: err.details,
         };
+        status.value = "error";
 
         throw err;
+      } finally {
+        if (id === requestId) {
+          pending = null;
+          pendingKey = null;
         }
-    }
-   
-    return {
-        alerts,
-        status,
-        error,
-        alertCount,
-        openCount,
+      }
+    })();
 
-        fetchAlerts,
-        acknowledgeAlert,
-        resolveAlert,
-        clearAlerts,
-    };
+    return pending;
+  }
+
+  async function acknowledgeAlert(id) {
+    try {
+      const response = await alertsService.acknowledgeAlert(id);
+
+      const index = alerts.value.findIndex((alert) => alert.id === id);
+
+      if (index !== -1) {
+        alerts.value[index] = { ...response.data };
+      }
+
+      return response.data;
+    } catch (err) {
+      error.value = {
+        code: err.code,
+        message: err.message,
+        details: err.details,
+      };
+
+      throw err;
+    }
+  }
+
+  function clearAlerts() {
+    alerts.value = [];
+    status.value = "idle";
+    error.value = null;
+  }
+
+  async function resolveAlert(id) {
+    try {
+      const response = await alertsService.resolveAlert(id);
+
+      const index = alerts.value.findIndex((alert) => alert.id === id);
+
+      if (index !== -1) {
+        alerts.value[index] = { ...response.data };
+      }
+
+      return response.data;
+    } catch (err) {
+      error.value = {
+        code: err.code,
+        message: err.message,
+        details: err.details,
+      };
+
+      throw err;
+    }
+  }
+
+  return {
+    alerts,
+    status,
+    error,
+    alertCount,
+    openCount,
+
+    fetchAlerts,
+    acknowledgeAlert,
+    resolveAlert,
+    clearAlerts,
+  };
 });

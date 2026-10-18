@@ -1,6 +1,10 @@
 COMPOSE     := docker compose
 COMPOSE_DEV := docker compose -f compose.yaml -f compose.dev.yaml
 CERTS_DIR   := gateway/certs
+# npm writes this file on every install: it marks node_modules as up to date
+# with its lockfile, so `npm ci` only runs again when the lockfile changes.
+FRONTEND_DEPS := frontend/node_modules/.package-lock.json
+E2E_DEPS      := e2e/node_modules/.package-lock.json
 ALEMBIC     := $(COMPOSE) run --rm --no-deps --user "$$(id -u):$$(id -g)" \
 	-v $(CURDIR)/backend/app:/app/app:ro \
 	-v $(CURDIR)/backend/migrations:/app/migrations \
@@ -12,9 +16,21 @@ SEED        := $(COMPOSE) run --rm --no-deps \
 	-v $(CURDIR)/backend/seeds:/app/seeds:ro \
 	--entrypoint python backend -m seeds.seed_demo
 
-.PHONY: all env check-sim-env certs up dev sim demo seed migrate migration migration-check down build logs ps clean fclean re smoke backup backups restore
+.PHONY: all setup env config-check doctor check-sim-env certs up dev dev-infra frontend-install e2e-install frontend-dev sim demo seed seed-if-empty migrate migration migration-check storage-check test-backend test-frontend test-e2e lint format compose-check check down build logs ps clean fclean re smoke backup backups restore
 
-all: up
+# Full local bootstrap. It is safe to repeat: demo data is loaded only into
+# an empty database, while all named volumes survive `make down`.
+all: env certs config-check check-sim-env
+	$(COMPOSE) up --build -d --wait --wait-timeout 120 database backend gateway
+	$(MAKE) seed-if-empty
+	$(COMPOSE) up --build -d --force-recreate --renew-anon-volumes --wait --wait-timeout 120 backup
+	$(COMPOSE) --profile sim up --build -d --wait --wait-timeout 120 simulator
+	$(MAKE) storage-check
+	$(MAKE) smoke
+	@$(COMPOSE) --profile sim ps
+
+setup:
+	@sh scripts/setup.sh
 
 # Never overwrites an existing .env. A new one gets random keys instead of the
 # example ones, so a clean clone does not run with secrets published in the repo.
@@ -24,48 +40,88 @@ env:
 		-e "s|^INGEST_API_KEY=.*|INGEST_API_KEY=$$(openssl rand -hex 32)|" \
 		.env.example > .env
 
-# The demo needs the sensor list and per-sensor scenarios of .env.example: an
-# older .env leaves sensors without readings (offline) or with the wrong story.
+config-check: env
+	@sh scripts/validate_env.sh
+
+doctor:
+	@sh scripts/doctor.sh
+
+# The demo needs the sensor list and per-sensor scenarios of .env.example.
+# `make all` promises a complete demo, so an old local .env must fail instead
+# of silently starting a simulator that cannot populate the seeded sensors.
 check-sim-env: env
 	@for var in SIMULATOR_SENSOR_IDS SIMULATOR_SCENARIOS; do \
-		grep -qxF "$$(grep "^$$var=" .env.example)" .env || \
-			echo "WARNING: $$var in .env differs from .env.example; copy that line or the demo sensors will not match the seed."; \
+		expected="$$(grep "^$$var=" .env.example)"; \
+		actual="$$(grep "^$$var=" .env || true)"; \
+		[ "$$actual" = "$$expected" ] || { \
+			echo "config-check: FAIL  $$var in .env must match .env.example for make all" >&2; \
+			echo "  expected: $$expected" >&2; \
+			echo "  update .env or use make up for infrastructure without the demo" >&2; \
+			exit 1; \
+		}; \
 	done
 
 certs:
 	@mkdir -p $(CERTS_DIR)
-	@test -f $(CERTS_DIR)/aquaguard.crt && test -f $(CERTS_DIR)/aquaguard.key || \
+	@if test -f $(CERTS_DIR)/aquaguard.crt && test -f $(CERTS_DIR)/aquaguard.key; then \
+		echo "certs: existing certificate pair"; \
+	elif test -e $(CERTS_DIR)/aquaguard.crt || test -e $(CERTS_DIR)/aquaguard.key; then \
+		echo "certs: incomplete certificate pair; refusing to overwrite it" >&2; exit 1; \
+	else \
 		openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
 			-keyout $(CERTS_DIR)/aquaguard.key \
 			-out $(CERTS_DIR)/aquaguard.crt \
 			-subj "/C=ES/O=AquaGuard/CN=localhost" \
-			-addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+			-addext "subjectAltName=DNS:localhost,IP:127.0.0.1"; \
+	fi
 
-up: env certs
+up: env certs config-check
 	$(COMPOSE) up --build -d
 	@$(COMPOSE) ps
 
-dev: env certs
+dev-infra: env certs config-check
 	$(COMPOSE_DEV) up --build -d
 	@$(COMPOSE_DEV) ps
 
-sim: env certs
-	$(COMPOSE) --profile sim up --build -d
+frontend-install: $(FRONTEND_DEPS)
+
+$(FRONTEND_DEPS): frontend/package-lock.json
+	npm --prefix frontend ci --no-audit --no-fund
+
+e2e-install: $(E2E_DEPS)
+
+$(E2E_DEPS): e2e/package-lock.json
+	npm --prefix e2e ci --no-audit --no-fund
+	npx --prefix e2e playwright install chromium
+
+frontend-dev: env certs $(FRONTEND_DEPS)
+	npm --prefix frontend run dev -- --host localhost
+
+dev: dev-infra
+	@$(MAKE) frontend-dev
+
+# Starts the simulator against a seeded database, so its sensors exist.
+sim: env certs config-check check-sim-env
+	$(COMPOSE) up --build -d --wait --wait-timeout 120 database backend gateway
+	$(MAKE) seed-if-empty
+	$(COMPOSE) --profile sim up --build -d --wait --wait-timeout 120 simulator
 	@$(COMPOSE) --profile sim ps
 
-# Whole project in one command: stack, demo data, simulator, then the smoke test.
-demo: env certs check-sim-env
-	$(COMPOSE) up --build -d --wait
-	$(MAKE) seed
-	$(COMPOSE) --profile sim up --build -d --wait simulator
-	@sh scripts/smoke.sh
-	@$(COMPOSE) --profile sim ps
+# Kept as a readable alias for evaluators and existing documentation.
+demo: all
 
 # The seed needs the schema at head; migrating first is a no-op when it is.
 seed: migrate
 	$(SEED)
 
-migrate:
+# Never overwrite a working database during a normal `make all`. The explicit
+# `make seed` target remains available when the demo needs to be refreshed.
+seed-if-empty:
+	@sh scripts/bootstrap_seed.sh
+
+# ALEMBIC uses `run --no-deps`, so the database has to be up first.
+migrate: env
+	$(COMPOSE) up -d --wait database
 	$(ALEMBIC) backend upgrade head
 
 migration:
@@ -74,6 +130,38 @@ migration:
 
 migration-check:
 	@sh scripts/migration_check.sh
+
+storage-check:
+	@sh scripts/storage_check.sh
+
+test-backend: env
+	$(COMPOSE) up -d --wait database
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/backend:/src:ro --entrypoint sh backend -c 'cd /src && python -m pytest -q -p no:cacheprovider tests'
+
+test-frontend: $(FRONTEND_DEPS)
+	npm --prefix frontend test -- --run
+
+# The E2E tests drive the running stack through the gateway. They log in and
+# register many times in a few seconds, so the gateway runs with a high rate
+# limit during the suite and is put back with the normal one afterwards.
+test-e2e: $(E2E_DEPS)
+	@curl -skf https://localhost/api/health >/dev/null || \
+		{ echo "test-e2e: the stack is not running. Start it with: make all" >&2; exit 1; }
+	PUBLIC_RATE_LIMIT=1000r/m $(COMPOSE) up -d --no-deps --wait gateway
+	@status=0; npm --prefix e2e test || status=$$?; \
+		$(COMPOSE) up -d --no-deps --wait gateway; \
+		exit $$status
+
+lint: $(FRONTEND_DEPS)
+	npm --prefix frontend run lint
+
+format: $(FRONTEND_DEPS)
+	npm --prefix frontend run format
+
+compose-check: env
+	$(COMPOSE) config --quiet
+
+check: compose-check lint test-frontend
 
 smoke:
 	@sh scripts/smoke.sh
@@ -105,4 +193,8 @@ clean:
 fclean:
 	$(COMPOSE) --profile sim down -v --remove-orphans
 
-re: fclean up
+# Sequential on purpose: with `make -j`, prerequisites would run in parallel
+# and fclean could delete volumes while all is starting the stack.
+re:
+	$(MAKE) fclean
+	$(MAKE) all

@@ -14,9 +14,11 @@
             :disabled="authStore.status === 'loading'"
             @click="handleLogout"
           >
-            {{ authStore.status === 'loading'
-              ? 'Cerrando sesión...'
-              : 'Cerrar sesión' }}
+            {{
+              authStore.status === "loading"
+                ? "Cerrando sesión..."
+                : "Cerrar sesión"
+            }}
           </button>
         </div>
       </template>
@@ -37,71 +39,71 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
-import { useRouter, RouterView } from 'vue-router'
+import { computed, onMounted } from "vue";
+import { useRouter, RouterView } from "vue-router";
 
-import { useAuthStore } from '../stores/auth'
-import { useOverviewStore } from '../stores/overview'
-import { useAutoRefresh } from '../composables/useAutoRefresh'
+import { useAuthStore } from "../stores/auth";
+import { useOverviewStore } from "../stores/overview";
+import { useAutoRefresh } from "../composables/useAutoRefresh";
 
-import Header from '../components/Header.vue'
-import Sidebar from '../components/Sidebar.vue'
-import Footer from '../components/Footer.vue'
-import TrialBanner from '../components/TrialBanner.vue'
+import Header from "../components/Header.vue";
+import Sidebar from "../components/Sidebar.vue";
+import Footer from "../components/Footer.vue";
+import TrialBanner from "../components/TrialBanner.vue";
 
-const router = useRouter()
-const authStore = useAuthStore()
-const overviewStore = useOverviewStore()
+const router = useRouter();
+const authStore = useAuthStore();
+const overviewStore = useOverviewStore();
 
 const organizationName = computed(
-  () => authStore.organization?.name || 'Mi organización'
-)
+  () => authStore.organization?.name || "Mi organización",
+);
 
 // TODO: connect the badge to the exact active-alert field
 // defined by GET /api/analytics/overview.
 const activeAlertCount = computed(() => {
-  return overviewStore.overview?.open_alerts ?? 0
-})
+  return overviewStore.overview?.open_alerts ?? 0;
+});
 
 const sidebarItems = computed(() => [
   {
-    label: 'Mis edificios',
-    to: '/app',
-    icon: 'building',
+    label: "Mis edificios",
+    to: "/app",
+    icon: "building",
     exact: true,
   },
   {
-    label: 'Alertas',
-    to: '/app/alerts',
-    icon: 'alert',
+    label: "Alertas",
+    to: "/app/alerts",
+    icon: "alert",
     badge: activeAlertCount.value,
   },
   {
-    label: 'Documentos',
-    to: '/app/documents',
-    icon: 'file-text',
+    label: "Documentos",
+    to: "/app/documents",
+    icon: "file-text",
   },
   {
-    label: 'Mi cuenta',
-    to: '/app/account',
-    icon: 'user',
+    label: "Mi cuenta",
+    to: "/app/account",
+    icon: "user",
   },
-])
+]);
 
 async function refreshOverview() {
   try {
-    await overviewStore.fetchOverview()
+    await overviewStore.fetchOverview();
   } catch {
     // Keep the layout usable when analytics is unavailable.
   }
 }
 
-useAutoRefresh(refreshOverview, 30000)
+useAutoRefresh(refreshOverview, 30000);
 
-onMounted(refreshOverview)
+onMounted(refreshOverview);
 
 async function handleLogout() {
-  await authStore.logout()
-  await router.replace('/login')
+  await authStore.logout();
+  await router.replace("/login");
 }
 </script>
