@@ -3,7 +3,7 @@
     :class="
       light
         ? 'sticky top-0 z-50 bg-white text-aqua-900 border-b border-aqua-100 shadow-sm'
-        : 'relative bg-gradient-to-r from-[#0369A1] to-[#06B6D4] text-white shadow-lg'
+        : 'relative bg-gradient-to-r from-aqua-600 to-aqua-400 text-white shadow-lg'
     "
   >
     <div
@@ -55,11 +55,16 @@ defineProps({
 .water-drop-header {
   width: 26px;
   height: 26px;
-  background: linear-gradient(135deg, #ffffff 0%, #a5f3fc 45%, #0369a1 100%);
+  background: linear-gradient(
+    135deg,
+    white 0%,
+    theme('colors.aqua.300') 45%,
+    theme('colors.aqua.600') 100%
+  );
   border-radius: 50% 50% 50% 0;
   transform: rotate(135deg);
   box-shadow:
-    inset -3px -3px 8px rgba(255, 255, 255, 0.4),
-    3px 3px 10px rgba(3, 105, 161, 0.3);
+    inset -3px -3px 8px rgb(255 255 255 / 0.4),
+    3px 3px 10px theme('colors.aqua.600 / 30%');
 }
 </style>
