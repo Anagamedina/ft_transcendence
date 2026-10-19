@@ -649,3 +649,4 @@ frontend/dist
 ### AquaGuard local TLS certificates
 gateway/certs/*
 !gateway/certs/.gitkeep
+.env.backup
