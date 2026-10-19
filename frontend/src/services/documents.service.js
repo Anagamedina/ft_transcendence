@@ -5,13 +5,19 @@ const documentsService = {
     return adapter.get("/api/documents", { params });
   },
 
-  uploadDocument({ file, site_id, kind }) {
+  uploadDocument({ file, site_id, kind }, config = {}) {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("site_id", site_id);
     formData.append("kind", kind);
 
-    return adapter.post("/api/documents", formData);
+    return adapter.post("/api/documents", formData, config);
+  },
+
+  downloadDocument(id) {
+    return adapter.get(`/api/documents/${id}/download`, {
+      responseType: "blob",
+    });
   },
 
   deleteDocument(id) {

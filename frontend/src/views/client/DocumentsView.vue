@@ -1,150 +1,175 @@
-<!-- Temporary DocumentsView created for issue 159 before further changes-->
 
 <template>
   <section class="space-y-6">
-    <div>
+    <header>
       <h1 class="text-2xl font-bold text-slate-900">Documentos</h1>
       <p class="mt-1 text-sm text-slate-600">
-        Consulta los documentos de tus edificios.
+        Consulta, sube y descarga documentos de tus edificios.
       </p>
-    </div>
+    </header>
+
+    <ErrorState
+      v-if="sitesStore.status === 'error'"
+      title="No se han podido cargar los edificios"
+      :message="sitesStore.error"
+      @retry="loadSites"
+    />
+
+    <FileDropzone
+      v-else
+      :sites="sitesStore.sites"
+      :uploading="uploading"
+      :progress="uploadProgress"
+      @upload="handleUpload"
+    />
+
+    <p
+      v-if="actionMessage"
+      role="status"
+      class="rounded-md bg-green-50 px-4 py-3 text-sm text-green-800"
+    >
+      {{ actionMessage }}
+    </p>
+
+    <ErrorState
+      v-if="actionError"
+      title="No se ha podido completar la operación"
+      :message="actionError"
+      @retry="loadDocuments"
+    />
 
     <div class="flex flex-wrap items-center justify-between gap-3">
       <p class="text-sm text-slate-600">
         {{ documentsStore.total }} documento(s)
       </p>
-
-      <button
-        type="button"
-        class="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
-        :disabled="documentsStore.status === 'loading'"
-        @click="loadDocuments"
-      >
-        Actualizar
-      </button>
     </div>
 
     <LoadingState
-      v-if="
-        documentsStore.status === 'loading' || documentsStore.status === 'idle'
-      "
-      message="Cargando documentos…"
+     v-if="
+        !initialLoadFinished &&
+        (
+        documentsStore.status === 'loading' ||
+        documentsStore.status === 'idle'
+        )
+     "
+     message="Cargando documentos…"
     />
 
     <ErrorState
       v-else-if="documentsStore.status === 'error'"
       title="No se han podido cargar los documentos"
       :message="documentsStore.error"
-      @retry="loadDocuments"
+      @retry="loadDocuments(1)"
     />
 
-    <EmptyState
-      v-else-if="documentsStore.items.length === 0"
-      title="Todavía no hay documentos"
-      icon="file-text"
-    />
-
-    <div
+    <DocumentsTable
       v-else
-      class="overflow-x-auto rounded-xl border border-slate-200 bg-white"
-    >
-      <table class="min-w-full divide-y divide-slate-200 text-sm">
-        <thead class="bg-slate-50 text-left text-xs uppercase text-slate-500">
-          <tr>
-            <th class="px-4 py-3">Documento</th>
-            <th class="px-4 py-3">Tipo</th>
-            <th class="px-4 py-3">Edificio</th>
-            <th class="px-4 py-3">Fecha</th>
-          </tr>
-        </thead>
-
-        <tbody class="divide-y divide-slate-100">
-          <tr v-for="document in documentsStore.items" :key="document.id">
-            <td class="px-4 py-3 font-medium text-slate-800">
-              {{
-                document.filename || document.name || `Documento ${document.id}`
-              }}
-            </td>
-            <td class="px-4 py-3 text-slate-600">
-              {{ document.kind || "—" }}
-            </td>
-            <td class="px-4 py-3 text-slate-600">
-              {{ document.site_name || document.site_id || "—" }}
-            </td>
-            <td class="px-4 py-3 text-slate-600">
-              {{ formatDate(document.created_at) }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div
-        v-if="documentsStore.pages > 1"
-        class="flex items-center justify-between border-t border-slate-200 px-4 py-3"
-      >
-        <button
-          type="button"
-          class="rounded-md border border-slate-300 px-3 py-2 text-sm disabled:opacity-40"
-          :disabled="
-            documentsStore.page <= 1 || documentsStore.status === 'loading'
-          "
-          @click="changePage(documentsStore.page - 1)"
-        >
-          Anterior
-        </button>
-
-        <span class="text-sm text-slate-600">
-          Página {{ documentsStore.page }} de {{ documentsStore.pages }}
-        </span>
-
-        <button
-          type="button"
-          class="rounded-md border border-slate-300 px-3 py-2 text-sm disabled:opacity-40"
-          :disabled="
-            documentsStore.page >= documentsStore.pages ||
-            documentsStore.status === 'loading'
-          "
-          @click="changePage(documentsStore.page + 1)"
-        >
-          Siguiente
-        </button>
-      </div>
-    </div>
+      :documents="documentsStore.items"
+      :sites="sitesStore.sites"
+      :page="documentsStore.page"
+      :pages="documentsStore.pages"
+      @filters-change="applyFilters"
+      @page-change="changePage"
+      @delete="handleDelete"
+    />
   </section>
 </template>
 
 <script setup>
-import { onMounted } from "vue";
+import { onMounted, ref } from "vue";
 import { useDocumentsStore } from "../../stores/documents";
+import { useSitesStore } from "../../stores/sites";
 import LoadingState from "../../components/LoadingState.vue";
 import ErrorState from "../../components/ErrorState.vue";
-import EmptyState from "../../components/EmptyState.vue";
+import FileDropzone from "../../components/FileDropzone.vue";
+import DocumentsTable from "../../components/DocumentsTable.vue";
 
 const documentsStore = useDocumentsStore();
+const sitesStore = useSitesStore();
+
+const uploading = ref(false);
+const uploadProgress = ref(0);
+const actionError = ref("");
+const actionMessage = ref("");
+const initialLoadFinished = ref(false);
+
+const filters = ref({});
+
+async function loadSites() {
+  try {
+    await sitesStore.fetchSites();
+  } catch {
+    // L'erreur est exposée par le store.
+  }
+}
 
 async function loadDocuments(page = 1) {
+  actionError.value = "";
+
   try {
-    await documentsStore.fetchDocuments({ page });
+    await documentsStore.fetchDocuments({
+      page,
+      ...filters.value,
+    });
   } catch {
-    // El estado de error ya lo gestiona el store.
+    // L'erreur est exposée par le store.
+  } finally {
+    initialLoadFinished.value = true;
   }
+}
+
+async function applyFilters(nextFilters) {
+  filters.value = nextFilters;
+  await loadDocuments(1);
 }
 
 async function changePage(page) {
   await loadDocuments(page);
 }
 
-function formatDate(value) {
-  if (!value) return "—";
+async function handleUpload(payload) {
+  uploading.value = true;
+  uploadProgress.value = 0;
+  actionError.value = "";
+  actionMessage.value = "";
 
-  const date = new Date(value);
+  try {
+    await documentsStore.uploadDocument(payload, {
+      onUploadProgress(event) {
+        if (event.total) {
+          uploadProgress.value = Math.round(
+            (event.loaded / event.total) * 100,
+          );
+        }
+      },
+    });
 
-  if (Number.isNaN(date.getTime())) return "—";
-
-  return new Intl.DateTimeFormat("es-ES", {
-    dateStyle: "medium",
-  }).format(date);
+    actionMessage.value = "Documento subido correctamente.";
+    await loadDocuments(1);
+  } catch (error) {
+    actionError.value =
+      error.message || "No se pudo subir el documento.";
+  } finally {
+    uploading.value = false;
+    uploadProgress.value = 0;
+  }
 }
 
-onMounted(() => loadDocuments());
+async function handleDelete(doc) {
+  actionError.value = "";
+  actionMessage.value = "";
+
+  try {
+    await documentsStore.deleteDocument(doc.id);
+    actionMessage.value = "Documento eliminado correctamente.";
+    await loadDocuments(documentsStore.page);
+  } catch (error) {
+    actionError.value =
+      error.message || "No se pudo eliminar el documento.";
+  }
+}
+
+onMounted(async () => {
+  await Promise.all([loadSites(), loadDocuments()]);
+});
 </script>
