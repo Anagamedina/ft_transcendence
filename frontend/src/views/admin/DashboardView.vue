@@ -32,13 +32,6 @@ const overviewStore = useOverviewStore();
 
 // Load data on mount. Errors are already stored in each store (status/error),
 // so we only catch them here to avoid unhandled promise rejections.
-async function loadSensors() {
-  try {
-    await sensorStore.fetchSensors();
-  } catch {
-    /* handled via sensorStore.error */
-  }
-}
 async function loadAlerts() {
   try {
     await alertsStore.fetchAlerts();
