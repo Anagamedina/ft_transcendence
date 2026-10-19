@@ -16,8 +16,6 @@ import { useSensorsStore } from "../../stores/sensors";
 import { useAlertsStore } from "../../stores/alerts";
 import { useSitesStore } from "../../stores/sites";
 import { useOverviewStore } from "../../stores/overview";
-import SitesSummary from "../../components/SitesSummary.vue";
-import SensorsSummary from "../../components/SensorsSummary.vue";
 import AlertsSummary from "../../components/AlertsSummary.vue";
 import Modal from "../../components/Modal.vue";
 import AnalyticsPanel from "../../components/AnalyticsPanel.vue";
@@ -66,7 +64,6 @@ async function loadOverview() {
 onMounted(() => {
   loadOverview();
   loadSites();
-  loadSensors();
   loadAlerts();
 });
 
