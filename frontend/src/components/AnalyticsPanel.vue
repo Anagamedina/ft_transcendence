@@ -153,7 +153,7 @@ const updatedAt = computed(() =>
         </label>
         <button
           type="button"
-          class="bg-aqua-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-aqua-800 transition disabled:opacity-50"
+          class="bg-aqua-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-aqua-700 transition disabled:opacity-50"
           :disabled="!!rangeError || exporting"
           @click="store.exportCsv()"
         >

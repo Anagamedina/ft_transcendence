@@ -1,8 +1,8 @@
-<!-- CLIENT LAYOUT — sidebar cliente; sensores, histórico, alertas, perfil. -->
+<!-- CLIENT LAYOUT: header, trial banner, client sidebar and page content. -->
 
 <template>
   <div class="min-h-screen min-w-[320px] flex flex-col">
-    <Header title="AquaGuard">
+    <Header title="AquaGuard" light class="pl-12 md:pl-0">
       <template #actions>
         <div class="flex items-center gap-3">
           <span class="hidden text-sm font-medium sm:inline">
@@ -10,7 +10,7 @@
           </span>
           <button
             type="button"
-            class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+            class="border border-aqua-600 text-aqua-600 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-aqua-50 transition disabled:opacity-50"
             :disabled="authStore.status === 'loading'"
             @click="handleLogout"
           >
@@ -29,7 +29,7 @@
     <div class="flex flex-1 overflow-hidden">
       <Sidebar appName="AquaGuard" :items="sidebarItems" />
 
-      <main class="min-w-0 flex-1 overflow-y-auto bg-slate-50 p-6">
+      <main class="min-w-0 flex-1 overflow-y-auto bg-aqua-50 p-6">
         <RouterView />
       </main>
     </div>
