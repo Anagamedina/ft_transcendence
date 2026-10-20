@@ -1,14 +1,14 @@
 <template>
   <PublicLayout>
     <section
-      class="flex-1 bg-[#0F172A] flex items-center justify-center px-6 py-12"
+      class="flex-1 bg-gradient-to-b from-aqua-100 to-aqua-50 flex items-center justify-center px-4 py-12 sm:px-6 md:py-16"
     >
       <div class="w-full max-w-md">
-        <div class="bg-white rounded-2xl shadow-xl p-8">
+        <div class="bg-white border border-aqua-100 rounded-2xl p-6 sm:p-8 shadow-[0_16px_40px_theme(colors.aqua.600/10%)]">
           <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold text-gray-900">Iniciar sesión</h1>
+            <h1 class="text-3xl font-bold text-aqua-900">Iniciar sesión</h1>
 
-            <p class="mt-2 text-gray-600">Accede a tu cuenta de AquaGuard</p>
+            <p class="mt-2 text-slate-600">Accede a tu cuenta de AquaGuard</p>
           </div>
 
           <form @submit.prevent="handleSubmit" class="space-y-5">
@@ -16,7 +16,7 @@
             <div>
               <label
                 for="email"
-                class="block text-sm font-medium text-gray-700 mb-1"
+                class="block text-sm font-medium text-slate-700 mb-1"
               >
                 Email
               </label>
@@ -27,7 +27,7 @@
                 type="email"
                 autocomplete="email"
                 required
-                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-aqua-400"
                 placeholder="tu@email.com"
               />
             </div>
@@ -36,7 +36,7 @@
             <div>
               <label
                 for="password"
-                class="block text-sm font-medium text-gray-700 mb-1"
+                class="block text-sm font-medium text-slate-700 mb-1"
               >
                 Contraseña
               </label>
@@ -48,7 +48,7 @@
                   :type="showPassword ? 'text' : 'password'"
                   autocomplete="current-password"
                   required
-                  class="w-full px-4 py-3 pr-20 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  class="w-full px-4 py-3 pr-20 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-aqua-400"
                   placeholder="Tu contraseña"
                 />
                 <!-- Show / hide the password, same as the trial sign-up form -->
@@ -66,7 +66,7 @@
             <!-- Error -->
             <div
               v-if="errorMessage"
-              class="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm"
+              class="bg-danger-light border border-danger text-danger-dark rounded-lg p-3 text-sm"
               role="alert"
             >
               {{ errorMessage }}
@@ -76,18 +76,18 @@
             <button
               type="submit"
               :disabled="isLoading"
-              class="w-full bg-[#0369A1] text-white font-semibold py-3 rounded-lg hover:bg-[#075985] transition disabled:opacity-50 disabled:cursor-not-allowed"
+              class="w-full bg-aqua-600 text-white font-semibold py-3 rounded-lg hover:bg-aqua-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {{ isLoading ? "Iniciando sesión..." : "Iniciar sesión" }}
             </button>
           </form>
 
-          <p class="text-center text-sm text-gray-600 mt-6">
+          <p class="text-center text-sm text-slate-600 mt-6">
             ¿No tienes una cuenta?
 
             <RouterLink
               to="/prueba"
-              class="text-[#0369A1] font-semibold hover:underline"
+              class="text-aqua-700 font-semibold hover:underline"
             >
               Prueba 7 días gratis
             </RouterLink>
