@@ -19,7 +19,6 @@
         :id="fieldId('name')"
         :ref="(el) => (inputs.name = el)"
         type="text"
-        required
         maxlength="120"
         autocomplete="off"
         :value="site.name"
@@ -41,12 +40,13 @@
       <label
         :for="fieldId('address')"
         class="text-sm font-semibold text-gray-700"
-        >Dirección</label
+        >Dirección *</label
       >
       <input
         :id="fieldId('address')"
         :ref="(el) => (inputs.address = el)"
         type="text"
+        required
         maxlength="255"
         autocomplete="street-address"
         placeholder="Carrer de Mallorca, 401"
@@ -243,9 +243,17 @@ const validators = {
     return "";
   },
   address(value) {
-    return value.length > ADDRESS_MAX
-      ? `Máximo ${ADDRESS_MAX} caracteres.`
-      : "";
+    const address = String(value ?? "").trim();
+
+    if (address === "") {
+      return "La dirección es obligatoria.";
+    }
+
+    if (address.length > ADDRESS_MAX) {
+      return `Máximo ${ADDRESS_MAX} caracteres.`;
+    }
+
+    return "";
   },
   floors(value) {
     return isIntegerBetween(value, 1, FLOORS_MAX)

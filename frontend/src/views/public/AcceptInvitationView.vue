@@ -76,7 +76,8 @@
               height="28"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="#b45309"
+              stroke="currentColor"
+              class="text-warning-dark"
               stroke-width="2"
               stroke-linecap="round"
             >
@@ -89,7 +90,8 @@
               height="28"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="#475569"
+              stroke="currentColor"
+              class="text-slate-600"
               stroke-width="2"
               stroke-linecap="round"
             >
@@ -129,7 +131,8 @@
               height="28"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="#047857"
+              stroke="currentColor"
+              class="text-success-dark"
               stroke-width="2.5"
               stroke-linecap="round"
             >
@@ -405,7 +408,7 @@ const CLIENT_HOME = "/dashboard";
 
 // Shared classes, as in the mockup (pantallas/Invitacion.html)
 const CARD =
-  "bg-white border border-aqua-100 rounded-2xl p-6 sm:p-8 shadow-[0_16px_40px_rgba(3,105,161,0.1)]";
+  "bg-white border border-aqua-100 rounded-2xl p-6 sm:p-8 shadow-[0_16px_40px_theme(colors.aqua.600/10%)]";
 const INPUT =
   "w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-aqua-400";
 const INPUT_ERROR =

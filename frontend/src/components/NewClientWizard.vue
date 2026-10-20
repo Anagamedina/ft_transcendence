@@ -135,13 +135,14 @@
           <label
             :for="fieldId('contact_email')"
             class="text-sm font-semibold text-gray-700"
-            >Email de contacto</label
+            >Email de contacto *</label
           >
           <input
             :id="fieldId('contact_email')"
             :ref="(el) => (inputs.contact_email = el)"
             v-model="form.client.contact_email"
             type="email"
+            required
             autocomplete="email"
             :class="inputClass('contact_email')"
             :aria-invalid="Boolean(errors.contact_email)"
@@ -161,16 +162,27 @@
           <label
             :for="fieldId('phone')"
             class="text-sm font-semibold text-gray-700"
-            >Teléfono</label
+            >Teléfono *</label
           >
           <input
             :id="fieldId('phone')"
             v-model="form.client.phone"
             type="tel"
+            required
             maxlength="30"
             autocomplete="tel"
             :class="inputClass('phone')"
+            :aria-invalid="Boolean(errors.phone)"
+            :aria-describedby="errors.phone ? fieldId('phone-error') : undefined"
           />
+          <p
+            v-if="errors.phone"
+            :id="fieldId('phone-error')"
+            class="text-sm text-red-700"
+            role="alert"
+          >
+            {{ errors.phone }}
+          </p>
         </div>
         <p class="text-sm text-gray-600 sm:col-span-2">
           AquaGuard solo da servicio en Barcelona.
@@ -376,6 +388,12 @@ const NAME_MAX = 120;
 // Simple email check; the API does the full validation
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const CLIENT_NAME_PATTERN =
+  /^[\p{L}\p{M}\p{N} .,'’&()\-]+$/u;
+
+// numbers, spaces, + 
+const PHONE_PATTERN = /^\+?[0-9().\s]+$/;
+
 const step = ref(0);
 const isLastStep = computed(() => step.value === STEPS.length - 1);
 
@@ -431,40 +449,101 @@ function emailError(value, required) {
     : "Escribe un email válido, por ejemplo nombre@empresa.com.";
 }
 
+function phoneError(value) {
+  const phone = value.trim();
+
+  if (phone === "") {
+    return "Le numéro de téléphone est obligatoire.";
+  }
+
+  if (!PHONE_PATTERN.test(phone)) {
+    return "Le téléphone ne peut contenir que des chiffres, des espaces, +, ( ), et des points.";
+  }
+
+  const digits = phone.replace(/\D/g, "");
+
+  if (digits.length < 9 || digits.length > 15) {
+    return "Le numéro doit contenir entre 9 et 15 chiffres.";
+  }
+
+  return "";
+}
+
 // Rules of each step (the building step is validated by SiteForm itself).
 // Each returns the error message of a field, or '' when the value is valid
 const STEP_RULES = [
   {
     name: () => {
       const name = form.client.name.trim();
+
       if (name === "") return "Escribe el nombre del cliente.";
-      // A repeated name is checked by the API (409), which knows every client
-      return name.length > NAME_MAX ? `Máximo ${NAME_MAX} caracteres.` : "";
+
+      if (name.length > NAME_MAX) {
+        return `Máximo ${NAME_MAX} caracteres.`;
+      }
+
+      if (!CLIENT_NAME_PATTERN.test(name)) {
+        return "El nombre contiene caracteres no permitidos.";
+      }
+
+      return "";
     },
-    contact_email: () => emailError(form.client.contact_email, false),
+
+    contact_email: () =>
+      emailError(form.client.contact_email, true),
   },
   {},
   {
     user_name: () =>
-      form.user.name.trim() === "" ? "Escribe el nombre de la persona." : "",
+      form.user.name.trim() === ""
+        ? "Escribe el nombre de la persona."
+        : "",
+
     user_email: () => emailError(form.user.email, true),
   },
   {
-    billing_email: () => emailError(form.client.billing_email, false),
+    billing_email: () =>
+      emailError(form.client.billing_email, false),
   },
 ];
 
 // Validates the current step; focuses the first wrong field and returns false if any
 function validateStep() {
-  if (step.value === 1) return siteForm.value.validate();
+  if (step.value === 1) {
+    return siteForm.value.validate();
+  }
 
   const rules = STEP_RULES[step.value];
-  for (const field of Object.keys(rules)) errors[field] = rules[field]();
-  const firstWrong = Object.keys(rules).find((field) => errors[field]);
+
+  for (const field of Object.keys(rules)) {
+    errors[field] = rules[field]();
+  }
+
+  if (step.value === 0) {
+    errors.phone = phoneError(form.client.phone);
+  }
+
+  const fieldsToCheck =
+    step.value === 0
+      ? [...Object.keys(rules), "phone"]
+      : Object.keys(rules);
+
+  const firstWrong = fieldsToCheck.find(
+    (field) => errors[field]
+  );
+
   if (firstWrong) {
-    nextTick(() => inputs[firstWrong]?.focus());
+    nextTick(() => {
+      if (firstWrong === "phone") {
+        document.getElementById(fieldId("phone"))?.focus();
+      } else {
+        inputs[firstWrong]?.focus();
+      }
+    });
+
     return false;
   }
+
   return true;
 }
 
@@ -513,8 +592,14 @@ watch(
   () => {
     for (const rules of STEP_RULES) {
       for (const field of Object.keys(rules)) {
-        if (errors[field]) errors[field] = rules[field]();
+        if (errors[field]) {
+          errors[field] = rules[field]();
+        }
       }
+    }
+
+    if (step.value === 0 && errors.phone) {
+      errors.phone = phoneError(form.client.phone);
     }
   },
   { deep: true },

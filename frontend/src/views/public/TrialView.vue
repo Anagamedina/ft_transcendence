@@ -39,7 +39,7 @@
 
         <!-- Right column: sign-up form -->
         <div
-          class="bg-white border border-aqua-100 rounded-2xl p-6 sm:p-8 shadow-[0_16px_40px_rgba(3,105,161,0.1)]"
+          class="bg-white border border-aqua-100 rounded-2xl p-6 sm:p-8 shadow-[0_16px_40px_theme(colors.aqua.600/10%)]"
         >
           <h2 class="text-2xl font-bold text-aqua-900">Crea tu cuenta</h2>
           <p class="mt-1 mb-6 text-sm text-slate-600">
