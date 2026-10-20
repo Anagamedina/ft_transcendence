@@ -21,7 +21,7 @@ SEED        := $(COMPOSE) run --rm --no-deps \
 # Full local bootstrap. It is safe to repeat: demo data is loaded only into
 # an empty database, while all named volumes survive `make down`.
 all: env certs config-check check-sim-env
-	$(COMPOSE) up --build -d --wait --wait-timeout 120 database backend gateway
+	$(COMPOSE) up --build -d --wait --wait-timeout 120 database backend gateway mailpit
 	$(MAKE) seed-if-empty
 	$(COMPOSE) up --build -d --force-recreate --renew-anon-volumes --wait --wait-timeout 120 backup
 	$(COMPOSE) --profile sim up --build -d --wait --wait-timeout 120 simulator
@@ -102,7 +102,7 @@ dev: dev-infra
 
 # Starts the simulator against a seeded database, so its sensors exist.
 sim: env certs config-check check-sim-env
-	$(COMPOSE) up --build -d --wait --wait-timeout 120 database backend gateway
+	$(COMPOSE) up --build -d --wait --wait-timeout 120 database backend gateway mailpit
 	$(MAKE) seed-if-empty
 	$(COMPOSE) --profile sim up --build -d --wait --wait-timeout 120 simulator
 	@$(COMPOSE) --profile sim ps
