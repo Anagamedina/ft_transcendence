@@ -184,7 +184,7 @@ const criticalSites = computed(
       </div>
 
       <button
-        class="shrink-0 bg-aqua-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-aqua-800 transition"
+        class="shrink-0 bg-aqua-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-aqua-700 transition"
         @click="showMap = true"
       >
         Ver mapa

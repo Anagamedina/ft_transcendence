@@ -6,12 +6,12 @@
 <template>
   <div class="min-h-screen min-w-[320px] flex flex-col">
     <!-- pl-12 on mobile: room for the Sidebar menu button, which is fixed at the top left -->
-    <Header title="AquaGuard · Admin" class="pl-12 md:pl-0">
+    <Header title="AquaGuard · Admin" light class="pl-12 md:pl-0">
       <template #actions>
         <button
           @click="handleLogout"
           :disabled="authStore.status === 'loading'"
-          class="bg-white text-aqua-600 px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 transition shrink-0 disabled:opacity-50"
+          class="border border-aqua-600 text-aqua-600 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-aqua-50 transition shrink-0 disabled:opacity-50"
         >
           {{
             authStore.status === "loading"
@@ -25,7 +25,7 @@
     <div class="flex flex-1">
       <Sidebar appName="Admin" :items="adminNav" />
 
-      <main class="flex-1 min-w-0 bg-slate-100 p-6">
+      <main class="flex-1 min-w-0 bg-aqua-50 p-6">
         <slot />
       </main>
     </div>
