@@ -733,6 +733,7 @@ trial information when applicable, and the active alerts counter using the analy
 the client sidebar to the corresponding Vue Router routes and preserved role-based access control. |
 | Client Documents | [#242] | Implemented the client documents page to display, upload, and delete organization documents. Reused shared components and added loading, error, and empty states. | Issue | Integrated the existing stores and services to keep document fetching consistent with the rest of the application. Ensured the document list and total count update after upload and deletion. |
 | NewClientWizard parsing | [#257] | Improved client and building form validation, including required fields, phone number format, and address validation. | Updated validation rules and error messages, prevented navigation when required fields are invalid |
+| Admin Dashboard Organization | [#250](https://github.com/Anagamedina/ft_transcendence/pull/250) | Reorganized the admin dashboard by removing the Buildings and Sensors summary sections while preserving their sidebar navigation. Improved the map presentation, adjusted its height, and refined the dashboard icons and section layout. | Verified the frontend production build and manually checked the dashboard layout. Backend logic, API endpoints, and existing sidebar routes remain unchanged. |
 
 | Eduardo (`egalindo`) | Features/modules                           | Pull requests | Challenges and solutions |
 |----------------------|--------------------------------------------|---------------|--------------------------|
