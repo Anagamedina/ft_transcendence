@@ -67,6 +67,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 // Official municipal boundary of Barcelona (Ajuntament de Barcelona / CartoBCN, CC-BY),
 // simplified. Imported as a static file: bundled by Vite, no HTTP call.
 import barcelonaLimit from "../assets/geo/barcelona-limit.json";
+import { aqua, chartColors } from "../theme/palette";
 
 const props = defineProps({
   sites: { type: Array, default: () => [] },
@@ -255,7 +256,7 @@ function drawBoundary() {
     id: "city-mask",
     type: "fill",
     source: "city-mask",
-    paint: { "fill-color": "#f1f5f9", "fill-opacity": 0.88 },
+    paint: { "fill-color": chartColors.mapMask, "fill-opacity": 0.88 },
   });
 
   // Outline of the city
@@ -264,7 +265,7 @@ function drawBoundary() {
     id: "city-limit",
     type: "line",
     source: "city-limit",
-    paint: { "line-color": "#0369a1", "line-width": 2 }, // aqua-600
+    paint: { "line-color": aqua[600], "line-width": 2 },
   });
 }
 

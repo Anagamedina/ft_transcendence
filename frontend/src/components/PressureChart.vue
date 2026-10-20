@@ -45,6 +45,7 @@ import {
   Filler,
 } from "chart.js";
 import EmptyState from "./EmptyState.vue";
+import { aqua, status, chartColors } from "../theme/palette";
 
 // Only what this chart needs (registering twice is harmless).
 // Filler paints the green band between the two threshold lines.
@@ -67,12 +68,12 @@ const props = defineProps({
   height: { type: String, default: "240px" },
 });
 
-// Colours from the mockup (Chart.js needs plain values, not Tailwind classes)
-const LINE = "#0369a1"; // aqua-600
-const BAND = "#ecfdf5"; // green band: allowed range
-const BAND_EDGE = "#10b981"; // success
-const INK = "#64748b"; // slate-500
-const GRID = "#e2e8f0"; // slate-200
+// Colors from the shared palette (Chart.js needs plain values, not Tailwind classes)
+const LINE = aqua[600];
+const BAND = chartColors.rangeBand; // green band: allowed range
+const BAND_EDGE = status.success.DEFAULT;
+const INK = chartColors.ink;
+const GRID = chartColors.grid;
 
 const tooltipDate = new Intl.DateTimeFormat("es-ES", {
   weekday: "short",

@@ -2,7 +2,7 @@
   <footer
     :class="
       light
-        ? 'bg-[#e6f4f8] text-slate-700 border-t border-aqua-100'
+        ? 'bg-aqua-75 text-slate-700 border-t border-aqua-100'
         : 'bg-aqua-900 text-gray-300'
     "
     class="mt-auto"

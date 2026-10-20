@@ -36,7 +36,7 @@
 
         <!-- Right column: example building card (static data, no API call) -->
         <div
-          class="bg-white border border-aqua-100 rounded-xl p-5 flex flex-col gap-4 shadow-[0_16px_40px_rgba(3,105,161,0.1)]"
+          class="bg-white border border-aqua-100 rounded-xl p-5 flex flex-col gap-4 shadow-[0_16px_40px_theme(colors.aqua.600/10%)]"
         >
           <div class="flex justify-between items-center gap-3">
             <strong class="text-aqua-900"
@@ -320,12 +320,17 @@ const permissions = [
 .water-drop {
   width: 96px;
   height: 96px;
-  background: linear-gradient(135deg, #ffffff 0%, #a5f3fc 45%, #0369a1 100%);
+  background: linear-gradient(
+    135deg,
+    white 0%,
+    theme('colors.aqua.300') 45%,
+    theme('colors.aqua.600') 100%
+  );
   border-radius: 50% 50% 50% 0;
   transform: rotate(135deg);
   box-shadow:
-    inset -6px -6px 14px rgba(255, 255, 255, 0.4),
-    6px 6px 18px rgba(3, 105, 161, 0.3);
+    inset -6px -6px 14px rgb(255 255 255 / 0.4),
+    6px 6px 18px theme('colors.aqua.600 / 30%');
   animation: float 3s ease-in-out infinite;
 }
 
