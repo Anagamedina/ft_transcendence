@@ -7,25 +7,22 @@
 -->
 
 <script setup>
-import { ref, computed, onMounted, defineAsyncComponent } from "vue";
+import { computed, onMounted, defineAsyncComponent } from "vue";
 import AdminLayout from "../../layouts/AdminLayout.vue";
 import KPICard from "../../components/KPICard.vue";
 import AppIcon from "../../components/AppIcon.vue";
 import ErrorState from "../../components/ErrorState.vue";
-import { useSensorsStore } from "../../stores/sensors";
 import { useAlertsStore } from "../../stores/alerts";
 import { useSitesStore } from "../../stores/sites";
 import { useOverviewStore } from "../../stores/overview";
 import AlertsSummary from "../../components/AlertsSummary.vue";
-import Modal from "../../components/Modal.vue";
 import AnalyticsPanel from "../../components/AnalyticsPanel.vue";
 
-// Loaded only when the map window is opened (MapLibre is heavy, ~900 KB)
+// Loaded on its own chunk (MapLibre is heavy, ~900 KB)
 const SitesMap = defineAsyncComponent(
   () => import("../../components/SitesMap.vue"),
 );
 
-const sensorStore = useSensorsStore();
 const alertsStore = useAlertsStore();
 const sitesStore = useSitesStore();
 const overviewStore = useOverviewStore();
@@ -97,8 +94,7 @@ const sitesForMap = computed(() =>
   })),
 );
 
-// Compact map card: summary + button that opens the map in a modal window
-const showMap = ref(false);
+// Counters shown above the map
 const warningSites = computed(
   () => sitesForMap.value.filter((s) => s.alertLevel === "warning").length,
 );
@@ -138,62 +134,49 @@ const criticalSites = computed(
       </KPICard>
     </section>
 
-    
-
     <!-- F19: charts, date range, CSV export and auto refresh -->
     <AnalyticsPanel />
 
-    <!-- Map card: compact on the dashboard, full map opens in a modal -->
-<section
-  class="bg-white border border-gray-200 rounded-xl shadow-md p-5 mb-8"
->
-  <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-    <div>
-      <div class="flex items-center gap-2 mb-1">
-        <AppIcon
-          name="building"
-          class="text-aqua-700"
-          style="width: 20px; height: 20px; flex: 0 0 20px;"
-        />
+    <!-- Map card: building map shown directly on the dashboard -->
+    <section
+      class="bg-white border border-gray-200 rounded-xl shadow-md p-5 mb-8"
+    >
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <AppIcon
+              name="building"
+              class="text-aqua-700"
+              style="width: 20px; height: 20px; flex: 0 0 20px"
+            />
 
-        <h2 class="text-lg font-bold text-gray-800">
-          Mapa de edificios
-        </h2>
+            <h2 class="text-lg font-bold text-gray-800">Mapa de edificios</h2>
+          </div>
+
+          <p class="text-sm text-gray-500">
+            {{ sitesForMap.length }}
+            {{ sitesForMap.length === 1 ? "edificio" : "edificios" }}
+
+            <span v-if="criticalSites" class="ml-2 font-semibold text-red-700">
+              · {{ criticalSites }} con alerta crítica
+            </span>
+
+            <span v-if="warningSites" class="ml-2 font-semibold text-amber-700">
+              · {{ warningSites }} con aviso
+            </span>
+          </p>
+        </div>
+
+        <router-link
+          to="/admin/sites"
+          class="text-sm font-semibold text-aqua-700 hover:text-aqua-900 underline"
+        >
+          Ver edificios
+        </router-link>
       </div>
 
-      <p class="text-sm text-gray-500">
-        {{ sitesForMap.length }}
-        {{ sitesForMap.length === 1 ? "edificio" : "edificios" }}
-
-        <span
-          v-if="criticalSites"
-          class="ml-2 font-semibold text-red-700"
-        >
-          · {{ criticalSites }} con alerta crítica
-        </span>
-
-        <span
-          v-if="warningSites"
-          class="ml-2 font-semibold text-amber-700"
-        >
-          · {{ warningSites }} con aviso
-        </span>
-      </p>
-    </div>
-
-    <router-link
-      to="/admin/sites"
-      class="text-sm font-semibold text-aqua-700 hover:text-aqua-900 underline"
-    >
-      Ver edificios
-    </router-link>
-  </div>
-
-  <SitesMap
-    :sites="sitesForMap"
-    height="400px"
-  />
-</section>
+      <SitesMap :sites="sitesForMap" height="400px" />
+    </section>
 
     <AlertsSummary
       :alerts="activeAlertList"
@@ -201,6 +184,5 @@ const criticalSites = computed(
       :error="alertsStore.error"
       @retry="loadAlerts"
     />
-
   </AdminLayout>
 </template>

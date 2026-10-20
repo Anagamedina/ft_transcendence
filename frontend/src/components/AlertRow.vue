@@ -65,7 +65,7 @@
         <button
           v-if="alert.status === 'ACTIVE'"
           type="button"
-          class="rounded-md bg-aqua-900 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-aqua-800 disabled:opacity-50"
+          class="rounded-md bg-aqua-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-aqua-700 disabled:opacity-50"
           :disabled="busy"
           @click="$emit('resolve', alert.id)"
         >

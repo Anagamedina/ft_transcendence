@@ -1,25 +1,29 @@
 <template>
-  <!-- Botón hamburguesa: solo visible en móvil -->
+  <!-- Menu button: only visible on mobile -->
   <button
-    class="md:hidden fixed top-4 left-4 z-50 bg-aqua-900 text-white p-2 rounded-lg shadow-lg"
+    class="md:hidden fixed top-4 left-4 z-[60] bg-white text-aqua-900 border border-aqua-100 p-2 rounded-lg shadow-md"
+    :aria-expanded="isOpen"
+    aria-label="Abrir o cerrar el menú"
     @click="isOpen = !isOpen"
   >
     <span v-if="!isOpen">☰</span>
     <span v-else>✕</span>
   </button>
 
-  <!-- Overlay oscuro al abrir en móvil -->
+  <!-- Dark overlay behind the open menu on mobile.
+       Layers: overlay (40) < sticky header and menu (50) < menu button (60).
+       On desktop the menu has no z-index, so the sticky header stays on top. -->
   <div
     v-if="isOpen"
-    class="md:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
+    class="md:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
     @click="isOpen = false"
   ></div>
 
   <aside
-    class="w-64 bg-aqua-900 text-white p-4 h-screen md:h-auto flex flex-col fixed md:static top-0 left-0 z-40 transition-transform duration-300"
+    class="w-64 bg-white text-slate-700 border-r border-aqua-100 px-4 pb-4 pt-20 md:pt-4 h-screen md:h-auto flex flex-col fixed md:static top-0 left-0 z-50 md:z-auto transition-transform duration-300"
     :class="isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'"
   >
-    <h2 class="text-xl font-bold mb-6 text-aqua-200">{{ appName }}</h2>
+    <h2 class="text-xl font-bold mb-6 text-aqua-900">{{ appName }}</h2>
     <nav class="space-y-1 flex-1" aria-label="Navegación principal">
       <div v-for="item in items" :key="item.label">
         <!-- Real link: highlighted when its route (or a child route) is open -->
@@ -28,7 +32,9 @@
           :to="item.to"
           class="flex items-center gap-3 px-4 py-3 rounded-lg transition"
           :class="
-            isActive(item) ? 'bg-aqua-800 font-semibold' : 'hover:bg-aqua-800'
+            isActive(item)
+              ? 'bg-aqua-100 text-aqua-900 font-semibold'
+              : 'hover:bg-aqua-50 hover:text-aqua-900'
           "
           :aria-current="isActive(item) ? 'page' : undefined"
           @click="isOpen = false"
@@ -37,7 +43,7 @@
           {{ item.label }}
           <span
             v-if="item.badge"
-            class="ml-auto rounded-full bg-red-600 px-2 py-0.5 text-xs font-semibold"
+            class="ml-auto rounded-full bg-danger-dark text-white px-2 py-0.5 text-xs font-semibold"
             :aria-label="`${item.badge} abiertas`"
           >
             {{ item.badge }}

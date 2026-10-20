@@ -1,12 +1,6 @@
 <template>
-  <footer
-    :class="
-      light
-        ? 'bg-[#e6f4f8] text-slate-700 border-t border-aqua-100'
-        : 'bg-aqua-900 text-gray-300'
-    "
-    class="mt-auto"
-  >
+  <!-- Single light footer for every layout (public, admin and client), as in the mockup -->
+  <footer class="mt-auto bg-aqua-75 text-slate-700 border-t border-aqua-100">
     <div
       class="w-full px-6 py-5 flex flex-col sm:flex-row justify-between items-center gap-3 text-sm"
     >
@@ -19,10 +13,7 @@
           v-for="link in links"
           :key="link.to"
           :to="link.to"
-          :class="
-            light ? 'text-aqua-600 hover:text-aqua-900' : 'hover:text-aqua-200'
-          "
-          class="transition"
+          class="text-aqua-600 hover:text-aqua-900 transition"
         >
           {{ link.label }}
         </router-link>
@@ -34,8 +25,6 @@
 <script setup>
 defineProps({
   appName: { type: String, default: "AquaGuard" },
-  // Light variant for the public pages; the default dark one is used in the app
-  light: { type: Boolean, default: false },
 });
 
 const year = new Date().getFullYear();

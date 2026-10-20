@@ -24,6 +24,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
+import { chartColors } from "../theme/palette";
 
 // Only what the three chart types need (keeps the bundle small).
 Chart.register(
@@ -57,9 +58,10 @@ const props = defineProps({
 });
 
 // Recessive axes and grid; text in ink colors, never the series color.
-const INK = "#4b5563";
-const GRID = "#e5e7eb";
-const SURFACE = "#ffffff";
+// Colors come from the shared palette (src/theme/palette.js).
+const INK = chartColors.ink;
+const GRID = chartColors.grid;
+const SURFACE = chartColors.surface;
 
 const canvas = ref(null);
 let chart = null;

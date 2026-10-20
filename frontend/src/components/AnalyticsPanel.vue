@@ -19,15 +19,16 @@ import LoadingState from "./LoadingState.vue";
 import EmptyState from "./EmptyState.vue";
 import ErrorState from "./ErrorState.vue";
 import { useFormat } from "../composables/useFormat";
+import { chartColors } from "../theme/palette";
 
 const REFRESH_MS = 30000;
 const PRESETS = [7, 30, 90];
 
 // Validated palette (light surface): blue = all alerts, red = critical,
 // amber = warning. Severity keeps the same color in every chart.
-const COLOR_TOTAL = "#2a78d6";
-const COLOR_CRITICAL = "#e34948";
-const COLOR_WARNING = "#eda100";
+const COLOR_TOTAL = chartColors.seriesTotal;
+const COLOR_CRITICAL = chartColors.seriesCritical;
+const COLOR_WARNING = chartColors.seriesWarning;
 
 const store = useAnalyticsStore();
 const { fromDate, toDate, status, error, rangeError, lastUpdated, exporting } =
@@ -152,7 +153,7 @@ const updatedAt = computed(() =>
         </label>
         <button
           type="button"
-          class="bg-aqua-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-aqua-800 transition disabled:opacity-50"
+          class="bg-aqua-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-aqua-700 transition disabled:opacity-50"
           :disabled="!!rangeError || exporting"
           @click="store.exportCsv()"
         >
