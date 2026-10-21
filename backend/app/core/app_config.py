@@ -15,6 +15,7 @@ El `.env` del proyecto tiene variables de dos dueños distintos:
     INGEST_API_KEY                        → clave del simulador (Ana, #106)
     CORS_ORIGINS                          → CORS de FastAPI  (Ana, #22)
     BACKUPS_DIR, BACKUP_INTERVAL_HOURS    → página de estado (Eduardo, #154)
+    SMTP_*                                → emails de confirmación (Daruny, B19)
 
 `core/config.py` es de Daruny y lee las suyas. Este archivo lee las de
 aplicación. Cada clase toma del mismo `.env` únicamente lo que le
@@ -133,6 +134,27 @@ class AppSettings(BaseSettings):
     # Tamaño máximo de un documento, en MB (B11). El gateway usa el mismo
     # valor (+1 MB por la cabecera multipart) en `client_max_body_size`.
     MAX_UPLOAD_MB: int = 10
+
+    # Emails de confirmación del módulo GDPR (B19): al descargar los datos y
+    # al pedir la baja. SMTP estándar con `smtplib`.
+    #
+    # En Docker, Compose apunta a Mailpit (`mailpit:1025`), que captura los
+    # correos y los enseña en http://localhost:8025. Para buzones reales
+    # basta con cambiar estas variables en el .env.
+    #
+    # Con SMTP_HOST vacío (el valor por defecto: tests, uvicorn en local)
+    # no se envía nada; solo se anota en el log.
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 1025
+    # Sin usuario no se hace login: Mailpit no lo pide.
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    # Solo la dirección, sin nombre: `validate_env.sh` hace `source` del .env
+    # y un `<` sin comillas sería una redirección de la shell. El nombre
+    # «AquaGuard» se añade al montar el email.
+    SMTP_FROM: str = "no-reply@aquaguard.dev"
+    # STARTTLS para servidores reales (puerto 587). Mailpit no lo usa.
+    SMTP_STARTTLS: bool = False
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,

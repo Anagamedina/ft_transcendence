@@ -28,6 +28,12 @@ services:
       BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
       BACKUP_KEEP: ${BACKUP_KEEP:-7}
       BACKUPS_DIR: /backups
+      # Emails de confirmación (B19). Por defecto van a Mailpit; con
+      # SMTP_HOST= (vacío) en el .env no se envía nada.
+      SMTP_HOST: ${SMTP_HOST-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_FROM: ${SMTP_FROM:-no-reply@aquaguard.dev}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
     expose:
       - "8000"
     volumes:
@@ -67,6 +73,25 @@ services:
       timeout: 5s
       retries: 3
       start_period: 60s
+
+  # Servidor SMTP de pruebas (B19): captura los emails del backend y los
+  # enseña en http://localhost:8025. No entrega nada a buzones reales.
+  # El backend no depende de él: con Mailpit parado, la app responde igual
+  # y el fallo del envío queda en el log. SMTP (1025) solo en la red interna;
+  # la web solo en 127.0.0.1, porque enseña los correos sin contraseña.
+  mailpit:
+    image: axllent/mailpit:v1.27
+    restart: unless-stopped
+    expose:
+      - "1025"
+    ports:
+      - "127.0.0.1:8025:8025"
+    networks: [aquaguard]
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   simulator:
     profiles: ["sim"]

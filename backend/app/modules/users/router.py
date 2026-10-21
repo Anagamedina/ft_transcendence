@@ -26,9 +26,10 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Response, status
 
 from app.modules.auth.schemas import MessageResponse
+from app.modules.users import emails
 from app.modules.users.model import User
 from app.modules.users.schemas import (
     DeletionRequestResponse,
@@ -48,6 +49,7 @@ from app.shared.dependencies import (
     require_role,
     require_trial_not_expired,
 )
+from app.shared.email import send_email
 from app.shared.schemas import Page, error_response
 
 router = APIRouter(tags=["Users"])
@@ -288,17 +290,33 @@ _SIN_SESION = error_response(
         "Todo lo que AquaGuard guarda de tu cuenta: la cuenta (con la versión "
         "de los términos que aceptaste), tu organización y sus edificios.\n\n"
         "Se descarga como `aquaguard-mis-datos_AAAA-MM-DD.json`. Un admin sin "
-        "organización recibe solo su cuenta."
+        "organización recibe solo su cuenta.\n\n"
+        "Cada descarga envía el email «Has descargado tus datos de AquaGuard» "
+        "a la dirección de la cuenta (B19), en segundo plano: la respuesta no "
+        "espera al correo y, si el envío falla, solo se anota en el log."
     ),
     responses={**_SIN_SESION},
 )
-def export_me(service: UserSvc, user: CurrentUser, response: Response) -> MyDataExport:
+def export_me(
+    service: UserSvc,
+    user: CurrentUser,
+    response: Response,
+    background: BackgroundTasks,
+) -> MyDataExport:
     datos = service.export_me(user)
     nombre = f"aquaguard-mis-datos_{datos.exported_at:%Y-%m-%d}.json"
     # attachment: el navegador lo guarda en vez de enseñarlo.
     response.headers["Content-Disposition"] = f'attachment; filename="{nombre}"'
     # Datos personales: que no se queden en ninguna caché.
     response.headers["Cache-Control"] = "no-store"
+    # Se envía después de la respuesta. Con datos simples, no con `user`:
+    # para entonces la sesión de la base de datos ya está cerrada.
+    background.add_task(
+        send_email,
+        user.email,
+        emails.EXPORT_SUBJECT,
+        emails.export_body(user.name, datos.exported_at),
+    )
     return datos
 
 
@@ -310,11 +328,25 @@ def export_me(service: UserSvc, user: CurrentUser, response: Response) -> MyData
     description=(
         "Registra que quieres darte de baja. **No borra nada:** lo tramita un "
         "admin. Pedirla otra vez no cambia la fecha de la primera.\n\n"
-        "No se envía email de confirmación: el proyecto no envía emails. "
+        "La primera vez envía el email «Hemos recibido tu petición de baja» "
+        "(B19), en segundo plano; pedirla otra vez no envía otro. "
         "`GET /api/me` devuelve `deletion_requested_at` para mostrar que ya "
         "está pedida."
     ),
     responses={**_SIN_SESION},
 )
-def request_deletion(service: UserSvc, user: CurrentUser) -> DeletionRequestResponse:
-    return service.request_deletion(user)
+def request_deletion(
+    service: UserSvc, user: CurrentUser, background: BackgroundTasks
+) -> DeletionRequestResponse:
+    # Se mira antes de llamar al servicio, que es idempotente y responde
+    # igual las dos veces: solo la primera petición manda el email.
+    primera_vez = user.deletion_requested_at is None
+    respuesta = service.request_deletion(user)
+    if primera_vez:
+        background.add_task(
+            send_email,
+            user.email,
+            emails.DELETION_SUBJECT,
+            emails.deletion_body(user.name, respuesta.deletion_requested_at),
+        )
+    return respuesta

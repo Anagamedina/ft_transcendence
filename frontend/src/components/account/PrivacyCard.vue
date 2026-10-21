@@ -11,7 +11,9 @@
     <div class="space-y-3">
       <p class="text-sm text-gray-700">
         Descarga una copia de tu cuenta, tu organización y tus edificios en
-        formato JSON.
+        formato JSON. Te enviaremos un email de confirmación a
+        <strong class="font-semibold">{{ accountEmail }}</strong
+        >.
       </p>
       <p v-if="exportError" class="text-sm text-red-700" role="alert">
         {{ exportError }}
@@ -45,6 +47,7 @@
         <p class="text-sm text-gray-700">
           Si pides la baja, un administrador revisará la petición y cerrará tu
           cuenta. Hasta entonces puedes seguir entrando y descargar tus datos.
+          Recibirás un email de confirmación cuando la pidas.
         </p>
 
         <!-- Confirmation on the page itself, no browser dialog -->
@@ -100,12 +103,15 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from "vue";
+import { ref, computed, nextTick } from "vue";
 import { useAuthStore } from "../../stores/auth";
 import { formatDate } from "../../composables/useFormat";
 import { apiErrorMessage } from "../../utils/apiError";
 
 const authStore = useAuthStore();
+
+// Where the confirmation emails go (B19): the account address
+const accountEmail = computed(() => authStore.user?.email ?? "");
 
 const exporting = ref(false);
 const exportError = ref("");

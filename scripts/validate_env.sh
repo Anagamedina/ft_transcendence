@@ -60,6 +60,23 @@ for variable in SIMULATOR_INTERVAL_SECONDS SIMULATOR_REQUEST_TIMEOUT_SECONDS; do
   positive_number "$variable"
 done
 
+# Emails (B19): all optional. An empty or missing SMTP_HOST just disables them.
+[ -z "${SMTP_PORT-}" ] || positive_integer SMTP_PORT
+
+case "${SMTP_STARTTLS-}" in
+  '' | true | false) ;;
+  *) fail "SMTP_STARTTLS must be true or false" ;;
+esac
+
+case "${SMTP_FROM-}" in
+  '' | *@*) ;;
+  *) fail "SMTP_FROM must be an email address, such as no-reply@aquaguard.dev" ;;
+esac
+
+if [ -n "${SMTP_USER-}" ] && [ -z "${SMTP_PASSWORD-}" ]; then
+  fail "SMTP_USER is set but SMTP_PASSWORD is empty"
+fi
+
 if [ "$ENV" = "production" ]; then
   [ "$SECRET_KEY" != "dev-only-change-me" ] || fail "SECRET_KEY uses the development placeholder"
   [ "$INGEST_API_KEY" != "dev-only-ingest-key" ] || fail "INGEST_API_KEY uses the development placeholder"
