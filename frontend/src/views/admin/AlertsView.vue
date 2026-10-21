@@ -1,8 +1,9 @@
 <!--
   ADMIN ALERTS VIEW
-  All alerts with counters, the sensors with most alerts and a DataTable
-  (search, client / state / severity filters, pagination). Each row is an
-  AlertRow; this view calls the store when a row asks to acknowledge or resolve.
+  All alerts with counters, a "Pendientes" block with every open alert
+  (F22), the sensors with most alerts and a DataTable (search, client /
+  state / severity filters, pagination). Each row is an AlertRow; this view
+  calls the store when a row asks to acknowledge or resolve.
 -->
 
 <template>
@@ -44,6 +45,69 @@
           <p class="mt-1 text-2xl font-semibold">{{ resolvedCount }}</p>
         </div>
       </div>
+
+      <!-- F22: open alerts first, without touching the table filters -->
+      <section
+        class="rounded-xl border border-slate-200 bg-white"
+        aria-labelledby="pending-title"
+      >
+        <div class="flex items-center justify-between gap-3 p-4">
+          <h2 id="pending-title" class="text-sm font-semibold text-slate-800">
+            Pendientes
+          </h2>
+          <span
+            v-if="pendingAlerts.length > 0"
+            class="text-sm text-slate-500"
+          >
+            {{ pendingAlerts.length }} abiertas
+          </span>
+        </div>
+
+        <p v-if="pendingStatus === 'loading'" class="px-4 pb-4 text-sm text-slate-500">
+          Cargando alertas pendientes...
+        </p>
+        <p
+          v-else-if="pendingStatus === 'error'"
+          class="px-4 pb-4 text-sm text-red-700"
+          role="alert"
+        >
+          No se pudieron cargar las alertas pendientes.
+        </p>
+        <p
+          v-else-if="pendingAlerts.length === 0"
+          class="px-4 pb-4 text-sm text-slate-500"
+        >
+          Sin alertas pendientes.
+        </p>
+
+        <div v-else class="overflow-x-auto border-t border-slate-200">
+          <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
+            <caption class="sr-only">Alertas pendientes</caption>
+            <thead class="bg-slate-50 text-slate-600">
+              <tr>
+                <th
+                  v-for="column in COLUMNS"
+                  :key="column.key"
+                  scope="col"
+                  class="px-4 py-3 font-medium"
+                >
+                  {{ column.label }}
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <AlertRow
+                v-for="alert in pendingAlerts"
+                :key="alert.id"
+                :alert="alert"
+                :busy="busyAlertId === alert.id"
+                @acknowledge="acknowledge"
+                @resolve="resolve"
+              />
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <div
         v-if="sensorRanking.length > 0"
@@ -116,6 +180,7 @@ import AdminLayout from "../../layouts/AdminLayout.vue";
 import DataTable from "../../components/DataTable.vue";
 import AlertRow from "../../components/AlertRow.vue";
 import { useAlertsStore } from "../../stores/alerts.js";
+import alertsService from "../../services/alerts.service.js";
 import { useLabels } from "../../composables/useLabels";
 
 const alertStore = useAlertsStore();
@@ -131,7 +196,15 @@ const COLUMNS = [
   { key: "actions", label: "Acciones" },
 ];
 
+// Critical before warning; inside each group, newest first
+const SEVERITY_ORDER = { CRITICAL: 0, WARNING: 1 };
+
 const busyAlertId = ref(null);
+
+// F22: own request (status=ACTIVE = not acknowledged + acknowledged), kept
+// out of the store so it never overwrites the main table list
+const openAlerts = ref([]);
+const pendingStatus = ref("idle");
 const actionError = ref("");
 
 const alerts = computed(() => alertStore.alerts);
@@ -161,6 +234,14 @@ const criticalCount = computed(
     alerts.value.filter(
       (alert) => alert.severity === "CRITICAL" && alert.status === "ACTIVE",
     ).length,
+);
+
+const pendingAlerts = computed(() =>
+  [...openAlerts.value].sort(
+    (a, b) =>
+      (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9) ||
+      new Date(b.created_at) - new Date(a.created_at),
+  ),
 );
 
 // One option per client that has alerts, sorted by name
@@ -220,7 +301,37 @@ const sensorRanking = computed(() => {
   return [...sensors.values()].sort((a, b) => b.total - a.total).slice(0, 5);
 });
 
+async function loadPending() {
+  pendingStatus.value = "loading";
+
+  try {
+    const response = await alertsService.getAlerts({ status: "ACTIVE" });
+    openAlerts.value = response.data.items;
+    pendingStatus.value = "success";
+  } catch {
+    openAlerts.value = [];
+    pendingStatus.value = "error";
+  }
+}
+
+// Keeps the pending block in sync after an action from either list:
+// resolved alerts leave the block, acknowledged ones are replaced
+function syncPending(updated) {
+  if (!updated) return;
+
+  if (updated.status === "RESOLVED") {
+    openAlerts.value = openAlerts.value.filter((a) => a.id !== updated.id);
+    return;
+  }
+
+  openAlerts.value = openAlerts.value.map((a) =>
+    a.id === updated.id ? updated : a,
+  );
+}
+
 async function loadAlerts() {
+  loadPending();
+
   try {
     await alertStore.fetchAlerts();
   } catch {
@@ -233,7 +344,7 @@ async function acknowledge(id) {
   actionError.value = "";
 
   try {
-    await alertStore.acknowledgeAlert(id);
+    syncPending(await alertStore.acknowledgeAlert(id));
   } catch (err) {
     actionError.value = err?.message || "No se pudo reconocer la alerta.";
   } finally {
@@ -246,7 +357,7 @@ async function resolve(id) {
   actionError.value = "";
 
   try {
-    await alertStore.resolveAlert(id);
+    syncPending(await alertStore.resolveAlert(id));
   } catch (err) {
     actionError.value = err?.message || "No se pudo resolver la alerta.";
   } finally {
