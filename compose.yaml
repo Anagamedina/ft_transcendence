@@ -1,7 +1,17 @@
+# Docker keeps each container's log in a json file with no size limit. This
+# rotates it: at most 3 files of 10 MB per service (about 30 MB), dropping the
+# oldest. `docker compose logs` reads them the same way.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   database:
     image: postgres:16-alpine
     restart: unless-stopped
+    logging: *default-logging
     env_file: .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -17,6 +27,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
+    logging: *default-logging
     env_file: .env
     environment:
       POSTGRES_HOST: database
@@ -54,6 +65,7 @@ services:
       context: ./backup
       dockerfile: Dockerfile
     restart: unless-stopped
+    logging: *default-logging
     environment:
       PGHOST: database
       PGUSER: ${POSTGRES_USER}
@@ -82,6 +94,7 @@ services:
   mailpit:
     image: axllent/mailpit:v1.27
     restart: unless-stopped
+    logging: *default-logging
     expose:
       - "1025"
     ports:
@@ -99,12 +112,15 @@ services:
       context: ./simulator
       dockerfile: Dockerfile
     restart: unless-stopped
+    logging: *default-logging
     env_file: .env
     environment:
       SIMULATOR_API_URL: http://backend:8000
+    # service_healthy, not service_started: the backend container exists
+    # before its API answers, and readings sent in that gap fail.
     depends_on:
       backend:
-        condition: service_started
+        condition: service_healthy
     networks: [aquaguard]
 
   gateway:
@@ -112,6 +128,7 @@ services:
       context: .
       dockerfile: gateway/Dockerfile
     restart: unless-stopped
+    logging: *default-logging
     environment:
       PUBLIC_RATE_LIMIT: ${PUBLIC_RATE_LIMIT:-10r/m}
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-10}
