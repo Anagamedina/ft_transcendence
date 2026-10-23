@@ -16,7 +16,7 @@ SEED        := $(COMPOSE) run --rm --no-deps \
 	-v $(CURDIR)/backend/seeds:/app/seeds:ro \
 	--entrypoint python backend -m seeds.seed_demo
 
-.PHONY: all setup env config-check doctor check-sim-env certs up dev dev-infra frontend-install e2e-install frontend-dev sim demo seed seed-if-empty migrate migration migration-check storage-check test-backend test-frontend test-e2e lint format compose-check check down build logs ps clean fclean re smoke backup backups restore
+.PHONY: all setup env config-check doctor check-sim-env certs up dev dev-infra frontend-install e2e-install frontend-dev sim demo seed seed-if-empty migrate migration migration-check storage-check test-backend test-frontend test-e2e lint format compose-check check down build logs ps clean fclean re smoke backup backups restore backup-verify
 
 # Full local bootstrap. It is safe to repeat: demo data is loaded only into
 # an empty database, while all named volumes survive `make down`.
@@ -174,6 +174,11 @@ backups:
 
 restore:
 	@sh scripts/restore.sh "$(FILE)"
+
+# Restores a backup into a temporary database and compares it with the real
+# one. Without FILE it makes a new backup first; see docs/disaster-recovery.md.
+backup-verify:
+	@bash scripts/backup_verify.sh "$(FILE)"
 
 down:
 	$(COMPOSE) --profile sim down
