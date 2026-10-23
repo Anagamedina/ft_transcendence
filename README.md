@@ -513,19 +513,32 @@ See [`docs/architecture.md`](docs/architecture.md) for the detailed design.
 
 ## Technical stack
 
-| Area        | Technology                   | Purpose                                   |
-|-------------|------------------------------|-------------------------------------------|
-| Frontend    | Vue, Vite, Vue Router, Pinia | Responsive single-page application        |
-| Styling     | Tailwind CSS, DaisyUI        | Consistent responsive UI styling          |
-| HTTP client | Axios                        | Frontend-to-backend communication         |
-| Backend     | FastAPI, Uvicorn             | HTTP API and application server           |
-| Persistence | PostgreSQL                   | Relational storage and data integrity     |
-| ORM         | SQLAlchemy                   | Database access and domain mapping        |
-| Migrations  | Alembic                      | Versioned database schema changes         |
-| Deployment  | Docker Compose, Nginx        | Container orchestration and HTTPS gateway |
+| Area            | Technology                              | Purpose                                      |
+|-----------------|-----------------------------------------|----------------------------------------------|
+| Frontend        | Vue 3, Vite, Vue Router, Pinia          | Responsive single-page application           |
+| Styling         | Tailwind CSS, DaisyUI                   | Shared palette and responsive UI             |
+| HTTP client     | Axios                                   | Frontend-to-backend communication            |
+| Charts and maps | Chart.js, MapLibre GL + OpenFreeMap     | Analytics charts and the Barcelona sites map |
+| Backend         | FastAPI, Pydantic, Uvicorn              | HTTP API, validation and OpenAPI docs        |
+| Auth            | Argon2 (`argon2-cffi`), httpOnly cookie | Password hashing and session                 |
+| Persistence     | PostgreSQL 16                           | Relational storage and data integrity        |
+| ORM             | SQLAlchemy 2, psycopg 3                 | Database access and domain mapping           |
+| Migrations      | Alembic                                 | Versioned database schema changes            |
+| Email           | SMTP, Mailpit                           | GDPR confirmation emails, caught locally     |
+| Tests           | Pytest, Vitest, Playwright              | Backend, frontend unit and end-to-end tests  |
+| Code quality    | ESLint, Prettier                        | Frontend linting and formatting              |
+| Deployment      | Docker Compose, Nginx                   | Container orchestration and HTTPS gateway    |
 
-The final rationale for each major technical decision will be recorded as the
-architecture evolves.
+The main technical decisions and their reasons are recorded as ADRs in
+[`docs/decisions`](docs/decisions):
+
+- [0001](docs/decisions/0001-auth-cookie.md): session in an httpOnly, Secure,
+  SameSite cookie instead of a JWT in `localStorage`.
+- [0002](docs/decisions/0002-uuid-claves-primarias.md): UUID primary keys.
+- [0003](docs/decisions/0003-header-landing-degradado-vs-imagen.md): landing
+  header with a gradient instead of an image.
+- [0004](docs/decisions/0004-reglas-migraciones.md): rules for writing
+  migrations.
 
 ## Database schema
 
@@ -829,19 +842,21 @@ Issues #130 to #134 were reviewed and merged together in #182.
 | #250  | Admin dashboard reorganized: summaries removed, map height and icons refined             | #255          | Implemented |
 | #253  | New client wizard: required fields, phone format and address validation                  | #257          | Implemented |
 
-| Eduardo (`egalindo`)                                           | Features/modules                                                                                                  | Pull requests                                                                                                                      | Challenges and solutions                                                                                                     |
-|----------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------|
-| #19 Docker Compose stack                                       | Services on the `aquaguard` network, volumes, `.env.example` and the first `Makefile` targets                     | [#52](https://github.com/Anagamedina/ft_transcendence/pull/52)                                                                     | Simulator and gateway Dockerfiles were still stubs, so they started behind Compose profiles until they were ready            |
-| #20 Nginx gateway and HTTPS                                    | Single entry point: TLS 1.2/1.3, 80 → 443 redirect, compiled SPA, `/api/` proxy                                   | [#61](https://github.com/Anagamedina/ft_transcendence/pull/61)                                                                     | Backend and PostgreSQL stopped publishing host ports; only the gateway is reachable                                          |
-| #89 (#16) Sensor simulator                                     | `normal`, `low`, `high` and `offline` scenarios, idempotent reading ids, own `HEALTHCHECK`                        | [#101](https://github.com/Anagamedina/ft_transcendence/pull/101)                                                                   | Waits for the backend and retries only temporary failures; demo users got the real login hash so they can sign in            |
-| #92 Alembic migration targets                                  | `make migrate`, `make migration MSG=...` and `make migration-check`                                               | [#102](https://github.com/Anagamedina/ft_transcendence/pull/102)                                                                   | Nothing generates migrations on its own; the check gives a different message for unreachable DB, pending revisions and drift |
-| #21 Health checks and smoke test                               | `make smoke`: health endpoints, redirect, SPA and a reading stored end to end                                     | [#103](https://github.com/Anagamedina/ft_transcendence/pull/103)                                                                   | Each check stops the run with a message that names the logs to look at                                                       |
-| #41 E2E auth and navigation                                    | Playwright suite against the real stack: login, register, logout, guards and role redirects                       | [#127](https://github.com/Anagamedina/ft_transcendence/pull/127)                                                                   | Separate `e2e/` package so Vitest does not pick up its `*.spec.js` and the gateway image gets no extra dependencies          |
-| #151 Environment variables and generated keys                  | Variables for invitations, trial, documents and backups; `make env` generates random keys                         | [#183](https://github.com/Anagamedina/ft_transcendence/pull/183)                                                                   | A clean clone no longer runs with the keys published in the repository, and an existing `.env` is never overwritten          |
-| #154 Status page, backups and disaster recovery                | `/status`, `GET /api/status`, `backup` service, `make backup`/`backups`/`restore`                                 | [#184](https://github.com/Anagamedina/ft_transcendence/pull/184)                                                                   | Dumps are renamed only when complete and a restore runs in one transaction, so a failure leaves the data as it was           |
-| #155 Gateway rate limit, security headers and documents volume | Per-IP limit on login, register and invitations with JSON 429; HSTS and security headers; `documents_data` volume | [#189](https://github.com/Anagamedina/ft_transcendence/pull/189)                                                                   | One counter per form plus a burst, because the whole campus shares a single public IP                                        |
-| #153 Admin alerts view                                         | Client filter, counters, sensor ranking and open-alerts counter in the admin menu; rows use `AlertRow`            | [#196](https://github.com/Anagamedina/ft_transcendence/pull/196), [#207](https://github.com/Anagamedina/ft_transcendence/pull/207) | Reused the shared `AlertRow` (#203) instead of a hand-written row, with no visual change                                     |
-| #156 Admin dashboard KPIs                                      | KPIs from `GET /api/analytics/overview` and sites from `GET /api/sites`                                           | [#220](https://github.com/Anagamedina/ft_transcendence/pull/220)                                                                   | The view no longer computes KPIs from fixtures; it reads the `overview` and `sites` stores                                   |
+### Eduardo (`egalindo`)
+
+| Issue    | Contribution                                                                                         | Pull requests | Status      |
+|----------|------------------------------------------------------------------------------------------------------|---------------|-------------|
+| #19      | Docker Compose stack: services on the `aquaguard` network, volumes, `.env.example`, first `Makefile` | #52           | Implemented |
+| #20      | Nginx gateway: TLS 1.2/1.3, 80 → 443 redirect, compiled SPA and `/api/` proxy                        | #61           | Implemented |
+| #89, #16 | Sensor simulator: `normal`, `low`, `high` and `offline` scenarios, idempotent reading ids            | #101          | Implemented |
+| #92      | Alembic targets: `make migrate`, `make migration MSG=...` and `make migration-check`                 | #102          | Implemented |
+| #21      | Health checks and `make smoke`: health endpoints, redirect, SPA and a reading stored end to end      | #103          | Implemented |
+| #41      | Playwright E2E suite: login, register, logout, guards and role redirects on the real stack           | #127          | Implemented |
+| #151     | Environment variables for invitations, trial, documents and backups; `make env` generates keys       | #183          | Implemented |
+| #154     | Status page, `GET /api/status`, `backup` service and `make backup`/`backups`/`restore`               | #184          | Implemented |
+| #155     | Gateway rate limit with JSON 429, HSTS and security headers, `documents_data` volume                 | #189          | Implemented |
+| #153     | Admin alerts view: client filter, counters, sensor ranking and open-alerts counter                   | #196, #207    | Implemented |
+| #156     | Admin dashboard KPIs from `GET /api/analytics/overview` and sites from `GET /api/sites`              | #220          | Implemented |
 
 ## Resources
 
