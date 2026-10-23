@@ -28,11 +28,57 @@ Lo que **no** cubre el backup: el fichero `.env` y los certificados de
 | `make backups` | Lista los backups del volumen |
 | `make backup` | Lanza un backup ahora |
 | `make restore FILE=<nombre>` | Restaura la base de datos desde ese backup |
+| `make backup-verify` | Comprueba que un backup se puede restaurar, sin tocar la base real |
 | `make smoke` | Comprueba el stack de punta a punta |
 
 La página <https://localhost/status> muestra la fecha y el tamaño del último
 backup. Si "Copias de seguridad" no está en "Operativo", hay que mirar
 `docker compose logs backup` antes de que haga falta un backup que no existe.
+
+## Comprobar que un backup se puede restaurar
+
+Que exista un `aquaguard-*.sql.gz` no demuestra que sirva. `make backup-verify`
+lo restaura en una base **temporal** y lo compara con la real, sin tocarla: el
+backend sigue funcionando durante la comprobación.
+
+```bash
+make backup-verify                                    # backup nuevo y comparación
+make backup-verify FILE=aquaguard-20261010-194544.sql.gz   # un backup que ya existe
+```
+
+Sin `FILE`:
+
+1. Comprueba que los contenedores `database` y `backup` están en marcha.
+2. Lee la lista de tablas de la base real.
+3. Pausa el simulador, para que la base real no cambie durante la
+   comprobación, y hace un backup nuevo con `backup.sh`, igual que
+   `make backup`. Cuenta para `BACKUP_KEEP`, como cualquier otro.
+4. Comprueba que el `.gz` está completo (`gunzip -t`).
+5. Lo carga en `aquaguard_restore_check` con el mismo comando que `make restore`.
+6. Comprueba que están todas las tablas de la base real.
+7. Cuenta las filas de cada tabla en la base real y en el backup: tienen que
+   ser iguales, y la versión de Alembic también.
+
+Al terminar borra la base temporal y reanuda el simulador. Lo hace siempre:
+también si algo falla o se interrumpe con Ctrl+C. La pausa dura unos
+6 segundos.
+
+Con `FILE`, en el paso 3 no hace backup ni pausa, y en el paso 7 no compara las filas, porque los datos
+han cambiado desde que se hizo ese backup: solo las muestra al lado de las
+reales. Si la versión de Alembic es más antigua, lo avisa sin fallar, porque
+`make restore` aplica las migraciones que faltan al arrancar el backend.
+
+| Mensaje | Qué significa |
+|---|---|
+| `backup-verify: OK, <nombre> can be restored` | El backup sirve |
+| `is not a valid gzip file` | El archivo está truncado o dañado |
+| `psql could not load` | El SQL de dentro está dañado |
+| `tables missing in the backup` | El dump no tiene el esquema, por ejemplo uno hecho antes de las migraciones |
+| `do not match` en una tabla | El backup no tiene las mismas filas que la base real |
+| `<servicio> is not running` | Falta arrancar el stack con `make up` |
+
+Conviene lanzarlo antes de una evaluación y después de cambiar algo en
+`backup/` o en las migraciones.
 
 ## Escenario 1: se ha perdido o corrompido la base de datos
 

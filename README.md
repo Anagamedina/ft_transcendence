@@ -263,6 +263,7 @@ The root `Makefile` wraps the Compose commands:
 | `make backup`              | Runs one database backup now, in addition to the automatic ones                                                                              |
 | `make backups`             | Lists the backups kept in the `backups_data` volume                                                                                          |
 | `make restore FILE=...`    | Restores the database from one of those backups; see [`docs/disaster-recovery.md`](docs/disaster-recovery.md)                                |
+| `make backup-verify`       | Makes a backup, restores it into a temporary database and compares every table with the real one; `FILE=...` checks an existing backup       |
 | `make down`                | Stops the containers, simulator included, and keeps the PostgreSQL volume                                                                    |
 | `make logs`                | Follows the logs of every running service                                                                                                    |
 | `make ps`                  | Shows service status                                                                                                                         |
@@ -338,6 +339,32 @@ make smoke
 The full procedure, with the result of the end-to-end test (database volume
 deleted, backup restored, `make smoke` passing), is in
 [`docs/disaster-recovery.md`](docs/disaster-recovery.md).
+
+**Backup verification.** `make backup-verify` proves that a backup can be
+restored without touching the real database. It pauses the simulator so the
+real data does not change, makes a new backup, restores
+it into a temporary database (`aquaguard_restore_check`), compares the rows of
+every table and the Alembic version with the real database, and drops the
+temporary database and resumes the simulator at the end, also after a failure or Ctrl+C. A truncated or
+damaged file, broken SQL or a dump without the schema makes it fail with a
+non-zero exit code. `make backup-verify FILE=<name>` checks an existing backup
+instead; its rows are shown but not compared, because the data has changed
+since it was made.
+
+```text
+backup-verify: [1/7] checking that the containers are running
+...
+backup-verify: [7/7] counting the rows of every table
+
+table                  real     backup
+alembic_version           1          1
+alerts                   26         26
+organizations             5          5
+readings              18765      18765
+...
+backup-verify: OK, aquaguard-20261023-113510.sql.gz can be restored
+backup-verify: simulator running again
+```
 
 ### Demo data
 
@@ -863,6 +890,9 @@ Issues #130 to #134 were reviewed and merged together in #182.
 | #155     | Gateway rate limit with JSON 429, HSTS and security headers, `documents_data` volume                 | #189          | Implemented |
 | #153     | Admin alerts view: client filter, counters, sensor ranking and open-alerts counter                   | #196, #207    | Implemented |
 | #156     | Admin dashboard KPIs from `GET /api/analytics/overview` and sites from `GET /api/sites`              | #220          | Implemented |
+| #243     | Startup order: the simulator waits for a healthy backend, `simulator/.dockerignore`                  | #261          | Implemented |
+| #245     | Docker log rotation: `json-file` driver, 10 MB × 3 files per service                                 | #261          | Implemented |
+| #244     | `make backup-verify`: restores a backup into a temporary database and compares every table           | #269          | Implemented |
 
 ## Resources
 
