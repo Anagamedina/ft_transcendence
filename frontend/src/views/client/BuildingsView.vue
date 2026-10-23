@@ -420,10 +420,9 @@ const bannerText = computed(() => {
   const n = inProgressTotal.value;
   if (n > 0)
     return n === 1
-      ? "Tu equipo ya está atendiendo 1 aviso. AquaGuard confirmará el arreglo con las lecturas."
-      : `Tu equipo ya está atendiendo ${n} avisos. AquaGuard confirmará el arreglo con las lecturas.`;
-  if (sensorsWithProblem.value > 0)
-    return "AquaGuard lo está vigilando; si hace falta, te avisaremos.";
+      ? "Tu equipo ya está atendiendo 1 aviso. AquaGuard revisará las lecturas para cerrarlo."
+      : `Tu equipo ya está atendiendo ${n} avisos. AquaGuard revisará las lecturas para cerrarlo.`;
+  if (sensorsWithProblem.value > 0) return "AquaGuard lo sigue vigilando.";
   return "Ningún aviso pendiente. AquaGuard sigue vigilando tus edificios.";
 });
 
