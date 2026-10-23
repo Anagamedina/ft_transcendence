@@ -1,12 +1,19 @@
 <!--
-  CLIENT BUILDINGS VIEW (F8)
-  Client home page, replaces the old client DashboardView:
-    - KPIs of the organization (B9 overview, loaded by ClientLayout).
-    - One card per building (B2). With a single building it opens directly.
+  CLIENT BUILDINGS VIEW (F8, home redesigned in F24)
+  Client home page. Without a building open ("Mis edificios", F24):
+    - Banner: pending alerts (red); nothing pending but a sensor still out
+      of range or offline (amber, e.g. its alert is "En curso"); or
+      "Todo en orden" (green). Link to Alertas when there is something.
+    - KPIs: buildings, and sensors with how many are offline.
+    - One BuildingCard per building, most worrying first: offline sensor >
+      out of range > smallest margin (utils/pressure.js). Each card shows the
+      sensor to watch with its pressure in words and a 7-day sparkline.
     - The open building floor by floor (BuildingStack, F4) and the selected
       sensor with its 7-day pressure chart (SensorDetailPanel + PressureChart,
       F5, series from B7).
     - Alerts of the week by sensor and day (WeekAlertsGrid, B9).
+  The open building (/app?site=<id>) stays as it was until the building page
+  of F25 replaces it.
   The open building lives in the URL (/app?site=<id>), so reloading and the
   back button keep it. Data reloads every minute and when the tab is visible
   again (useAutoRefresh). The trial banner is in ClientLayout (TrialBanner).
@@ -22,12 +29,14 @@
         </h1>
         <p class="mt-1 text-sm text-slate-600">
           {{
-            site ? siteSummary : "Estado de tus edificios, sensores y alertas."
+            site
+              ? siteSummary
+              : "Lo más urgente primero: de un vistazo sabrás si algo necesita tu atención."
           }}
         </p>
       </div>
       <button
-        v-if="site && sites.length > 1"
+        v-if="site"
         type="button"
         class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
         @click="openSite(null)"
@@ -36,10 +45,44 @@
       </button>
     </header>
 
-    <!-- KPIs -->
+    <!-- Banner: what needs attention (home only) -->
     <section
+      v-if="!site && pendingTotal !== null"
+      class="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-white p-4"
+      :class="
+        bannerTone === 'success'
+          ? 'border-slate-200'
+          : toneClasses(bannerTone).border
+      "
+      aria-live="polite"
+    >
+      <div class="flex min-w-0 items-center gap-3">
+        <span
+          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full p-2"
+          :class="toneClasses(bannerTone).pill"
+          aria-hidden="true"
+        >
+          <AppIcon :name="bannerTone === 'success' ? 'droplet' : 'alert'" />
+        </span>
+        <div class="min-w-0">
+          <p class="font-semibold text-slate-900">{{ bannerTitle }}</p>
+          <p class="text-sm text-slate-700">{{ bannerText }}</p>
+        </div>
+      </div>
+      <RouterLink
+        v-if="pendingTotal > 0 || inProgressTotal > 0"
+        :to="pendingTotal > 0 ? '/app/alerts' : '/app/alerts?tab=en-curso'"
+        class="rounded-lg bg-aqua-600 px-4 py-2 text-sm font-semibold text-white hover:bg-aqua-700"
+      >
+        Ver alertas
+      </RouterLink>
+    </section>
+
+    <!-- KPIs (home only) -->
+    <section
+      v-if="!site"
       aria-label="Indicadores"
-      class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+      class="grid grid-cols-1 gap-4 sm:grid-cols-2"
     >
       <KPICard
         v-for="kpi in kpis"
@@ -64,51 +107,23 @@
       message="Cuando AquaGuard dé de alta tu edificio, aparecerá aquí."
     />
 
-    <!-- Building cards -->
+    <!-- Building cards, most worrying first -->
     <section
       v-else-if="!site"
       aria-label="Edificios"
       class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
     >
-      <button
+      <BuildingCard
         v-for="item in sortedSites"
         :key="item.id"
-        type="button"
-        class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-aqua-300 hover:shadow-md"
-        @click="openSite(item.id)"
-      >
-        <div class="flex items-start justify-between gap-3">
-          <div class="min-w-0">
-            <h2 class="break-words text-lg font-bold text-aqua-900">
-              {{ item.name }}
-            </h2>
-            <p class="text-sm text-slate-600">
-              {{ item.address || label("BuildingType", item.building_type) }}
-            </p>
-          </div>
-          <StatusPill type="SiteStatus" :value="item.status" class="shrink-0" />
-        </div>
-        <dl class="grid grid-cols-3 gap-2 text-sm">
-          <div class="rounded-lg bg-slate-50 px-3 py-2">
-            <dt class="text-xs text-slate-500">Sensores</dt>
-            <dd class="font-bold tabular-nums text-slate-800">
-              {{ item.sensor_count }}
-            </dd>
-          </div>
-          <div class="rounded-lg bg-slate-50 px-3 py-2">
-            <dt class="text-xs text-slate-500">Con aviso</dt>
-            <dd class="font-bold tabular-nums text-slate-800">
-              {{ alertingIn(item.id) }}
-            </dd>
-          </div>
-          <div class="rounded-lg bg-slate-50 px-3 py-2">
-            <dt class="text-xs text-slate-500">Plantas</dt>
-            <dd class="font-bold tabular-nums text-slate-800">
-              {{ floorsText(item) }}
-            </dd>
-          </div>
-        </dl>
-      </button>
+        :site="item"
+        :sensors="sensorsOf(item.id)"
+        :points="seriesFor(item.id)"
+        :loading-points="seriesLoadingFor(item.id)"
+        :pending="pendingBySite[item.id] ?? 0"
+        :in-progress="inProgressBySite[item.id] ?? 0"
+        @open="openSite"
+      />
     </section>
 
     <!-- Open building -->
@@ -198,7 +213,7 @@ import { RouterLink, useRoute, useRouter } from "vue-router";
 
 import AppIcon from "../../components/AppIcon.vue";
 import KPICard from "../../components/KPICard.vue";
-import StatusPill from "../../components/StatusPill.vue";
+import BuildingCard from "../../components/BuildingCard.vue";
 import BuildingStack from "../../components/BuildingStack.vue";
 import SensorDetailPanel from "../../components/SensorDetailPanel.vue";
 import WeekAlertsGrid from "../../components/WeekAlertsGrid.vue";
@@ -214,6 +229,12 @@ import readingService from "../../services/reading.service.js";
 import analyticsService from "../../services/analytics.service.js";
 import { useAutoRefresh } from "../../composables/useAutoRefresh";
 import { useLabels } from "../../composables/useLabels";
+import alertsService from "../../services/alerts.service.js";
+import {
+  compareSensorRisk,
+  pressureState,
+  worstSensor,
+} from "../../utils/pressure.js";
 
 const REFRESH_MS = 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -224,25 +245,24 @@ const sitesStore = useSitesStore();
 const sensorsStore = useSensorsStore();
 const alertsStore = useAlertsStore();
 const overviewStore = useOverviewStore();
-const { label } = useLabels();
+const { toneClasses } = useLabels();
 
 // ---------------------------------------------------------------------------
 // KPIs. ClientLayout already loads and refreshes the overview (B9).
 // ---------------------------------------------------------------------------
 const kpis = computed(() => {
   const o = overviewStore.overview;
+  const offline = o ? o.sensors_total - o.sensors_online : 0;
   return [
     { label: "Edificios", icon: "building", value: o?.sites_total ?? "—" },
     {
-      label: "Sensores conectados",
+      label: "Sensores",
       icon: "wifi",
-      value: o ? `${o.sensors_online} / ${o.sensors_total}` : "—",
-    },
-    { label: "Alertas abiertas", icon: "alert", value: o?.open_alerts ?? "—" },
-    {
-      label: "Alertas críticas",
-      icon: "alert",
-      value: o?.critical_open_alerts ?? "—",
+      value: o
+        ? offline > 0
+          ? `${o.sensors_total} · ${offline} sin conexión`
+          : `${o.sensors_total} · todos conectados`
+        : "—",
     },
   ];
 });
@@ -295,30 +315,165 @@ async function loadAlerts() {
   }
 }
 
-// Worst buildings first, then by name
-const STATUS_ORDER = { CRITICAL: 0, WARNING: 1, OK: 2 };
-const sortedSites = computed(() =>
-  [...sites.value].sort(
-    (a, b) =>
-      (STATUS_ORDER[a.status] ?? 3) - (STATUS_ORDER[b.status] ?? 3) ||
-      a.name.localeCompare(b.name, "es"),
-  ),
+function sensorsOf(id) {
+  return sensorsStore.sensors.filter((sensor) => sensor.site_id === id);
+}
+
+// Most worrying building first: compares the worst sensor of each one
+// (offline > out of range > smallest margin). Buildings without sensors go
+// last; ties by pending alerts, then by name.
+const sortedSites = computed(() => {
+  const worst = new Map(
+    sites.value.map((item) => [item.id, worstSensor(sensorsOf(item.id))]),
+  );
+  return [...sites.value].sort((a, b) => {
+    const wa = worst.get(a.id);
+    const wb = worst.get(b.id);
+    if (!wa || !wb)
+      return wa ? -1 : wb ? 1 : a.name.localeCompare(b.name, "es");
+    return (
+      compareSensorRisk(wa, wb) ||
+      (pendingBySite.value[b.id] ?? 0) - (pendingBySite.value[a.id] ?? 0) ||
+      a.name.localeCompare(b.name, "es")
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Pending alerts (state ACTIVE) for the banner and the cards, and the count
+// of "En curso" for the banner text
+// ---------------------------------------------------------------------------
+const pendingAlerts = ref([]);
+const inProgressAlerts = ref([]);
+const pendingTotal = ref(null);
+const inProgressTotal = ref(0);
+
+async function loadPending() {
+  try {
+    const [pending, inProgress] = await Promise.all([
+      alertsService.getAlerts({ state: "ACTIVE" }),
+      alertsService.getAlerts({ state: "ACKNOWLEDGED" }),
+    ]);
+    // Filtered again: the mock adapter ignores `state`
+    pendingAlerts.value = (pending.data.items ?? []).filter(
+      (alert) => alert.state === "ACTIVE",
+    );
+    inProgressAlerts.value = (inProgress.data.items ?? []).filter(
+      (alert) => alert.state === "ACKNOWLEDGED",
+    );
+    pendingTotal.value = Math.max(
+      pending.data.total ?? 0,
+      pendingAlerts.value.length,
+    );
+    inProgressTotal.value = Math.max(
+      inProgress.data.total ?? 0,
+      inProgressAlerts.value.length,
+    );
+  } catch {
+    // Without the count the banner simply does not appear
+  }
+}
+
+function countBySite(alerts) {
+  const bySite = {};
+  for (const alert of alerts)
+    bySite[alert.site_id] = (bySite[alert.site_id] ?? 0) + 1;
+  return bySite;
+}
+const pendingBySite = computed(() => countBySite(pendingAlerts.value));
+const inProgressBySite = computed(() => countBySite(inProgressAlerts.value));
+
+// Sensors out of range or offline right now, even if their alert is
+// already "En curso": the problem is still there
+const sensorsWithProblem = computed(
+  () =>
+    sensorsStore.sensors.filter((sensor) =>
+      ["out", "offline"].includes(pressureState(sensor).key),
+    ).length,
 );
 
-function alertingIn(siteId) {
-  if (sensorsStore.status !== "success") return "—";
-  return sensorsStore.sensors.filter(
-    (sensor) =>
-      sensor.site_id === siteId &&
-      ["WARNING", "CRITICAL"].includes(sensor.health),
-  ).length;
+// danger: something pending · warning: nothing pending but a sensor is
+// still out of range or offline · success: all fine
+const bannerTone = computed(() => {
+  if (pendingTotal.value > 0) return "danger";
+  if (sensorsWithProblem.value > 0) return "warning";
+  return "success";
+});
+
+const bannerTitle = computed(() => {
+  const n = pendingTotal.value;
+  if (n > 0)
+    return n === 1
+      ? "Tienes 1 aviso pendiente"
+      : `Tienes ${n} avisos pendientes`;
+  const s = sensorsWithProblem.value;
+  if (s > 0)
+    return s === 1
+      ? "Hay 1 sensor fuera de lo normal"
+      : `Hay ${s} sensores fuera de lo normal`;
+  return "Todo en orden";
+});
+
+const bannerText = computed(() => {
+  if (pendingTotal.value > 0)
+    return "Revísalo y pulsa «Me encargo» cuando te ocupes.";
+  const n = inProgressTotal.value;
+  if (n > 0)
+    return n === 1
+      ? "Tu equipo ya está atendiendo 1 aviso. AquaGuard confirmará el arreglo con las lecturas."
+      : `Tu equipo ya está atendiendo ${n} avisos. AquaGuard confirmará el arreglo con las lecturas.`;
+  if (sensorsWithProblem.value > 0)
+    return "AquaGuard lo está vigilando; si hace falta, te avisaremos.";
+  return "Ningún aviso pendiente. AquaGuard sigue vigilando tus edificios.";
+});
+
+// ---------------------------------------------------------------------------
+// Sparkline of each card: 7-day series of the sensor to watch (B7)
+// ---------------------------------------------------------------------------
+const series = ref({}); // sensorId -> points
+const seriesLoading = ref({}); // sensorId -> true while loading
+
+function watchedId(id) {
+  return worstSensor(sensorsOf(id))?.id ?? null;
 }
 
-function floorsText(item) {
-  return item.basements > 0
-    ? `${item.floors} + ${item.basements}`
-    : `${item.floors}`;
+function seriesFor(id) {
+  return series.value[watchedId(id)] ?? [];
 }
+
+function seriesLoadingFor(id) {
+  return Boolean(seriesLoading.value[watchedId(id)]);
+}
+
+async function loadSeries({ silent = false } = {}) {
+  const ids = [
+    ...new Set(sites.value.map((item) => watchedId(item.id))),
+  ].filter(Boolean);
+  await Promise.all(
+    ids.map(async (sensorId) => {
+      if (!silent && !series.value[sensorId])
+        seriesLoading.value = { ...seriesLoading.value, [sensorId]: true };
+      try {
+        const response = await readingService.getSensorSeries(sensorId, {
+          days: 7,
+        });
+        series.value = {
+          ...series.value,
+          [sensorId]: response.data.points ?? [],
+        };
+      } catch {
+        // The card says "Sin lecturas"; the next refresh tries again
+      } finally {
+        seriesLoading.value = { ...seriesLoading.value, [sensorId]: false };
+      }
+    }),
+  );
+}
+
+// When sensors arrive or another sensor becomes the one to watch.
+const watchedKey = computed(() =>
+  sites.value.map((item) => watchedId(item.id)).join(","),
+);
 
 // ---------------------------------------------------------------------------
 // Open building: the one in the URL, or the only one when there is just one
@@ -326,12 +481,19 @@ function floorsText(item) {
 const siteId = computed(() => {
   const fromUrl = route.query.site;
   if (fromUrl && sitesStore.siteById(fromUrl)) return fromUrl;
-  return sites.value.length === 1 ? sites.value[0].id : null;
+  // F24: the home always shows the summary, even with a single building
+  return null;
 });
 
 const site = computed(() =>
   siteId.value ? sitesStore.siteById(siteId.value) : null,
 );
+
+// Also when coming back to the home from an open building
+// ("← Todos los edificios"): the cards were not on screen meanwhile
+watch([watchedKey, siteId], () => {
+  if (!siteId.value) loadSeries();
+});
 
 function openSite(id) {
   const query = { ...route.query };
@@ -495,7 +657,7 @@ watch(
 // Loading and auto refresh (every minute and when the tab is visible again)
 // ---------------------------------------------------------------------------
 function loadAll() {
-  return Promise.all([loadSites(), loadSensors(), loadAlerts()]);
+  return Promise.all([loadSites(), loadSensors(), loadAlerts(), loadPending()]);
 }
 
 function refresh() {
@@ -503,6 +665,7 @@ function refresh() {
     loadAll(),
     loadWeekly({ silent: true }),
     loadReadings({ silent: true }),
+    siteId.value ? null : loadSeries({ silent: true }),
   ]);
 }
 

@@ -655,7 +655,7 @@ users in [Demo data](#demo-data). Backend rules are covered by
 | Frontend       | Admin client users: list, edit name and role, remove access (F23)                     | Daruny                 | `/admin/clients/:id` → Usuarios              |
 | Frontend       | Admin buildings and sensors floor by floor, pressure chart and forms (F4, F5, F10)    | Florinda               | `/admin/sites` · `/admin/sensors`            |
 | Frontend       | Admin alerts: client, state and severity filters, counters and sensor ranking (#153)  | Lylia, Eduardo         | `/admin/alerts`                              |
-| Frontend       | Client home "Mis edificios": KPIs, building floor by floor and 7-day chart (F8)       | Daruny                 | `/app`                                       |
+| Frontend       | Client home "Mis edificios": alert banner, KPIs, buildings by urgency (F8, F24)       | Daruny, Florinda       | `/app` · `client@aquaguard.dev`              |
 | Frontend       | Client alerts: one week per building with a day-by-day grid (F9-C)                    | Daruny                 | `/app/alerts`                                |
 | Frontend       | Client documents: list, upload and delete the organization's files                    | Lylia                  | `/app/documents`                             |
 | Frontend       | Account: name, password and privacy card, for admin and client (F13-C)                | Florinda               | `/app/account` · `/admin/account`            |
