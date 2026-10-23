@@ -8,8 +8,8 @@
     - Who acted: "Se encarga <name>" (ACKNOWLEDGED) or "Detectado <date> ·
       arreglo confirmado por <name>" (RESOLVED).
     - Severity help (tooltip + screen readers): what Urgente / Aviso mean.
-    - While the alert is open, the AquaGuard message: we watch it, we contact
-      the client if nobody acts, we confirm the fix with the readings.
+    - No AquaGuard message per card: the page header already says it once
+      ("…nosotros revisamos las lecturas para cerrarlo").
     - "Me encargo" button only while nobody has acted (state ACTIVE).
   Presentational: it receives the alert by props and emits "acknowledge";
   the parent calls the API. Reused by the building page (F25) and the admin
@@ -61,23 +61,10 @@
         {{ typeText }}
       </h3>
       <p class="mt-0.5 text-sm text-slate-700">{{ whereText }}</p>
-      <p v-if="alert.sensor_name" class="text-sm text-slate-600">
-        Sensor: {{ alert.sensor_name }}
-      </p>
     </div>
 
     <!-- Who acted -->
     <p v-if="actedText" class="text-sm text-slate-700">{{ actedText }}</p>
-
-    <!-- AquaGuard message while the alert is open -->
-    <p
-      v-if="alert.state !== 'RESOLVED'"
-      class="rounded-lg bg-slate-50 p-3 text-sm text-slate-700"
-    >
-      AquaGuard está vigilando este problema. Si no se atiende, nos pondremos en
-      contacto contigo. Cuando esté arreglado, lo confirmaremos con las
-      lecturas.
-    </p>
 
     <!-- Single client action -->
     <div v-if="showAction && alert.state === 'ACTIVE'" class="mt-auto pt-1">
@@ -152,11 +139,12 @@ const state = computed(() => {
 
 const typeText = computed(() => label("AlertType", props.alert.type));
 
-// "Torre Diagonal Mar · Planta 2"
+// "Torre Diagonal Mar · Planta 2 · Presión cubierta"
 const whereText = computed(() => {
   const parts = [props.alert.site_name];
   if (Number.isInteger(props.alert.floor))
     parts.push(floorLabel(props.alert.floor));
+  parts.push(props.alert.sensor_name);
   return parts.filter(Boolean).join(" · ");
 });
 

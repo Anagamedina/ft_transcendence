@@ -25,8 +25,8 @@
       <div class="min-w-0">
         <h1 class="text-2xl font-bold text-slate-900">Alertas</h1>
         <p class="mt-1 text-sm text-slate-600">
-          AquaGuard te avisa, tú lo arreglas y nosotros lo confirmamos con las
-          lecturas.
+          AquaGuard te avisa, tú lo arreglas y nosotros revisamos las lecturas
+          para cerrarlo.
         </p>
       </div>
 
@@ -394,7 +394,7 @@ async function loadAll({ silent = false } = {}) {
     loadError.value = "";
   } catch (err) {
     if (id !== requestId || silent) return;
-    loadError.value = err?.message || "Inténtalo de nuevo en unos segundos.";
+    loadError.value = errorText(err, "Inténtalo de nuevo en unos segundos.");
   }
 }
 
@@ -457,6 +457,18 @@ const resultText = computed(() => {
     : `${total} ${noun} ${tail}`;
 });
 
+// Errors in Spanish. The backend already answers in Spanish; the adapter's
+// own messages (network down, unknown error) are in English, so those get
+// our text instead.
+const ADAPTER_CODES = ["UNKNOWN_ERROR", "NETWORK_ERROR", "CLIENT_ERROR"];
+
+function errorText(err, fallback) {
+  if (err?.code === "NETWORK_ERROR")
+    return "No hemos podido conectar con el servidor. Inténtalo de nuevo.";
+  if (!err?.message || ADAPTER_CODES.includes(err.code)) return fallback;
+  return err.message;
+}
+
 const SEVERITY_ORDER = { CRITICAL: 0, WARNING: 1 };
 
 function time(value) {
@@ -499,8 +511,10 @@ async function acknowledge(id) {
     // Sidebar counter comes from the overview
     overviewStore.fetchOverview().catch(() => {});
   } catch (err) {
-    actionError.value =
-      err?.message || "No se ha podido guardar. Inténtalo de nuevo.";
+    actionError.value = errorText(
+      err,
+      "No se ha podido guardar. Inténtalo de nuevo.",
+    );
   } finally {
     busyAlertId.value = null;
   }

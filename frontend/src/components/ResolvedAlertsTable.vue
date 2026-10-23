@@ -2,8 +2,10 @@
   RESOLVED ALERTS TABLE (F21)
   History of fixed alerts, compact and easy to scan:
     Gravedad · Problema · Dónde · Detectado · Arreglado · Confirmado por
-  Desktop and tablet: a real <table>. Phones (< 640 px): one compact row per
-  alert (a list), so there is never horizontal scroll at 375 px.
+  From 1024 px: a real <table> with every column, "Confirmado por" included.
+  Below 1024 px (phones and tablets, where the sidebar leaves no room for six
+  columns): one compact row per alert, with who confirmed it, so there is
+  never horizontal scroll.
   Presentational: it only receives the alerts already filtered and sorted.
   Reused by the building page (F25, "Tu semana").
   Usage:
@@ -12,8 +14,8 @@
 
 <template>
   <div class="rounded-xl border border-slate-200 bg-white">
-    <!-- Tablet and desktop -->
-    <table class="hidden w-full text-sm sm:table">
+    <!-- Desktop (1024 px and up, where the table fits beside the sidebar) -->
+    <table class="hidden w-full text-sm lg:table">
       <caption class="sr-only">
         {{
           caption
@@ -28,9 +30,7 @@
           <th scope="col" class="px-4 py-3">Dónde</th>
           <th scope="col" class="px-4 py-3">Detectado</th>
           <th scope="col" class="px-4 py-3">Arreglado</th>
-          <th scope="col" class="hidden px-4 py-3 lg:table-cell">
-            Confirmado por
-          </th>
+          <th scope="col" class="px-4 py-3">Confirmado por</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-slate-100">
@@ -60,15 +60,15 @@
               >en {{ durationText(alert.resolution_minutes) }}</span
             >
           </td>
-          <td class="hidden px-4 py-3 text-slate-700 lg:table-cell">
-            {{ alert.resolved_by_name || "AquaGuard" }}
+          <td class="px-4 py-3 text-slate-700">
+            {{ confirmedBy(alert) }}
           </td>
         </tr>
       </tbody>
     </table>
 
-    <!-- Phones: one compact row per alert -->
-    <ul class="divide-y divide-slate-100 sm:hidden" :aria-label="caption">
+    <!-- Phones and tablets: one compact row per alert -->
+    <ul class="divide-y divide-slate-100 lg:hidden" :aria-label="caption">
       <li v-for="alert in alerts" :key="alert.id" class="space-y-1 p-3">
         <div class="flex items-center justify-between gap-2">
           <SeverityTag :severity="alert.severity" />
@@ -86,7 +86,8 @@
           >
         </p>
         <p class="text-xs text-slate-600">
-          Detectado {{ formatDateTime(alert.created_at) }}
+          Detectado {{ formatDateTime(alert.created_at) }} · confirmado por
+          {{ confirmedBy(alert) }}
         </p>
       </li>
     </ul>
@@ -133,6 +134,11 @@ const SeverityTag = (props) => {
   );
 };
 SeverityTag.props = ["severity"];
+
+// Who closed it; AquaGuard when the name is not stored
+function confirmedBy(alert) {
+  return alert.resolved_by_name || "AquaGuard";
+}
 
 // "Hotel Gòtic Centro · Planta 6"
 function whereText(alert) {
