@@ -1,19 +1,22 @@
 <!--
-  CLIENT ALERTS VIEW (F9-C)
-  The client's week, day by day, for one building:
-    - Building selector (only with more than one building) and week
-      navigation. Both live in the URL (/app/alerts?site=<id>&week=YYYY-MM-DD,
-      the Monday), so reloading and the back button keep them.
-    - WeekAlertsGrid (F8) with GET /api/analytics/alerts/weekly (B9): alerts
-      per sensor and day. Clicking a sensor filters the list; clicking it
-      again removes the filter.
-    - The alerts of that week (GET /api/alerts with site_id, created_from and
-      created_to, B5) grouped by day, one AlertRow (F3) each.
-  Acknowledge and resolve use stores/alerts.js, which replaces the row with
-  the PATCH answer (state ACKNOWLEDGED or RESOLVED): the list is not reloaded.
-  After resolving, the overview is asked again so the sidebar counter drops
-  at once instead of on the next 30-second refresh.
-  Days are UTC, the same as B9 groups them.
+  CLIENT ALERTS VIEW (F21)
+  What needs the client's attention, at a glance:
+    - Three tabs by state (field `state` of GET /api/alerts):
+        Pendiente (ACTIVE) · En curso (ACKNOWLEDGED) · Arreglado (RESOLVED),
+      each with its count (`total` of the page).
+    - Open tabs: a grid of AlertCard, urgent first, then newest.
+    - "Arreglado": ResolvedAlertsTable (history, easier to scan), most
+      recently fixed first, 10 at a time ("Ver 10 más"), count on top.
+    - "Me encargo" (PATCH /api/alerts/{id}/acknowledge): the card moves to
+      "En curso" at once, without reloading the page.
+    - Building filter only with more than one building.
+    - "Arreglado" only: period (last 7 / 30 days / all, by fix date) and
+      alert type filters, applied in the front (the list holds up to 100).
+    - Severity legend (Urgente / Aviso), fixed on every tab.
+  Tab and building live in the URL (/app/alerts?tab=en-curso&site=<id>), so
+  reloading and the back button keep them.
+  Only AquaGuard closes alerts: the client has no "resolve" button.
+  No backend changes: one request per state, with the existing filters.
 -->
 
 <template>
@@ -22,8 +25,8 @@
       <div class="min-w-0">
         <h1 class="text-2xl font-bold text-slate-900">Alertas</h1>
         <p class="mt-1 text-sm text-slate-600">
-          Tu semana día a día: reconoce las alertas que ya estás atendiendo y
-          resuélvelas al terminar.
+          AquaGuard te avisa, tú lo arreglas y nosotros lo confirmamos con las
+          lecturas.
         </p>
       </div>
 
@@ -33,10 +36,11 @@
       >
         Edificio
         <select
-          :value="siteId"
+          :value="siteId ?? ''"
           class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
-          @change="setQuery({ site: $event.target.value })"
+          @change="setQuery({ site: $event.target.value || null })"
         >
+          <option value="">Todos los edificios</option>
           <option v-for="item in sortedSites" :key="item.id" :value="item.id">
             {{ item.name }}
           </option>
@@ -44,320 +48,268 @@
       </label>
     </header>
 
-    <LoadingState v-if="sitesLoading" message="Cargando tus edificios…" />
-    <ErrorState
-      v-else-if="sitesError"
-      :message="sitesError"
-      @retry="loadSites"
-    />
-    <EmptyState
-      v-else-if="!sites.length"
-      icon="building"
-      title="Todavía no tienes edificios"
-      message="Cuando AquaGuard dé de alta tu edificio, verás aquí sus alertas."
-    />
-
-    <template v-else>
-      <!-- Week navigation -->
-      <nav aria-label="Semana" class="flex flex-wrap items-center gap-2">
-        <!-- Arrows and dates never wrap apart; on phones "Esta semana ·" is
-             only read by screen readers, so the row fits in 375 px -->
-        <div class="flex min-w-0 items-center gap-2">
-          <button type="button" :class="navButton" @click="moveWeek(-1)">
-            ‹ <span class="sr-only sm:not-sr-only">Semana anterior</span>
-          </button>
-          <p
-            class="min-w-0 px-1 text-center text-sm font-semibold text-slate-800"
-            aria-live="polite"
-          >
-            <span v-if="isCurrentWeek" class="sr-only sm:not-sr-only"
-              >Esta semana · </span
-            >{{ weekRange }}
-          </p>
-          <button
-            type="button"
-            :class="navButton"
-            :disabled="isCurrentWeek"
-            @click="moveWeek(1)"
-          >
-            <span class="sr-only sm:not-sr-only">Semana siguiente</span> ›
-          </button>
-        </div>
-        <button
-          v-if="!isCurrentWeek"
-          type="button"
-          :class="navButton"
-          @click="setQuery({ week: null })"
-        >
-          Esta semana
-        </button>
-      </nav>
-
-      <!-- Alerts per sensor and day (B9) -->
-      <section
-        class="rounded-xl border border-slate-200 bg-white p-5"
-        aria-labelledby="week-grid-title"
+    <!-- Tabs by state -->
+    <div
+      role="tablist"
+      aria-label="Estado de las alertas"
+      class="grid grid-cols-3 border-b border-slate-200 sm:flex sm:gap-1"
+    >
+      <button
+        v-for="(tab, index) in TABS"
+        :id="`tab-${tab.slug}`"
+        :key="tab.slug"
+        ref="tabButtons"
+        type="button"
+        role="tab"
+        :aria-selected="tab.slug === activeTab.slug"
+        :aria-controls="`panel-${tab.slug}`"
+        :tabindex="tab.slug === activeTab.slug ? 0 : -1"
+        class="-mb-px flex min-w-0 items-center justify-center gap-1.5 border-b-2 px-1 py-2.5 text-xs font-semibold sm:justify-start sm:gap-2 sm:px-3 sm:text-sm"
+        :class="
+          tab.slug === activeTab.slug
+            ? 'border-aqua-600 text-aqua-700'
+            : 'border-transparent text-slate-600 hover:text-slate-900'
+        "
+        @click="selectTab(tab.slug)"
+        @keydown.right.prevent="focusTab(index + 1)"
+        @keydown.left.prevent="focusTab(index - 1)"
       >
-        <h2 id="week-grid-title" class="text-lg font-bold text-slate-900">
-          Alertas por sensor y día
-        </h2>
-        <p class="mb-3 text-sm text-slate-600">
-          Pulsa un sensor para ver solo sus alertas.
-        </p>
+        <span
+          class="h-2 w-2 rounded-full"
+          :class="toneClasses(tab.tone).dot"
+          aria-hidden="true"
+        ></span>
+        {{ tab.text }}
+        <span
+          class="rounded-full bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-800 sm:px-2"
+        >
+          {{ counts[tab.state] ?? "–" }}
+        </span>
+      </button>
+    </div>
 
-        <LoadingState
-          v-if="weeklyLoading"
-          message="Cargando la semana…"
-          compact
-        />
-        <ErrorState
-          v-else-if="weeklyError"
-          :message="weeklyError"
-          compact
-          @retry="loadWeekly()"
-        />
-        <WeekAlertsGrid
-          v-else-if="weekly"
-          :days="weekly.days"
-          :rows="weekly.rows"
-          :selected-id="sensorId"
-          :site-name="site?.name ?? ''"
-          @select="toggleSensor"
-        />
-      </section>
-
-      <!-- Alerts of the week, day by day (B5) -->
-      <section class="space-y-3" aria-labelledby="week-list-title">
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <h2 id="week-list-title" class="text-lg font-bold text-slate-900">
-            Alertas de la semana
-          </h2>
-          <p
-            v-if="listReady && weekAlerts.length"
-            class="text-sm text-slate-600"
-          >
-            {{ summaryText }}
-          </p>
-        </div>
-
-        <div v-if="sensorId" class="flex flex-wrap items-center gap-2 text-sm">
+    <!-- Active tab -->
+    <section
+      :id="`panel-${activeTab.slug}`"
+      role="tabpanel"
+      :aria-labelledby="`tab-${activeTab.slug}`"
+      class="space-y-3"
+    >
+      <!-- Severity legend: same pills as the cards, the same on every tab -->
+      <ul
+        class="flex flex-col gap-1.5 text-sm text-slate-700 sm:flex-row sm:flex-wrap sm:gap-x-6"
+        aria-label="Qué significa cada gravedad"
+      >
+        <li
+          v-for="item in LEGEND"
+          :key="item.text"
+          class="flex items-center gap-2"
+        >
           <span
-            class="rounded-full bg-aqua-100 px-3 py-1 font-medium text-aqua-900"
+            class="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold"
+            :class="toneClasses(item.tone).pill"
           >
-            Sensor: {{ sensorName }}
+            <span class="h-3.5 w-3.5" aria-hidden="true"
+              ><AppIcon name="alert"
+            /></span>
+            {{ item.text }}
           </span>
+          {{ item.help }}
+        </li>
+      </ul>
+
+      <!-- Filters of "Arreglado" -->
+      <div
+        v-if="activeTab.state === 'RESOLVED'"
+        class="flex flex-wrap items-end gap-3"
+      >
+        <label class="flex flex-col gap-1 text-sm font-medium text-slate-700">
+          Arreglados en
+          <select
+            v-model="period"
+            class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+          >
+            <option
+              v-for="item in PERIODS"
+              :key="item.value"
+              :value="item.value"
+            >
+              {{ item.text }}
+            </option>
+          </select>
+        </label>
+        <label class="flex flex-col gap-1 text-sm font-medium text-slate-700">
+          Tipo
+          <select
+            v-model="type"
+            class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+          >
+            <option value="">Todos</option>
+            <option v-for="item in TYPES" :key="item" :value="item">
+              {{ label("AlertType", item) }}
+            </option>
+          </select>
+        </label>
+        <button
+          v-if="filtersOn"
+          type="button"
+          class="py-2 text-sm font-medium text-aqua-700 underline hover:text-aqua-900"
+          @click="clearFilters"
+        >
+          Quitar filtros
+        </button>
+        <!-- Result count, on top so it is seen before the list -->
+        <p
+          v-if="loaded && !loadError"
+          class="py-2 text-sm font-medium text-slate-700 sm:ml-auto"
+          aria-live="polite"
+        >
+          {{ resultText }}
+        </p>
+      </div>
+
+      <div
+        v-if="actionError"
+        class="rounded-lg border border-danger-light bg-danger-light p-3 text-sm text-danger-dark"
+        role="alert"
+      >
+        {{ actionError }}
+      </div>
+
+      <ErrorState
+        v-if="loadError"
+        title="No se han podido cargar las alertas"
+        :message="loadError"
+        @retry="loadAll()"
+      />
+      <LoadingState v-else-if="!loaded" message="Cargando alertas…" />
+      <EmptyState
+        v-else-if="!visibleAlerts.length"
+        :icon="activeTab.emptyIcon"
+        :title="
+          filtersOn
+            ? 'Ningún aviso arreglado con estos filtros'
+            : activeTab.emptyTitle
+        "
+        :message="
+          filtersOn ? 'Prueba con otro periodo o tipo.' : activeTab.emptyMessage
+        "
+      />
+
+      <template v-else>
+        <ResolvedAlertsTable
+          v-if="activeTab.state === 'RESOLVED'"
+          :alerts="shownAlerts"
+          caption="Avisos arreglados"
+        />
+        <ul v-else class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <li v-for="alert in visibleAlerts" :key="alert.id">
+            <AlertCard
+              :alert="alert"
+              :busy="busyAlertId === alert.id"
+              @acknowledge="acknowledge"
+            />
+          </li>
+        </ul>
+        <div
+          v-if="
+            activeTab.state === 'RESOLVED' &&
+            shownAlerts.length < visibleAlerts.length
+          "
+          class="flex justify-center"
+        >
           <button
             type="button"
-            class="font-medium text-aqua-700 underline hover:text-aqua-900"
-            @click="sensorId = null"
+            class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-aqua-700 hover:bg-slate-50"
+            @click="limit += PAGE_STEP"
           >
-            Ver todos los sensores
+            Ver
+            {{ Math.min(PAGE_STEP, visibleAlerts.length - shownAlerts.length) }}
+            más
           </button>
         </div>
+      </template>
+    </section>
 
-        <div
-          v-if="actionError"
-          class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
-          role="alert"
-        >
-          {{ actionError }}
-        </div>
-
-        <ErrorState
-          v-if="listError"
-          title="No se han podido cargar las alertas"
-          :message="listError"
-          @retry="loadAlerts"
-        />
-        <LoadingState v-else-if="!listReady" message="Cargando alertas…" />
-        <EmptyState
-          v-else-if="!weekAlerts.length"
-          icon="alert"
-          :title="
-            sensorId
-              ? 'Este sensor no tuvo alertas esta semana'
-              : 'Sin alertas esta semana'
-          "
-          :message="
-            isCurrentWeek
-              ? 'Si un sensor sale de su rango, la alerta aparecerá aquí.'
-              : ''
-          "
-        />
-
-        <div
-          v-else
-          class="overflow-x-auto rounded-xl border border-slate-200 bg-white"
-        >
-          <table class="min-w-full text-sm">
-            <caption class="sr-only">
-              Alertas de
-              {{
-                weekLabel
-              }}
-              por día
-            </caption>
-            <thead
-              class="bg-slate-50 text-left text-xs uppercase text-slate-500"
-            >
-              <tr>
-                <th scope="col" class="px-4 py-3">Alerta</th>
-                <th scope="col" class="px-4 py-3">Sensor</th>
-                <th scope="col" class="px-4 py-3">Severidad</th>
-                <th scope="col" class="px-4 py-3">Estado</th>
-                <th scope="col" class="px-4 py-3">Fecha</th>
-                <th scope="col" class="px-4 py-3">Acciones</th>
-              </tr>
-            </thead>
-            <tbody
-              v-for="group in dayGroups"
-              :key="group.day"
-              class="divide-y divide-slate-100 border-t border-slate-200"
-            >
-              <tr class="bg-slate-50">
-                <th
-                  scope="rowgroup"
-                  :colspan="COLUMNS"
-                  class="px-4 py-2 text-left text-sm font-semibold text-slate-800"
-                >
-                  {{ group.label }}
-                  <span class="font-normal text-slate-500"
-                    >· {{ countText(group.alerts.length) }}</span
-                  >
-                </th>
-              </tr>
-              <tr v-if="!group.alerts.length">
-                <td :colspan="COLUMNS" class="px-4 py-3 text-sm text-slate-500">
-                  Sin alertas
-                </td>
-              </tr>
-              <AlertRow
-                v-for="alert in group.alerts"
-                :key="alert.id"
-                :alert="alert"
-                :busy="busyAlertId === alert.id"
-                :show-organization="false"
-                @acknowledge="acknowledge"
-                @resolve="resolve"
-              />
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </template>
+    <!-- Announces the move to "En curso" to screen readers -->
+    <p class="sr-only" aria-live="polite">{{ liveMessage }}</p>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
-import AlertRow from "../../components/AlertRow.vue";
-import WeekAlertsGrid from "../../components/WeekAlertsGrid.vue";
+import AppIcon from "../../components/AppIcon.vue";
+import AlertCard from "../../components/AlertCard.vue";
+import ResolvedAlertsTable from "../../components/ResolvedAlertsTable.vue";
 import LoadingState from "../../components/LoadingState.vue";
 import ErrorState from "../../components/ErrorState.vue";
 import EmptyState from "../../components/EmptyState.vue";
 
+import alertsService from "../../services/alerts.service.js";
 import { useSitesStore } from "../../stores/sites.js";
-import { useAlertsStore } from "../../stores/alerts.js";
 import { useOverviewStore } from "../../stores/overview.js";
-import analyticsService from "../../services/analytics.service.js";
+import { useLabels } from "../../composables/useLabels";
 import { useAutoRefresh } from "../../composables/useAutoRefresh";
 
 const REFRESH_MS = 60 * 1000;
-// Columns of the table without the client one (AlertRow :show-organization="false")
-const COLUMNS = 6;
+// Backend limit (page_size max 100)
+const PAGE_SIZE = 100;
+
+// slug: value in the URL; state: backend value
+// Same texts as AlertCard
+const LEGEND = [
+  {
+    text: "Urgente",
+    tone: "danger",
+    help: "actúa ya: puede haber una fuga o el sensor no vigila.",
+  },
+  {
+    text: "Aviso",
+    tone: "warning",
+    help: "vigílalo: la presión está un poco fuera de lo normal.",
+  },
+];
+
+const TABS = [
+  {
+    slug: "pendiente",
+    state: "ACTIVE",
+    text: "Pendiente",
+    tone: "danger",
+    emptyIcon: "droplet",
+    emptyTitle: "No tienes nada pendiente",
+    emptyMessage: "Si un sensor detecta un problema, el aviso aparecerá aquí.",
+  },
+  {
+    slug: "en-curso",
+    state: "ACKNOWLEDGED",
+    text: "En curso",
+    tone: "info",
+    emptyIcon: "droplet",
+    emptyTitle: "Nada en curso",
+    emptyMessage: "Cuando pulses «Me encargo» en un aviso, lo verás aquí.",
+  },
+  {
+    slug: "arreglado",
+    state: "RESOLVED",
+    text: "Arreglado",
+    tone: "success",
+    emptyIcon: "droplet",
+    emptyTitle: "Todavía no hay avisos arreglados",
+    emptyMessage: "",
+  },
+];
 
 const route = useRoute();
 const router = useRouter();
 const sitesStore = useSitesStore();
-const alertsStore = useAlertsStore();
 const overviewStore = useOverviewStore();
-
-const navButton =
-  "rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50";
+const { label, toneClasses } = useLabels();
 
 // ---------------------------------------------------------------------------
-// Days. Everything is UTC 'YYYY-MM-DD', the same as B9.
-// ---------------------------------------------------------------------------
-function isoDay(date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function addDays(day, n) {
-  const date = new Date(`${day}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + n);
-  return isoDay(date);
-}
-
-function mondayOf(day) {
-  const weekday = new Date(`${day}T00:00:00Z`).getUTCDay();
-  return addDays(day, -((weekday + 6) % 7));
-}
-
-// Updated on every refresh, so a page left open moves on to the new day
-const today = ref(isoDay(new Date()));
-const currentMonday = computed(() => mondayOf(today.value));
-
-const weekStart = computed(() => {
-  const fromUrl = route.query.week;
-  if (typeof fromUrl !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(fromUrl))
-    return currentMonday.value;
-  if (Number.isNaN(new Date(`${fromUrl}T00:00:00Z`).getTime()))
-    return currentMonday.value;
-  const monday = mondayOf(fromUrl);
-  // No future weeks: there is nothing to show yet
-  return monday > currentMonday.value ? currentMonday.value : monday;
-});
-
-const isCurrentWeek = computed(() => weekStart.value === currentMonday.value);
-const weekDays = computed(() =>
-  Array.from({ length: 7 }, (_, i) => addDays(weekStart.value, i)),
-);
-
-const shortDate = new Intl.DateTimeFormat("es-ES", {
-  day: "numeric",
-  month: "short",
-  timeZone: "UTC",
-});
-const shortDateYear = new Intl.DateTimeFormat("es-ES", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-  timeZone: "UTC",
-});
-const longDay = new Intl.DateTimeFormat("es-ES", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  timeZone: "UTC",
-});
-
-// "12 oct – 18 oct 2026"; weekLabel adds "Esta semana · " for the current one
-const weekRange = computed(() => {
-  const start = new Date(`${weekStart.value}T00:00:00Z`);
-  const end = new Date(`${addDays(weekStart.value, 6)}T00:00:00Z`);
-  return `${shortDate.format(start).replace(".", "")} – ${shortDateYear.format(end).replace(".", "")}`;
-});
-const weekLabel = computed(() =>
-  isCurrentWeek.value ? `Esta semana · ${weekRange.value}` : weekRange.value,
-);
-
-// "Hoy, lunes 12 de octubre"
-function dayLabel(day) {
-  const text = longDay.format(new Date(`${day}T00:00:00Z`));
-  const name = text.charAt(0).toUpperCase() + text.slice(1);
-  if (day === today.value) return `Hoy, ${text}`;
-  if (day === addDays(today.value, -1)) return `Ayer, ${text}`;
-  return name;
-}
-
-function countText(n) {
-  return `${n} ${n === 1 ? "alerta" : "alertas"}`;
-}
-
-// ---------------------------------------------------------------------------
-// URL: ?site=<id>&week=<Monday>. null removes the parameter.
+// URL: ?tab=<slug>&site=<id>. null removes the parameter.
 // ---------------------------------------------------------------------------
 function setQuery(patch) {
   const query = { ...route.query };
@@ -368,246 +320,210 @@ function setQuery(patch) {
   router.push({ query });
 }
 
-function moveWeek(n) {
-  const monday = addDays(weekStart.value, 7 * n);
-  setQuery({ week: monday >= currentMonday.value ? null : monday });
+const activeTab = computed(
+  () => TABS.find((tab) => tab.slug === route.query.tab) ?? TABS[0],
+);
+
+function selectTab(slug) {
+  // The first tab is the default: keep the URL clean
+  setQuery({ tab: slug === TABS[0].slug ? null : slug });
+}
+
+// Arrow keys move between tabs (WAI-ARIA tabs pattern)
+const tabButtons = ref([]);
+async function focusTab(index) {
+  const next = TABS[(index + TABS.length) % TABS.length];
+  selectTab(next.slug);
+  await nextTick();
+  tabButtons.value[TABS.indexOf(next)]?.focus();
 }
 
 // ---------------------------------------------------------------------------
-// Buildings: the one in the URL, or the most worrying one
+// Buildings (only for the filter)
 // ---------------------------------------------------------------------------
 const sites = computed(() => sitesStore.sites);
-const sitesLoading = computed(
-  () => ["idle", "loading"].includes(sitesStore.status) && !sites.value.length,
-);
-const sitesError = computed(() =>
-  sitesStore.status === "error"
-    ? sitesStore.error?.message || "No se han podido cargar tus edificios."
-    : "",
-);
 
-const STATUS_ORDER = { CRITICAL: 0, WARNING: 1, OK: 2 };
 const sortedSites = computed(() =>
-  [...sites.value].sort(
-    (a, b) =>
-      (STATUS_ORDER[a.status] ?? 3) - (STATUS_ORDER[b.status] ?? 3) ||
-      a.name.localeCompare(b.name, "es"),
-  ),
+  [...sites.value].sort((a, b) => a.name.localeCompare(b.name, "es")),
 );
 
+// The building in the URL if it is one of the client's; otherwise all
 const siteId = computed(() => {
   const fromUrl = route.query.site;
-  if (fromUrl && sitesStore.siteById(fromUrl)) return fromUrl;
-  return sortedSites.value[0]?.id ?? null;
+  return fromUrl && sitesStore.siteById(fromUrl) ? fromUrl : null;
 });
 
-const site = computed(() =>
-  siteId.value ? sitesStore.siteById(siteId.value) : null,
-);
-
-async function loadSites() {
-  try {
-    await sitesStore.fetchSites();
-  } catch {
-    // The store exposes the error state to the view
-  }
-}
-
 // ---------------------------------------------------------------------------
-// Alerts per sensor and day (B9)
+// Alerts: one request per state, so every tab has its real count
 // ---------------------------------------------------------------------------
-const weekly = ref(null);
-const weeklyLoading = ref(false);
-const weeklyError = ref("");
+const lists = reactive({ ACTIVE: [], ACKNOWLEDGED: [], RESOLVED: [] });
+const counts = reactive({ ACTIVE: null, ACKNOWLEDGED: null, RESOLVED: null });
+const loaded = ref(false);
+const loadError = ref("");
 
-const weekKey = computed(() => `${siteId.value}|${weekStart.value}`);
+// Ignores answers that arrive after the building changed
+let requestId = 0;
 
-// silent: refresh without the spinner, keeping the grid if it fails
-async function loadWeekly({ silent = false } = {}) {
-  const key = weekKey.value;
-  if (!siteId.value) return;
+async function loadAll({ silent = false } = {}) {
+  const id = ++requestId;
   if (!silent) {
-    weeklyLoading.value = true;
-    weeklyError.value = "";
-    weekly.value = null;
+    loaded.value = false;
+    loadError.value = "";
   }
+  const params = { page_size: PAGE_SIZE };
+  if (siteId.value) params.site_id = siteId.value;
+
   try {
-    const response = await analyticsService.getWeeklyAlerts({
-      site_id: siteId.value,
-      week_start: weekStart.value,
+    const pages = await Promise.all(
+      TABS.map((tab) =>
+        alertsService.getAlerts({ ...params, state: tab.state }),
+      ),
+    );
+    if (id !== requestId) return;
+    TABS.forEach((tab, i) => {
+      // Filtered again here too: the mock adapter ignores `state`
+      const items = (pages[i].data.items ?? []).filter(
+        (alert) =>
+          alert.state === tab.state &&
+          (!siteId.value || alert.site_id === siteId.value),
+      );
+      lists[tab.state] = items;
+      counts[tab.state] = Math.max(pages[i].data.total ?? 0, items.length);
     });
-    if (weekKey.value !== key) return;
-    weekly.value = response.data;
-    weeklyError.value = "";
+    loaded.value = true;
+    loadError.value = "";
   } catch (err) {
-    if (weekKey.value !== key || silent) return;
-    weeklyError.value =
-      err?.message || "No se han podido cargar las alertas de la semana.";
-  } finally {
-    if (weekKey.value === key) weeklyLoading.value = false;
+    if (id !== requestId || silent) return;
+    loadError.value = err?.message || "Inténtalo de nuevo en unos segundos.";
   }
 }
 
 // ---------------------------------------------------------------------------
-// Alerts of the week (B5). The store keeps the list; the view remembers which
-// week it belongs to, so it never shows the alerts of the previous one.
+// Filters of "Arreglado": period by fix date and alert type
 // ---------------------------------------------------------------------------
-const alertParams = computed(() => ({
-  site_id: siteId.value,
-  created_from: `${weekStart.value}T00:00:00Z`,
-  created_to: `${addDays(weekStart.value, 7)}T00:00:00Z`,
-}));
-const alertsKey = computed(() => JSON.stringify(alertParams.value));
-const loadedKey = ref(null);
+const DAY_MS = 24 * 60 * 60 * 1000;
+const PERIODS = [
+  { value: "7", text: "Últimos 7 días" },
+  { value: "30", text: "Últimos 30 días" },
+  { value: "all", text: "Todo" },
+];
+const TYPES = ["HIGH_PRESSURE", "LOW_PRESSURE", "SENSOR_OFFLINE"];
 
-const listReady = computed(
-  () => loadedKey.value === alertsKey.value && alertsStore.status !== "error",
-);
-const listError = computed(() =>
-  alertsStore.status === "error"
-    ? alertsStore.error?.message || "Inténtalo de nuevo en unos segundos."
-    : "",
+const period = ref("all");
+const type = ref("");
+const filtersOn = computed(
+  () =>
+    activeTab.value.state === "RESOLVED" &&
+    (period.value !== "all" || type.value !== ""),
 );
 
-async function loadAlerts() {
-  if (!siteId.value) return;
-  const key = alertsKey.value;
-  try {
-    await alertsStore.fetchAlerts(alertParams.value);
-    if (alertsKey.value === key) loadedKey.value = key;
-  } catch {
-    // The store exposes the error state to the view
+function clearFilters() {
+  period.value = "all";
+  type.value = "";
+}
+
+function passesFilters(alert) {
+  if (!filtersOn.value) return true;
+  if (type.value && alert.type !== type.value) return false;
+  if (period.value !== "all") {
+    const since = Date.now() - Number(period.value) * DAY_MS;
+    if (time(alert.resolved_at) < since) return false;
   }
+  return true;
 }
 
-const sensorId = ref(null);
+// "Arreglado" shows PAGE_STEP rows and grows with "Ver más"
+const PAGE_STEP = 10;
+const limit = ref(PAGE_STEP);
+const shownAlerts = computed(() => visibleAlerts.value.slice(0, limit.value));
 
-function toggleSensor(id) {
-  sensorId.value = sensorId.value === id ? null : id;
-}
-
-const sensorName = computed(() => {
-  const row = weekly.value?.rows?.find(
-    (item) => item.sensor_id === sensorId.value,
-  );
-  if (row) return row.sensor_name;
-  return (
-    alertsStore.alerts.find((alert) => alert.sensor_id === sensorId.value)
-      ?.sensor_name ?? "sensor"
-  );
+// Back to the first rows when the list changes
+watch([activeTab, period, type, siteId], () => {
+  limit.value = PAGE_STEP;
 });
 
-function alertDay(alert) {
-  const date = new Date(alert.created_at);
-  return Number.isNaN(date.getTime()) ? null : isoDay(date);
-}
-
-const weekAlerts = computed(() => {
-  if (!listReady.value) return [];
-  const days = new Set(weekDays.value);
-  return alertsStore.alerts.filter(
-    (alert) =>
-      alert.site_id === siteId.value &&
-      days.has(alertDay(alert)) &&
-      (!sensorId.value || alert.sensor_id === sensorId.value),
-  );
+// "10 de 21 avisos con estos filtros" / "23 avisos arreglados"
+const resultText = computed(() => {
+  const shown = shownAlerts.value.length;
+  const total = visibleAlerts.value.length;
+  const noun = total === 1 ? "aviso" : "avisos";
+  const tail = filtersOn.value
+    ? "con estos filtros"
+    : total === 1
+      ? "arreglado"
+      : "arreglados";
+  return shown < total
+    ? `${shown} de ${total} ${noun} ${tail}`
+    : `${total} ${noun} ${tail}`;
 });
 
-// One group per day up to today, Monday first; newest alert first in each day
-const dayGroups = computed(() =>
-  weekDays.value
-    .filter((day) => day <= today.value)
-    .map((day) => ({
-      day,
-      label: dayLabel(day),
-      alerts: weekAlerts.value
-        .filter((alert) => alertDay(alert) === day)
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
-    })),
-);
+const SEVERITY_ORDER = { CRITICAL: 0, WARNING: 1 };
 
-// "5 alertas · 2 sin reconocer · 1 reconocida · 2 resueltas"
-const summaryText = computed(() => {
-  const count = (state) =>
-    weekAlerts.value.filter((alert) => alert.state === state).length;
-  const active = count("ACTIVE");
-  const acknowledged = count("ACKNOWLEDGED");
-  const resolved = count("RESOLVED");
-  return [
-    countText(weekAlerts.value.length),
-    `${active} sin reconocer`,
-    `${acknowledged} ${acknowledged === 1 ? "reconocida" : "reconocidas"}`,
-    `${resolved} ${resolved === 1 ? "resuelta" : "resueltas"}`,
-  ].join(" · ");
+function time(value) {
+  const ms = new Date(value).getTime();
+  return Number.isNaN(ms) ? 0 : ms;
+}
+
+// Urgent first, then newest. "Arreglado": most recently fixed first.
+const visibleAlerts = computed(() => {
+  const items = lists[activeTab.value.state].filter(passesFilters);
+  if (activeTab.value.state === "RESOLVED")
+    return items.sort((a, b) => time(b.resolved_at) - time(a.resolved_at));
+  return items.sort(
+    (a, b) =>
+      (SEVERITY_ORDER[a.severity] ?? 2) - (SEVERITY_ORDER[b.severity] ?? 2) ||
+      time(b.created_at) - time(a.created_at),
+  );
 });
 
 // ---------------------------------------------------------------------------
-// Acknowledge / resolve: the store replaces the row with the PATCH answer
+// "Me encargo": move the card from Pendiente to En curso without reloading
 // ---------------------------------------------------------------------------
 const busyAlertId = ref(null);
 const actionError = ref("");
+const liveMessage = ref("");
 
-async function runAction(id, action, fallback) {
+async function acknowledge(id) {
   busyAlertId.value = id;
   actionError.value = "";
   try {
-    await action(id);
-    return true;
+    const response = await alertsService.acknowledgeAlert(id);
+    const updated = response.data;
+    lists.ACTIVE = lists.ACTIVE.filter((alert) => alert.id !== id);
+    counts.ACTIVE = Math.max((counts.ACTIVE ?? 1) - 1, 0);
+    if (updated?.state === "ACKNOWLEDGED") {
+      lists.ACKNOWLEDGED = [updated, ...lists.ACKNOWLEDGED];
+      counts.ACKNOWLEDGED = (counts.ACKNOWLEDGED ?? 0) + 1;
+    }
+    liveMessage.value = "Hecho: el aviso pasa a «En curso».";
+    // Sidebar counter comes from the overview
+    overviewStore.fetchOverview().catch(() => {});
   } catch (err) {
-    actionError.value = err?.message || fallback;
-    return false;
+    actionError.value =
+      err?.message || "No se ha podido guardar. Inténtalo de nuevo.";
   } finally {
     busyAlertId.value = null;
-  }
-}
-
-function acknowledge(id) {
-  return runAction(
-    id,
-    alertsStore.acknowledgeAlert,
-    "No se ha podido reconocer la alerta.",
-  );
-}
-
-async function resolve(id) {
-  if (
-    await runAction(
-      id,
-      alertsStore.resolveAlert,
-      "No se ha podido resolver la alerta.",
-    )
-  ) {
-    // open_alerts of the sidebar counter comes from the overview (B9)
-    overviewStore.fetchOverview().catch(() => {});
   }
 }
 
 // ---------------------------------------------------------------------------
 // Loading and refresh
 // ---------------------------------------------------------------------------
-// Another building: the sensor filter belonged to the previous one
 watch(siteId, () => {
-  sensorId.value = null;
+  actionError.value = "";
+  loadAll();
 });
 
-// Another building or week (and the first one, once the buildings are known)
-watch(
-  weekKey,
-  () => {
-    actionError.value = "";
-    loadWeekly();
-    loadAlerts();
-  },
-  { immediate: true },
-);
+watch(activeTab, () => {
+  actionError.value = "";
+});
 
-function refresh() {
-  today.value = isoDay(new Date());
-  loadWeekly({ silent: true });
-  loadAlerts();
-}
+useAutoRefresh(() => loadAll({ silent: true }), REFRESH_MS);
 
-useAutoRefresh(refresh, REFRESH_MS);
-
-onMounted(loadSites);
+onMounted(() => {
+  sitesStore.fetchSites().catch(() => {
+    // The filter simply does not appear without buildings
+  });
+  loadAll();
+});
 </script>
