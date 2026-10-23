@@ -157,6 +157,12 @@ reachable from the host at all. `backup` writes a compressed `pg_dump` to the
 `backups_data` volume on a schedule; see
 [Health checks, status page and backups](#health-checks-status-page-and-backups).
 
+Services start in order and each one waits until the one it depends on is
+`healthy`, not just started: `database` first, then `backend` and `backup`,
+then `gateway` and `simulator`. The simulator never sends readings to an API
+that is not answering yet. Docker logs rotate: each service keeps at most
+3 files of 10 MB (about 30 MB), and the oldest one is deleted.
+
 ```bash
 make up
 curl --fail -k https://localhost/api/health
