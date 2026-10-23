@@ -2,29 +2,47 @@
 
 # AquaGuard
 
-> **Status:** In development
+> **Status:** Functional. The full stack runs with `make all`, with demo data;
+> 11 of the 14 planned module points are implemented (see
+> [Modules and point tracking](#modules-and-point-tracking)).
 
 ## Description
 
-AquaGuard is a **web platform** for monitoring water-related data from sensors. The
-planned application provides authenticated users with access to organizations,
-sites, sensors, readings, alerts, and analytics.
+AquaGuard is a **web platform** for monitoring the water pressure of buildings
+through sensors. A company (the admin) manages its client organizations, and
+each client follows its own buildings, sensors and alerts.
 
-The current repository contains the initial application skeleton and a working
-backend health endpoint. Features, database models, migrations, simulator, and
-production gateway configuration are being implemented incrementally.
+- **Admin area (`/admin`):** KPIs and a Barcelona map of every building,
+  clients with their status (trial, active, suspended), users and
+  invitations, buildings and sensors floor by floor, alerts across all
+  clients, and an analytics panel with charts, date ranges and CSV export.
+- **Client area (`/app`):** the organization's buildings with a 7-day pressure
+  chart, alerts to acknowledge and resolve, building documents, and the account
+  page with data download and account deletion (GDPR).
+- **Public pages:** landing page, trial sign-up, invitation acceptance, and the
+  privacy and terms pages.
 
-### Planned key features
+A simulator sends sensor readings to the API. The backend stores them in
+PostgreSQL, raises alerts when a pressure goes out of range or a sensor stops
+reporting, and keeps every organization's data isolated from the others. The
+whole stack runs in Docker Compose behind an HTTPS Nginx gateway.
 
-- Secure user authentication and user management.
-- Organization, site, and sensor management.
-- Sensor reading ingestion and alert generation.
-- Dashboards and analytics for monitored sites.
-- Responsive and accessible web interface.
-- Containerized local and production deployment.
+### Key features
 
-> This list is a product roadmap. A feature must be moved to the implemented
-> features section only after it is functional and verified.
+- Login with an httpOnly session cookie, admin and client roles, and data
+  isolated per organization.
+- Organizations with a 7-day trial, suspension, invitations and user
+  management.
+- Buildings, floors and sensors, with readings ingested from a simulator.
+- Automatic alerts for low pressure, high pressure and offline sensors.
+- Analytics dashboard with KPIs, charts, date ranges and CSV export.
+- GDPR: data download, account deletion and confirmation emails.
+- Responsive Spanish interface, checked down to 375 px.
+- Docker Compose deployment behind HTTPS, with health checks, a status page
+  and backups.
+
+Each feature, with who built it and how to verify it, is listed in
+[Implemented features](#implemented-features).
 
 ## Instructions
 
@@ -407,33 +425,27 @@ admin gets all of them.
 
 The file starts with a UTF-8 BOM so Excel shows accents correctly.
 
-### Run the frontend (temporary script)
+### Frontend development
 
-There is no `Makefile` target for the frontend yet. The dev server can be
-launched with:
+`make dev` starts the infrastructure and the Vite dev server with HMR at
+<https://localhost:5173>. If the stack is already running, `make frontend-dev`
+starts only Vite.
 
-```bash
-./scripts/launch-frontend.sh
-```
+Both targets run `npm ci` in `frontend/` whenever `frontend/package-lock.json`
+changes, so a pull that adds a dependency (for example `maplibre-gl` for the
+sites map, #104) needs no manual `npm install`. If you start Vite another way
+(`npm run dev` inside `frontend/`), run `npm install` after such a pull, or the
+app fails with *"failed to resolve import maplibre-gl"*.
 
-This script detects the `frontend/` directory, loads the correct Node.js
-version via nvm, installs dependencies if needed, and starts the Vite dev
-server, opening it automatically in the browser.
-
-If you start Vite another way (for example `npm run dev` inside `frontend/`),
-run `npm install` after every pull that changes `frontend/package.json`. The
-sites map (#104) added `maplibre-gl`; without it the app fails with
-*"failed to resolve import maplibre-gl"*.
-
-The frontend has no automated tests yet, so before opening a PR that touches it,
-check that it still compiles:
+Before opening a PR that touches the frontend, run:
 
 ```bash
-cd frontend && npx vite build
+make check                       # lint, Vitest suite and Compose config
+cd frontend && npx vite build    # the production build still compiles
 ```
 
 A broken merge of `src/stores/sensors.js` once left `develop` unable to build
-(fixed in #110); this command catches that kind of error in seconds.
+(fixed in #110); the build catches that kind of error in seconds.
 
 ### Database migrations
 
@@ -517,19 +529,46 @@ architecture evolves.
 
 ## Database schema
 
-The planned domain areas are:
+PostgreSQL holds 8 tables, defined as SQLAlchemy models in
+`backend/app/modules/*/model.py` and created by the Alembic revisions in
+`backend/migrations/versions/`. Every primary key is a UUID
+([ADR 0002](docs/decisions/0002-uuid-claves-primarias.md)), every timestamp is
+`timestamptz`, and the rules for new migrations are in
+[ADR 0004](docs/decisions/0004-reglas-migraciones.md).
 
-- `users` and `auth` for identities and authentication.
-- `organizations` for tenant or organization ownership.
-- `sites` for monitored locations.
-- `sensors` for registered measurement devices.
-- `readings` for incoming sensor measurements.
-- `alerts` for detected conditions requiring attention.
-- `analytics` for derived or aggregated information.
+```mermaid
+erDiagram
+    organizations ||--o{ users : "has"
+    organizations ||--o{ sites : "owns"
+    organizations ||--o{ invitations : "sends"
+    organizations ||--o{ documents : "owns"
+    sites ||--o{ sensors : "contains"
+    sites ||--o{ documents : "stores"
+    sensors ||--o{ readings : "records"
+    sensors ||--o{ alerts : "raises"
+    users |o--o{ alerts : "acknowledges / resolves"
+    users |o--o{ invitations : "creates"
+    users |o--o{ documents : "uploads"
+```
 
-The SQLAlchemy models and Alembic revisions are currently scaffolding. This
-section must be replaced with an up-to-date diagram, table list, key fields,
-data types, and relationships once the schema is implemented.
+| Table           | Key fields                                                                                                       | Rules enforced by the database                                                                                    |
+|-----------------|------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------|
+| `organizations` | `name`, `status`, `trial_ends_at`, contact and billing data, `plan`, `iban_masked`                               | `name` unique ignoring case; `status` in TRIAL/ACTIVE/SUSPENDED; `plan` in BASIC/PRO/ENTERPRISE                   |
+| `users`         | `organization_id`, `email`, `name`, `password_hash`, `role`, `is_active`, terms and deletion dates               | `email` unique; `role` is `admin` or `client`; a client always has an organization                                |
+| `sites`         | `organization_id`, `name`, `address`, `latitude`/`longitude`, `floors`, `basements`, `building_type`, `district` | `name` unique per organization; valid coordinates; at least 1 floor; building type and Barcelona district lists   |
+| `sensors`       | `site_id`, `external_id`, `name`, `floor`, `sensor_type`, `unit`, `low_threshold`, `high_threshold`              | `external_id` unique per site; `low_threshold < high_threshold`, both within 0–25 bar; type PRESSURE or FLOW      |
+| `readings`      | `sensor_id`, `value` (`numeric(10,3)`), `unit`, `recorded_at`, `created_at`                                      | The client-generated `id` makes ingestion idempotent; indexed by sensor and time for history and the offline rule |
+| `alerts`        | `sensor_id`, `alert_type`, `status`, `severity`, `message`, acknowledged and resolved date and user              | Type LOW_PRESSURE/HIGH_PRESSURE/SENSOR_OFFLINE; status ACTIVE/RESOLVED; severity WARNING/CRITICAL                 |
+| `invitations`   | `organization_id`, `email`, `code_hash`, `expires_at`, `accepted_at`, `revoked_at`, `created_by`                 | `code_hash` unique; email stored lowercase; one pending invitation per organization and email                     |
+| `documents`     | `organization_id`, `site_id`, `kind`, `filename`, `content_type`, `size`, `storage_key`                          | `storage_key` unique; `kind` in PLAN/REPORT/INVOICE/PHOTO/OTHER; `size >= 0`                                      |
+
+**Deleting data.** Links to a user (who acknowledged an alert, created an
+invitation or uploaded a document) become `NULL` when that user is deleted.
+Invitations and documents are deleted with their organization or building.
+Every other link is `RESTRICT`, so organizations, buildings and sensors with
+data cannot be deleted by accident: `purge_organization`
+(`backend/app/modules/organizations/purge.py`, B16) deletes an organization
+and all its data in order, in one transaction.
 
 ## Implemented features
 
@@ -629,14 +668,29 @@ the plan, and the GDPR minor module (B19) brings the missing point.
   - *Actions inside the organization:* a client reads its buildings, sensors
     and alerts, acknowledges and resolves alerts, uploads documents and edits
     its account, always limited to its own organization.
-- **Advanced analytics dashboard:** The Admin area will provide interactive
-  charts, KPIs, date ranges, filters, periodic refresh, and export support.
-- **Advanced search:** Search will include filters, sorting, and pagination for
-  sites, sensors, alerts, and related data.
-- **Data export and import:** The project will provide validated CSV/JSON export
-  and import flows, including simple bulk operations where applicable.
-- **Notification system:** Relevant creation, update, and deletion events will
-  generate user-facing notifications.
+- **Advanced analytics dashboard:** demonstrated in `/admin` as
+  `admin@aquaguard.dev` (B9, B18, F19).
+  - *Interactive charts:* alerts per day (line), by severity (pie) and per
+    client or sensor (bar), built with Chart.js, with tooltips.
+  - *Date ranges:* the 7, 30 and 90-day presets or a custom from/to reload
+    the KPIs and every chart.
+  - *Export:* "Exportar CSV" downloads the chosen period
+    (see [Analytics export](#analytics-export)).
+  - *Real-time updates:* the panel refreshes every 30 s and pauses while the
+    tab is hidden.
+  - A client sees the same KPIs for its own organization in `/app`.
+- **Advanced search:** *partial, API only.* `GET /api/search?q=&limit=`
+  (B17) searches clients, buildings and sensors at once, ignoring case, and
+  returns the first `limit` of each type plus the total. A client only finds
+  its own buildings and sensors. No screen uses it yet; to claim the module it
+  still needs a UI with filters, sorting and pagination.
+- **Data export and import:** *partial, export only.*
+  `GET /api/analytics/export` returns the readings and alerts of a period as
+  CSV or JSON, scoped to the user's organization (B18). Import is not
+  implemented.
+- **Notification system:** *not started.* Alerts are shown when the admin or
+  client area is opened, but creating, updating or deleting data does not
+  generate notifications for the user.
 - **Health checks, status page and backups:** Every service has a health check,
   `/status` shows the state of each component, and the database is backed up
   on a schedule with a tested restore procedure.
@@ -846,15 +900,23 @@ Browser-specific limitations:
 
 ## Known limitations
 
-- The `simulator` service is declared but gated behind the `sim` profile, so
-  it does not start with the default `make up`; run `make sim` to include it.
+- The `simulator` service sits behind the `sim` profile. `make all`,
+  `make demo` and `make sim` start it; a plain `make up` does not.
 - TLS certificates are self-signed, so browsers warn on first visit. A
   publicly trusted certificate is out of scope for this project.
 - The admin sites map loads its tiles from OpenFreeMap, so it needs an
   internet connection.
-- The gateway serves a production build of the SPA. Frontend development still
-  uses the Vite dev server through `./scripts/launch-frontend.sh`.
-- Database models and migration bodies are not implemented yet.
+- The gateway serves a production build of the SPA, so frontend changes need
+  `make dev` (Vite with HMR) or a rebuild of the gateway to show up.
+- By default, emails (GDPR confirmations) are caught by Mailpit at
+  <http://localhost:8025> and never reach a real mailbox. Sending them for real
+  only needs the `SMTP_*` variables in `.env` (see
+  [Confirmation emails (GDPR)](#confirmation-emails-gdpr)).
+- Subscription plans and global search exist only in the API (B14, B17); no
+  screen uses them yet.
+- Data export is CSV/JSON only; there is no import.
+- There is no notification system yet: alerts are only seen by opening the
+  admin or client area.
 - Backups live in a Docker volume on the same host as the database. They
   survive the loss of the database volume, but not the loss of the host or
   `make fclean`; `docs/disaster-recovery.md` explains how to copy them out.
