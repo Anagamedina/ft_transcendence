@@ -366,6 +366,44 @@ backup-verify: OK, aquaguard-20261023-113510.sql.gz can be restored
 backup-verify: simulator running again
 ```
 
+### Container security
+
+Each container runs with the least it needs. Every service in `compose.yaml`
+has the same three lines (`no-new-privileges`, `cap_drop: [ALL]` and
+`read_only`) and then adds only what it needs:
+
+- **No root.** `backend` runs as `app` (UID 10001), `backup` as `backup`
+  (10002), `database` as `postgres` (70), `simulator` and `mailpit` as
+  `nobody`. Only the nginx master process of `gateway` starts as root, to
+  open ports 80 and 443; its workers, which handle the requests, run as
+  `nginx`.
+- **No capabilities** (`cap_drop: [ALL]`), except the five the nginx master
+  needs (see the comment in `compose.yaml`).
+- **`no-new-privileges`**: a setuid binary cannot give a process more rights.
+- **Read-only filesystem.** A process can only write to its volumes and to
+  `tmpfs` folders such as `/tmp`, which start empty.
+- **Memory and CPU limits** per service, about twice the peak measured with
+  `docker stats` during the demo and the tests:
+
+| Service     | Memory | CPUs | Measured peak               |
+|-------------|--------|------|-----------------------------|
+| `backend`   | 512 MB | 2    | 248 MB during `make test-backend` |
+| `database`  | 512 MB | 1    | 86 MB                       |
+| `gateway`   | 128 MB | 1    | 25 MB                       |
+| `backup`    | 128 MB | 0.5  | 6 MB                        |
+| `mailpit`   | 128 MB | 0.5  | 29 MB                       |
+| `simulator` | 128 MB | 0.5  | 33 MB                       |
+
+Volumes created before this change belong to root. The one-shot
+`volume-permissions` service gives them to the new users before `backend` and
+`backup` start, so an existing installation keeps its documents and backups
+without any manual step.
+
+```bash
+docker compose exec backend id     # uid=10001(app), not uid=0
+docker stats --no-stream           # MEM USAGE / LIMIT for every service
+```
+
 ### Demo data
 
 `make seed` (also run by `make demo`) loads `backend/seeds/seed_demo.py`. It is
@@ -504,6 +542,78 @@ make migration-check                             # database at head, no drift
 `make migration-check` compares column types and server defaults as well
 (`compare_type` and `compare_server_default` in `backend/migrations/env.py`).
 See [`backend/migrations/README.md`](backend/migrations/README.md) for details.
+
+### Troubleshooting
+
+Start with `make doctor`: it checks the tools, `.env`, the Compose file and the
+state of every running service. Then look for the message below.
+
+**A port is already in use.** `make up` or `make all` stops with:
+
+```text
+Bind for 0.0.0.0:443 failed: port is already allocated
+```
+
+Another program or container already uses a port the stack publishes: 80 and
+443 (gateway), 8025 (Mailpit), 5432 (`make dev-infra`) or 5173 (`make dev`).
+Find it, stop it and run `make up` again:
+
+```bash
+sudo ss -ltnp | grep -E ':(80|443|8025|5432|5173) '
+docker ps --filter publish=443
+```
+
+**Certificates.** The browser warning on the first visit is expected: the
+certificate is self-signed. `make certs` refuses to continue when only one of
+the two files exists in `gateway/certs/`:
+
+```text
+certs: incomplete certificate pair; refusing to overwrite it
+```
+
+The certificate is also valid for 365 days only. In both cases, delete the
+pair, create a new one and restart the gateway, which reads it when it starts:
+
+```bash
+openssl x509 -enddate -noout -in gateway/certs/aquaguard.crt   # expiry date
+rm -f gateway/certs/aquaguard.crt gateway/certs/aquaguard.key
+make certs
+docker compose restart gateway
+```
+
+**The database is down.** The backend keeps answering `/api/health` with 200,
+but `/api/health/db` answers 503, the status page shows `database` as `DOWN` and
+`make migration-check` cannot connect:
+
+```text
+{"error":{"code":"DATABASE_UNAVAILABLE","message":"La base de datos no está disponible.","details":null}}
+migration-check: cannot connect to the database. Is the stack running? (make up)
+```
+
+Check it with `docker compose ps database` and `docker compose logs database`,
+then start it with `make up`. The backend reconnects by itself, without a
+restart. If the backend logs show `password authentication failed` after the
+`POSTGRES_*` values in `.env` changed, see the note on `make fclean` in
+[Useful commands](#useful-commands).
+
+**Pending migrations.** After pulling a branch with new migrations,
+`make migration-check` prints:
+
+```text
+migration-check: pending migrations, the database is not at head.
+  current: <empty database>
+  head:    9d1f4e7a3b62 (head)
+Apply them with: make migrate
+```
+
+Run `make migrate`. The backend also applies them every time it starts, so
+`make up` after a rebuild has the same effect. If it reports
+`models and migrations are out of sync (drift)` instead, a model changed
+without its migration: create it with `make migration MSG="..."`.
+
+**502 Bad Gateway after the backend was recreated.** nginx looks up the backend
+address only when it starts. `make restore` already reloads it; after any other
+recreation of the backend, run `docker compose restart gateway`.
 
 ## Architecture
 
@@ -893,6 +1003,7 @@ Issues #130 to #134 were reviewed and merged together in #182.
 | #243     | Startup order: the simulator waits for a healthy backend, `simulator/.dockerignore`                  | #261          | Implemented |
 | #245     | Docker log rotation: `json-file` driver, 10 MB × 3 files per service                                 | #261          | Implemented |
 | #244     | `make backup-verify`: restores a backup into a temporary database and compares every table           | #269          | Implemented |
+| #246     | Container hardening: non-root users, no capabilities, read-only filesystem, memory and CPU limits    | —             | Implemented |
 
 ## Resources
 

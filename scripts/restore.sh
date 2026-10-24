@@ -31,6 +31,11 @@ echo "restore: starting the backend again..."
 docker compose up -d --wait backend gateway \
 	|| fail "the backend is not healthy after the restore. Check: docker compose logs backend"
 
+# nginx finds the backend address only when it starts. The backend may have a
+# new address now, so reload nginx to find it again.
+docker compose exec -T gateway nginx -s reload > /dev/null 2>&1 \
+	|| fail "the gateway could not reload. Restart it with: docker compose restart gateway"
+
 if [ -n "$SIMULATOR" ]; then
 	docker compose --profile sim up -d simulator
 fi
