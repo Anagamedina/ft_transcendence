@@ -1,17 +1,50 @@
-# Docker keeps each container's log in a json file with no size limit. This
-# rotates it: at most 3 files of 10 MB per service (about 30 MB), dropping the
-# oldest. `docker compose logs` reads them the same way.
-x-logging: &default-logging
-  driver: json-file
-  options:
-    max-size: "10m"
-    max-file: "3"
-
+# Every service has the same three security lines:
+#   no-new-privileges  it cannot gain more permissions
+#   cap_drop: [ALL]    it starts with no extra permissions (capabilities)
+#   read_only          its files cannot be changed
+# Then each one adds back only what it needs. tmpfs is a folder in memory
+# where it can write.
+#
+# Every service also rotates its Docker log: at most 3 files of 10 MB
+# (about 30 MB), and the oldest one is deleted.
 services:
+  # Runs once before backend and backup, then stops. It gives old volumes,
+  # owned by root, to the backend (10001) and backup (10002) users.
+  volume-permissions:
+    image: alpine:3.21
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    read_only: true
+    cap_add: [CHOWN, DAC_READ_SEARCH]
+    command: ["sh", "-c", "chown -R 10001:10001 /documents && chown -R 10002:10002 /backups"]
+    volumes:
+      - documents_data:/documents
+      - backups_data:/backups
+    mem_limit: 64m
+    cpus: 0.5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    network_mode: none
+
   database:
     image: postgres:16-alpine
     restart: unless-stopped
-    logging: *default-logging
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    read_only: true
+    # Starts as postgres, not root, so it needs no capabilities.
+    user: postgres
+    tmpfs: [/var/run/postgresql, /tmp]
+    mem_limit: 512m
+    cpus: 1.0
     env_file: .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -27,7 +60,18 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
-    logging: *default-logging
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    read_only: true
+    # Runs as user 10001 (see backend/Dockerfile).
+    tmpfs: [/tmp]
+    mem_limit: 512m
+    cpus: 2.0
     env_file: .env
     environment:
       POSTGRES_HOST: database
@@ -53,6 +97,8 @@ services:
     depends_on:
       database:
         condition: service_healthy
+      volume-permissions:
+        condition: service_completed_successfully
     networks: [aquaguard]
     healthcheck:
       test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')" ]
@@ -65,7 +111,18 @@ services:
       context: ./backup
       dockerfile: Dockerfile
     restart: unless-stopped
-    logging: *default-logging
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    read_only: true
+    # Runs as user 10002 (see backup/Dockerfile).
+    tmpfs: [/tmp]
+    mem_limit: 128m
+    cpus: 0.5
     environment:
       PGHOST: database
       PGUSER: ${POSTGRES_USER}
@@ -78,6 +135,8 @@ services:
     depends_on:
       database:
         condition: service_healthy
+      volume-permissions:
+        condition: service_completed_successfully
     networks: [aquaguard]
     healthcheck:
       test: ["CMD-SHELL", "find /backups -name 'aquaguard-*.sql.gz' -mmin -$$((BACKUP_INTERVAL_HOURS * 60 + 5)) | grep -q ."]
@@ -94,7 +153,19 @@ services:
   mailpit:
     image: axllent/mailpit:v1.27
     restart: unless-stopped
-    logging: *default-logging
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    read_only: true
+    # The image uses root by default; it does not need it.
+    user: "65534:65534"
+    tmpfs: [/tmp]
+    mem_limit: 128m
+    cpus: 0.5
     expose:
       - "1025"
     ports:
@@ -112,7 +183,18 @@ services:
       context: ./simulator
       dockerfile: Dockerfile
     restart: unless-stopped
-    logging: *default-logging
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    read_only: true
+    # Runs as nobody (see simulator/Dockerfile).
+    tmpfs: [/tmp]
+    mem_limit: 128m
+    cpus: 0.5
     env_file: .env
     environment:
       SIMULATOR_API_URL: http://backend:8000
@@ -128,7 +210,24 @@ services:
       context: .
       dockerfile: gateway/Dockerfile
     restart: unless-stopped
-    logging: *default-logging
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    read_only: true
+    # nginx starts as root to open ports 80/443 and read the TLS key, then
+    # serves requests as the nginx user. Each capability:
+    #   NET_BIND_SERVICE  open ports 80 and 443
+    #   DAC_READ_SEARCH   read the TLS key
+    #   CHOWN             prepare its cache folders
+    #   SETUID, SETGID    switch to the nginx user
+    cap_add: [NET_BIND_SERVICE, DAC_READ_SEARCH, CHOWN, SETUID, SETGID]
+    tmpfs: [/var/cache/nginx, /run, /etc/nginx/conf.d, /tmp]
+    mem_limit: 128m
+    cpus: 1.0
     environment:
       PUBLIC_RATE_LIMIT: ${PUBLIC_RATE_LIMIT:-10r/m}
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-10}
