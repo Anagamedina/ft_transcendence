@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, Index, String, Uuid, func
+from sqlalchemy import CheckConstraint, DateTime, Index, Integer, String, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -24,6 +24,18 @@ class Organization(Base):
         CheckConstraint(
             "plan IS NULL OR plan IN ('BASIC', 'PRO', 'ENTERPRISE')",
             name="ck_organizations_plan",
+        ),
+        # Same values as BillingPeriod (B14). NULL until the client subscribes.
+        CheckConstraint(
+            "billing_period IS NULL OR billing_period IN ('MONTHLY', 'YEARLY')",
+            name="ck_organizations_billing_period",
+        ),
+        # What the client contracted (B14): at least one building and one sensor.
+        CheckConstraint(
+            "(contracted_sites IS NULL OR contracted_sites >= 1) "
+            "AND (contracted_sensors IS NULL OR contracted_sensors >= 1) "
+            "AND (monthly_price_eur IS NULL OR monthly_price_eur >= 0)",
+            name="ck_organizations_contract",
         ),
     )
 
@@ -62,15 +74,27 @@ class Organization(Base):
     tax_id: Mapped[str | None] = mapped_column(String(30), nullable=True)
     billing_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
     billing_address: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    postal_code: Mapped[str | None] = mapped_column(String(10), nullable=True)
 
     # Subscription (B14). Set when a TRIAL client subscribes from the app.
     plan: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    billing_period: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    # What the client pays for, and also its limits for new buildings and sensors.
+    contracted_sites: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    contracted_sensors: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Monthly price agreed when subscribing; the yearly payment is ten of these.
+    monthly_price_eur: Mapped[int | None] = mapped_column(Integer, nullable=True)
     subscribed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
     )
     # Only the masked IBAN ("ES** **** **** **** **** 1332"), never the real one.
     iban_masked: Mapped[str | None] = mapped_column(String(42), nullable=True)
+    # When the client authorized the SEPA direct debit of that IBAN.
+    sepa_accepted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
