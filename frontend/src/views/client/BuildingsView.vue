@@ -411,6 +411,8 @@ const bannerTitle = computed(() => {
     return s === 1
       ? "Hay 1 sensor fuera de lo normal"
       : `Hay ${s} sensores fuera de lo normal`;
+  // Nothing for the client to do, but the team is still on some alerts
+  if (inProgressTotal.value > 0) return "Nada pendiente por tu parte";
   return "Todo en orden";
 });
 
@@ -489,10 +491,16 @@ const site = computed(() =>
 );
 
 // Also when coming back to the home from an open building
-// ("← Todos los edificios"): the cards were not on screen meanwhile
-watch([watchedKey, siteId], () => {
-  if (!siteId.value) loadSeries();
-});
+// ("← Todos los edificios"): the cards were not on screen meanwhile.
+// immediate: coming back from another page, the stores already have the
+// sites and sensors, so watchedKey does not change and `series` is empty
+watch(
+  [watchedKey, siteId],
+  () => {
+    if (!siteId.value) loadSeries();
+  },
+  { immediate: true },
+);
 
 function openSite(id) {
   const query = { ...route.query };

@@ -652,11 +652,11 @@ users in [Demo data](#demo-data). Backend rules are covered by
 | Frontend       | Auth UI: login, logout, route guards and role-based redirects (#99, #174)             | Lylia                  | `/login` · `/admin` as a client              |
 | Frontend       | Admin dashboard: KPI cards, active alerts and the Barcelona sites map (#156)          | Florinda, Eduardo, Ana | `/admin`                                     |
 | Frontend       | Admin clients: status filters, detail tabs, status actions and new-client wizard (F7) | Florinda, Lylia        | `/admin/clients`                             |
-| Frontend       | Admin client users: list, edit name and role, remove access (F23)                     | Daruny                 | `/admin/clients/:id` → Usuarios              |
+| Frontend       | Admin client users: list, edit name, remove access, invitations (F23)                 | Daruny                 | `/admin/clients/:id` → Usuarios              |
 | Frontend       | Admin buildings and sensors floor by floor, pressure chart and forms (F4, F5, F10)    | Florinda               | `/admin/sites` · `/admin/sensors`            |
 | Frontend       | Admin alerts: client, state and severity filters, counters and sensor ranking (#153)  | Lylia, Eduardo         | `/admin/alerts`                              |
 | Frontend       | Client home "Mis edificios": alert banner, KPIs, buildings by urgency (F8, F24)       | Daruny, Florinda       | `/app` · `client@aquaguard.dev`              |
-| Frontend       | Client alerts: one week per building with a day-by-day grid (F9-C)                    | Daruny                 | `/app/alerts`                                |
+| Frontend       | Client alerts: Pendiente / En curso / Arreglado tabs and "Me encargo" (F9-C, F21)     | Daruny, Florinda       | `/app/alerts` → Me encargo                   |
 | Frontend       | Client documents: list, upload and delete the organization's files                    | Lylia                  | `/app/documents`                             |
 | Frontend       | Account: name, password and privacy card, for admin and client (F13-C)                | Florinda               | `/app/account` · `/admin/account`            |
 | Frontend       | UI components: `DataTable`, `Tabs`, `StatusPill`, `AlertRow`, async states (F3)       | Florinda               | `/admin/alerts`                              |
@@ -699,8 +699,9 @@ the plan, and the GDPR minor module (B19) brings the missing point.
   - *View, edit and delete users:* `admin@aquaguard.dev` → Clientes → a
     client → Usuarios lists its users; "Editar" changes the name and
     "Quitar acceso" deletes the user, who can no longer log in (F23, B6).
-  - *Roles management:* the same "Editar" switches a user between `client`
-    and `admin`. An admin cannot demote or delete themself (409).
+  - *Roles management:* every user has a fixed role: invitations create
+    `client` users and only the seed creates `admin`. "Editar" changes the
+    name, not the role. An admin cannot delete themself (409).
   - *Different views and actions per role:* an admin works in `/admin` across
     every organization; a client only sees `/app` with its own data, and
     opening `/admin` redirects it (route guards, `require_role` and
@@ -708,8 +709,8 @@ the plan, and the GDPR minor module (B19) brings the missing point.
 - **Organization system:** demonstrated from Clientes in the admin area.
   - *Create, edit and delete organizations:* "+ Nuevo cliente", the client
     detail, and Acciones → "Eliminar…" (F7, B1, B16).
-  - *Add users:* Usuarios → "Crear invitación" gives a link; accepting it
-    creates the user inside that organization (B4).
+  - *Add users:* Usuarios → Invitaciones → "Invitar" → "Crear invitación"
+    gives a link; accepting it creates the user inside that organization (B4).
   - *Remove users:* Usuarios → "Quitar acceso" (F23).
   - *Actions inside the organization:* a client reads its buildings, sensors
     and alerts, acknowledges and resolves alerts, uploads documents and edits

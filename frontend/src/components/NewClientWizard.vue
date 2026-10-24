@@ -389,7 +389,7 @@ const NAME_MAX = 120;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const CLIENT_NAME_PATTERN =
-  /^[\p{L}\p{M}\p{N} .,'’&()\-]+$/u;
+  /^[\p{L}\p{M}\p{N} .,'’&()-]+$/u;
 
 // numbers, spaces, + 
 const PHONE_PATTERN = /^\+?[0-9().\s]+$/;

@@ -2,8 +2,9 @@
   ADMIN CLIENT DETAIL VIEW
   One client organization: header with status and counters, and five tabs
   (Edificios, Usuarios, Documentos, Datos, Acciones). Rendered inside AdminLayout.
-  Data: organizations store (B1, B16; invitations B4 still mocked inside its service)
-  and sites store (B2). There is no users list in the API yet, so Usuarios shows the count.
+  Data: organizations store (B1, B16) and sites store (B2).
+  Usuarios: ClientUsersPanel (list, edit and remove users, B6, F23) and
+  ClientInvitationsPanel (pending invitations and new invitation, B4).
 -->
 
 <script setup>
@@ -16,7 +17,8 @@ import EmptyState from "../../components/EmptyState.vue";
 import LoadingState from "../../components/LoadingState.vue";
 import ErrorState from "../../components/ErrorState.vue";
 import ClientActions from "../../components/ClientActions.vue";
-import InviteLinkCopy from "../../components/InviteLinkCopy.vue";
+import ClientUsersPanel from "../../components/ClientUsersPanel.vue";
+import ClientInvitationsPanel from "../../components/ClientInvitationsPanel.vue";
 import { useClientStatus } from "../../composables/useClientStatus";
 import { useOrganizationsStore } from "../../stores/organizations";
 import { useSitesStore } from "../../stores/sites";
@@ -43,7 +45,6 @@ const status = computed(() =>
 const clientSites = computed(() =>
   sitesStore.sites.filter((site) => site.organization_id === props.id),
 );
-const pendingInvitations = computed(() => organizationsStore.invitations);
 
 // 404 is "client not found"; any other error offers a retry
 const notFound = computed(
@@ -63,7 +64,6 @@ function loadClient() {
   organizationsStore.fetchOrganization(props.id).catch(() => {
     // The store keeps the error; the template shows it
   });
-  organizationsStore.fetchInvitations(props.id);
 }
 
 // Buildings of every client; this page keeps only the ones of this client
@@ -190,51 +190,10 @@ async function onDelete() {
   }
 }
 
-// Users of the client: the API only returns how many there are
-const usersText = computed(() => {
-  const count = client.value.user_count;
-  return count === 1
-    ? "1 persona tiene acceso a AquaGuard."
-    : `${count} personas tienen acceso a AquaGuard.`;
-});
-
-// ---------------------------------------------------------------------------
-// Usuarios tab: invite a new user and show the link to send
-// ---------------------------------------------------------------------------
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-// The invitation only carries the email (B4): the person writes their name when accepting
-const inviteEmail = ref("");
-const inviteError = ref("");
-const inviting = ref(false);
-// InvitationSentResponse: the only answer with the link (url)
-const lastInvitation = ref(null);
-const inviteEmailInput = ref(null);
-
-async function onInvite() {
-  const email = inviteEmail.value.trim();
-  if (!EMAIL_PATTERN.test(email)) {
-    inviteError.value =
-      "Escribe un email válido, por ejemplo nombre@empresa.com.";
-    inviteEmailInput.value?.focus();
-    return;
-  }
-  inviteError.value = "";
-  inviting.value = true;
-  try {
-    lastInvitation.value = await organizationsStore.createInvitation({
-      email,
-      organization_id: props.id,
-    });
-    inviteEmail.value = "";
-  } catch (err) {
-    inviteError.value =
-      err?.message ||
-      "No se ha podido crear la invitación. Inténtalo de nuevo.";
-    inviteEmailInput.value?.focus();
-  } finally {
-    inviting.value = false;
-  }
+// A user was removed in the Usuarios tab: reload the client so its user_count
+// (header counter and Acciones texts) comes from the API again
+function onUserRemoved() {
+  organizationsStore.fetchOrganization(props.id).catch(() => {});
 }
 
 // Load on open (declared last: it uses the refs above) and when the route changes to another client
@@ -242,14 +201,10 @@ watch(
   () => props.id,
   () => {
     feedback.value = "";
-    lastInvitation.value = null;
     loadClient();
   },
   { immediate: true },
 );
-
-const INPUT_CLASS =
-  "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-aqua-600";
 </script>
 
 <template>
@@ -364,104 +319,12 @@ const INPUT_CLASS =
           <!-- Usuarios -->
           <template #users>
             <div class="space-y-4">
-              <EmptyState
-                v-if="client.user_count === 0"
-                title="Este cliente aún no tiene usuarios"
-                message="Invita a alguien de su equipo con el formulario de abajo."
-                icon="users"
-                compact
+              <ClientUsersPanel
+                :organization-id="client.id"
+                @removed="onUserRemoved"
               />
-              <p
-                v-else
-                class="rounded-xl border border-gray-200 bg-white p-5 text-gray-800"
-              >
-                {{ usersText }}
-              </p>
 
-              <section
-                v-if="pendingInvitations.length > 0"
-                class="space-y-2 rounded-xl border border-gray-200 bg-white p-5"
-                aria-labelledby="pending-title"
-              >
-                <h2 id="pending-title" class="font-bold text-gray-900">
-                  Invitaciones pendientes
-                </h2>
-                <ul class="space-y-1 text-sm text-gray-700">
-                  <li
-                    v-for="invitation in pendingInvitations"
-                    :key="invitation.id"
-                  >
-                    {{ invitation.email }} · caduca el
-                    {{ formatDate(invitation.expires_at) }}
-                  </li>
-                </ul>
-              </section>
-
-              <!-- Invite form: creates an invitation (B4) and shows the link to send -->
-              <section
-                class="space-y-4 rounded-xl border border-gray-200 bg-white p-5"
-                aria-labelledby="invite-title"
-              >
-                <h2 id="invite-title" class="font-bold text-gray-900">
-                  Invitar usuario
-                </h2>
-                <form
-                  novalidate
-                  class="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end"
-                  @submit.prevent="onInvite"
-                >
-                  <div class="flex flex-col gap-1">
-                    <label
-                      for="invite-email"
-                      class="text-sm font-semibold text-gray-700"
-                    >
-                      Email <span aria-hidden="true">*</span>
-                    </label>
-                    <input
-                      id="invite-email"
-                      ref="inviteEmailInput"
-                      v-model="inviteEmail"
-                      type="email"
-                      required
-                      autocomplete="email"
-                      :class="INPUT_CLASS"
-                      :aria-invalid="Boolean(inviteError)"
-                      :aria-describedby="
-                        inviteError ? 'invite-email-error' : undefined
-                      "
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    class="min-h-10 rounded-lg bg-aqua-600 px-4 text-sm font-semibold text-white hover:bg-aqua-700 disabled:cursor-wait disabled:opacity-60"
-                    :disabled="inviting"
-                    :aria-busy="inviting"
-                  >
-                    {{ inviting ? "Creando…" : "Crear invitación" }}
-                  </button>
-                  <p
-                    v-if="inviteError"
-                    id="invite-email-error"
-                    class="text-sm text-red-700 sm:col-span-2"
-                  >
-                    {{ inviteError }}
-                  </p>
-                </form>
-
-                <div
-                  v-if="lastInvitation"
-                  class="space-y-2 border-t border-gray-200 pt-4"
-                >
-                  <p class="text-sm text-gray-700">
-                    Envía este enlace a {{ lastInvitation.email }} para que
-                    active su cuenta.
-                  </p>
-                  <InviteLinkCopy
-                    :link="lastInvitation.url"
-                    :expires-at="lastInvitation.expires_at"
-                  />
-                </div>
-              </section>
+              <ClientInvitationsPanel :organization-id="client.id" />
             </div>
           </template>
 
