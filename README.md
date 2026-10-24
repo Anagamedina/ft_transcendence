@@ -656,7 +656,7 @@ users in [Demo data](#demo-data). Backend rules are covered by
 | Frontend       | Admin buildings and sensors floor by floor, pressure chart and forms (F4, F5, F10)    | Florinda               | `/admin/sites` · `/admin/sensors`            |
 | Frontend       | Admin alerts: client, state and severity filters, counters and sensor ranking (#153)  | Lylia, Eduardo         | `/admin/alerts`                              |
 | Frontend       | Client home "Mis edificios": KPIs, building floor by floor and 7-day chart (F8)       | Daruny                 | `/app`                                       |
-| Frontend       | Client alerts: one week per building with a day-by-day grid (F9-C)                    | Daruny                 | `/app/alerts`                                |
+| Frontend       | Client alerts: Pendiente / En curso / Arreglado tabs and "Me encargo" (F9-C, F21)     | Daruny, Florinda       | `/app/alerts` → Me encargo                   |
 | Frontend       | Client documents: list, upload and delete the organization's files                    | Lylia                  | `/app/documents`                             |
 | Frontend       | Account: name, password and privacy card, for admin and client (F13-C)                | Florinda               | `/app/account` · `/admin/account`            |
 | Frontend       | UI components: `DataTable`, `Tabs`, `StatusPill`, `AlertRow`, async states (F3)       | Florinda               | `/admin/alerts`                              |
