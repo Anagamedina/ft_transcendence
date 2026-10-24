@@ -51,20 +51,7 @@ export const useUsersStore = defineStore("users", () => {
     }
   }
 
-  async function createUser(data) {
-    error.value = null;
-
-    try {
-      const response = await usersService.createUser(data);
-      const created = response.data;
-
-      items.value = [created, ...items.value];
-      return created;
-    } catch (err) {
-      error.value = err.message ?? "Unable to create the user.";
-      throw err;
-    }
-  }
+  // There is no createUser: users are created by accepting an invitation (B4)
 
   async function updateUser(id, data) {
     error.value = null;
@@ -126,7 +113,6 @@ export const useUsersStore = defineStore("users", () => {
     error,
     fetchUsers,
     fetchUser,
-    createUser,
     updateUser,
     deleteUser,
     reset,
