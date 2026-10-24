@@ -412,7 +412,7 @@ const bannerTitle = computed(() => {
       ? "Hay 1 sensor fuera de lo normal"
       : `Hay ${s} sensores fuera de lo normal`;
   // Nothing for the client to do, but the team is still on some alerts
-  if (inProgressTotal.value > 0) return "Nada pendiente por tu parte";
+  if (inProgressTotal.value > 0) return "No tienes nada pendiente";
   return "Todo en orden";
 });
 
