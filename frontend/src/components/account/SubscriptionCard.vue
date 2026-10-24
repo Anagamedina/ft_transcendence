@@ -38,8 +38,8 @@
           >.
         </p>
         <p class="text-xs text-gray-500">
-          Al terminar, tus datos quedan en solo lectura hasta que el equipo
-          AquaGuard active la cuenta.
+          Al terminar, tus datos quedan en solo lectura hasta que te hagas
+          cliente.
         </p>
       </template>
 
@@ -51,16 +51,24 @@
           >.
         </p>
         <p class="text-xs text-gray-500">
-          Al terminar, tus datos quedan en solo lectura hasta que el equipo
-          AquaGuard active la cuenta.
+          Al terminar, tus datos quedan en solo lectura hasta que te hagas
+          cliente.
         </p>
       </template>
 
       <p v-else-if="status.trialEnded" class="text-sm text-gray-700">
         La prueba terminó el {{ formatDate(organization.trial_ends_at) }}. Tus
-        datos están en solo lectura hasta que el equipo AquaGuard active la
-        cuenta.
+        datos están en solo lectura hasta que te hagas cliente.
       </p>
+
+      <!-- Running or expired trial: both can subscribe (B14) -->
+      <RouterLink
+        v-if="organization.status === 'TRIAL'"
+        to="/app/subscribe"
+        class="inline-block rounded-lg bg-aqua-600 px-4 py-2 text-sm font-semibold text-white hover:bg-aqua-700 focus:outline-none focus:ring-2 focus:ring-aqua-400"
+      >
+        Hazte cliente
+      </RouterLink>
 
       <p
         v-else-if="organization.status === 'ACTIVE'"
