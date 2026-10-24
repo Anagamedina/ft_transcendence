@@ -107,7 +107,8 @@ datos por error o si una migración ha dejado la base en mal estado.
 
    El script para el backend y el simulador, carga el backup y los vuelve a
    arrancar. La carga va en una sola transacción: si falla, la base de datos
-   queda como estaba.
+   queda como estaba. Al final recarga el gateway (`nginx -s reload`), porque
+   el backend puede volver con otra IP y nginx solo la busca al arrancar.
 
 4. Verificar:
 
@@ -150,6 +151,7 @@ Sin copia externa no hay recuperación posible de los datos reales. Queda
 |---|---|
 | `/backups/<nombre> does not exist` | Revisar el nombre con `make backups` |
 | `psql could not load the backup` | El fichero está dañado. La base no se ha tocado: `make up` y probar con el backup anterior |
+| `the gateway could not reload` | La base ya está restaurada. `docker compose restart gateway` y `make smoke` |
 | `the backend is not healthy after the restore` | `docker compose logs backend`. Lo habitual es un backup más antiguo que las migraciones actuales: el backend aplica las que faltan al arrancar |
 
 ## Tiempo estimado
