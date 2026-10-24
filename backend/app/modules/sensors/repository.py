@@ -238,6 +238,15 @@ class SensorRepository:
         )
         return items, int(total or 0)
 
+    def count_by_organization(self, organization_id: UUID) -> int:
+        """Sensores de todos los edificios de una organización (límite B14)."""
+        return self.db.scalar(
+            select(func.count())
+            .select_from(Sensor)
+            .join(Site, Site.id == Sensor.site_id)
+            .where(Site.organization_id == organization_id)
+        )
+
     def external_id_taken(self, site_id: UUID, external_id: str) -> bool:
         """True si ya hay un sensor con esa etiqueta en ese site."""
         return (

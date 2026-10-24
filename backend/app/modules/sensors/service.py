@@ -40,11 +40,13 @@ from app.core.exceptions import (
     DomainValidationError,
     NotFoundError,
 )
+from app.modules.organizations.repository import OrganizationRepository
 from app.modules.sensors.repository import SensorLive
 from app.modules.sensors.repository import SensorRepository as SqlSensorRepository
 from app.modules.sensors.schemas import SensorCreate, SensorResponse, SensorUpdate
 from app.modules.sensors.status import calcular_estado, calcular_salud
 from app.modules.sites.repository import SiteRepository
+from app.modules.subscriptions.plans import max_sensors_for
 from app.shared.dependencies import DbSession
 from app.shared.enums import SensorHealth
 from app.shared.protocols import SensorRepository
@@ -133,6 +135,11 @@ class SensorService:
         La planta (B3) tiene que existir en el edificio. El site se lee
         bloqueado: si a la vez alguien le quita plantas o lo borra, una de
         las dos operaciones espera a la otra y valida contra lo que dejó.
+
+        **No se pasa de los sensores contratados** (B14): 409
+        `SENSOR_LIMIT_REACHED`, con `max_sensors` en `details`. También se
+        bloquea la organización, para que dos altas en edificios distintos
+        no cuenten los mismos sensores.
         """
         try:
             with transaction(self.db):
@@ -147,6 +154,7 @@ class SensorService:
                         "Ya hay un sensor con ese external_id en este site.",
                         code="SENSOR_EXTERNAL_ID_TAKEN",
                     )
+                self._cabe_otro_sensor(site.organization_id)
                 sensor = self.sensors.create(
                     site_id=payload.site_id,
                     external_id=payload.external_id,
@@ -173,6 +181,20 @@ class SensorService:
                 ) from exc
             raise
         return sensor_a_respuesta(sensor, None, datetime.now(timezone.utc))
+
+    def _cabe_otro_sensor(self, organization_id: UUID) -> None:
+        """409 `SENSOR_LIMIT_REACHED` si ya tiene todos los sensores contratados."""
+        organizacion = OrganizationRepository(self.db).get_for_update(organization_id)
+        limite = max_sensors_for(organizacion)
+        sensores = SqlSensorRepository(self.db).count_by_organization(organization_id)
+        if limite is None or sensores < limite:
+            return
+        raise ConflictError(
+            f"{organizacion.name} ya tiene {limite} sensores, los que tiene "
+            "contratados. Para añadir más tiene que ampliar el contrato.",
+            details={"field": "site_id", "max_sensors": limite},
+            code="SENSOR_LIMIT_REACHED",
+        )
 
     def update(self, sensor_id: UUID, payload: SensorUpdate) -> SensorResponse:
         """

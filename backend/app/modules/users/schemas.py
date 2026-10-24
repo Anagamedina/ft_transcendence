@@ -24,7 +24,12 @@ from uuid import UUID
 
 from pydantic import EmailStr, Field
 
-from app.shared.enums import BuildingType, OrganizationStatus, SubscriptionPlan
+from app.shared.enums import (
+    BillingPeriod,
+    BuildingType,
+    OrganizationStatus,
+    SubscriptionPlan,
+)
 from app.shared.schemas import ApiModel, ApiRequest
 
 
@@ -252,9 +257,15 @@ class OrganizationExport(ApiModel):
     tax_id: str | None = None
     billing_email: str | None = None
     billing_address: str | None = None
+    postal_code: str | None = None
     plan: SubscriptionPlan | None = None
+    billing_period: BillingPeriod | None = None
+    contracted_sites: int | None = None
+    contracted_sensors: int | None = None
+    monthly_price_eur: int | None = None
     subscribed_at: datetime | None = None
     iban_masked: str | None = None
+    sepa_accepted_at: datetime | None = None
     created_at: datetime
 
 

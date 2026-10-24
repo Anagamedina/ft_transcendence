@@ -55,9 +55,12 @@ def list_plans(service: SubscriptionSvc) -> list[PlanResponse]:
     response_model=SubscriptionResponse,
     summary="Contratar un plan",
     description=(
-        "El cliente en prueba pasa a cliente (`TRIAL` → `ACTIVE`) con el plan "
-        "y los datos fiscales enviados. Vale también con la prueba caducada.\n\n"
-        "El IBAN es opcional y solo se guarda enmascarado."
+        "El cliente en prueba pasa a cliente (`TRIAL` → `ACTIVE`) con los "
+        "edificios y sensores que contrata y sus datos fiscales. El plan y el "
+        "precio los calcula la API: base del plan más cada sensor. Vale "
+        "también con la prueba caducada.\n\n"
+        "El IBAN es obligatorio (se paga por domiciliación SEPA) y solo se "
+        "guarda enmascarado."
     ),
     responses={
         **error_response(status.HTTP_401_UNAUTHORIZED, "No hay sesión (`UNAUTHORIZED`)."),
@@ -67,12 +70,17 @@ def list_plans(service: SubscriptionSvc) -> list[PlanResponse]:
         ),
         **error_response(
             status.HTTP_409_CONFLICT,
-            "La organización no está en prueba (`ORGANIZATION_NOT_IN_TRIAL`).",
+            "La organización no está en prueba (`ORGANIZATION_NOT_IN_TRIAL`) o "
+            "contrata menos edificios o sensores de los que ya tiene "
+            "(`CONTRACT_BELOW_CURRENT`).",
         ),
         **error_response(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            "Condiciones sin aceptar (`TERMS_NOT_ACCEPTED`), NIF mal escrito "
-            "(`INVALID_TAX_ID`) o IBAN incorrecto (`INVALID_IBAN`).",
+            "Menos sensores que edificios (`SENSORS_BELOW_SITES`), "
+            "condiciones sin aceptar (`TERMS_NOT_ACCEPTED`), domiciliación sin "
+            "autorizar (`SEPA_NOT_ACCEPTED`), NIF mal escrito (`INVALID_TAX_ID`), "
+            "código postal incorrecto (`INVALID_POSTAL_CODE`) o IBAN incorrecto "
+            "(`INVALID_IBAN`).",
         ),
     },
 )

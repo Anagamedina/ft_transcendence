@@ -3,10 +3,11 @@
 """
 Suscripción de un cliente en prueba (B14, issue #150).
 
-    TRIAL --subscribe--> ACTIVE (con plan, datos fiscales y fin de prueba borrado)
+    TRIAL --subscribe--> ACTIVE (con lo contratado, plan, precio, periodo,
+                                 datos fiscales, cuenta y fin de prueba borrado)
 
 Es el mismo cambio que `activate` de la B1, pero lo hace el propio cliente
-y guarda además el plan y la facturación. Por eso borra también
+y guarda además lo contratado y la facturación. Por eso borra también
 `trial_ends_at`: así `reactivate` sabe que ya no estaba en prueba.
 
 Decisiones:
@@ -18,9 +19,16 @@ Decisiones:
   ISO 13616) para avisar si está mal escrito, y se guarda solo
   enmascarado: el país y los cuatro últimos dígitos. No hay pasarela de
   pago; cobrar queda fuera del proyecto.
+- **El IBAN es obligatorio**, igual que la autorización SEPA: el pago
+  es por domiciliación. La autorización queda en `sepa_accepted_at`.
 - **Aceptar las condiciones queda registrado en el usuario** que
   suscribe, con la misma `TERMS_VERSION` que el registro (B10).
-- Los límites del plan no se hacen cumplir todavía (ver `plans.py`).
+- **El cliente elige edificios y sensores, no el plan.** El plan y el
+  precio salen de ahí (`plan_for`, `monthly_price`) y se guarda el precio
+  de ese momento, aunque luego cambien las tarifas.
+- **Lo contratado no puede ser menos de lo que ya tiene** (409
+  `CONTRACT_BELOW_CURRENT`), ni menos de un sensor por edificio (422
+  `SENSORS_BELOW_SITES`): luego es su límite.
 
 La organización se lee bloqueada (`FOR UPDATE`), como en los cambios de
 estado de la B1: dos suscripciones a la vez no pueden pasar las dos.
@@ -37,7 +45,15 @@ from app.core.app_config import app_settings
 from app.core.database import transaction
 from app.core.exceptions import ConflictError, DomainValidationError, ForbiddenError
 from app.modules.organizations.repository import OrganizationRepository
-from app.modules.subscriptions.plans import PLANS, get_plan
+from app.modules.sensors.repository import SensorRepository
+from app.modules.sites.repository import SiteRepository
+from app.modules.subscriptions.plans import (
+    PLANS,
+    SENSOR_PRICE_EUR,
+    YEARLY_MONTHS,
+    monthly_price,
+    plan_for,
+)
 from app.modules.subscriptions.schemas import (
     PlanResponse,
     SubscriptionRequest,
@@ -45,12 +61,14 @@ from app.modules.subscriptions.schemas import (
 )
 from app.modules.users.model import User
 from app.shared.dependencies import DbSession
-from app.shared.enums import OrganizationStatus
+from app.shared.enums import BillingPeriod, OrganizationStatus
 
 # NIF, NIE, CIF o el identificador fiscal de otro país, ya sin separadores.
 _TAX_ID = re.compile(r"^[A-Z0-9]{8,15}$")
 # País (2 letras), dígitos de control (2) y la cuenta (11 a 30 caracteres).
 _IBAN = re.compile(r"^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$")
+# Código postal español: cinco cifras.
+_POSTAL_CODE = re.compile(r"^[0-9]{5}$")
 _SEPARADORES = re.compile(r"[\s.\-]")
 
 
@@ -68,6 +86,8 @@ class SubscriptionService:
                 name=plan.name,
                 description=plan.description,
                 monthly_price_eur=plan.monthly_price_eur,
+                sensor_price_eur=SENSOR_PRICE_EUR,
+                yearly_months=YEARLY_MONTHS,
                 max_sites=plan.max_sites,
                 max_sensors=plan.max_sensors,
                 features=list(plan.features),
@@ -94,8 +114,20 @@ class SubscriptionService:
                 "Tienes que aceptar las condiciones de contratación.",
                 code="TERMS_NOT_ACCEPTED",
             )
+        if not payload.accept_sepa:
+            raise DomainValidationError(
+                "Tienes que autorizar la domiciliación SEPA.",
+                code="SEPA_NOT_ACCEPTED",
+            )
+        if payload.sensors < payload.sites:
+            raise DomainValidationError(
+                f"Necesitas al menos un sensor por edificio: {payload.sites}.",
+                details={"field": "sensors", "min": payload.sites},
+                code="SENSORS_BELOW_SITES",
+            )
         tax_id = normalize_tax_id(payload.tax_id)
-        iban_masked = mask_iban(payload.iban) if payload.iban else None
+        postal_code = check_postal_code(payload.postal_code)
+        iban_masked = mask_iban(payload.iban)
         if usuario.organization_id is None:
             raise ForbiddenError("Esta cuenta no pertenece a ninguna organización.")
 
@@ -107,19 +139,38 @@ class SubscriptionService:
                     "Solo se puede contratar un plan desde la prueba gratuita.",
                     code="ORGANIZATION_NOT_IN_TRIAL",
                 )
+            _no_menos_de_lo_que_tiene(
+                "sites", payload.sites,
+                SiteRepository(self.db).count_by_organization(organizacion.id),
+                "edificios",
+            )
+            _no_menos_de_lo_que_tiene(
+                "sensors", payload.sensors,
+                SensorRepository(self.db).count_by_organization(organizacion.id),
+                "sensores",
+            )
+            plan = plan_for(payload.sites, payload.sensors)
+            precio = monthly_price(plan, payload.sensors)
             cambios = {
                 "status": OrganizationStatus.ACTIVE.value,
                 "trial_ends_at": None,
-                "plan": payload.plan.value,
+                "plan": plan.id.value,
+                "billing_period": payload.billing_period.value,
+                "contracted_sites": payload.sites,
+                "contracted_sensors": payload.sensors,
+                "monthly_price_eur": precio,
                 "subscribed_at": ahora,
                 "legal_name": payload.legal_name,
                 "tax_id": tax_id,
                 "billing_address": payload.billing_address,
+                "postal_code": postal_code,
+                "city": payload.city,
                 "billing_email": str(payload.billing_email),
                 "iban_masked": iban_masked,
+                "sepa_accepted_at": ahora,
             }
             # El contacto es opcional: si no llega, se queda el que había.
-            for campo in ("city", "contact_email", "phone"):
+            for campo in ("contact_email", "phone"):
                 valor = getattr(payload, campo)
                 if valor is not None:
                     cambios[campo] = str(valor)
@@ -133,17 +184,38 @@ class SubscriptionService:
             organization_id=organizacion.id,
             organization_name=organizacion.name,
             status=organizacion.status,
-            plan=payload.plan,
-            plan_name=get_plan(payload.plan).name,
+            plan=plan.id,
+            plan_name=plan.name,
+            billing_period=payload.billing_period,
+            contracted_sites=payload.sites,
+            contracted_sensors=payload.sensors,
+            monthly_price_eur=precio,
+            billed_price_eur=(
+                precio * YEARLY_MONTHS
+                if payload.billing_period == BillingPeriod.YEARLY
+                else precio
+            ),
             subscribed_at=ahora,
             legal_name=organizacion.legal_name,
             tax_id=organizacion.tax_id,
             billing_address=organizacion.billing_address,
+            postal_code=organizacion.postal_code,
             city=organizacion.city,
             billing_email=organizacion.billing_email,
             contact_email=organizacion.contact_email,
             phone=organizacion.phone,
             iban_masked=organizacion.iban_masked,
+            sepa_accepted_at=ahora,
+        )
+
+
+def _no_menos_de_lo_que_tiene(campo: str, contratados: int, tiene: int, que: str) -> None:
+    """409 `CONTRACT_BELOW_CURRENT` si contrata menos de los que ya tiene."""
+    if contratados < tiene:
+        raise ConflictError(
+            f"Ya tienes {tiene} {que}: contrata al menos {tiene}.",
+            details={"field": campo, "min": tiene},
+            code="CONTRACT_BELOW_CURRENT",
         )
 
 
@@ -157,6 +229,18 @@ def normalize_tax_id(valor: str) -> str:
             code="INVALID_TAX_ID",
         )
     return tax_id
+
+
+def check_postal_code(valor: str) -> str:
+    """'08002' → '08002', o 422 `INVALID_POSTAL_CODE`."""
+    postal_code = valor.strip()
+    if not _POSTAL_CODE.match(postal_code):
+        raise DomainValidationError(
+            "El código postal no es válido.",
+            details={"field": "postal_code", "message": "Cinco cifras."},
+            code="INVALID_POSTAL_CODE",
+        )
+    return postal_code
 
 
 def mask_iban(valor: str) -> str:

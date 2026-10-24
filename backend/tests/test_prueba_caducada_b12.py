@@ -285,12 +285,18 @@ def test_con_la_prueba_vencida_se_puede_contratar_un_plan(cliente, datos):
     respuesta = cliente.post(
         "/api/me/organization/subscribe",
         json={
-            "plan": "BASIC",
+            "sites": 1,
+            "sensors": 5,
+            "billing_period": "MONTHLY",
             "legal_name": "Hotel Mar S.L.",
             "tax_id": "B12345678",
-            "billing_address": "Passeig Marítim 1, 08003",
+            "billing_address": "Passeig Marítim 1",
+            "postal_code": "08003",
+            "city": "Barcelona",
             "billing_email": "facturas@mar.dev",
+            "iban": "ES91 2100 0418 4502 0005 1332",
             "accept_terms": True,
+            "accept_sepa": True,
         },
     )
 

@@ -156,6 +156,14 @@ class SiteRepository:
             for sid in site_ids
         }
 
+    def count_by_organization(self, organization_id: UUID) -> int:
+        """Edificios de una organización, para el límite del plan (B14)."""
+        return self.db.scalar(
+            select(func.count()).select_from(Site).where(
+                Site.organization_id == organization_id
+            )
+        )
+
     def has_sensors(self, site_id: UUID) -> bool:
         """True si el site tiene algún sensor. `EXISTS`: no hace falta contarlos."""
         return bool(self.db.scalar(select(exists().where(Sensor.site_id == site_id))))
