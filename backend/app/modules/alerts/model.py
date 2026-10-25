@@ -199,7 +199,9 @@ class AlertNotification(Base):
     )
     # 1 = primer aviso, 2 = segundo…
     attempt: Mapped[int] = mapped_column(Integer, nullable=False)
-    channel: Mapped[str] = mapped_column(String(20), nullable=False, default="EMAIL")
+    channel: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="EMAIL", server_default="EMAIL"
+    )
     # A quién se envió: uno o varios emails separados por ", "
     recipient: Mapped[str] = mapped_column(Text, nullable=False)
     sent_at: Mapped[datetime] = mapped_column(
