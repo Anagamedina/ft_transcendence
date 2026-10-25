@@ -384,6 +384,7 @@ def _to_response(
         user_count=contadores.users,
         open_alerts=contadores.open_alerts,
         critical_alerts=contadores.critical_alerts,
+        oldest_open_alert_at=_utc(contadores.oldest_open_alert_at),
         created_at=organizacion.created_at,
     )
 

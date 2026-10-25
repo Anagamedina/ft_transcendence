@@ -69,6 +69,16 @@ class AlertResponse(ApiModel):
         description="Descripción legible del problema.",
         examples=["Presión por debajo del umbral: 0.8 bar (mínimo 1.5)"],
     )
+    threshold: float | None = Field(
+        default=None,
+        description=(
+            "El límite del sensor que se ha cruzado, en bar: el mínimo para "
+            "LOW_PRESSURE y el máximo para HIGH_PRESSURE. Nulo en "
+            "SENSOR_OFFLINE. Es el límite actual del sensor: si se cambia "
+            "después, aquí sale el nuevo."
+        ),
+        examples=[1.5],
+    )
     status: AlertStatus = Field(
         description="Estado guardado: ACTIVE o RESOLVED. Ver también `state`."
     )

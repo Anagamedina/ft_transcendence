@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import exists, func, select
@@ -25,6 +26,8 @@ class OrganizationCounts:
     users: int = 0
     open_alerts: int = 0
     critical_alerts: int = 0
+    # Creación de la alerta abierta más antigua; None si no tiene ninguna.
+    oldest_open_alert_at: datetime | None = None
 
 
 def _has_open_alerts():
@@ -152,8 +155,14 @@ class OrganizationRepository:
         )
         open_alerts: dict[UUID, int] = {}
         critical: dict[UUID, int] = {}
+        oldest: dict[UUID, datetime] = {}
         filas = self.db.execute(
-            select(Site.organization_id, Alert.severity, func.count(Alert.id))
+            select(
+                Site.organization_id,
+                Alert.severity,
+                func.count(Alert.id),
+                func.min(Alert.created_at),
+            )
             .join(Sensor, Sensor.site_id == Site.id)
             .join(Alert, Alert.sensor_id == Sensor.id)
             .where(
@@ -162,10 +171,12 @@ class OrganizationRepository:
             )
             .group_by(Site.organization_id, Alert.severity)
         ).all()
-        for organization_id, severity, n in filas:
+        for organization_id, severity, n, primera in filas:
             open_alerts[organization_id] = open_alerts.get(organization_id, 0) + n
             if severity == "CRITICAL":
                 critical[organization_id] = n
+            if organization_id not in oldest or primera < oldest[organization_id]:
+                oldest[organization_id] = primera
 
         return {
             oid: OrganizationCounts(
@@ -174,6 +185,7 @@ class OrganizationRepository:
                 users=users.get(oid, 0),
                 open_alerts=open_alerts.get(oid, 0),
                 critical_alerts=critical.get(oid, 0),
+                oldest_open_alert_at=oldest.get(oid),
             )
             for oid in organization_ids
         }

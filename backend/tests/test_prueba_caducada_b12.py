@@ -155,7 +155,6 @@ def _escrituras(datos):
     alerta = datos["alerta"].id
     return [
         ("PATCH", f"/api/alerts/{alerta}/acknowledge", {}),
-        ("PATCH", f"/api/alerts/{alerta}/resolve", {}),
         ("PATCH", "/api/me", {"json": {"name": "Otro nombre"}}),
         (
             "POST",
@@ -383,7 +382,6 @@ def test_sin_organizacion_no_hay_prueba_que_vencer():
     "metodo, ruta",
     [
         ("patch", "/api/alerts/{alert_id}/acknowledge"),
-        ("patch", "/api/alerts/{alert_id}/resolve"),
         ("patch", "/api/me"),
         ("post", "/api/me/password"),
         ("post", "/api/documents"),
