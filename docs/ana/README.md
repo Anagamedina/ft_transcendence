@@ -39,6 +39,8 @@ B17, GitHub #138 a #150). Cada carpeta contiene:
 | — | #144 | P1 | B8+B9 — Mi cuenta y KPIs | B5, B6 | Pendiente |
 | [17-contrato-b4-b6-b8-b9](17-contrato-b4-b6-b8-b9/) | #141, #144 | P1 | Contrato de la B4, B6, B8 y B9 publicado antes que las rutas (para el frontend de Eduardo) | — | 🚧 En curso (rama `ana/contrato-b4-b6-b8-b9`) |
 | [19-alertas-admin](19-alertas-admin/) | #252 | P2 | **F22** — Página de alertas del admin (paso 1: backend) | B5 ✅ | 🚧 En curso (rama `ana/252-alertas-admin-backend`) |
+| [20-avisos-cliente](20-avisos-cliente/) | #275 | P2 | Avisos automáticos al cliente cuando nadie se encarga (frontend primero) | #276 (tabla, Daruny) | 🚧 En curso (rama `ana/275-avisos-cliente`) |
+| [21-cierre-automatico](21-cierre-automatico/) | #277 | P2 | Cierre automático de alertas tras 15 min de lecturas normales | #275 | 🚧 En curso (rama `ana/277-cierre-automatico`) |
 | — | #146 | P2 | B12 — Prueba caducada: solo lectura | B10 | Pendiente |
 | — | #145 | P2 | B16 — Eliminar organización | D9 (#133) | Pendiente |
 | — | #147 | P2 | B11 — Documentos por edificio | D4 (#132) | Pendiente |

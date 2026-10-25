@@ -249,6 +249,7 @@ The root `Makefile` wraps the Compose commands:
 | `make sim`                 | Validates `.env`, starts the base services, seeds an empty database and then starts the sensor simulator                                     |
 | `make demo`                | Alias of `make all`                                                                                                                          |
 | `make seed`                | Applies pending migrations, then loads the demo data from the working tree (no rebuild needed); safe to run more than once                   |
+| `make seed-avisos`         | Adds one alert in each phase of the client notices (#275), with times from now; run it again to refresh them; needs `make all` first         |
 | `make migrate`             | Applies pending migrations (`alembic upgrade head`)                                                                                          |
 | `make migration MSG="..."` | Generates a migration with `alembic revision --autogenerate` without applying it; fails without `MSG`                                        |
 | `make migration-check`     | Fails if the database is unreachable, has pending migrations, or the models drifted from the migrations                                      |
@@ -933,6 +934,10 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 | #141, #144 | Contract and routes of B4, B6, B8 and B9: invitations, users, my account and KPIs              | —              | Implemented |
 | #150       | B14 subscription (plans, fiscal data, masked IBAN) and B17 global search (optional)            | —              | Implemented |
 | #252       | Admin alerts page, backend: only admins close alerts, crossed `threshold`, oldest open alert per client | —    | In review   |
+| #252       | One alert vocabulary in `useLabels`: Sin atender · En curso · Arreglada, Leve · Crítica, «Fuera de rango» for sensors | — | In review   |
+| #252       | New admin alerts page: clients with open alerts, state tabs with server counts, filters in the URL, side detail panel, refresh every 60 s; turquoise admin menu; alert search also by sensor code, building and client | — | In review   |
+| #275       | Client notices: emails when nobody takes an alert (critical 5 and 20 min, leve 60 min), `notifications` and `next_notification_at` in alerts, provisional `alert_notifications` table; «Avisos al cliente» column and timeline in the alert panel; admin alerts page review (cards, tabs, filters, table) | #276 | In progress |
+| #277       | Alerts close by themselves after 15 min of normal readings (`resolved_at` = first normal reading), no client notices meanwhile; «Cerrar a mano…» only for exceptions | #275 | In progress |
 
 Notes for each issue, with diagrams and the decisions taken, are in [`docs/ana/`](docs/ana/).
 

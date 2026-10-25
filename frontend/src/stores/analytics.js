@@ -108,7 +108,7 @@ export const useAnalyticsStore = defineStore("analytics", () => {
       : null,
   );
   const alertsBySeverity = computed(() => ({
-    labels: ["Aviso", "Crítica"],
+    labels: ["Leve", "Crítica"],
     values: [totalAlerts.value - criticalAlerts.value, criticalAlerts.value],
   }));
 

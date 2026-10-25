@@ -2,17 +2,17 @@
   CLIENT ALERTS VIEW (F21)
   What needs the client's attention, at a glance:
     - Three tabs by state (field `state` of GET /api/alerts):
-        Pendiente (ACTIVE) · En curso (ACKNOWLEDGED) · Arreglado (RESOLVED),
+        Sin atender (ACTIVE) · En curso (ACKNOWLEDGED) · Arregladas (RESOLVED),
       each with its count (`total` of the page).
     - Open tabs: a grid of AlertCard, urgent first, then newest.
-    - "Arreglado": ResolvedAlertsTable (history, easier to scan), most
+    - "Arregladas": ResolvedAlertsTable (history, easier to scan), most
       recently fixed first, 10 at a time ("Ver 10 más"), count on top.
     - "Me encargo" (PATCH /api/alerts/{id}/acknowledge): the card moves to
       "En curso" at once, without reloading the page.
     - Building filter only with more than one building.
-    - "Arreglado" only: period (last 7 / 30 days / all, by fix date) and
+    - "Arregladas" only: period (last 7 / 30 days / all, by fix date) and
       alert type filters, applied in the front (the list holds up to 100).
-    - Severity legend (Urgente / Aviso), fixed on every tab.
+    - Severity legend (Crítica / Leve, from useLabels), fixed on every tab.
   Tab and building live in the URL (/app/alerts?tab=en-curso&site=<id>), so
   reloading and the back button keep them.
   Only AquaGuard closes alerts: the client has no "resolve" button.
@@ -118,13 +118,13 @@
         </li>
       </ul>
 
-      <!-- Filters of "Arreglado" -->
+      <!-- Filters of "Arregladas" -->
       <div
         v-if="activeTab.state === 'RESOLVED'"
         class="flex flex-wrap items-end gap-3"
       >
         <label class="flex flex-col gap-1 text-sm font-medium text-slate-700">
-          Arreglados en
+          Arregladas en
           <select
             v-model="period"
             class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
@@ -258,34 +258,29 @@ const REFRESH_MS = 60 * 1000;
 const PAGE_SIZE = 100;
 
 // slug: value in the URL; state: backend value
-// Same texts as AlertCard
-const LEGEND = [
-  {
-    text: "Urgente",
-    tone: "danger",
-    help: "actúa ya: puede haber una fuga o el sensor no vigila.",
-  },
-  {
-    text: "Aviso",
-    tone: "warning",
-    help: "vigílalo: la presión está un poco fuera de lo normal.",
-  },
-];
+const { label, help, tone, toneClasses } = useLabels();
+
+// Severity legend: same words and tones as AlertCard (useLabels)
+const LEGEND = ["CRITICAL", "WARNING"].map((value) => ({
+  text: label("AlertSeverity", value),
+  tone: tone("AlertSeverity", value),
+  help: help("AlertSeverity", value),
+}));
 
 const TABS = [
   {
     slug: "pendiente",
     state: "ACTIVE",
-    text: "Pendiente",
+    text: label("AlertState", "ACTIVE"),
     tone: "danger",
     emptyIcon: "droplet",
-    emptyTitle: "No tienes nada pendiente",
+    emptyTitle: "No tienes nada sin atender",
     emptyMessage: "Si un sensor detecta un problema, el aviso aparecerá aquí.",
   },
   {
     slug: "en-curso",
     state: "ACKNOWLEDGED",
-    text: "En curso",
+    text: label("AlertState", "ACKNOWLEDGED"),
     tone: "info",
     emptyIcon: "droplet",
     emptyTitle: "Nada en curso",
@@ -294,7 +289,7 @@ const TABS = [
   {
     slug: "arreglado",
     state: "RESOLVED",
-    text: "Arreglado",
+    text: "Arregladas",
     tone: "success",
     emptyIcon: "droplet",
     emptyTitle: "Todavía no hay avisos arreglados",
@@ -306,7 +301,6 @@ const route = useRoute();
 const router = useRouter();
 const sitesStore = useSitesStore();
 const overviewStore = useOverviewStore();
-const { label, toneClasses } = useLabels();
 
 // ---------------------------------------------------------------------------
 // URL: ?tab=<slug>&site=<id>. null removes the parameter.
@@ -399,7 +393,7 @@ async function loadAll({ silent = false } = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Filters of "Arreglado": period by fix date and alert type
+// Filters of "Arregladas": period by fix date and alert type
 // ---------------------------------------------------------------------------
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PERIODS = [
@@ -432,7 +426,7 @@ function passesFilters(alert) {
   return true;
 }
 
-// "Arreglado" shows PAGE_STEP rows and grows with "Ver más"
+// "Arregladas" shows PAGE_STEP rows and grows with "Ver más"
 const PAGE_STEP = 10;
 const limit = ref(PAGE_STEP);
 const shownAlerts = computed(() => visibleAlerts.value.slice(0, limit.value));
@@ -476,7 +470,7 @@ function time(value) {
   return Number.isNaN(ms) ? 0 : ms;
 }
 
-// Urgent first, then newest. "Arreglado": most recently fixed first.
+// Urgent first, then newest. "Arregladas": most recently fixed first.
 const visibleAlerts = computed(() => {
   const items = lists[activeTab.value.state].filter(passesFilters);
   if (activeTab.value.state === "RESOLVED")
@@ -489,7 +483,7 @@ const visibleAlerts = computed(() => {
 });
 
 // ---------------------------------------------------------------------------
-// "Me encargo": move the card from Pendiente to En curso without reloading
+// "Me encargo": move the card from Sin atender to En curso without reloading
 // ---------------------------------------------------------------------------
 const busyAlertId = ref(null);
 const actionError = ref("");

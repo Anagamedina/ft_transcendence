@@ -1,7 +1,7 @@
 <!--
   RESOLVED ALERTS TABLE (F21)
   History of fixed alerts, compact and easy to scan:
-    Gravedad · Problema · Dónde · Detectado · Arreglado · Confirmado por
+    Gravedad · Problema · Dónde · Detectado · Arreglada · Confirmado por
   From 1024 px: a real <table> with every column, "Confirmado por" included.
   Below 1024 px (phones and tablets, where the sidebar leaves no room for six
   columns): one compact row per alert, with who confirmed it, so there is
@@ -29,7 +29,7 @@
           <th scope="col" class="px-4 py-3">Problema</th>
           <th scope="col" class="px-4 py-3">Dónde</th>
           <th scope="col" class="px-4 py-3">Detectado</th>
-          <th scope="col" class="px-4 py-3">Arreglado</th>
+          <th scope="col" class="px-4 py-3">Arreglada</th>
           <th scope="col" class="px-4 py-3">Confirmado por</th>
         </tr>
       </thead>
@@ -73,7 +73,7 @@
         <div class="flex items-center justify-between gap-2">
           <SeverityTag :severity="alert.severity" />
           <span class="text-xs text-slate-600">
-            Arreglado {{ formatDateTime(alert.resolved_at) }}
+            Arreglada {{ formatDateTime(alert.resolved_at) }}
           </span>
         </div>
         <p class="font-medium text-slate-900">
@@ -108,18 +108,14 @@ defineProps({
   caption: { type: String, default: "Avisos arreglados" },
 });
 
-const { label, toneClasses } = useLabels();
+const { label, tone, toneClasses } = useLabels();
 const { formatDateTime } = useFormat();
 
-// Same words as AlertCard: icon + text, never colour alone
-const SEVERITY = {
-  CRITICAL: { text: "Urgente", tone: "danger" },
-  WARNING: { text: "Aviso", tone: "warning" },
-};
-
-// Small severity pill, defined here to keep the table in one file
+// Small severity pill (words from useLabels, like AlertCard): icon + text,
+// never colour alone. Defined here to keep the table in one file.
 const SeverityTag = (props) => {
-  const item = SEVERITY[props.severity] ?? SEVERITY.WARNING;
+  const value = props.severity ?? "WARNING";
+  const item = { text: label("AlertSeverity", value), tone: tone("AlertSeverity", value) };
   return h(
     "span",
     {
