@@ -2,9 +2,11 @@
   ADMIN ALERTS TABLE (#252)
   Urgencia · Fallo (value and limit) · Cliente / edificio / planta (only
   edificio / planta when one client is filtered), then the columns of the
-  tab, and "›". Clicking a row (or Enter on it) opens the detail panel. On
-  screens narrower than xl (the side menu takes 16rem, so the table would be
-  cut at 768-1279 px) each alert is a card, with the notices line too.
+  tab, and "›". Clicking a row (or Enter on it) opens the detail panel.
+  From 1152 px (a laptop with 125 % zoom is ~1229; measured: "Sin atender",
+  the widest tab, fits from 1152) it is a table; under xl it is tighter and
+  "Urgencia" becomes a dot before the fault, so it fits next to the side
+  menu. Narrower, each alert is a card, with the notices line too.
 
   | Tab           | Column 4         | Column 5                         |
   | Sin atender   | Avisos al cliente (#275; no column until the backend sends them) | Sin atender desde (amber > 1 h) |
@@ -15,19 +17,19 @@
 <template>
   <div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
     <!-- Desktop -->
-    <table class="hidden w-full text-left text-sm xl:table">
+    <table class="hidden w-full text-left text-sm min-[1152px]:table">
       <caption class="sr-only">
         {{ caption }}
       </caption>
       <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
         <tr>
-          <th scope="col" class="w-28 px-4 py-2.5 font-semibold">Urgencia</th>
-          <th scope="col" class="w-64 px-4 py-2.5 font-semibold">Fallo</th>
-          <th scope="col" class="px-4 py-2.5 font-semibold">
+          <th scope="col" class="hidden w-28 px-4 py-2.5 font-semibold xl:table-cell">Urgencia</th>
+          <th scope="col" class="px-3 py-2.5 font-semibold xl:w-64 xl:px-4">Fallo</th>
+          <th scope="col" class="px-3 py-2.5 font-semibold xl:px-4">
             {{ clientFiltered ? "Edificio · planta" : "Cliente · edificio · planta" }}
           </th>
-          <th v-if="columns[0]" scope="col" class="px-4 py-2.5 font-semibold">{{ columns[0] }}</th>
-          <th scope="col" class="px-4 py-2.5 font-semibold">{{ columns[1] }}</th>
+          <th v-if="columns[0]" scope="col" class="px-3 py-2.5 font-semibold xl:px-4">{{ columns[0] }}</th>
+          <th scope="col" class="px-3 py-2.5 font-semibold xl:px-4">{{ columns[1] }}</th>
           <th scope="col" class="w-10 px-2 py-2.5"><span class="sr-only">Abrir</span></th>
         </tr>
       </thead>
@@ -42,7 +44,7 @@
           @click="$emit('open', alert)"
           @keydown.enter.prevent="$emit('open', alert)"
         >
-          <td class="px-4 py-3">
+          <td class="hidden px-4 py-3 xl:table-cell">
             <span
               class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold"
               :class="severityClass(alert.severity)"
@@ -52,8 +54,15 @@
               {{ label("AlertSeverity", alert.severity) }}
             </span>
           </td>
-          <td class="px-4 py-3">
-            <p class="whitespace-nowrap font-medium text-slate-900">
+          <td class="px-3 py-3 xl:px-4">
+            <p class="flex items-center gap-2 whitespace-nowrap font-medium text-slate-900">
+              <span
+                class="h-2 w-2 shrink-0 rounded-full xl:hidden"
+                :class="dotClass(alert.severity)"
+                :title="label('AlertSeverity', alert.severity)"
+                aria-hidden="true"
+              ></span>
+              <span class="sr-only xl:hidden">{{ label("AlertSeverity", alert.severity) }}:</span>
               {{ label("AlertType", alert.type) }}
             </p>
             <p v-if="reading(alert).value" class="text-xs text-slate-500">
@@ -62,17 +71,17 @@
             </p>
             <p v-else class="text-xs text-slate-500">{{ alert.sensor_name }}</p>
           </td>
-          <td v-if="clientFiltered" class="px-4 py-3">
+          <td v-if="clientFiltered" class="px-3 py-3 xl:px-4">
             <p class="font-medium text-slate-900">{{ alert.site_name }}</p>
             <p class="text-xs text-slate-500">{{ floorLabel(alert.floor) }}</p>
           </td>
-          <td v-else class="px-4 py-3">
+          <td v-else class="px-3 py-3 xl:px-4">
             <p class="font-medium text-slate-900">{{ alert.organization_name }}</p>
             <p class="text-xs text-slate-500">
               {{ alert.site_name }} · {{ floorLabel(alert.floor) }}
             </p>
           </td>
-          <td v-if="notice(alert)" class="px-4 py-3">
+          <td v-if="notice(alert)" class="px-3 py-3 xl:px-4">
             <p class="flex items-center gap-1.5" :class="NOTICE_TEXT[notice(alert).tone ?? 'none']">
               <svg
                 v-if="notice(alert).tone === 'call'"
@@ -90,13 +99,13 @@
             </p>
             <p v-if="notice(alert).sub" class="text-xs text-slate-500">{{ notice(alert).sub }}</p>
           </td>
-          <td v-else-if="columns[0]" class="px-4 py-3">
+          <td v-else-if="columns[0]" class="px-3 py-3 xl:px-4">
             <p :class="cellA(alert).muted ? 'text-slate-500' : 'text-slate-900'">
               {{ cellA(alert).main }}
             </p>
             <p v-if="cellA(alert).sub" class="text-xs text-slate-500">{{ cellA(alert).sub }}</p>
           </td>
-          <td class="px-4 py-3">
+          <td class="px-3 py-3 xl:px-4">
             <span
               class="inline-flex items-center gap-1.5 whitespace-nowrap"
               :class="cellB(alert).late ? 'font-semibold text-amber-700' : 'text-slate-700'"
@@ -123,8 +132,8 @@
       </tbody>
     </table>
 
-    <!-- Phone, tablet and small laptop -->
-    <ul class="divide-y divide-slate-100 xl:hidden">
+    <!-- Phone and tablet -->
+    <ul class="divide-y divide-slate-100 min-[1152px]:hidden">
       <li v-for="alert in rows" :key="alert.id">
         <button
           type="button"
