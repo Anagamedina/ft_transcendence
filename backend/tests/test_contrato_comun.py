@@ -215,7 +215,8 @@ def test_reconocer_una_alerta_la_deja_en_estado_acknowledged(client, datos):
 
 
 def test_resolver_una_alerta_la_deja_en_estado_resolved(client, datos):
-    _entrar(client, datos["a"]["user"])
+    # Solo AquaGuard cierra alertas.
+    _entrar(client, datos["admin"])
     alerta_id = datos["a"]["alerta"].id
 
     item = client.patch(f"/api/alerts/{alerta_id}/resolve").json()

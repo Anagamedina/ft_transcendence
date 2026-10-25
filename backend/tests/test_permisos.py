@@ -251,13 +251,18 @@ def test_un_admin_puede_resolver_una_alerta_de_otra_organizacion(client, datos):
     assert respuesta.json()["status"] == "RESOLVED"
 
 
-def test_un_cliente_no_puede_resolver_una_alerta_ajena(client, datos):
-    """404 y no 403: no se confirma que la alerta exista."""
+@pytest.mark.parametrize("de", ["a", "b"])
+def test_un_cliente_no_puede_cerrar_alertas(client, datos, de):
+    """
+    Ni las suyas ni las ajenas: cerrar es de AquaGuard. El 403 llega antes
+    de mirar la alerta, así que tampoco confirma si una ajena existe.
+    """
     _entrar(client, datos["cliente_a"])
 
-    respuesta = client.patch(f"/api/alerts/{datos['b']['alerta'].id}/resolve")
+    respuesta = client.patch(f"/api/alerts/{datos[de]['alerta'].id}/resolve")
 
-    assert respuesta.status_code == 404
+    assert respuesta.status_code == 403
+    assert respuesta.json()["error"]["code"] == "FORBIDDEN"
 
 
 def test_un_admin_ve_el_historico_de_cualquier_sensor(client, datos):

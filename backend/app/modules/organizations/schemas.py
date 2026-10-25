@@ -140,6 +140,14 @@ class OrganizationResponse(ApiModel):
     critical_alerts: int = Field(
         default=0, description="De las alertas sin resolver, cuántas son CRITICAL."
     )
+    oldest_open_alert_at: datetime | None = Field(
+        default=None,
+        description=(
+            "Cuándo se creó la alerta sin resolver más antigua, en UTC. Nulo "
+            "si no tiene ninguna. Sirve para «la más antigua: 6 h» en la "
+            "página de alertas del admin."
+        ),
+    )
     created_at: datetime = Field(description="Alta de la organización, en UTC.")
 
 

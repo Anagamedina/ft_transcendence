@@ -17,7 +17,7 @@ each client follows its own buildings, sensors and alerts.
   invitations, buildings and sensors floor by floor, alerts across all
   clients, and an analytics panel with charts, date ranges and CSV export.
 - **Client area (`/app`):** the organization's buildings with a 7-day pressure
-  chart, alerts to acknowledge and resolve, building documents, and the account
+  chart, alerts to take charge of (only AquaGuard closes them), building documents, and the account
   page with data download and account deletion (GDPR).
 - **Public pages:** landing page, trial sign-up, invitation acceptance, and the
   privacy and terms pages.
@@ -932,6 +932,7 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 | —          | Cleanup: outdated comments, dead 501 code, notes in `docs/ana/` brought up to date             | #181           | Implemented |
 | #141, #144 | Contract and routes of B4, B6, B8 and B9: invitations, users, my account and KPIs              | —              | Implemented |
 | #150       | B14 subscription (plans, fiscal data, masked IBAN) and B17 global search (optional)            | —              | Implemented |
+| #252       | Admin alerts page, backend: only admins close alerts, crossed `threshold`, oldest open alert per client | —    | In review   |
 
 Notes for each issue, with diagrams and the decisions taken, are in [`docs/ana/`](docs/ana/).
 

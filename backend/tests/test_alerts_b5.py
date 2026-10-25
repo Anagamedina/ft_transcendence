@@ -90,7 +90,8 @@ def test_actor_primero_y_resolucion_directa(client, datos, engine):
     assert first["acknowledged_by_name"] == user.name
     assert first["resolution_minutes"] is None
     with Session(engine) as db:
-        other = User(email="other-b5@example.com", name="Otro operador", role="client", organization_id=user.organization_id, password_hash="unused")
+        # Cierra AquaGuard (admin); el cliente solo dice «Me encargo».
+        other = User(email="other-b5@example.com", name="Otro operador", role="admin", organization_id=None, password_hash="unused")
         db.add(other)
         db.commit()
         _entrar(client, other)

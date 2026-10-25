@@ -88,8 +88,12 @@ def datos(engine):
     with Session(engine, expire_on_commit=False) as session:
         sensor_a, user_a, alertas_a = _montar_cliente(session, "ClienteA", alertas=3)
         sensor_b, user_b, alertas_b = _montar_cliente(session, "ClienteB", alertas=2)
+        # Solo AquaGuard (admin) cierra alertas.
+        admin = User(email="admin@aquaguard.dev", name="Ana", password_hash="x", role="admin")
+        session.add(admin)
         session.commit()
         return {
+            "admin": admin,
             "a": {"sensor": sensor_a, "user": user_a, "alertas": alertas_a},
             "b": {"sensor": sensor_b, "user": user_b, "alertas": alertas_b},
         }
@@ -209,7 +213,7 @@ def test_no_puedo_reconocer_una_alerta_de_otra_organizacion(client, datos):
 # PATCH resolve
 # ---------------------------------------------------------
 def test_resolver_cierra_la_alerta(client, datos):
-    _entrar(client, datos["a"]["user"])
+    _entrar(client, datos["admin"])
     alerta = datos["a"]["alertas"][0]
 
     cuerpo = client.patch(f"/api/alerts/{alerta.id}/resolve").json()
@@ -218,12 +222,23 @@ def test_resolver_cierra_la_alerta(client, datos):
     assert cuerpo["resolved_at"] is not None
 
 
+def test_un_cliente_no_puede_cerrar_ni_sus_propias_alertas(client, datos):
+    """El cliente dice «Me encargo»; quien confirma que está arreglada es AquaGuard."""
+    _entrar(client, datos["a"]["user"])
+    alerta = datos["a"]["alertas"][0]
+
+    respuesta = client.patch(f"/api/alerts/{alerta.id}/resolve")
+
+    assert respuesta.status_code == 403
+    assert respuesta.json()["error"]["code"] == "FORBIDDEN"
+
+
 def test_resolver_dos_veces_da_409(client, datos):
     """
     No es un éxito silencioso: volvería a escribir la fecha de cierre y se
     perdería cuándo se atendió de verdad.
     """
-    _entrar(client, datos["a"]["user"])
+    _entrar(client, datos["admin"])
     alerta = datos["a"]["alertas"][0]
     client.patch(f"/api/alerts/{alerta.id}/resolve")
 
@@ -234,7 +249,7 @@ def test_resolver_dos_veces_da_409(client, datos):
 
 
 def test_la_fecha_de_cierre_no_cambia_tras_el_409(client, datos, engine):
-    _entrar(client, datos["a"]["user"])
+    _entrar(client, datos["admin"])
     alerta = datos["a"]["alertas"][0]
     primera = client.patch(f"/api/alerts/{alerta.id}/resolve").json()
 
@@ -245,19 +260,10 @@ def test_la_fecha_de_cierre_no_cambia_tras_el_409(client, datos, engine):
     assert guardada.resolved_at.isoformat()[:19] == primera["resolved_at"][:19]
 
 
-def test_no_puedo_resolver_una_alerta_de_otra_organizacion(client, datos):
-    _entrar(client, datos["a"]["user"])
-    ajena = datos["b"]["alertas"][0]
-
-    respuesta = client.patch(f"/api/alerts/{ajena.id}/resolve")
-
-    assert respuesta.status_code == 404
-
-
 def test_una_alerta_que_no_existe_da_404(client, datos):
     from uuid import uuid4
 
-    _entrar(client, datos["a"]["user"])
+    _entrar(client, datos["admin"])
 
     assert client.patch(f"/api/alerts/{uuid4()}/resolve").status_code == 404
 

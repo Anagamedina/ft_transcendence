@@ -199,6 +199,7 @@ class AlertService:
             type=alerta.alert_type,
             severity=alerta.severity,
             message=alerta.message,
+            threshold=_limite(alerta.alert_type, sensor),
             status=alerta.status,
             state=AlertState.derive(alerta.status, alerta.acknowledged_at),
             created_at=_as_utc(alerta.created_at),
@@ -215,6 +216,15 @@ class AlertService:
                 if alerta.status == "RESOLVED" and alerta.resolved_at is not None else None
             ),
         )
+
+
+def _limite(alert_type: str, sensor) -> float | None:
+    """El umbral que corresponde a la alerta (para pintar «1,1 bar · mín. 1,5»)."""
+    valor = {
+        "LOW_PRESSURE": sensor.low_threshold,
+        "HIGH_PRESSURE": sensor.high_threshold,
+    }.get(alert_type)
+    return float(valor) if valor is not None else None
 
 
 def get_alert_service(db: DbSession) -> AlertService:
