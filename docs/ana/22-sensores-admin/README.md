@@ -44,7 +44,10 @@ mismo panel.
 
 Los sensores y los edificios salen de `stores/sensors.js` y `stores/sites.js`
 (todos, página a página): las tres pestañas cuentan sobre los mismos datos y
-crear o editar un sensor las actualiza a la vez. «Ver sensor» desde Alertas
+crear o editar un sensor las actualiza a la vez. Las alertas de 7 días y los
+contactos también se piden página a página (antes se cortaban en 100), y el
+refresco de cada minuto lo recarga todo: sensores, edificios, alertas y
+contactos (revisión de Daru). «Ver sensor» desde Alertas
 abre ese sensor (`?sensor=`).
 
 Diseños: cabecera y «Sin conexión» en https://claude.ai/artifact/AxUPNXvKDJjZbXS6VoxxJX

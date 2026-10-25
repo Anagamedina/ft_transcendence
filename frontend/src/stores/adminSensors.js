@@ -24,18 +24,34 @@ export const PERIODS = {
 };
 
 const SERIES_TTL_MS = 60000;
+const PAGE_SIZE = 100;
+// A guard: 50 pages are 5000 alerts or clients
+const MAX_PAGES = 50;
+
+// Every item of a paginated list (the API gives at most 100 per page)
+async function allPages(get, params = {}) {
+  const items = [];
+  let page = 1;
+  let pages = 1;
+  do {
+    const response = await get({ ...params, page, page_size: PAGE_SIZE });
+    items.push(...response.data.items);
+    pages = response.data.pages ?? 1;
+    page += 1;
+  } while (page <= pages && page <= MAX_PAGES);
+  return items;
+}
 
 export const useAdminSensorsStore = defineStore("adminSensors", () => {
   const alertCounts = ref({});
   const contacts = ref({});
 
-  // Alerts created in the last 7 days (the API caps a page at 100: enough to
-  // spot a sensor that alerts too much)
+  // Alerts created in the last 7 days, page after page
   async function fetchAlertCounts() {
     try {
       const since = new Date(Date.now() - 7 * 86400000).toISOString();
-      const response = await alertsService.getAlerts({ created_from: since, page_size: 100 });
-      alertCounts.value = alertsPerSensor(response.data.items);
+      const alerts = await allPages((params) => alertsService.getAlerts(params), { created_from: since });
+      alertCounts.value = alertsPerSensor(alerts);
     } catch {
       // The column just stays empty
     }
@@ -43,9 +59,9 @@ export const useAdminSensorsStore = defineStore("adminSensors", () => {
 
   async function fetchContacts() {
     try {
-      const response = await organizationsService.getOrganizations({ page_size: 100 });
+      const organizations = await allPages((params) => organizationsService.getOrganizations(params));
       contacts.value = Object.fromEntries(
-        response.data.items.map((o) => [o.id, { phone: o.phone, email: o.contact_email }]),
+        organizations.map((o) => [o.id, { phone: o.phone, email: o.contact_email }]),
       );
     } catch {
       // Without contacts the page still works

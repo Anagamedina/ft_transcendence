@@ -283,10 +283,9 @@ async function refresh() {
 }
 
 onMounted(refresh);
-useAutoRefresh(() => {
-  now.value = new Date();
-  Promise.allSettled([sensorsStore.fetchSensors(), extra.fetchAlertCounts()]);
-}, 60000);
+// Every minute, everything: a new building or a changed contact shows up
+// without reloading the page
+useAutoRefresh(refresh, 60000);
 onBeforeUnmount(() => clearTimeout(timer));
 
 // --- Side panel. The open sensor lives in the URL (?sensor=), so
