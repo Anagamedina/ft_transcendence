@@ -272,6 +272,11 @@ The root `Makefile` wraps the Compose commands:
 | `make fclean`              | `down -v --remove-orphans`, simulator included, which deletes the PostgreSQL volume, the backups and the uploaded documents                  |
 | `make re`                  | `fclean` followed by `up`, a start from scratch                                                                                              |
 
+Backend tests that depend on the clock take "now" inside each test (an
+`autouse` fixture), never when the file is loaded: the full suite runs for
+several minutes, and a reading from "10 s ago" would already be more than
+5 minutes old, which turns the sensor offline.
+
 `make fclean` destroys the database volume. PostgreSQL only creates its user on
 the first initialisation of that volume, so this is also the command to run
 after the credentials in `.env` change.
