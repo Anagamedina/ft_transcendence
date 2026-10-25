@@ -130,6 +130,20 @@ class AlertResponse(ApiModel):
             "enviados todos, alguien se encarga o está cerrada."
         ),
     )
+    normal_since: datetime | None = Field(
+        default=None,
+        description=(
+            "Desde cuándo las lecturas vuelven a ser normales, en UTC, si la "
+            "alerta sigue abierta (#277). Nulo si no lo son o ya está cerrada."
+        ),
+    )
+    closes_at: datetime | None = Field(
+        default=None,
+        description=(
+            "Cuándo se cerrará sola si siguen normales: `normal_since` + 15 min. "
+            "Al cerrarse, `resolved_at` será `normal_since`."
+        ),
+    )
     resolution_minutes: float | None = Field(
         default=None,
         description="Minutos desde creación hasta resolución, con decimales; nulo si sigue abierta o falta la fecha de cierre.",

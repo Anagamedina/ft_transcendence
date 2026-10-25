@@ -24,9 +24,9 @@
           </router-link>
         </template>
         <template #footer>
-          <p class="px-2 text-sm text-slate-600">
-            {{ authStore.user?.name }}
-            ·
+          <!-- Name and button on their own lines: the menu is too narrow for both -->
+          <p class="flex flex-col items-start gap-0.5 px-2 text-sm text-slate-600">
+            <span class="max-w-full truncate">{{ authStore.user?.name }}</span>
             <button
               type="button"
               class="font-semibold text-aqua-600 underline-offset-2 hover:underline disabled:opacity-50"

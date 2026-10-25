@@ -1,7 +1,8 @@
 // NOTIFICATION STEPS — the timeline of client notices of an alert (#275).
 //
 //   notificationSteps(alert, now)
-//   // [{ key, title, detail, status }]  status: start | done | next | pending | call
+//   // [{ key, title, detail, status }]
+//   // status: start | done | next | pending | call | normal (#277)
 //
 // The backend sends the emails and returns them in `alert.notifications`
 // ([{ attempt, channel, recipient, sent_at }]); this only turns that and the
@@ -32,8 +33,10 @@ export function notificationSteps(alert, now = new Date()) {
   if (!alert || !Array.isArray(alert.notifications)) return [];
   const schedule = SCHEDULE[alert.severity] ?? SCHEDULE.WARNING;
   const sent = new Map(alert.notifications.map((n) => [n.attempt, n]));
-  // Someone took it (or it is closed): no more notices after that
-  const stopped = alert.state !== "ACTIVE";
+  // Someone took it, it is closed, or the readings are normal again and the
+  // closing is being confirmed (#277): no more notices after that
+  const confirming = alert.state !== "RESOLVED" && Boolean(alert.normal_since);
+  const stopped = alert.state !== "ACTIVE" || confirming;
 
   const steps = [
     {
@@ -79,6 +82,25 @@ export function notificationSteps(alert, now = new Date()) {
         status: "done",
       });
     }
+    if (confirming) {
+      steps.push({
+        key: "normal",
+        title: `Normal desde las ${formatTime(alert.normal_since)}`,
+        detail: `se cerrará sola a las ${formatTime(alert.closes_at)}`,
+        status: "normal",
+      });
+    } else if (alert.state === "RESOLVED") {
+      steps.push({
+        key: "closed",
+        title: alert.resolved_by_name
+          ? `Cerrada a mano por ${alert.resolved_by_name}`
+          : "Arreglada: las lecturas lo confirman",
+        detail: alert.resolved_by_name
+          ? formatTime(alert.resolved_at)
+          : `normal desde las ${formatTime(alert.resolved_at)}`,
+        status: "done",
+      });
+    }
     return steps;
   }
 
@@ -96,18 +118,31 @@ export function notificationSteps(alert, now = new Date()) {
   return steps;
 }
 
-// One line for the table column "Avisos al cliente" (#275):
+// Two lines for the table column "Avisos al cliente" (#275, #277):
 //   { main: 'Aún no', sub: 'en 2 min' }
-//   { main: '1 aviso', sub: 'el 2.º en 9 min', tone: 'sent' }
-//   { main: '2 avisos', sub: 'llamar', tone: 'call' }
+//   { main: '1 aviso enviado', sub: 'el 2.º en 9 min', tone: 'sent' }
+//   { main: 'Llamar', sub: '2 avisos sin respuesta', tone: 'call' }
+//   { main: 'Presión normal', sub: 'se cierra sola en 12 min', tone: 'normal' }
 // null without `notifications` (backend not ready): the table keeps "Nadie".
 export function noticeSummary(alert, now = new Date()) {
   const steps = notificationSteps(alert, now);
   if (!steps.length) return null;
+  // #277: readings normal again, closing by itself
+  const normal = steps.find((s) => s.status === "normal");
+  if (normal) {
+    const closes = parseDate(alert.closes_at);
+    const left = closes ? minutesUntil(closes, now) : null;
+    return {
+      main: alert.type === "SENSOR_OFFLINE" ? "Vuelve a enviar" : "Presión normal",
+      sub: left ? `se cierra sola en ${left} min` : "se cierra sola",
+      tone: "normal",
+    };
+  }
   const count = steps.filter((s) => s.status === "done").length;
-  const main = count ? `${count} ${count === 1 ? "aviso" : "avisos"}` : "Aún no";
+  const notices = `${count} ${count === 1 ? "aviso" : "avisos"}`;
   const call = steps.find((s) => s.status === "call");
-  if (call) return { main, sub: "llamar", tone: "call" };
+  if (call) return { main: "Llamar", sub: `${notices} sin respuesta`, tone: "call" };
+  const main = count ? `${notices} ${count === 1 ? "enviado" : "enviados"}` : "Aún no";
   const next = steps.find((s) => s.status === "next");
   // "2.º email en 9 min" -> "el 2.º en 9 min"; "1.er email en 2 min" -> "en 2 min"
   const wait = next?.title.match(/(\S+) email en (.+)$/);

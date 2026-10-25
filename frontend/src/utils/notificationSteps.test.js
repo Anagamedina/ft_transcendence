@@ -88,7 +88,7 @@ describe("noticeSummary", () => {
   it("counts the notices and says when the next one goes out", () => {
     const alert = critical({ notifications: [{ attempt: 1, sent_at: "2026-10-25T10:05:00Z" }] });
     expect(noticeSummary(alert, minutesLater(11))).toEqual({
-      main: "1 aviso",
+      main: "1 aviso enviado",
       sub: "el 2.º en 9 min",
       tone: "sent",
     });
@@ -102,9 +102,45 @@ describe("noticeSummary", () => {
       ],
     });
     expect(noticeSummary(alert, minutesLater(50))).toEqual({
-      main: "2 avisos",
-      sub: "llamar",
+      main: "Llamar",
+      sub: "2 avisos sin respuesta",
       tone: "call",
     });
+  });
+});
+
+describe("cierre automático (#277)", () => {
+  const confirming = () =>
+    critical({
+      notifications: [{ attempt: 1, sent_at: "2026-10-25T10:05:00Z" }],
+      normal_since: "2026-10-25T10:12:00Z",
+      closes_at: "2026-10-25T10:27:00Z",
+    });
+
+  it("while the readings are normal, no more notices: it closes by itself", () => {
+    const steps = notificationSteps(confirming(), minutesLater(15));
+    expect(steps.map((s) => s.status)).toEqual(["start", "done", "normal"]);
+    expect(steps.at(-1).title).toMatch(/^Normal desde las /);
+    expect(steps.at(-1).detail).toMatch(/^se cerrará sola a las /);
+  });
+
+  it("the table says it is normal and when it closes", () => {
+    expect(noticeSummary(confirming(), minutesLater(15))).toEqual({
+      main: "Presión normal",
+      sub: "se cierra sola en 12 min",
+      tone: "normal",
+    });
+  });
+
+  it("closed by the readings or by hand", () => {
+    const closed = {
+      ...critical(),
+      state: "RESOLVED",
+      resolved_at: "2026-10-25T10:12:00Z",
+    };
+    expect(notificationSteps(closed).at(-1).title).toBe("Arreglada: las lecturas lo confirman");
+    expect(
+      notificationSteps({ ...closed, resolved_by_name: "Ana" }).at(-1).title,
+    ).toBe("Cerrada a mano por Ana");
   });
 });

@@ -3,13 +3,15 @@
   https://claude.ai/artifact/9pWxLtDY5NHkPLCssUzYYv)
   Short side panel: the reading and its limit in the title, where, who is
   on it, "Llamar" / "Email" to the client,
-  and the two actions together at the bottom. Closing asks for a
+  and "Ver sensor" at the bottom. The readings close the alert (#277):
+  "Cerrar a mano…" is a discreet link for the exceptions, with its
   confirmation inside the panel. Esc closes; Tab stays inside the panel.
 -->
 
 <template>
   <Teleport to="body">
-    <div v-if="alert" class="fixed inset-0 z-40 flex justify-end">
+    <!-- z-[70]: above the mobile menu button of the Sidebar (z-[60]) -->
+    <div v-if="alert" class="fixed inset-0 z-[70] flex justify-end">
       <div class="absolute inset-0 bg-slate-900/30" aria-hidden="true" @click="close"></div>
 
       <aside
@@ -66,6 +68,44 @@
 
         <div class="flex flex-1 flex-col gap-5 px-5 py-5 text-sm">
           <AlertNotificationsTimeline :alert="alert" :now="now" />
+
+          <!-- #277: the readings close it; closing by hand is the exception -->
+          <div v-if="alert.state !== 'RESOLVED'">
+            <div v-if="confirming" class="flex flex-col gap-3 rounded-xl border border-slate-200 p-4">
+              <p class="text-sm text-slate-700">
+                ¿Cerrarla a mano? Se cierra sola tras 15 minutos de lecturas normales:
+                hazlo solo si las lecturas no pueden confirmarlo (sensor cambiado o
+                desactivado, falsa alarma).
+              </p>
+              <div class="grid grid-cols-2 gap-2">
+                <button
+                  ref="confirmButton"
+                  type="button"
+                  class="h-11 rounded-lg bg-aqua-600 px-4 text-sm font-bold text-white hover:bg-aqua-700 disabled:opacity-60"
+                  :disabled="busy"
+                  @click="$emit('resolve', alert.id)"
+                >
+                  {{ busy ? "Cerrando…" : "Sí, cerrarla" }}
+                </button>
+                <button
+                  type="button"
+                  class="h-11 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold hover:bg-slate-50"
+                  :disabled="busy"
+                  @click="confirming = false"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+            <button
+              v-else
+              type="button"
+              class="text-sm font-medium text-aqua-700 underline-offset-2 hover:underline"
+              @click="askConfirm"
+            >
+              Cerrar a mano…
+            </button>
+          </div>
 
           <section class="flex flex-col gap-1">
             <h3 class="text-xs font-bold uppercase tracking-wide text-slate-500">Dónde</h3>
@@ -132,46 +172,12 @@
             {{ error }}
           </p>
 
-          <div v-if="confirming" class="flex flex-col gap-3">
-            <p class="text-sm text-slate-700">
-              ¿Seguro que está arreglada? Pasará a «Arregladas» y el cliente la verá cerrada.
-            </p>
-            <div class="grid grid-cols-2 gap-2">
-              <button
-                ref="confirmButton"
-                type="button"
-                class="h-11 rounded-lg bg-aqua-600 px-4 text-sm font-bold text-white hover:bg-aqua-700 disabled:opacity-60"
-                :disabled="busy"
-                @click="$emit('resolve', alert.id)"
-              >
-                {{ busy ? "Cerrando…" : "Sí, está arreglada" }}
-              </button>
-              <button
-                type="button"
-                class="h-11 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold hover:bg-slate-50"
-                :disabled="busy"
-                @click="confirming = false"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-          <div v-else class="grid grid-flow-col auto-cols-fr gap-2">
-            <button
-              v-if="alert.state !== 'RESOLVED'"
-              type="button"
-              class="h-11 rounded-lg bg-aqua-600 px-4 text-sm font-bold text-white hover:bg-aqua-700"
-              @click="askConfirm"
-            >
-              Marcar como arreglada
-            </button>
-            <router-link
-              :to="sensorLink"
-              class="flex h-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-900 hover:border-aqua-400"
-            >
-              Ver sensor
-            </router-link>
-          </div>
+          <router-link
+            :to="sensorLink"
+            class="flex h-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-900 hover:border-aqua-400"
+          >
+            Ver sensor
+          </router-link>
         </footer>
       </aside>
     </div>

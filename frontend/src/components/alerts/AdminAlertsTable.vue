@@ -3,7 +3,8 @@
   Urgencia · Fallo (value and limit) · Cliente / edificio / planta (only
   edificio / planta when one client is filtered), then the columns of the
   tab, and "›". Clicking a row (or Enter on it) opens the detail panel. On
-  small screens each alert is a card.
+  screens narrower than xl (the side menu takes 16rem, so the table would be
+  cut at 768-1279 px) each alert is a card, with the notices line too.
 
   | Tab           | Column 4         | Column 5                         |
   | Sin atender   | Avisos al cliente (#275; no column until the backend sends them) | Sin atender desde (amber > 1 h) |
@@ -14,7 +15,7 @@
 <template>
   <div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
     <!-- Desktop -->
-    <table class="hidden w-full text-left text-sm md:table">
+    <table class="hidden w-full text-left text-sm xl:table">
       <caption class="sr-only">
         {{ caption }}
       </caption>
@@ -36,7 +37,7 @@
           :key="alert.id"
           tabindex="0"
           class="cursor-pointer align-top hover:bg-slate-50 focus:bg-sky-50 focus:outline-none"
-          :class="alert.id === selectedId ? 'bg-sky-50' : notice(alert)?.tone === 'call' ? 'bg-rose-50/60' : ''"
+          :class="alert.id === selectedId ? 'bg-sky-50' : ''"
           :aria-label="`${label('AlertType', alert.type)}, ${alert.organization_name}. Ver detalle`"
           @click="$emit('open', alert)"
           @keydown.enter.prevent="$emit('open', alert)"
@@ -72,22 +73,22 @@
             </p>
           </td>
           <td v-if="notice(alert)" class="px-4 py-3">
-            <span class="flex flex-wrap items-center gap-2">
-              <span
-                v-if="notice(alert).tone"
-                class="rounded-full px-2 py-0.5 text-xs font-bold"
-                :class="notice(alert).tone === 'call' ? 'bg-rose-700 text-white' : 'bg-sky-100 text-aqua-700'"
+            <p class="flex items-center gap-1.5" :class="NOTICE_TEXT[notice(alert).tone ?? 'none']">
+              <svg
+                v-if="notice(alert).tone === 'call'"
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
               >
-                {{ notice(alert).main }}
-              </span>
-              <span v-else class="text-slate-500">{{ notice(alert).main }}</span>
-              <span
-                class="text-[13px]"
-                :class="notice(alert).tone === 'call' ? 'font-bold text-rose-800' : 'text-slate-500'"
-              >
-                {{ notice(alert).sub }}
-              </span>
-            </span>
+                <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2" />
+              </svg>
+              {{ notice(alert).main }}
+            </p>
+            <p v-if="notice(alert).sub" class="text-xs text-slate-500">{{ notice(alert).sub }}</p>
           </td>
           <td v-else-if="columns[0]" class="px-4 py-3">
             <p :class="cellA(alert).muted ? 'text-slate-500' : 'text-slate-900'">
@@ -122,8 +123,8 @@
       </tbody>
     </table>
 
-    <!-- Mobile -->
-    <ul class="divide-y divide-slate-100 md:hidden">
+    <!-- Phone, tablet and small laptop -->
+    <ul class="divide-y divide-slate-100 xl:hidden">
       <li v-for="alert in rows" :key="alert.id">
         <button
           type="button"
@@ -142,11 +143,16 @@
               {{ alert.organization_name }} · {{ alert.site_name }} ·
               {{ floorLabel(alert.floor) }}
             </span>
-            <span
-              class="mt-1 block text-xs"
-              :class="cellB(alert).late ? 'font-semibold text-amber-700' : 'text-slate-500'"
-            >
-              {{ columns[1] }}: {{ cellB(alert).text }}
+            <span class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
+              <span :class="cellB(alert).late ? 'font-semibold text-amber-700' : 'text-slate-500'">
+                {{ columns[1] }}: {{ cellB(alert).text }}
+              </span>
+              <span v-if="notice(alert)" :class="NOTICE_TEXT[notice(alert).tone ?? 'none']">
+                {{ notice(alert).main }}<template v-if="notice(alert).sub"> · {{ notice(alert).sub }}</template>
+              </span>
+              <span v-else-if="columns[0]" class="text-slate-500">
+                {{ cellA(alert).main }}<template v-if="cellA(alert).sub"> · {{ cellA(alert).sub }}</template>
+              </span>
             </span>
           </span>
           <span class="text-lg text-slate-400" aria-hidden="true">›</span>
@@ -224,6 +230,14 @@ const columns = computed(() => {
     props.state === "ACTIVE" && props.rows.some((a) => Array.isArray(a.notifications));
   return withNotices ? ["Avisos al cliente", base[1]] : base;
 });
+
+// Amber like the "late" clock: it waits too long. Red is only for "Crítica"
+const NOTICE_TEXT = {
+  call: "font-semibold text-amber-700",
+  sent: "font-medium text-slate-700",
+  normal: "font-medium text-success-dark",
+  none: "text-slate-500",
+};
 
 function notice(alert) {
   return props.state === "ACTIVE" ? noticeSummary(alert, props.now) : null;

@@ -1,6 +1,7 @@
 # VIGILANTE — alerts
-# Tarea en segundo plano que, cada minuto, busca sensores mudos y avisa al
-# cliente de las alertas que nadie atiende (#275).
+# Tarea en segundo plano que, cada minuto, busca sensores mudos, cierra las
+# alertas que las lecturas ya confirman (#277) y avisa al cliente de las que
+# nadie atiende (#275).
 """
 Comprobación periódica de sensores mudos (issue #28).
 
@@ -29,6 +30,7 @@ import logging
 from datetime import timedelta
 
 from app.core.database import SessionLocal
+from app.modules.alerts.autoclose import cerrar_por_lecturas
 from app.modules.alerts.notices import enviar_avisos
 from app.modules.alerts.offline import detectar_sensores_mudos
 
@@ -52,6 +54,24 @@ def una_vuelta() -> int:
         return abiertas
     except Exception:
         logger.exception("Fallo al buscar sensores mudos; se reintenta en la siguiente vuelta")
+        return 0
+    finally:
+        db.close()
+
+
+def una_vuelta_de_cierres() -> int:
+    """
+    Cierra las alertas cuyo sensor lleva 15 minutos normal (#277), con su
+    propia sesión y su propio try, como las otras vueltas.
+    """
+    db = SessionLocal()
+    try:
+        cerradas = cerrar_por_lecturas(db)
+        if cerradas:
+            logger.info("Cierre automático: %d alerta(s) cerradas por las lecturas", cerradas)
+        return cerradas
+    except Exception:
+        logger.exception("Fallo al cerrar alertas por las lecturas; se reintenta en la siguiente vuelta")
         return 0
     finally:
         db.close()
@@ -84,5 +104,7 @@ async def vigilar() -> None:
     """
     while True:
         await asyncio.to_thread(una_vuelta)
+        # Primero se cierran: así no se avisa de lo que ya está arreglado
+        await asyncio.to_thread(una_vuelta_de_cierres)
         await asyncio.to_thread(una_vuelta_de_avisos)
         await asyncio.sleep(COMPROBAR_CADA.total_seconds())

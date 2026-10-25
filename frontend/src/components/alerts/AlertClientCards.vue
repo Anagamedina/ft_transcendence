@@ -39,7 +39,7 @@
         <span class="w-full truncate font-semibold text-slate-900">
           {{ client.name }}
         </span>
-        <span class="flex flex-wrap items-baseline gap-x-2">
+        <span class="flex items-baseline gap-2 whitespace-nowrap">
           <span
             class="text-[1.65rem] font-bold leading-none"
             :class="client.critical_alerts ? 'text-rose-700' : 'text-amber-700'"
@@ -48,12 +48,15 @@
           </span>
           <span class="text-sm text-slate-700">
             {{ client.open_alerts === 1 ? "abierta" : "abiertas" }}
-            <template v-if="client.critical_alerts">
-              · <span class="font-semibold text-rose-700">{{ plural(client.critical_alerts, "crítica", "críticas") }}</span>
-            </template>
-            <template v-if="client.open_alerts - client.critical_alerts">
-              · <span class="font-semibold text-amber-700">{{ plural(client.open_alerts - client.critical_alerts, "leve", "leves") }}</span>
-            </template>
+          </span>
+        </span>
+        <span class="text-sm font-semibold">
+          <span v-if="client.critical_alerts" class="text-rose-700">
+            {{ plural(client.critical_alerts, "crítica", "críticas") }}
+          </span>
+          <template v-if="client.critical_alerts && client.open_alerts - client.critical_alerts"> · </template>
+          <span v-if="client.open_alerts - client.critical_alerts" class="text-amber-700">
+            {{ plural(client.open_alerts - client.critical_alerts, "leve", "leves") }}
           </span>
         </span>
         <span class="text-xs text-slate-500">
@@ -73,7 +76,7 @@
           <span class="font-semibold">Ver menos</span>
         </template>
         <template v-else>
-          <span class="font-semibold">+ {{ hidden }} clientes</span>
+          <span class="font-semibold">+ {{ plural(hidden, "cliente", "clientes") }}</span>
           <span class="text-sm">ver todos</span>
         </template>
       </button>

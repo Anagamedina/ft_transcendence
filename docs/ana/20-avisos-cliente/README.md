@@ -25,9 +25,9 @@ como en #252.
 
 | Pieza | Archivo | Qué hace |
 |---|---|---|
-| Pasos | `utils/notificationSteps.js` | `notificationSteps(alert, now)`: salta la alerta → emails (hecho ✓, siguiente «en 9 min», pendiente) → llamar. Si alguien se encarga, acaba en «Nombre se encarga». `noticeSummary` da la línea de la tabla («1 aviso · el 2.º en 9 min», «2 avisos · llamar»). El calendario (`SCHEDULE`) es el mismo de la issue |
+| Pasos | `utils/notificationSteps.js` | `notificationSteps(alert, now)`: salta la alerta → emails (hecho ✓, siguiente «en 9 min», pendiente) → llamar. Si alguien se encarga, acaba en «Nombre se encarga». `noticeSummary` da las dos líneas de la tabla («1 aviso enviado · el 2.º en 9 min», «Llamar · 2 avisos sin respuesta»). El calendario (`SCHEDULE`) es el mismo de la issue |
 | Línea de tiempo | `components/alerts/AlertNotificationsTimeline.vue` | «Avisos al cliente» en el panel: línea vertical continua hasta el último paso hecho y discontinua después; el siguiente en azul, «llamar» en granate |
-| Tabla | `components/alerts/AdminAlertsTable.vue` | En «Sin atender», la columna «Quién se ocupa» (siempre «Nadie») pasa a «Avisos al cliente»; la fila que pide llamar se tiñe de rosa |
+| Tabla | `components/alerts/AdminAlertsTable.vue` | En «Sin atender», la columna «Quién se ocupa» (siempre «Nadie») pasa a «Avisos al cliente»: texto en dos líneas, «Llamar» en ámbar con un teléfono (el rojo queda solo para «Crítica») |
 | Panel y vista | `AlertDetailPanel.vue`, `views/admin/AlertsView.vue` | El panel recibe `now` y, en cada refresco (60 s), los datos nuevos de su alerta: la línea avanza sola |
 
 Tests: `src/utils/notificationSteps.test.js` (9).

@@ -7,7 +7,11 @@
 
 <template>
   <div class="border-b border-slate-200">
-    <div role="tablist" aria-label="Estado de las alertas" class="flex flex-wrap gap-x-7">
+    <div
+      role="tablist"
+      aria-label="Estado de las alertas"
+      class="-mb-px flex gap-x-1 overflow-x-auto sm:gap-x-7"
+    >
       <button
         v-for="(tab, index) in tabs"
         :id="`alert-tab-${tab.state}`"
@@ -19,7 +23,7 @@
         :tabindex="tab.state === modelValue ? 0 : -1"
         aria-controls="alert-tab-panel"
         :title="tab.hint"
-        class="-mb-px flex items-center gap-2 border-b-[3px] pb-3 pt-2.5 text-[15px] transition"
+        class="flex flex-1 shrink-0 items-center justify-center gap-1 whitespace-nowrap border-b-[3px] pb-3 pt-2.5 text-[13px] transition sm:flex-none sm:justify-start sm:gap-2 sm:text-[15px]"
         :class="
           tab.state === modelValue
             ? 'border-aqua-600 font-bold text-aqua-900'
@@ -31,7 +35,7 @@
       >
         {{ tab.label }}
         <span
-          class="min-w-[1.4rem] rounded-full px-2 text-center text-[13px]"
+          class="min-w-[1.25rem] rounded-full px-1.5 text-center text-xs sm:min-w-[1.4rem] sm:px-2 sm:text-[13px]"
           :class="
             tab.state === 'ACTIVE' && tab.count > 0
               ? 'bg-rose-700 text-white'

@@ -34,6 +34,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import transaction
 from app.core.exceptions import ConflictError, DomainValidationError, NotFoundError
+from app.modules.alerts.autoclose import normal_desde, se_cierra_a
 from app.modules.alerts.notices import siguiente_aviso
 from app.modules.alerts.repository import AlertRepository
 from app.modules.alerts.schemas import AlertNotificationResponse, AlertResponse, AlertState
@@ -171,8 +172,7 @@ class AlertService:
             )
         return alerta
 
-    @staticmethod
-    def _to_response(alerta) -> AlertResponse:
+    def _to_response(self, alerta) -> AlertResponse:
         """
         Convierte la fila al schema de salida.
 
@@ -188,6 +188,8 @@ class AlertService:
         """
         sensor = alerta.sensor
         site = sensor.site
+        # #277: si las lecturas ya son normales, se está confirmando el cierre
+        normal = normal_desde(self.db, alerta)
         return AlertResponse(
             id=alerta.id,
             sensor_id=alerta.sensor_id,
@@ -221,7 +223,9 @@ class AlertService:
                 )
                 for n in alerta.notifications
             ],
-            next_notification_at=siguiente_aviso(alerta),
+            next_notification_at=None if normal else siguiente_aviso(alerta),
+            normal_since=normal,
+            closes_at=se_cierra_a(normal),
             resolution_minutes=(
                 (_as_utc(alerta.resolved_at) - _as_utc(alerta.created_at)).total_seconds() / 60
                 if alerta.status == "RESOLVED" and alerta.resolved_at is not None else None

@@ -2,7 +2,9 @@
   ALERT NOTIFICATIONS TIMELINE (#275)
   "Avisos al cliente" in the alert panel: a vertical line with each step.
   Done steps get a ✓ and a solid line; the next one is highlighted with how
-  long is left; the rest are grey with a dashed line. The steps come from
+  long is left; the rest are grey with a dashed line. When the readings are
+  normal again (#277) the last step is green: "Normal desde las 10:32 · se
+  cerrará sola a las 10:47". The steps come from
   utils/notificationSteps.js and move on by themselves on each refresh.
 -->
 
@@ -62,6 +64,7 @@ const DOT = {
   next: "h-4 w-4 border-[3px] border-aqua-600 bg-white",
   pending: "h-3 w-3 border-2 border-slate-300 bg-white",
   call: "h-4 w-4 bg-rose-700",
+  normal: "h-4 w-4 border-[3px] border-success-dark bg-success-light",
 };
 
 const TITLE = {
@@ -70,6 +73,7 @@ const TITLE = {
   next: "font-semibold text-aqua-600",
   pending: "text-slate-600",
   call: "font-bold text-rose-700",
+  normal: "font-semibold text-success-dark",
 };
 
 const STATUS_TEXT = {
@@ -77,6 +81,7 @@ const STATUS_TEXT = {
   next: "(siguiente)",
   pending: "(pendiente)",
   call: "(urgente)",
+  normal: "(confirmando que está arreglada)",
 };
 
 const steps = computed(() => notificationSteps(props.alert, props.now));

@@ -24,6 +24,9 @@ frontend en `utils/notificationSteps.js`:
   siguiente y, al final, la llamada.
 - «Me encargo» o cerrar la alerta para los avisos: solo se miran las
   alertas ACTIVE sin `acknowledged_at`.
+- **Mientras se confirma el cierre automático (#277), no se avisa**: si las
+  lecturas ya son normales, sería absurdo escribir «nadie atiende tu
+  alerta». Si vuelven a ir mal, se sigue donde se estaba.
 """
 
 from __future__ import annotations
@@ -37,6 +40,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.app_config import app_settings
+from app.modules.alerts.autoclose import normal_desde
 from app.modules.alerts.model import Alert, AlertNotification
 from app.modules.sensors.model import Sensor
 from app.modules.sites.model import Site
@@ -154,6 +158,8 @@ def enviar_avisos(db: Session, ahora: datetime | None = None) -> int:
         if intento is None:
             continue
         if _utc(alerta.created_at) + timedelta(minutes=calendario.emails[intento - 1]) > ahora:
+            continue
+        if normal_desde(db, alerta, ahora) is not None:
             continue
 
         destinatarios = _destinatarios(db, alerta, intento)
