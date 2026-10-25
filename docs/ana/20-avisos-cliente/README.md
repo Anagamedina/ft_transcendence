@@ -65,6 +65,15 @@ Lienzo: https://claude.ai/artifact/2ZKLbiFk9vFxegkfwAxRzE («Alertas corregida»
 - Tabla: «Fallo» más ancha y sin partir; con un cliente filtrado, la columna pasa a «Edificio · planta»; en «Sin atender» no hay «Quién se ocupa» (siempre «Nadie»): sale «Avisos al cliente» cuando hay avisos; el reloj es un icono, no un emoji.
 - Cabecera: «Actualizado hace…» centrado con el título.
 
+## Datos de demo
+
+`make seed-avisos` (`backend/seeds/seed_avisos.py`) crea una alerta en cada fase,
+cada una en su propio sensor «Demo avisos · …»: crítica recién saltada, con 1
+aviso, con 2, la que pide llamar; leve sin avisar y avisada; dos en curso (una
+con aviso antes de que alguien se encargara) y una arreglada. Las horas son
+relativas a ahora: si se vuelve a ejecutar, se borran y se crean otra vez. Los
+sensores no mandan lecturas, así que la vigilancia de sensores mudos no los toca.
+
 ## Decisiones
 
 - **Sin botón «Avisar ya»**: confundía (parece llamar). Si a AquaGuard le

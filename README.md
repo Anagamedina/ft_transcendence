@@ -249,6 +249,7 @@ The root `Makefile` wraps the Compose commands:
 | `make sim`                 | Validates `.env`, starts the base services, seeds an empty database and then starts the sensor simulator                                     |
 | `make demo`                | Alias of `make all`                                                                                                                          |
 | `make seed`                | Applies pending migrations, then loads the demo data from the working tree (no rebuild needed); safe to run more than once                   |
+| `make seed-avisos`         | Adds one alert in each phase of the client notices (#275), with times from now; run it again to refresh them; needs `make all` first         |
 | `make migrate`             | Applies pending migrations (`alembic upgrade head`)                                                                                          |
 | `make migration MSG="..."` | Generates a migration with `alembic revision --autogenerate` without applying it; fails without `MSG`                                        |
 | `make migration-check`     | Fails if the database is unreachable, has pending migrations, or the models drifted from the migrations                                      |

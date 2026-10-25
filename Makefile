@@ -16,7 +16,7 @@ SEED        := $(COMPOSE) run --rm --no-deps \
 	-v $(CURDIR)/backend/seeds:/app/seeds:ro \
 	--entrypoint python backend -m seeds.seed_demo
 
-.PHONY: all setup env config-check doctor check-sim-env certs up dev dev-infra frontend-install e2e-install frontend-dev sim demo seed seed-if-empty migrate migration migration-check storage-check test-backend test-frontend test-e2e lint format compose-check check down build logs ps clean fclean re smoke backup backups restore backup-verify
+.PHONY: all setup env config-check doctor check-sim-env certs up dev dev-infra frontend-install e2e-install frontend-dev sim demo seed seed-avisos seed-if-empty migrate migration migration-check storage-check test-backend test-frontend test-e2e lint format compose-check check down build logs ps clean fclean re smoke backup backups restore backup-verify
 
 # Full local bootstrap. It is safe to repeat: demo data is loaded only into
 # an empty database, while all named volumes survive `make down`.
@@ -113,6 +113,14 @@ demo: all
 # The seed needs the schema at head; migrating first is a no-op when it is.
 seed: migrate
 	$(SEED)
+
+# #275: one alert in each phase of the client notices, with times from now.
+# Run it again to refresh the phases.
+seed-avisos: migrate
+	$(COMPOSE) run --rm --no-deps \
+		-v $(CURDIR)/backend/app:/app/app:ro \
+		-v $(CURDIR)/backend/seeds:/app/seeds:ro \
+		--entrypoint python backend -m seeds.seed_avisos
 
 # Never overwrite a working database during a normal `make all`. The explicit
 # `make seed` target remains available when the demo needs to be refreshed.
