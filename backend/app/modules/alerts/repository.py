@@ -22,6 +22,7 @@ def _con_lectura():
         _con_jerarquia(),
         selectinload(Alert.acknowledged_by_user),
         selectinload(Alert.resolved_by_user),
+        selectinload(Alert.notifications),
     )
 
 

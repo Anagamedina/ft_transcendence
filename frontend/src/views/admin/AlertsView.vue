@@ -13,7 +13,7 @@
 <template>
   <AdminLayout>
     <section class="flex flex-col gap-6">
-      <header class="flex flex-wrap items-end justify-between gap-3">
+      <header class="flex flex-wrap items-center justify-between gap-3">
         <h1 class="text-2xl font-bold text-slate-900">Alertas</h1>
         <p class="flex items-center gap-1.5 text-sm text-slate-500" aria-live="polite">
           <span
@@ -90,6 +90,7 @@
             :page-size="pageSize"
             :total="store.total"
             :selected-id="selected?.id ?? null"
+            :client-filtered="Boolean(organizationId)"
             :now="now"
             @open="open"
             @page="setPage"
@@ -102,6 +103,7 @@
       :alert="selected"
       :busy="resolving"
       :error="resolveError"
+      :now="now"
       @close="selected = null"
       @resolve="resolve"
     />
@@ -243,6 +245,17 @@ function setTab(value) {
 const selected = ref(null);
 const resolving = ref(false);
 const resolveError = ref("");
+
+// On each refresh the open panel takes the new data of its alert, so the
+// notices timeline moves on (#275)
+watch(
+  () => store.rows,
+  (rows) => {
+    if (!selected.value) return;
+    const fresh = rows.find((row) => row.id === selected.value.id);
+    if (fresh) selected.value = fresh;
+  },
+);
 
 function open(alert) {
   resolveError.value = "";

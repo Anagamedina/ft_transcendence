@@ -1,8 +1,8 @@
 <!--
   ALERT CLIENT CARDS (#252)
   "Clientes con alertas abiertas": the most urgent clients, each with how many
-  alerts are open, a bar (critical / leve over its sensors) and the oldest
-  one. Clicking a card filters the table; clicking it again removes the filter.
+  alerts are open, how many are critical / leve, its sensors and the oldest
+  one. The cards share the width (3 to 5 per row). Clicking a card filters the table; clicking it again removes the filter.
   The last card says how many more clients have alerts and shows them all.
 -->
 
@@ -22,47 +22,42 @@
       Ningún cliente tiene alertas abiertas ahora mismo.
     </p>
 
-    <div v-else class="grid grid-cols-2 gap-3 lg:grid-cols-5">
+    <div v-else class="grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-3">
       <button
         v-for="client in visible"
         :key="client.id"
         type="button"
         :aria-pressed="client.id === selectedId"
-        class="flex min-h-[8rem] flex-col gap-2 rounded-xl p-3.5 text-left transition"
+        class="flex flex-col gap-1.5 rounded-xl bg-white px-4 py-3.5 text-left transition"
         :class="
           client.id === selectedId
-            ? 'border-2 border-aqua-600 bg-sky-50'
-            : 'border border-slate-200 bg-white hover:border-aqua-400'
+            ? 'border-2 border-aqua-600'
+            : 'border border-slate-200 hover:border-aqua-400'
         "
         @click="$emit('select', client.id === selectedId ? null : client.id)"
       >
         <span class="w-full truncate font-semibold text-slate-900">
           {{ client.name }}
         </span>
-        <span class="flex items-baseline gap-1.5">
+        <span class="flex flex-wrap items-baseline gap-x-2">
           <span
-            class="text-3xl font-bold leading-none"
+            class="text-[1.65rem] font-bold leading-none"
             :class="client.critical_alerts ? 'text-rose-700' : 'text-amber-700'"
           >
             {{ client.open_alerts }}
           </span>
           <span class="text-sm text-slate-700">
             {{ client.open_alerts === 1 ? "abierta" : "abiertas" }}
+            <template v-if="client.critical_alerts">
+              · <span class="font-semibold text-rose-700">{{ plural(client.critical_alerts, "crítica", "críticas") }}</span>
+            </template>
+            <template v-if="client.open_alerts - client.critical_alerts">
+              · <span class="font-semibold text-amber-700">{{ plural(client.open_alerts - client.critical_alerts, "leve", "leves") }}</span>
+            </template>
           </span>
         </span>
-        <span
-          class="flex h-1.5 overflow-hidden rounded-full bg-teal-100"
-          role="img"
-          :aria-label="barLabel(client)"
-        >
-          <span class="bg-rose-700" :style="{ width: share(client.critical_alerts, client) }"></span>
-          <span
-            class="bg-amber-600"
-            :style="{ width: share(client.open_alerts - client.critical_alerts, client) }"
-          ></span>
-        </span>
         <span class="text-xs text-slate-500">
-          de {{ client.sensor_count }} sensores · la más antigua
+          {{ plural(client.sensor_count, "sensor", "sensores") }} · la más antigua
           {{ oldest(client) }}
         </span>
       </button>
@@ -71,7 +66,7 @@
         v-if="clients.length > max"
         type="button"
         :aria-expanded="expanded"
-        class="flex min-h-[8rem] flex-col justify-center gap-1 rounded-xl border border-dashed border-slate-300 p-3.5 text-left text-slate-600 hover:border-aqua-400"
+        class="flex flex-col justify-center gap-1 rounded-xl border border-dashed border-slate-300 px-4 py-3.5 text-left text-slate-600 hover:border-aqua-400"
         @click="expanded = !expanded"
       >
         <template v-if="expanded">
@@ -106,16 +101,9 @@ const visible = computed(() =>
 );
 const hidden = computed(() => Math.max(0, props.clients.length - props.max));
 
-// Width of a part of the bar. Alerts over sensors: an approximation of how
-// much of the client is failing, enough to compare clients at a glance.
-function share(count, client) {
-  if (!client.sensor_count || count <= 0) return "0%";
-  return `${Math.min(100, Math.round((count / client.sensor_count) * 100))}%`;
-}
-
-function barLabel(client) {
-  const leve = client.open_alerts - client.critical_alerts;
-  return `${client.critical_alerts} críticas y ${leve} leves en ${client.sensor_count} sensores`;
+// '1 sensor', '2 sensores'
+function plural(count, one, many) {
+  return `${count} ${count === 1 ? one : many}`;
 }
 
 function oldest(client) {

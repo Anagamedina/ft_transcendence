@@ -81,7 +81,10 @@ def test_estan_todos_los_modelos_con_tabla():
     """
     from app.core import models
 
-    esperados = {"Alert", "Document", "Invitation", "Organization", "Reading", "Sensor", "Site", "User"}
+    esperados = {
+        "Alert", "AlertNotification", "Document", "Invitation", "Organization",
+        "Reading", "Sensor", "Site", "User",
+    }
 
     assert set(models.__all__) == esperados
     for nombre in esperados:

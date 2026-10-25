@@ -50,6 +50,15 @@ from app.shared.enums import AlertSeverity, AlertState, AlertStatus, AlertType
 from app.shared.schemas import ApiModel
 
 
+class AlertNotificationResponse(ApiModel):
+    """Un aviso enviado al cliente porque nadie se encargaba (#275)."""
+
+    attempt: int = Field(description="1 = primer aviso, 2 = segundo…")
+    channel: str = Field(description="Por dónde se envió. Hoy solo EMAIL.")
+    recipient: str = Field(description="A quién: uno o varios emails separados por «, ».")
+    sent_at: datetime = Field(description="Cuándo, en UTC.")
+
+
 class AlertResponse(ApiModel):
     id: UUID
     sensor_id: UUID = Field(description="Sensor que originó la alerta.")
@@ -106,6 +115,20 @@ class AlertResponse(ApiModel):
     )
     resolved_by_name: str | None = Field(
         default=None, description="Nombre de quien resolvió; nulo si no consta o fue eliminado."
+    )
+    notifications: list[AlertNotificationResponse] = Field(
+        default_factory=list,
+        description=(
+            "Avisos enviados al cliente mientras la alerta seguía sin atender "
+            "(#275), en orden. Vacía si no se ha enviado ninguno."
+        ),
+    )
+    next_notification_at: datetime | None = Field(
+        default=None,
+        description=(
+            "Cuándo toca el próximo email, en UTC. Nulo si ya no toca ninguno: "
+            "enviados todos, alguien se encarga o está cerrada."
+        ),
     )
     resolution_minutes: float | None = Field(
         default=None,

@@ -65,6 +65,8 @@
         </header>
 
         <div class="flex flex-1 flex-col gap-5 px-5 py-5 text-sm">
+          <AlertNotificationsTimeline :alert="alert" :now="now" />
+
           <section class="flex flex-col gap-1">
             <h3 class="text-xs font-bold uppercase tracking-wide text-slate-500">Dónde</h3>
             <p class="text-[15px] font-semibold text-slate-900">{{ alert.sensor_name }}</p>
@@ -178,6 +180,7 @@
 
 <script setup>
 import { computed, nextTick, ref, watch } from "vue";
+import AlertNotificationsTimeline from "./AlertNotificationsTimeline.vue";
 import organizationsService from "../../services/organizations.service.js";
 import { useLabels } from "../../composables/useLabels";
 import { floorLabel } from "../../utils/floors";
@@ -188,6 +191,8 @@ const props = defineProps({
   alert: { type: Object, default: null },
   busy: { type: Boolean, default: false },
   error: { type: String, default: "" },
+  // Changes on every refresh, so the notices timeline moves on (#275)
+  now: { type: Date, default: () => new Date() },
 });
 
 const emit = defineEmits(["close", "resolve"]);

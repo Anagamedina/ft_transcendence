@@ -1,7 +1,7 @@
 <!--
   ALERT STATE TABS (#252)
-  Underlined tabs with their number: Sin atender (red pill when there is
-  any) · En curso · Arregladas ("N esta semana"). The short explanation of
+  Underlined tabs with their number in a pill: Sin atender (red when there
+  is any) · En curso · Arregladas (last 7 days). The short explanation of
   each tab is its tooltip. Arrows move between tabs (WAI-ARIA tabs).
 -->
 
@@ -30,11 +30,7 @@
         @keydown.left.prevent="move(index, -1)"
       >
         {{ tab.label }}
-        <span v-if="tab.state === 'RESOLVED'" class="text-[13px] font-normal text-slate-500">
-          {{ tab.count ?? "…" }} esta semana
-        </span>
         <span
-          v-else
           class="min-w-[1.4rem] rounded-full px-2 text-center text-[13px]"
           :class="
             tab.state === 'ACTIVE' && tab.count > 0

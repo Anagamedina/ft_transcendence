@@ -34,8 +34,9 @@ from sqlalchemy.orm import Session
 
 from app.core.database import transaction
 from app.core.exceptions import ConflictError, DomainValidationError, NotFoundError
+from app.modules.alerts.notices import siguiente_aviso
 from app.modules.alerts.repository import AlertRepository
-from app.modules.alerts.schemas import AlertResponse, AlertState
+from app.modules.alerts.schemas import AlertNotificationResponse, AlertResponse, AlertState
 from app.shared.dependencies import DbSession, _as_utc
 from app.shared.schemas import Page
 
@@ -211,6 +212,16 @@ class AlertService:
             resolved_by_name=(
                 alerta.resolved_by_user.name if alerta.resolved_by_user else None
             ),
+            notifications=[
+                AlertNotificationResponse(
+                    attempt=n.attempt,
+                    channel=n.channel,
+                    recipient=n.recipient,
+                    sent_at=_as_utc(n.sent_at),
+                )
+                for n in alerta.notifications
+            ],
+            next_notification_at=siguiente_aviso(alerta),
             resolution_minutes=(
                 (_as_utc(alerta.resolved_at) - _as_utc(alerta.created_at)).total_seconds() / 60
                 if alerta.status == "RESOLVED" and alerta.resolved_at is not None else None

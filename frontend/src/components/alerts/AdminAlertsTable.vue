@@ -1,11 +1,12 @@
 <!--
   ADMIN ALERTS TABLE (#252)
-  Urgencia · Fallo (value and limit) · Cliente / edificio / planta, then two
-  columns that depend on the tab, and "›". Clicking a row (or Enter on it)
-  opens the detail panel. On small screens each alert is a card.
+  Urgencia · Fallo (value and limit) · Cliente / edificio / planta (only
+  edificio / planta when one client is filtered), then the columns of the
+  tab, and "›". Clicking a row (or Enter on it) opens the detail panel. On
+  small screens each alert is a card.
 
   | Tab           | Column 4         | Column 5                         |
-  | Sin atender   | Quién se ocupa   | Sin atender desde (amber > 1 h)  |
+  | Sin atender   | Avisos al cliente (#275; no column until the backend sends them) | Sin atender desde (amber > 1 h) |
   | En curso      | Quién se ocupa   | Abierta hace                     |
   | Arregladas    | Cómo se cerró    | Tardó                            |
 -->
@@ -19,12 +20,12 @@
       </caption>
       <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
         <tr>
-          <th scope="col" class="px-4 py-2.5 font-semibold">Urgencia</th>
-          <th scope="col" class="px-4 py-2.5 font-semibold">Fallo</th>
+          <th scope="col" class="w-28 px-4 py-2.5 font-semibold">Urgencia</th>
+          <th scope="col" class="w-64 px-4 py-2.5 font-semibold">Fallo</th>
           <th scope="col" class="px-4 py-2.5 font-semibold">
-            Cliente · edificio · planta
+            {{ clientFiltered ? "Edificio · planta" : "Cliente · edificio · planta" }}
           </th>
-          <th scope="col" class="px-4 py-2.5 font-semibold">{{ columns[0] }}</th>
+          <th v-if="columns[0]" scope="col" class="px-4 py-2.5 font-semibold">{{ columns[0] }}</th>
           <th scope="col" class="px-4 py-2.5 font-semibold">{{ columns[1] }}</th>
           <th scope="col" class="w-10 px-2 py-2.5"><span class="sr-only">Abrir</span></th>
         </tr>
@@ -35,7 +36,7 @@
           :key="alert.id"
           tabindex="0"
           class="cursor-pointer align-top hover:bg-slate-50 focus:bg-sky-50 focus:outline-none"
-          :class="alert.id === selectedId ? 'bg-sky-50' : ''"
+          :class="alert.id === selectedId ? 'bg-sky-50' : notice(alert)?.tone === 'call' ? 'bg-rose-50/60' : ''"
           :aria-label="`${label('AlertType', alert.type)}, ${alert.organization_name}. Ver detalle`"
           @click="$emit('open', alert)"
           @keydown.enter.prevent="$emit('open', alert)"
@@ -51,20 +52,44 @@
             </span>
           </td>
           <td class="px-4 py-3">
-            <p class="font-medium text-slate-900">{{ label("AlertType", alert.type) }}</p>
+            <p class="whitespace-nowrap font-medium text-slate-900">
+              {{ label("AlertType", alert.type) }}
+            </p>
             <p v-if="reading(alert).value" class="text-xs text-slate-500">
               <span class="font-semibold text-slate-700">{{ reading(alert).value }}</span>
               <template v-if="reading(alert).limit"> · {{ reading(alert).limit }}</template>
             </p>
             <p v-else class="text-xs text-slate-500">{{ alert.sensor_name }}</p>
           </td>
-          <td class="px-4 py-3">
+          <td v-if="clientFiltered" class="px-4 py-3">
+            <p class="font-medium text-slate-900">{{ alert.site_name }}</p>
+            <p class="text-xs text-slate-500">{{ floorLabel(alert.floor) }}</p>
+          </td>
+          <td v-else class="px-4 py-3">
             <p class="font-medium text-slate-900">{{ alert.organization_name }}</p>
             <p class="text-xs text-slate-500">
               {{ alert.site_name }} · {{ floorLabel(alert.floor) }}
             </p>
           </td>
-          <td class="px-4 py-3">
+          <td v-if="notice(alert)" class="px-4 py-3">
+            <span class="flex flex-wrap items-center gap-2">
+              <span
+                v-if="notice(alert).tone"
+                class="rounded-full px-2 py-0.5 text-xs font-bold"
+                :class="notice(alert).tone === 'call' ? 'bg-rose-700 text-white' : 'bg-sky-100 text-aqua-700'"
+              >
+                {{ notice(alert).main }}
+              </span>
+              <span v-else class="text-slate-500">{{ notice(alert).main }}</span>
+              <span
+                class="text-[13px]"
+                :class="notice(alert).tone === 'call' ? 'font-bold text-rose-800' : 'text-slate-500'"
+              >
+                {{ notice(alert).sub }}
+              </span>
+            </span>
+          </td>
+          <td v-else-if="columns[0]" class="px-4 py-3">
             <p :class="cellA(alert).muted ? 'text-slate-500' : 'text-slate-900'">
               {{ cellA(alert).main }}
             </p>
@@ -72,10 +97,22 @@
           </td>
           <td class="px-4 py-3">
             <span
-              class="inline-flex items-center gap-1"
+              class="inline-flex items-center gap-1.5 whitespace-nowrap"
               :class="cellB(alert).late ? 'font-semibold text-amber-700' : 'text-slate-700'"
             >
-              <span v-if="cellB(alert).late" aria-hidden="true">⏱</span>
+              <svg
+                v-if="cellB(alert).late"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="13" r="8" />
+                <path d="M12 9v4l2.5 2.5M9 2h6" />
+              </svg>
               {{ cellB(alert).text }}
               <span v-if="cellB(alert).late" class="sr-only">(más de una hora)</span>
             </span>
@@ -152,6 +189,7 @@ import { computed } from "vue";
 import { useLabels } from "../../composables/useLabels";
 import { floorLabel } from "../../utils/floors";
 import { alertReading, formatDuration, minutesSince } from "../../utils/alertText";
+import { noticeSummary } from "../../utils/notificationSteps";
 
 const props = defineProps({
   rows: { type: Array, default: () => [] },
@@ -161,6 +199,8 @@ const props = defineProps({
   pageSize: { type: Number, default: 20 },
   total: { type: Number, default: 0 },
   selectedId: { type: String, default: null },
+  // One client chosen in the filters: its name would repeat on every row
+  clientFiltered: { type: Boolean, default: false },
   // Changes every refresh, so "hace X min" is recomputed
   now: { type: Date, default: () => new Date() },
 });
@@ -170,12 +210,24 @@ defineEmits(["open", "page"]);
 const { label, help } = useLabels();
 
 const COLUMNS = {
-  ACTIVE: ["Quién se ocupa", "Sin atender desde"],
+  // "Quién se ocupa" would always say "Nadie" here: no column until #275
+  ACTIVE: [null, "Sin atender desde"],
   ACKNOWLEDGED: ["Quién se ocupa", "Abierta hace"],
   RESOLVED: ["Cómo se cerró", "Tardó"],
 };
 
-const columns = computed(() => COLUMNS[props.state] ?? COLUMNS.ACTIVE);
+// "Avisos al cliente" appears in "Sin atender" once the backend sends the
+// notices (#275)
+const columns = computed(() => {
+  const base = COLUMNS[props.state] ?? COLUMNS.ACTIVE;
+  const withNotices =
+    props.state === "ACTIVE" && props.rows.some((a) => Array.isArray(a.notifications));
+  return withNotices ? ["Avisos al cliente", base[1]] : base;
+});
+
+function notice(alert) {
+  return props.state === "ACTIVE" ? noticeSummary(alert, props.now) : null;
+}
 const caption = computed(() => `Alertas: ${label("AlertState", props.state)}`);
 
 const pages = computed(() => Math.max(1, Math.ceil(props.total / props.pageSize)));

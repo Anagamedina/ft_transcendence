@@ -11,7 +11,10 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     String,
+    Text,
+    UniqueConstraint,
     Uuid,
     func,
 )
@@ -148,3 +151,61 @@ class Alert(Base):
         "Sensor",
         back_populates="alerts",
     )
+
+    # #275: avisos enviados al cliente, en orden. Se borran con la alerta.
+    notifications: Mapped[list["AlertNotification"]] = relationship(
+        "AlertNotification",
+        back_populates="alert",
+        order_by="AlertNotification.attempt",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class AlertNotification(Base):
+    """
+    Un aviso enviado al cliente porque nadie se encargaba de la alerta (#275).
+
+    PROVISIONAL: la tabla es de Daruny (#276). Está aquí para poder avanzar
+    con el envío; cuando haga la suya, se queda la de él y esta se adapta.
+
+    `UNIQUE (alert_id, attempt)`: el aviso se apunta ANTES de enviarlo, así
+    que un reinicio o dos vueltas a la vez no pueden mandar el mismo dos veces.
+    """
+
+    __tablename__ = "alert_notifications"
+
+    __table_args__ = (
+        UniqueConstraint("alert_id", "attempt", name="uq_alert_notifications_alert_attempt"),
+        CheckConstraint("channel IN ('EMAIL')", name="ck_alert_notifications_channel"),
+        CheckConstraint("attempt >= 1", name="ck_alert_notifications_attempt"),
+        Index("ix_alert_notifications_alert_id", "alert_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    alert_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey(
+            "alerts.id",
+            name="fk_alert_notifications_alert_id_alerts",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+    )
+    # 1 = primer aviso, 2 = segundo…
+    attempt: Mapped[int] = mapped_column(Integer, nullable=False)
+    channel: Mapped[str] = mapped_column(String(20), nullable=False, default="EMAIL")
+    # A quién se envió: uno o varios emails separados por ", "
+    recipient: Mapped[str] = mapped_column(Text, nullable=False)
+    sent_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+    alert: Mapped["Alert"] = relationship("Alert", back_populates="notifications")

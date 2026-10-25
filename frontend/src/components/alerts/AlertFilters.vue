@@ -2,7 +2,7 @@
   ALERT FILTERS (#252)
   One bar: search (client or building; the server also matches the sensor), the chosen client
   as a removable chip (it is chosen from the client cards) and the severity
-  as three chips on the right. The search waits 300 ms after the last key.
+  as a segmented control on the right (Todas | Críticas | Leves). The search waits 300 ms after the last key.
 -->
 
 <template>
@@ -41,17 +41,17 @@
       </button>
     </span>
 
-    <div role="group" aria-label="Urgencia" class="flex gap-1 sm:ml-auto">
+    <div role="group" aria-label="Urgencia" class="flex rounded-[10px] bg-slate-200 p-[3px] sm:ml-auto">
       <button
         v-for="option in SEVERITIES"
         :key="option.label"
         type="button"
         :aria-pressed="severity === option.value"
-        class="flex h-8 items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold transition"
+        class="flex h-8 items-center gap-1.5 rounded-[7px] px-3 text-[13px] transition"
         :class="
           severity === option.value
-            ? 'border-aqua-600 bg-aqua-600 text-white'
-            : 'border-slate-300 bg-white text-slate-700 hover:border-aqua-400'
+            ? 'bg-white font-bold text-aqua-900 shadow-sm'
+            : 'font-semibold text-slate-600 hover:text-slate-900'
         "
         @click="$emit('update:severity', option.value)"
       >
