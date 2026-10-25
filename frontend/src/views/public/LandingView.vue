@@ -157,7 +157,7 @@
             <span
               class="px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-800"
             >
-              Activa
+              Sin atender
             </span>
             <span class="text-slate-500" aria-hidden="true">→</span>
           </li>
@@ -165,7 +165,7 @@
             <span
               class="px-3 py-1 rounded-full text-sm font-semibold bg-amber-100 text-amber-800"
             >
-              Reconocida
+              En curso
             </span>
             <span class="text-slate-500" aria-hidden="true">→</span>
           </li>
@@ -173,7 +173,7 @@
             <span
               class="px-3 py-1 rounded-full text-sm font-semibold bg-emerald-100 text-emerald-800"
             >
-              Resuelta
+              Arreglada
             </span>
           </li>
         </ol>
@@ -310,7 +310,9 @@ const permissions = [
     team: "Todos",
     client: "Los suyos",
   },
-  { action: "Reconocer y resolver alertas", team: "Sí", client: "Sí" },
+  // #252: the client takes charge («Me encargo»); only AquaGuard closes.
+  { action: "Encargarse de una alerta («Me encargo»)", team: "—", client: "Sí" },
+  { action: "Dar una alerta por arreglada", team: "Sí", client: "—" },
   { action: "Subir y descargar documentos", team: "Sí", client: "Sí" },
 ];
 </script>

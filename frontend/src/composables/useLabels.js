@@ -5,7 +5,8 @@
 //
 // Usage:
 //   const { label, tone, toneClasses } = useLabels()
-//   label('AlertState', 'ACKNOWLEDGED')   // 'Reconocida'
+//   label('AlertState', 'ACKNOWLEDGED')   // 'En curso'
+//   help('AlertSeverity', 'CRITICAL')     // 'Actúa ya: …'
 //   tone('SensorHealth', 'CRITICAL')      // 'danger'
 //   toneClasses('danger').pill            // 'bg-danger-light text-danger-dark'
 
@@ -47,15 +48,17 @@ const LABELS = {
     ACTIVE: { text: "Activo", tone: "success" },
     SUSPENDED: { text: "Suspendido", tone: "neutral" },
   },
+  // "Aviso" is reserved for the alert itself (client wording): a building or
+  // sensor slightly out of range is "Fuera de rango", never "Aviso".
   SiteStatus: {
-    OK: { text: "Correcto", tone: "success" },
-    WARNING: { text: "Aviso", tone: "warning" },
+    OK: { text: "Normal", tone: "success" },
+    WARNING: { text: "Fuera de rango", tone: "warning" },
     CRITICAL: { text: "Crítico", tone: "danger" },
   },
   // Colour of the sensor dot on the floor plan
   SensorHealth: {
     OK: { text: "Normal", tone: "success" },
-    WARNING: { text: "Aviso", tone: "warning" },
+    WARNING: { text: "Fuera de rango", tone: "warning" },
     CRITICAL: { text: "Crítico", tone: "danger" },
     OFFLINE: { text: "Sin conexión", tone: "neutral" },
   },
@@ -63,14 +66,26 @@ const LABELS = {
     ONLINE: { text: "Conectado", tone: "success" },
     OFFLINE: { text: "Sin conexión", tone: "neutral" },
   },
+  // Backend rule (alerts/rules.py): CRITICAL when the reading leaves its range
+  // by more than 20 % or the sensor stops sending; WARNING otherwise.
   AlertSeverity: {
-    WARNING: { text: "Aviso", tone: "warning" },
-    CRITICAL: { text: "Crítica", tone: "danger" },
+    WARNING: {
+      text: "Leve",
+      tone: "warning",
+      help: "La presión está un poco fuera de lo normal: vigílalo.",
+    },
+    CRITICAL: {
+      text: "Crítica",
+      tone: "danger",
+      help: "Actúa ya: puede haber una fuga o el sensor no está vigilando.",
+    },
   },
+  // Same three words for admin, client and landing (#252). The client says
+  // «Me encargo» (ACKNOWLEDGED); only AquaGuard closes (RESOLVED).
   AlertState: {
-    ACTIVE: { text: "Sin reconocer", tone: "danger" },
-    ACKNOWLEDGED: { text: "Reconocida", tone: "info" },
-    RESOLVED: { text: "Resuelta", tone: "success" },
+    ACTIVE: { text: "Sin atender", tone: "danger" },
+    ACKNOWLEDGED: { text: "En curso", tone: "info" },
+    RESOLVED: { text: "Arreglada", tone: "success" },
   },
   InvitationStatus: {
     PENDING: { text: "Pendiente", tone: "info" },
@@ -127,6 +142,11 @@ function label(enumName, value) {
   return LABELS[enumName]?.[value]?.text || String(value);
 }
 
+// Longer explanation for tooltips and screen readers ("" when there is none)
+function help(enumName, value) {
+  return LABELS[enumName]?.[value]?.help || "";
+}
+
 function tone(enumName, value) {
   return LABELS[enumName]?.[value]?.tone || "neutral";
 }
@@ -140,5 +160,5 @@ function toSensorHealth(key) {
 }
 
 export function useLabels() {
-  return { label, tone, toneClasses, toSensorHealth };
+  return { label, help, tone, toneClasses, toSensorHealth };
 }

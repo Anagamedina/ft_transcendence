@@ -6,6 +6,8 @@ Retoques del backend para la página de alertas del admin (#252).
   «1,1 bar · mín. 1,5» sin leerlo del mensaje.
 - Cada organización trae cuándo se creó su alerta abierta más antigua
   (`oldest_open_alert_at`), para «la más antigua: 6 h».
+- `?q=` busca también por código del sensor, edificio y cliente, no solo
+  por nombre del sensor y mensaje.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -196,3 +198,18 @@ def test_al_cerrar_la_mas_antigua_pasa_a_la_siguiente(client, datos):
 
     mas_antigua = datetime.fromisoformat(org["oldest_open_alert_at"])
     assert abs(mas_antigua - (AHORA - timedelta(minutes=25))) < timedelta(seconds=5)
+
+
+# ---------------------------------------------------------
+# BUSCAR POR SENSOR, EDIFICIO O CLIENTE
+# ---------------------------------------------------------
+@pytest.mark.parametrize(
+    ("q", "cuantas"),
+    [("planta 6", 4), ("sens-mar", 4), ("torre", 4), ("hotel mar", 4), ("hoteles sol", 0), ("offline", 1)],
+)
+def test_buscar_por_sensor_edificio_o_cliente(client, datos, q, cuantas):
+    _entrar(client, datos["admin"])
+
+    respuesta = client.get("/api/alerts", params={"q": q})
+
+    assert respuesta.json()["total"] == cuantas

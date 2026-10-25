@@ -928,6 +928,8 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 | #141, #144 | Contract and routes of B4, B6, B8 and B9: invitations, users, my account and KPIs              | —              | Implemented |
 | #150       | B14 subscription (plans, fiscal data, masked IBAN) and B17 global search (optional)            | —              | Implemented |
 | #252       | Admin alerts page, backend: only admins close alerts, crossed `threshold`, oldest open alert per client | —    | In review   |
+| #252       | One alert vocabulary in `useLabels`: Sin atender · En curso · Arreglada, Leve · Crítica, «Fuera de rango» for sensors | — | In review   |
+| #252       | New admin alerts page: clients with open alerts, state tabs with server counts, filters in the URL, side detail panel, refresh every 60 s; turquoise admin menu; alert search also by sensor code, building and client | — | In review   |
 
 Notes for each issue, with diagrams and the decisions taken, are in [`docs/ana/`](docs/ana/).
 

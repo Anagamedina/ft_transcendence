@@ -1,13 +1,13 @@
 <!--
   ALERT CARD (F21)
   One alert as a card, in client language:
-    - Severity with icon + text (Urgente / Aviso): never colour alone.
+    - Severity with icon + text (Crítica / Leve, from useLabels): never colour alone.
     - What happened (alert type), where (building · floor · sensor) and when
       (local time). Fixed alerts show the date of the fix on top, so the
-      date matches the order of the "Arreglado" tab.
+      date matches the order of the "Arregladas" tab.
     - Who acted: "Se encarga <name>" (ACKNOWLEDGED) or "Detectado <date> ·
       arreglo confirmado por <name>" (RESOLVED).
-    - Severity help (tooltip + screen readers): what Urgente / Aviso mean.
+    - Severity help (tooltip + screen readers): what Crítica / Leve mean.
     - No AquaGuard message per card: the page header already says it once
       ("…nosotros revisamos las lecturas para cerrarlo").
     - "Me encargo" button only while nobody has acted (state ACTIVE).
@@ -103,38 +103,22 @@ const props = defineProps({
 
 defineEmits(["acknowledge"]);
 
-const { label, toneClasses } = useLabels();
+const { label, help, tone, toneClasses } = useLabels();
 const { formatDateTime } = useFormat();
 
-// Client words. Same texts as the landing and the admin (shared decision).
-// Backend rule (alerts/rules.py): CRITICAL when the reading leaves its range
-// by more than 20 % or the sensor goes offline; WARNING otherwise.
-const SEVERITY = {
-  CRITICAL: {
-    text: "Urgente",
-    tone: "danger",
-    help: "Actúa ya: puede haber una fuga o el sensor no está vigilando.",
-  },
-  WARNING: {
-    text: "Aviso",
-    tone: "warning",
-    help: "Vigílalo: la presión está un poco fuera de lo normal.",
-  },
-};
-const STATE = {
-  ACTIVE: { text: "Pendiente", tone: "danger" },
-  ACKNOWLEDGED: { text: "En curso", tone: "info" },
-  RESOLVED: { text: "Arreglado", tone: "success" },
-};
-
+// Words and tones come from useLabels: the same for admin, client and landing.
 const severity = computed(() => {
-  const item = SEVERITY[props.alert.severity] ?? SEVERITY.WARNING;
-  return { text: item.text, help: item.help, ...toneClasses(item.tone) };
+  const value = props.alert.severity ?? "WARNING";
+  return {
+    text: label("AlertSeverity", value),
+    help: help("AlertSeverity", value),
+    ...toneClasses(tone("AlertSeverity", value)),
+  };
 });
 
 const state = computed(() => {
-  const item = STATE[props.alert.state] ?? { text: "—", tone: "neutral" };
-  return { text: item.text, ...toneClasses(item.tone) };
+  const value = props.alert.state;
+  return { text: label("AlertState", value), ...toneClasses(tone("AlertState", value)) };
 });
 
 const typeText = computed(() => label("AlertType", props.alert.type));

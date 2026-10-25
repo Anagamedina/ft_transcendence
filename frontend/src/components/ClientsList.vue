@@ -246,6 +246,7 @@ import LoadingState from "./LoadingState.vue";
 import ErrorState from "./ErrorState.vue";
 import EmptyState from "./EmptyState.vue";
 import { useClientStatus } from "../composables/useClientStatus";
+import { useLabels } from "../composables/useLabels";
 
 const props = defineProps({
   // Each client follows OrganizationResponse:
@@ -297,18 +298,14 @@ function sensorsLabel(count) {
   return count === 1 ? "1 sensor" : `${count} sensores`;
 }
 
-// Sensor state in Spanish. Accepts the B3 `health` values and the older `status` ones
-const SENSOR_STATES = {
-  OK: "Funciona bien",
-  ONLINE: "Funciona bien",
-  WARNING: "Aviso",
-  CRITICAL: "Crítico",
-  OFFLINE: "Sin conexión",
-};
+const { label } = useLabels();
 
+// Sensor state in Spanish, from useLabels. Accepts the B3 `health` values
+// and the older `status` ones (ONLINE means it sends readings: OK).
 function sensorStateLabel(sensor) {
   const state = sensor.health ?? sensor.status;
-  return SENSOR_STATES[state] ?? "Desconocido";
+  if (!state) return "Desconocido";
+  return label("SensorHealth", state === "ONLINE" ? "OK" : state);
 }
 
 // Number of pages: rounded up (8 clients, 3 per page → 3 pages)

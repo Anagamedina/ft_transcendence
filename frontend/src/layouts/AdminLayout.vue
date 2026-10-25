@@ -1,31 +1,50 @@
 <!--
   ADMIN LAYOUT
-  Shared structure for admin pages: Header, Sidebar, Footer and a slot for page content.
+  Shared structure for admin pages (#252 design): soft turquoise Sidebar with
+  the logo, the menu and who is logged in; the page content on the right.
+  No top header: the logo and "Cerrar sesión" live in the Sidebar.
 -->
 
 <template>
   <div class="min-h-screen min-w-[320px] flex flex-col">
-    <!-- pl-12 on mobile: room for the Sidebar menu button, which is fixed at the top left -->
-    <Header title="AquaGuard · Admin" light class="pl-12 md:pl-0">
-      <template #actions>
-        <button
-          @click="handleLogout"
-          :disabled="authStore.status === 'loading'"
-          class="border border-aqua-600 text-aqua-600 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-aqua-50 transition shrink-0 disabled:opacity-50"
-        >
-          {{
-            authStore.status === "loading"
-              ? "Cerrando sesión..."
-              : "Cerrar sesión"
-          }}
-        </button>
-      </template>
-    </Header>
-
     <div class="flex flex-1">
-      <Sidebar appName="Admin" :items="adminNav" />
+      <Sidebar appName="Admin" :items="adminNav" tint>
+        <template #brand>
+          <router-link
+            to="/admin"
+            class="flex items-center gap-2 px-2"
+            aria-label="AquaGuard, ir al panel"
+          >
+            <span class="water-drop" aria-hidden="true"></span>
+            <span class="text-lg font-bold text-aqua-900">AquaGuard</span>
+            <span
+              class="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold tracking-wider text-aqua-700"
+              >ADMIN</span
+            >
+          </router-link>
+        </template>
+        <template #footer>
+          <p class="px-2 text-sm text-slate-600">
+            {{ authStore.user?.name }}
+            ·
+            <button
+              type="button"
+              class="font-semibold text-aqua-600 underline-offset-2 hover:underline disabled:opacity-50"
+              :disabled="authStore.status === 'loading'"
+              @click="handleLogout"
+            >
+              {{
+                authStore.status === "loading"
+                  ? "Cerrando sesión..."
+                  : "Cerrar sesión"
+              }}
+            </button>
+          </p>
+        </template>
+      </Sidebar>
 
-      <main class="flex-1 min-w-0 bg-aqua-50 p-6">
+      <!-- pt-16 on mobile: room for the Sidebar menu button (fixed top left) -->
+      <main class="flex-1 min-w-0 bg-slate-50 p-6 pt-16 md:pt-6">
         <slot />
       </main>
     </div>
@@ -35,20 +54,25 @@
 </template>
 
 <script setup>
-import Header from "../components/Header.vue";
 import Sidebar from "../components/Sidebar.vue";
 import Footer from "../components/Footer.vue";
 
 import { computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
-import { useAlertsStore } from "../stores/alerts";
+import { useOverviewStore } from "../stores/overview";
 
 const router = useRouter();
 const authStore = useAuthStore();
-const alertsStore = useAlertsStore();
+const overviewStore = useOverviewStore();
 
-// Admin menu. The alerts entry shows how many alerts are still open.
+// Open alerts come from the server (/api/analytics/overview), the same number as
+// the Panel KPI. Before it counted the first 100 alerts loaded in the browser.
+const openAlerts = computed(() => overviewStore.overview?.open_alerts ?? 0);
+const criticalOpen = computed(
+  () => overviewStore.overview?.critical_open_alerts ?? 0,
+);
+
 const adminNav = computed(() => [
   { label: "Panel", to: "/admin", icon: "bar-chart", exact: true },
   { label: "Clientes", to: "/admin/clients", icon: "users" },
@@ -58,18 +82,22 @@ const adminNav = computed(() => [
     label: "Alertas",
     to: "/admin/alerts",
     icon: "alert",
-    badge: alertsStore.openCount,
+    badge: openAlerts.value,
+    badgeAlert: criticalOpen.value > 0,
+    badgeTitle:
+      `${openAlerts.value} abiertas` +
+      (criticalOpen.value > 0 ? `, ${criticalOpen.value} críticas` : ""),
   },
   { label: "Mi cuenta", to: "/admin/account", icon: "user" },
 ]);
 
-// Pages that do not load the alerts themselves still need the counter.
+// Pages that do not load the overview themselves still need the counter.
 onMounted(async () => {
-  if (alertsStore.status !== "idle") return;
+  if (overviewStore.status !== "idle") return;
   try {
-    await alertsStore.fetchAlerts();
+    await overviewStore.fetchOverview();
   } catch {
-    /* handled via alertsStore.error */
+    /* handled via overviewStore.error */
   }
 });
 
@@ -78,3 +106,15 @@ async function handleLogout() {
   await router.replace("/login");
 }
 </script>
+
+<style scoped>
+/* Same drop as the public header logo, smaller */
+.water-drop {
+  width: 18px;
+  height: 22px;
+  background: #06b6d4;
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  transform: rotate(0deg);
+  clip-path: polygon(50% 0, 100% 62%, 92% 85%, 72% 98%, 28% 98%, 8% 85%, 0 62%);
+}
+</style>

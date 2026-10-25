@@ -88,7 +88,7 @@ _NO_PUEDE_ESCRIBIR = {
         "Los dos filtros son los que usa el panel: `status` para ver solo "
         "las activas, que es la vista por defecto de quien atiende, y "
         "`sensor_id` para entrar desde el detalle de un sensor.\n\n"
-        "Filtros comunes: `q` busca en el mensaje y el nombre del sensor; "
+        "Filtros comunes: `q` busca en el mensaje, el nombre y el código del sensor, el edificio y el cliente; "
         "`organization_id` y `site_id` dejan solo las de un cliente o un "
         "edificio. Todos los filtros se combinan con AND. `severity` filtra "
         "gravedad y `state` el estado derivado (ACTIVE sin reconocimiento, "
