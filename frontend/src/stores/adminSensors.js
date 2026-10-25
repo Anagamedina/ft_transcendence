@@ -89,5 +89,11 @@ export const useAdminSensorsStore = defineStore("adminSensors", () => {
     return request;
   }
 
-  return { alertCounts, contacts, fetchAlertCounts, fetchContacts, series };
+  // The last alerts of a sensor, newest first (side panel)
+  async function recentAlerts(sensorId, count = 3) {
+    const response = await alertsService.getAlerts({ sensor_id: sensorId, page_size: count });
+    return response.data.items;
+  }
+
+  return { alertCounts, contacts, fetchAlertCounts, fetchContacts, series, recentAlerts };
 });

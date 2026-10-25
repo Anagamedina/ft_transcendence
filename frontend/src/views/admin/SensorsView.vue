@@ -6,11 +6,14 @@
 
     Sin conexión        sensors to go and check
     Plantas sin sensor  floors where a sensor has to be installed
-    Sensores            every client › building › floor (SensorTree)
+    Sensores            clients on the left (SensorClientList), the chosen
+                        client with all its buildings and floors on the
+                        right (SensorClientDetail), joined in one box
 
   Clicking a sensor opens SensorSidePanel (chart, data, "Ajustar umbrales");
-  "+ Nuevo sensor", "+ Instalar aquí" and "+ Dar de alta" open it to create
-  one. Tab, search, order, building (?site=) and open sensor (?sensor=) live
+  "+ Añadir sensor" (in a building), "+ Instalar aquí" and "+ Dar de alta"
+  (on a floor) open it to create one: always in a chosen building. Tab, search, client and building of the
+  tab "Sensores" (?client=), building filter (?site=) and open sensor (?sensor=) live
   in the URL. The sensors and buildings come from stores/sensors.js and
   stores/sites.js; refreshed every 60 s.
 -->
@@ -20,14 +23,6 @@
     <section class="flex flex-col gap-5">
       <header class="flex flex-wrap items-center justify-between gap-3">
         <h1 class="text-2xl font-bold text-slate-900">Sensores</h1>
-        <button
-          type="button"
-          class="h-10 rounded-lg bg-aqua-600 px-4 text-sm font-bold text-white hover:bg-aqua-700 disabled:opacity-50"
-          :disabled="!sitesStore.sites.length"
-          @click="openCreate()"
-        >
-          + Nuevo sensor
-        </button>
       </header>
 
       <div class="flex flex-col gap-3">
@@ -37,7 +32,7 @@
           <label
             class="flex h-10 w-full items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-slate-500 focus-within:border-aqua-500 focus-within:ring-2 focus-within:ring-aqua-200 sm:w-80"
           >
-            <span class="sr-only">Buscar sensores</span>
+            <span class="sr-only">Buscar cliente o edificio</span>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <circle cx="11" cy="11" r="7" />
               <path d="m20 20-3.5-3.5" />
@@ -45,7 +40,7 @@
             <input
               :value="draft"
               type="search"
-              placeholder="Buscar sensor, edificio o cliente…"
+              placeholder="Buscar cliente o edificio…"
               class="min-w-0 flex-1 bg-transparent text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none"
               @input="onSearch($event.target.value)"
             />
@@ -95,7 +90,6 @@
         <OfflineByBuilding
           v-else-if="tab === 'offline'"
           :stopped="offline.stopped"
-          :never="offline.never"
           :contacts="extra.contacts"
           :selected-id="selected?.id ?? null"
           :now="now"
@@ -107,20 +101,34 @@
             v-if="!tree.length"
             class="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600"
           >
-            {{ q || siteFilter ? "Ningún cliente, edificio o sensor coincide con la búsqueda." : "Todavía no hay edificios." }}
+            {{ q || siteFilter ? "Ningún cliente o edificio coincide con la búsqueda." : "Todavía no hay edificios." }}
           </p>
-          <SensorTree
-            v-else
-            :tree="tree"
-            :order="order"
-            :selected-id="selected?.id ?? null"
-            :alert-counts="extra.alertCounts"
-            :expand-all="Boolean(q || siteFilter)"
-            :now="now"
-            @update:order="updateQuery({ order: $event === 'problems' ? null : $event })"
-            @open="openSensor"
-            @install="openCreate"
-          />
+          <!-- One box: the clients on grey, the chosen one joined to its card.
+               On the phone, the list or the client; side by side from lg -->
+          <div v-else class="overflow-hidden rounded-2xl border border-slate-200 bg-white lg:grid lg:grid-cols-[22rem_minmax(0,1fr)]">
+            <div class="bg-slate-100" :class="filters.client ? 'hidden lg:block' : ''">
+              <SensorClientList
+                class="lg:sticky lg:top-0"
+                :tree="tree"
+                :selected-id="selectedClient?.organizationId ?? null"
+                :now="now"
+                @select="selectClient"
+              />
+            </div>
+            <SensorClientDetail
+              v-if="selectedClient"
+              class="p-4 sm:p-5"
+              :class="filters.client ? '' : 'hidden lg:flex'"
+              :client="selectedClient"
+              :selected-sensor-id="selected?.id ?? null"
+              :alert-counts="extra.alertCounts"
+              :contact="extra.contacts[selectedClient.organizationId] ?? null"
+              :now="now"
+              @back="updateQuery({ client: null })"
+              @open="openSensor"
+              @install="openCreate"
+            />
+          </div>
         </template>
       </div>
     </section>
@@ -151,7 +159,8 @@ import LoadingState from "../../components/LoadingState.vue";
 import ErrorState from "../../components/ErrorState.vue";
 import SensorTabCards from "../../components/sensors/SensorTabCards.vue";
 import OfflineByBuilding from "../../components/sensors/OfflineByBuilding.vue";
-import SensorTree from "../../components/sensors/SensorTree.vue";
+import SensorClientList from "../../components/sensors/SensorClientList.vue";
+import SensorClientDetail from "../../components/sensors/SensorClientDetail.vue";
 import MissingFloorsList from "../../components/sensors/MissingFloorsList.vue";
 import SensorSidePanel from "../../components/sensors/SensorSidePanel.vue";
 import { useSitesStore } from "../../stores/sites.js";
@@ -199,25 +208,33 @@ const filtered = computed(() =>
     (s) =>
       (!siteFilter.value || s.site_id === siteFilter.value.id) &&
       (!q.value ||
-        [s.name, s.external_id, s.site_name, s.organization_name].some(matches)),
+        [s.site_name, s.organization_name].some(matches)),
   ),
 );
 
 // Stopped sending (a failure) and never sent (installation not finished)
 const offline = computed(() => splitOffline(filtered.value));
 
-// Tab "Sensores": the buildings that match (by their name, their client or
-// one of their sensors), each with all its floors
-const order = computed(() => (filters.value.order === "az" ? "az" : "problems"));
+// Tab "Sensores": the buildings that match (by their name or their client),
+// each with all its floors, grouped by client
 const tree = computed(() => {
-  const withMatch = new Set(filtered.value.map((s) => s.site_id));
   const sites = sitesStore.sites.filter(
     (s) =>
       (!siteFilter.value || s.id === siteFilter.value.id) &&
-      (!q.value || withMatch.has(s.id) || [s.name, s.organization_name].some(matches)),
+      (!q.value || [s.name, s.organization_name].some(matches)),
   );
-  return sensorTree(sites, sensorsStore.sensors, order.value);
+  return sensorTree(sites, sensorsStore.sensors, "problems");
 });
+
+// The client (?client=) shown on the right, with all its buildings. On a
+// computer, without a choice: the first client with problems
+const selectedClient = computed(
+  () => tree.value.find((c) => c.organizationId === filters.value.client) ?? tree.value[0] ?? null,
+);
+
+function selectClient(id) {
+  updateQuery({ client: id });
+}
 
 const missingFloors = computed(() => {
   const sites = sitesStore.sites.filter(
@@ -240,6 +257,7 @@ const tabs = computed(() => {
       label: "sin conexión",
       count: stopped.length,
       note: stopped.length ? `el más antiguo, hace ${formatDuration(oldest)}` : "todos envían lecturas",
+      shortNote: stopped.length ? `hace ${formatDuration(oldest)}` : "",
       noteClass: stopped.length ? "font-semibold text-amber-700" : "font-semibold text-success-dark",
     },
     {
@@ -253,6 +271,7 @@ const tabs = computed(() => {
       label: "sensores",
       count: filtered.value.length,
       note: `${working} funcionan`,
+      shortNote: `${working} funcionan`,
       noteClass: "font-semibold text-success-dark",
     },
   ];

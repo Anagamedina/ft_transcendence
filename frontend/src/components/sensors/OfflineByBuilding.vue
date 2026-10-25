@@ -3,9 +3,11 @@
   Tab "Sin conexión". On top, the sensors that stopped sending (a failure
   to tell the client about), one card per building with the longest silence
   first: how urgent it is ("más de 6 h"), "Avisar al cliente" (an email
-  already written) and each sensor with the time of its last reading. Below, folded,
-  the sensors that never sent anything: installation not finished, not a
-  failure. The admin does not go to the building: they tell the client.
+  already written) and each floor with its sensor and the time of its last
+  reading. Like the tab "Sensores": the client small, the building as the
+  title, the floor first. Sensors that never sent anything are not here
+  (installation not finished, not a failure). The admin does not go to the
+  building: they tell the client.
 -->
 
 <template>
@@ -23,12 +25,10 @@
       >
         <header class="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-slate-100 px-4 py-3.5 sm:px-5">
           <div class="min-w-[14rem] flex-1">
+            <p class="text-[13px] text-slate-600">{{ group.organizationName }}</p>
             <h3 class="text-base font-bold text-slate-900">{{ group.siteName }}</h3>
-            <p class="text-[13px] text-slate-500">
-              {{ group.organizationName }}
-              <template v-if="group.sensors.length > 1">
-                · <b class="text-amber-700">{{ group.sensors.length }} sensores a la vez: puede ser la wifi del edificio</b>
-              </template>
+            <p v-if="group.sensors.length > 1" class="text-[13px] font-bold text-amber-700">
+              {{ group.sensors.length }} sensores a la vez: puede ser la wifi del edificio
             </p>
           </div>
           <span
@@ -55,8 +55,8 @@
               @click="$emit('open', sensor)"
             >
               <span>
-                <b class="text-sm text-slate-900">{{ sensor.name }}</b>
-                <span class="block text-xs text-slate-500">{{ floorLabel(sensor.floor ?? 0) }} · {{ sensor.external_id }}</span>
+                <b class="text-sm text-slate-900">{{ floorLabel(sensor.floor ?? 0) }}</b>
+                <span class="block text-xs text-slate-600">{{ sensor.name }} · {{ sensor.external_id }}</span>
               </span>
               <span class="col-span-2 row-start-2 text-[13px] text-slate-600 sm:col-span-1 sm:row-start-auto">
                 Última lectura {{ lastDay(sensor) }} a las <b class="text-slate-900">{{ formatTime(sensor.last_seen_at) }}</b>
@@ -82,20 +82,6 @@
       ✓ Todos los sensores conectados envían lecturas
     </p>
 
-    <details v-if="never.length" class="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-3.5 sm:px-5">
-      <summary class="cursor-pointer text-[15px] font-bold text-slate-700">
-        {{ never.length }} {{ never.length === 1 ? "sensor que nunca ha enviado" : "sensores que nunca han enviado" }}
-        <span class="font-normal text-slate-500">· dados de alta pero sin conectar todavía: no es una avería</span>
-      </summary>
-      <ul class="mt-3 divide-y divide-slate-100">
-        <li v-for="sensor in never" :key="sensor.id">
-          <button type="button" class="w-full py-2.5 text-left text-sm hover:bg-slate-50" @click="$emit('open', sensor)">
-            <b class="text-slate-900">{{ sensor.name }}</b>
-            <span class="text-slate-500"> · {{ sensor.organization_name }} · {{ sensor.site_name }} · {{ floorLabel(sensor.floor ?? 0) }}</span>
-          </button>
-        </li>
-      </ul>
-    </details>
   </div>
 </template>
 
@@ -109,8 +95,6 @@ import { groupBySite, noticeMailto, silenceBadge } from "../../utils/sensorMaint
 const props = defineProps({
   // Sensors that stopped sending (they have last_seen_at)
   stopped: { type: Array, default: () => [] },
-  // Sensors that never sent anything
-  never: { type: Array, default: () => [] },
   // { organizationId: { phone, email } }
   contacts: { type: Object, default: () => ({}) },
   selectedId: { type: String, default: null },
