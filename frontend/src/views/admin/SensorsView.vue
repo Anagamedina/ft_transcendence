@@ -114,6 +114,7 @@
             :tree="tree"
             :order="order"
             :selected-id="selected?.id ?? null"
+            :alert-counts="extra.alertCounts"
             :expand-all="Boolean(q || siteFilter)"
             :now="now"
             @update:order="updateQuery({ order: $event === 'problems' ? null : $event })"

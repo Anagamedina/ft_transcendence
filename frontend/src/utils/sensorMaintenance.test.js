@@ -143,8 +143,9 @@ describe("tab «Sensores»: sensorTree", () => {
     expect(sensorTree(sites, sensors, "az").map((c) => c.organizationName)).toEqual(["Aigües", "Collserola"]);
   });
 
-  it("offline and out of range need attention", () => {
-    expect(needsAttention({ health: "OFFLINE" })).toBe(true);
+  it("stopped and out of range need attention; never sent does not", () => {
+    expect(needsAttention({ health: "OFFLINE", last_seen_at: "2026-10-25T07:00:00Z" })).toBe(true);
+    expect(needsAttention({ health: "OFFLINE", last_seen_at: null })).toBe(false);
     expect(needsAttention({ health: "WARNING" })).toBe(true);
     expect(needsAttention({ health: "OK" })).toBe(false);
   });

@@ -118,15 +118,21 @@ export function noticeMailto(email, group, durationText) {
 
 // --- Tab "Sensores" (#283): clients › buildings › every floor ---
 
-// Something to look at: no readings, or the pressure out of its range
+// Something to look at: it stopped sending, or the pressure is out of its
+// range. One that never sent is an installation not finished, not a failure
+// (same as splitOffline and the "sin conexión" card)
 export function needsAttention(sensor) {
-  return isOffline(sensor) || sensor?.health === "WARNING" || sensor?.health === "CRITICAL";
+  return (
+    (isOffline(sensor) && Boolean(sensor.last_seen_at)) ||
+    sensor?.health === "WARNING" ||
+    sensor?.health === "CRITICAL"
+  );
 }
 
 function countOf(sensors) {
   return {
     sensors: sensors.length,
-    offline: sensors.filter(isOffline).length,
+    offline: sensors.filter((s) => isOffline(s) && s.last_seen_at).length,
     outOfRange: sensors.filter((s) => s.health === "WARNING" || s.health === "CRITICAL").length,
   };
 }
