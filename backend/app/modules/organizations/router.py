@@ -11,7 +11,6 @@ incluye la #121.
     POST  /api/organizations/{id}/suspend       → sus usuarios dejan de entrar
     POST  /api/organizations/{id}/reactivate    → vuelve a TRIAL o ACTIVE
     POST  /api/organizations/{id}/extend-trial  → TRIAL_DAYS más de prueba
-    POST  /api/organizations/{id}/activate      → la prueba pasa a cliente
     DELETE /api/organizations/{id}              → borra todo (B16, issue #145)
 
 **Todas son solo de admin**, y por eso el `require_role` va en el router
@@ -229,18 +228,6 @@ def extend_trial(
 ) -> OrganizationResponse:
     return service.extend_trial(organization_id)
 
-
-@router.post(
-    "/{organization_id}/activate",
-    response_model=OrganizationResponse,
-    summary="Pasar la prueba a cliente",
-    description="De `TRIAL` a `ACTIVE`. Se borra el fin de la prueba.",
-    responses={**_SOLO_ADMIN, **_NO_EXISTE, **_SOLO_EN_PRUEBA},
-)
-def activate_organization(
-    organization_id: UUID, service: OrganizationSvc
-) -> OrganizationResponse:
-    return service.activate(organization_id)
 
 
 @router.delete(

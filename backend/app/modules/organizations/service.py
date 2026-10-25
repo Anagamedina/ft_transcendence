@@ -11,7 +11,7 @@ todo, **qué cambios de estado se permiten**:
     ACTIVE    --suspend-->      SUSPENDED
     TRIAL     --suspend-->      SUSPENDED
     SUSPENDED --reactivate-->   TRIAL si estaba en prueba, si no ACTIVE
-    TRIAL     --activate-->     ACTIVE (pasa a cliente; se borra el fin de prueba)
+    TRIAL     --subscribe-->    ACTIVE (lo hace el cliente, B14; no el admin)
     TRIAL     --extend-trial--> TRIAL con TRIAL_DAYS más
 
 Y el borrado completo (B16, `delete`): confirmando el nombre, con
@@ -226,20 +226,6 @@ class OrganizationService:
             self.organizations.update(
                 organizacion,
                 trial_ends_at=desde + timedelta(days=app_settings.TRIAL_DAYS),
-            )
-        return self._respuesta(organizacion)
-
-    def activate(self, organization_id: UUID) -> OrganizationResponse:
-        """
-        La prueba pasa a cliente. Se borra `trial_ends_at`: una
-        organización sin fin de prueba es una que no está en prueba, y es
-        lo que usa `reactivate` para decidir a qué estado vuelve.
-        """
-        with transaction(self.db):
-            organizacion = self._bloqueada(organization_id)
-            _comprobar_en_prueba(organizacion)
-            self.organizations.update(
-                organizacion, status=OrganizationStatus.ACTIVE.value, trial_ends_at=None
             )
         return self._respuesta(organizacion)
 

@@ -1806,7 +1806,8 @@ const mockAdapter = {
       return Promise.resolve({ data: withCounters(organization), status: 201 });
     }
 
-    // Status actions of an organization (B1): suspend, reactivate, extend-trial, activate
+    // Status actions of an organization (B1): suspend, reactivate, extend-trial.
+    // There is no "activate": a trial becomes a client by subscribing (B14).
     if (url.startsWith("/api/organizations/")) {
       const denied = adminCheck();
       if (denied) return Promise.reject(denied);
@@ -1831,7 +1832,7 @@ const mockAdapter = {
         }
         // Back to TRIAL if it still has a trial date, ACTIVE otherwise
         organization.status = organization.trial_ends_at ? "TRIAL" : "ACTIVE";
-      } else if (action === "extend-trial" || action === "activate") {
+      } else if (action === "extend-trial") {
         if (organization.status !== "TRIAL") {
           return Promise.reject(
             conflict(
@@ -1840,18 +1841,13 @@ const mockAdapter = {
             ),
           );
         }
-        if (action === "activate") {
-          organization.status = "ACTIVE";
-          organization.trial_ends_at = null;
-        } else {
-          // Adds the days to the end date, or to today if the trial already ended
-          const now = new Date();
-          const end = new Date(organization.trial_ends_at);
-          const from = end > now ? end : now;
-          organization.trial_ends_at = new Date(
-            from.getTime() + TRIAL_DAYS * DAY_MS,
-          ).toISOString();
-        }
+        // Adds the days to the end date, or to today if the trial already ended
+        const now = new Date();
+        const end = new Date(organization.trial_ends_at);
+        const from = end > now ? end : now;
+        organization.trial_ends_at = new Date(
+          from.getTime() + TRIAL_DAYS * DAY_MS,
+        ).toISOString();
       } else {
         return Promise.reject({
           status: 404,

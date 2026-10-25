@@ -6,9 +6,10 @@ Suscripción de un cliente en prueba (B14, issue #150).
     TRIAL --subscribe--> ACTIVE (con lo contratado, plan, precio, periodo,
                                  datos fiscales, cuenta y fin de prueba borrado)
 
-Es el mismo cambio que `activate` de la B1, pero lo hace el propio cliente
-y guarda además lo contratado y la facturación. Por eso borra también
-`trial_ends_at`: así `reactivate` sabe que ya no estaba en prueba.
+Es la única forma de pasar de la prueba a cliente: el admin ya no tiene
+`activate` (B1), porque dejaba clientes activos sin contrato, sin precio y
+sin límites. Borra también `trial_ends_at`: así `reactivate` sabe que ya
+no estaba en prueba.
 
 Decisiones:
 

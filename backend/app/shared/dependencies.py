@@ -401,8 +401,7 @@ def require_trial_not_expired(user: CurrentUser) -> None:
     todas las escrituras de la API para que una nueva no se olvide.
 
     Responde 403 `TRIAL_EXPIRED` hasta que el cliente se haga cliente
-    (`subscribe`, B14) o un admin amplíe la prueba (`extend-trial`) o la
-    active (`activate`). Como `get_current_user` lee
+    (`subscribe`, B14) o un admin amplíe la prueba (`extend-trial`). Como `get_current_user` lee
     la organización en cada petición, el cambio se aplica en la siguiente.
     La regla de cuándo vence está en `organizations/trial.py`.
 

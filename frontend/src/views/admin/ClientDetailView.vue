@@ -191,13 +191,6 @@ function onExtend() {
   );
 }
 
-function onActivate() {
-  runAction(
-    organizationsStore.activate,
-    (updated) => `${updated.name} ya es cliente activo.`,
-  );
-}
-
 function onSuspend() {
   runAction(
     organizationsStore.suspend,
@@ -398,7 +391,6 @@ watch(
             <ClientActions
               :client="client"
               @extend="onExtend"
-              @activate="onActivate"
               @suspend="onSuspend"
               @reactivate="onReactivate"
               @delete="onDelete"
