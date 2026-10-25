@@ -66,6 +66,11 @@ const routes = [
         component: () => import("../views/client/BuildingsView.vue"),
       },
       {
+        path: "edificios/:id",
+        name: "ClientBuilding",
+        component: () => import("../views/client/BuildingView.vue"),
+      },
+      {
         path: "account",
         component: () => import("../views/client/AccountView.vue"),
       },

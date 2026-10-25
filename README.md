@@ -656,6 +656,7 @@ users in [Demo data](#demo-data). Backend rules are covered by
 | Frontend       | Admin buildings and sensors floor by floor, pressure chart and forms (F4, F5, F10)    | Florinda               | `/admin/sites` · `/admin/sensors`            |
 | Frontend       | Admin alerts: client, state and severity filters, counters and sensor ranking (#153)  | Lylia, Eduardo         | `/admin/alerts`                              |
 | Frontend       | Client home "Mis edificios": alert banner, KPIs, buildings by urgency (F8, F24)       | Daruny, Florinda       | `/app` · `client@aquaguard.dev`              |
+| Frontend       | Client building page: open alerts, floors by alert state, week summary (F25)          | Florinda               | `/app/edificios/:id`                         |
 | Frontend       | Client alerts: Pendiente / En curso / Arreglado tabs and "Me encargo" (F9-C, F21)     | Daruny, Florinda       | `/app/alerts` → Me encargo                   |
 | Frontend       | Client documents: list, upload and delete the organization's files                    | Lylia                  | `/app/documents`                             |
 | Frontend       | Account: name, password and privacy card, for admin and client (F13-C)                | Florinda               | `/app/account` · `/admin/account`            |
