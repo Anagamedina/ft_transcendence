@@ -453,6 +453,13 @@ VAT.
 More than 20 buildings is a custom quote: the page sends the client to
 support.
 
+- On the page, every price says "+ IVA" and only the total shows the price
+  with the 21 % VAT. The VAT is only shown: the API, the contract and the
+  admin sheet keep the prices without it.
+- A Barcelona postal code (08001 to 08042) fills the city with "Barcelona";
+  any other code leaves the field free, and what the client writes is never
+  overwritten.
+
 - The API computes the plan and the price again (`POST
   /api/me/organization/subscribe`) and stores what was contracted, the price
   of that moment, the billing period, the fiscal data, the SEPA authorization
