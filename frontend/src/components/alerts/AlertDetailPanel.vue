@@ -232,10 +232,10 @@ const owner = computed(() => {
   };
 });
 
-// The Sensores page opens on the building of the sensor
+// The Sensores page opens this sensor in its side panel (#283)
 const sensorLink = computed(() => ({
   name: "AdminSensors",
-  query: { site: props.alert.site_id },
+  query: { tab: "all", sensor: props.alert.sensor_id },
 }));
 
 function duration(value) {
