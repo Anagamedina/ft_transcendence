@@ -499,7 +499,7 @@
                   <label for="subscribe-terms" class="text-sm text-slate-700">
                     Acepto las
                     <a
-                      href="/legal#terminos"
+                      href="/legal#terminos-contratacion"
                       target="_blank"
                       rel="noopener"
                       class="text-aqua-700 underline hover:text-aqua-900"
