@@ -55,9 +55,13 @@ cierre por la de confirmación: fallan 3 tests.
 
 Comprobado con Playwright a 375, 768, 1024 y 1440 px (sin scroll lateral en ninguno):
 
-- **Tabla solo desde `xl` (1280 px).** Con el menú lateral (16rem), entre 768 y
-  1279 px la tabla no cabía y se cortaban «Avisos al cliente» y «Sin atender
-  desde». Por debajo de `xl` se ven tarjetas, que ahora también llevan la línea de avisos.
+- **Tabla desde 1152 px.** Con el menú lateral (16rem), en pantallas medianas
+  la tabla no cabía y se cortaban «Avisos al cliente» y «Sin atender desde».
+  Primero la dejamos desde `xl` (1280 px), pero un portátil con el zoom de
+  Windows al 125 % mide unos 1229 px y veía tarjetas. Ahora, por debajo de
+  `xl`, la tabla es más compacta y «Urgencia» pasa a ser un punto delante del
+  fallo: medido con Playwright, «Sin atender» (la pestaña más ancha) cabe
+  desde 1152 px. Por debajo se ven tarjetas, que también llevan la línea de avisos.
 - **Pestañas en una línea en el móvil**: más compactas por debajo de `sm`; caben
   desde 375 px y en pantallas más estrechas se desplazan dentro de su franja.
 - **Tarjetas de clientes**: el número y «abiertas» en una línea, críticas y leves
