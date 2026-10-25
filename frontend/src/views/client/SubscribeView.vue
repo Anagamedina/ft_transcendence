@@ -89,8 +89,7 @@
           Hazte <em class="text-aqua-600">cliente.</em>
         </h1>
         <p class="mt-3 max-w-2xl text-slate-700">
-          Mantienes tus edificios, sus sensores y todo el histórico de la
-          prueba. Solo necesitamos los datos para el contrato y la factura.
+          Nos alegra que te quedes. Conservas todo lo de la prueba.
         </p>
       </header>
 
@@ -105,9 +104,6 @@
             <h2 id="subscribe-install" :class="TITLE_CLASS">
               <span class="text-aqua-600">1</span> · Edificios y sensores
             </h2>
-            <p class="-mt-3 mb-4 text-xs text-slate-600">
-              Elige cuántos necesitas. El plan y el precio se calculan solos.
-            </p>
             <div class="grid gap-4 sm:grid-cols-2">
               <div>
                 <label for="subscribe-sites" :class="LABEL_CLASS">
@@ -123,15 +119,7 @@
                   :max="MAX_SITES"
                   step="1"
                   v-bind="fieldAttrs('sites')"
-                  :aria-describedby="describedBy('sites')"
                 />
-                <p :id="hintId('sites')" class="mt-1 text-xs text-slate-600">
-                  {{
-                    sites.length > 0
-                      ? `Ya tienes ${countText(sites.length, "edificio", "edificios")}.`
-                      : `Entre 1 y ${MAX_SITES}.`
-                  }}
-                </p>
                 <p
                   v-if="fieldErrors.sites"
                   :id="errorId('sites')"
@@ -159,12 +147,6 @@
                 />
                 <p :id="hintId('sensors')" class="mt-1 text-xs text-slate-600">
                   Uno por planta, contando sótanos.
-                  <template v-if="recommendedSensors > 0">
-                    En tus edificios: {{ recommendedSensors }}.
-                  </template>
-                  <template v-if="currentSensors > 0">
-                    Ya tienes {{ currentSensors }}.
-                  </template>
                 </p>
                 <p
                   v-if="fieldErrors.sensors"
@@ -176,30 +158,19 @@
               </div>
             </div>
 
-            <!-- The plan that covers them and how the price is made -->
-            <div
-              class="mt-5 rounded-xl border border-aqua-600 bg-aqua-50 p-4"
+            <!-- More than the biggest plan: a custom quote -->
+            <p
+              v-if="form.sites > MAX_SITES"
+              class="mt-5 rounded-xl border border-aqua-600 bg-aqua-50 p-4 text-sm text-slate-700"
               aria-live="polite"
             >
-              <template v-if="chosenPlan">
-                <p class="font-semibold text-slate-900">
-                  Plan {{ chosenPlan.name }}
-                  <span class="font-normal text-slate-600">
-                    · {{ chosenPlan.description }}
-                  </span>
-                </p>
-                <p class="mt-1 font-mono text-sm text-slate-700">
-                  {{ euros(chosenPlan.monthly_price_eur) }} +
-                  {{ form.sensors }} × {{ euros(sensorPrice) }} =
-                  <strong class="text-slate-900"
-                    >{{ euros(monthlyTotal) }} / mes</strong
-                  >
-                </p>
-              </template>
-              <p v-else class="text-sm text-slate-700">
-                Elige los edificios y sensores para ver el precio.
-              </p>
-            </div>
+              Más de {{ MAX_SITES }} edificios es un presupuesto a medida:
+              <a
+                :href="supportMailto"
+                class="font-semibold text-aqua-700 underline hover:text-aqua-900"
+                >escríbenos</a
+              >.
+            </p>
 
             <!-- Buildings from the trial: read only, only an admin edits them -->
             <div v-if="sites.length > 0" class="mt-5">
@@ -220,8 +191,7 @@
               </ul>
             </div>
             <p class="mt-4 text-xs text-slate-600">
-              Los edificios nuevos los damos de alta e instalamos sus sensores
-              después del alta. ¿Dudas o más de {{ MAX_SITES }} edificios?
+              ¿Más de {{ MAX_SITES }} edificios?
               <a
                 :href="supportMailto"
                 class="font-semibold text-aqua-700 underline hover:text-aqua-900"
@@ -263,20 +233,22 @@
                   </span>
                   <span class="mt-2 block font-semibold text-slate-900">
                     {{ option.price }}
+                    <span
+                      v-if="chosenPlan"
+                      class="text-xs font-normal text-slate-500"
+                      >+ IVA</span
+                    >
                   </span>
                 </span>
               </label>
             </div>
           </fieldset>
 
-          <!-- 2. Datos de la empresa -->
+          <!-- 3. Datos de la empresa -->
           <section :class="CARD_CLASS" aria-labelledby="subscribe-company">
             <h2 id="subscribe-company" :class="TITLE_CLASS">
               <span class="text-aqua-600">3</span> · Datos de la empresa
             </h2>
-            <p class="-mt-3 mb-4 text-xs text-slate-600">
-              Los que aparecerán en el contrato y en las facturas.
-            </p>
             <div class="grid gap-4 sm:grid-cols-2">
               <div class="sm:col-span-2">
                 <label for="subscribe-legal-name" :class="LABEL_CLASS">
@@ -416,7 +388,7 @@
             </div>
           </section>
 
-          <!-- 3. Facturación y pago -->
+          <!-- 4. Facturación y pago -->
           <section :class="CARD_CLASS" aria-labelledby="subscribe-billing">
             <h2 id="subscribe-billing" :class="TITLE_CLASS">
               <span class="text-aqua-600">4</span> · Facturación y pago
@@ -467,8 +439,7 @@
                   {{ fieldErrors.iban }}
                 </p>
                 <p class="mt-1 text-xs text-slate-600">
-                  Cobro {{ chosenPeriod.everyText }} por domiciliación SEPA. No
-                  guardamos tarjetas y solo guardamos el IBAN enmascarado.
+                  Solo guardamos el IBAN enmascarado.
                 </p>
               </div>
             </div>
@@ -512,7 +483,7 @@
                       rel="noopener"
                       class="text-aqua-700 underline hover:text-aqua-900"
                       >Política de privacidad</a
-                    >. <span class="text-slate-500">Obligatorio.</span>
+                    >.
                   </label>
                 </div>
                 <p
@@ -541,9 +512,6 @@
                   />
                   <label for="subscribe-sepa" class="text-sm text-slate-700">
                     Autorizo la domiciliación SEPA en la cuenta indicada.
-                    <span class="text-slate-500"
-                      >Obligatorio para pagar por domiciliación.</span
-                    >
                   </label>
                 </div>
                 <p
@@ -583,10 +551,15 @@
           >
             <span class="text-sm text-slate-600">Total</span>
             <span class="text-2xl font-bold text-slate-900">
-              {{ chosenPeriod.price }}
+              {{ totalWithVat || chosenPeriod.price }}
             </span>
           </div>
-          <p class="mt-1 text-right text-xs text-slate-500">IVA no incluido</p>
+          <p class="mt-1 text-right text-xs text-slate-500">
+            IVA ({{ VAT_PERCENT }} %) incluido
+          </p>
+          <p v-if="totalWithVat" class="text-right text-xs text-slate-500">
+            Sin IVA: {{ chosenPeriod.price }}
+          </p>
 
           <p
             v-if="generalError"
@@ -603,9 +576,6 @@
           >
             {{ submitting ? "Dando de alta…" : "Confirmar alta" }}
           </button>
-          <p class="mt-3 text-xs text-slate-600">
-            Puedes pedir la baja cuando quieras desde Mi cuenta.
-          </p>
         </aside>
       </form>
     </template>
@@ -613,7 +583,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, reactive, ref } from "vue";
+import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
 import LoadingState from "../../components/LoadingState.vue";
 import ErrorState from "../../components/ErrorState.vue";
 import subscriptionsService from "../../services/subscriptions.service.js";
@@ -626,8 +596,9 @@ import { billedPrice, monthlyPrice, planFor } from "../../utils/pricing";
 // Where clients ask about the contract (no in-app request yet)
 const SUPPORT_EMAIL = "soporte@aquaguard.dev";
 
-// Same limits as SubscriptionRequest (subscriptions/schemas.py)
-const MAX_SITES = 100;
+// Same limits as SubscriptionRequest (subscriptions/schemas.py). Buildings:
+// the most the Empresa plan covers; more is a custom quote
+const MAX_SITES = 20;
 const MAX_SENSORS = 1000;
 
 const ADDRESS_MAX_LENGTH = 200;
@@ -636,6 +607,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // Same checks as the backend (subscriptions/service.py)
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const POSTAL_CODE_PATTERN = /^\d{5}$/;
+// 08001 to 08042: Barcelona city
+const BARCELONA_POSTAL_CODE = /^080(0[1-9]|[1-3]\d|4[0-2])$/;
+const BARCELONA = "Barcelona";
 const SEPARATORS = /[\s.-]/g;
 const TAX_ID_PATTERN = /^[A-Z0-9]{8,15}$/;
 const IBAN_PATTERN = /^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/;
@@ -679,6 +653,24 @@ const form = reactive({
   accept_terms: false,
   accept_sepa: false,
 });
+
+// A Barcelona postal code fills the city; it never overwrites what the client wrote
+let cityFilled = false;
+
+watch(
+  () => form.postal_code.trim(),
+  (code) => {
+    if (BARCELONA_POSTAL_CODE.test(code)) {
+      if (!form.city.trim()) {
+        form.city = BARCELONA;
+        cityFilled = true;
+      }
+    } else if (cityFilled && form.city === BARCELONA) {
+      form.city = "";
+      cityFilled = false;
+    }
+  },
+);
 
 // Fields in screen order: the first one with an error gets the focus
 const FIELD_ORDER = [
@@ -750,7 +742,7 @@ const MESSAGE_BY_CODE = {
 };
 
 const MESSAGE_BY_FIELD = {
-  sites: `Elige entre 1 y ${MAX_SITES} edificios.`,
+  sites: `Elige entre 1 y ${MAX_SITES} edificios. Para más, escríbenos.`,
   sensors: `Elige entre 1 y ${MAX_SENSORS} sensores.`,
   legal_name: "Escribe la razón social (máximo 200 caracteres).",
   tax_id: "Escribe un CIF o NIF válido: entre 8 y 15 letras o números.",
@@ -805,8 +797,6 @@ const chosenPlan = computed(() =>
   contractValid.value ? planFor(plans.value, form.sites, form.sensors) : null,
 );
 
-const sensorPrice = computed(() => plans.value[0]?.sensor_price_eur ?? 0);
-
 const monthlyTotal = computed(() =>
   chosenPlan.value ? monthlyPrice(chosenPlan.value, form.sensors) : 0,
 );
@@ -819,7 +809,6 @@ const periodOptions = computed(() => {
       label: "Mensual",
       note: "Sin permanencia",
       price: chosenPlan.value ? `${euros(monthlyTotal.value)} / mes` : "—",
-      everyText: "mensual",
     },
     {
       id: "YEARLY",
@@ -828,7 +817,6 @@ const periodOptions = computed(() => {
       price: chosenPlan.value
         ? `${euros(billedPrice(chosenPlan.value, form.sensors, "YEARLY"))} / año`
         : "—",
-      everyText: "anual",
     },
   ];
 });
@@ -836,6 +824,19 @@ const periodOptions = computed(() => {
 const chosenPeriod = computed(() =>
   periodOptions.value.find((option) => option.id === form.period),
 );
+
+// Spanish VAT, only shown: prices and the API stay without it
+const VAT_PERCENT = 21;
+
+const totalWithVat = computed(() => {
+  if (!chosenPlan.value) return "";
+  const billed = billedPrice(chosenPlan.value, form.sensors, form.period);
+  const amount = new Intl.NumberFormat("es-ES", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format((billed * (100 + VAT_PERCENT)) / 100);
+  return `${amount} € / ${form.period === "YEARLY" ? "año" : "mes"}`;
+});
 
 const trialEnd = computed(() => parseDate(organization.value?.trial_ends_at));
 const trialExpired = computed(
@@ -905,7 +906,7 @@ const summaryRows = computed(() => [
   },
   {
     label: "Precio al mes",
-    value: chosenPlan.value ? euros(monthlyTotal.value) : "—",
+    value: chosenPlan.value ? `${euros(monthlyTotal.value)} + IVA` : "—",
   },
   // The API activates the account when it gets the request, not when the trial ends
   { label: "Empieza", value: "hoy, al confirmar el alta" },
