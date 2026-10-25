@@ -26,7 +26,16 @@ from app.modules.sensors.model import Sensor
 from app.modules.sites.model import Site
 from app.modules.users.model import User
 
+# La hora de cada test, no la de cuando se cargó el archivo: en la batería
+# completa este archivo se ejecuta minutos después de cargarse, y unas lecturas
+# de «hace 10 s» pasaban a tener más de 5 min (sensor sin conexión).
 AHORA = datetime.now(timezone.utc)
+
+
+@pytest.fixture(autouse=True)
+def _ahora_de_este_test():
+    global AHORA
+    AHORA = datetime.now(timezone.utc)
 
 
 @pytest.fixture()
