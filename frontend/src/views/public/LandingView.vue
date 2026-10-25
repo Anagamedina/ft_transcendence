@@ -230,7 +230,7 @@
         ¿Tu edificio está en Barcelona?
       </h2>
       <p class="text-slate-600">
-        Pruébalo 7 días gratis. Si te convence, activamos tu cuenta.
+        Pruébalo 7 días gratis. Si te convence, te haces cliente desde tu panel.
       </p>
       <RouterLink
         to="/prueba"
@@ -270,7 +270,7 @@ const statusStyles = {
 const howItWorks = [
   {
     title: "Te registras y pruebas gratis",
-    text: "Creas tu cuenta, eliges el distrito de tu edificio y empiezas 7 días de prueba.",
+    text: "Creas tu cuenta y empiezas 7 días de prueba, sin tarjeta.",
   },
   {
     title: "Instalamos sensores por planta",
@@ -323,14 +323,14 @@ const permissions = [
   background: linear-gradient(
     135deg,
     white 0%,
-    theme('colors.aqua.300') 45%,
-    theme('colors.aqua.600') 100%
+    theme("colors.aqua.300") 45%,
+    theme("colors.aqua.600") 100%
   );
   border-radius: 50% 50% 50% 0;
   transform: rotate(135deg);
   box-shadow:
     inset -6px -6px 14px rgb(255 255 255 / 0.4),
-    6px 6px 18px theme('colors.aqua.600 / 30%');
+    6px 6px 18px theme("colors.aqua.600 / 30%");
   animation: float 3s ease-in-out infinite;
 }
 

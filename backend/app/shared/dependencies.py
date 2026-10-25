@@ -400,8 +400,9 @@ def require_trial_not_expired(user: CurrentUser) -> None:
     cuando le amplíen la prueba. `test_prueba_caducada_b12.py` recorre
     todas las escrituras de la API para que una nueva no se olvide.
 
-    Responde 403 `TRIAL_EXPIRED` hasta que un admin amplíe la prueba
-    (`extend-trial`) o la active (`activate`). Como `get_current_user` lee
+    Responde 403 `TRIAL_EXPIRED` hasta que el cliente se haga cliente
+    (`subscribe`, B14) o un admin amplíe la prueba (`extend-trial`) o la
+    active (`activate`). Como `get_current_user` lee
     la organización en cada petición, el cambio se aplica en la siguiente.
     La regla de cuándo vence está en `organizations/trial.py`.
 
@@ -412,7 +413,7 @@ def require_trial_not_expired(user: CurrentUser) -> None:
     if trial_expired(user.organization):
         raise ForbiddenError(
             "Tu periodo de prueba ha terminado. Puedes consultar tus datos, pero "
-            "no modificarlos hasta que AquaGuard lo amplíe o active tu cuenta.",
+            "no modificarlos hasta que te hagas cliente o AquaGuard amplíe la prueba.",
             code="TRIAL_EXPIRED",
         )
 
