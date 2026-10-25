@@ -219,23 +219,23 @@ const MOCK_PLANS = [
   {
     id: "BASIC",
     name: "Básico",
-    description: "Para un edificio con hasta 10 sensores.",
+    description: "De 1 a 5 edificios.",
     monthly_price_eur: 29,
     sensor_price_eur: MOCK_SENSOR_PRICE_EUR,
     yearly_months: MOCK_YEARLY_MONTHS,
-    max_sites: 1,
-    max_sensors: 10,
+    max_sites: 5,
+    max_sensors: null,
     features: ["Alertas por presión y desconexión", "Histórico de 30 días"],
   },
   {
     id: "PRO",
     name: "Profesional",
-    description: "De 2 a 5 edificios y hasta 50 sensores.",
+    description: "De 6 a 10 edificios.",
     monthly_price_eur: 79,
     sensor_price_eur: MOCK_SENSOR_PRICE_EUR,
     yearly_months: MOCK_YEARLY_MONTHS,
-    max_sites: 5,
-    max_sensors: 50,
+    max_sites: 10,
+    max_sensors: null,
     features: [
       "Todo lo del plan Básico",
       "Histórico de 1 año y exportación CSV",
@@ -245,15 +245,15 @@ const MOCK_PLANS = [
   {
     id: "ENTERPRISE",
     name: "Empresa",
-    description: "Para carteras de edificios, sin límite.",
+    description: "De 11 a 20 edificios.",
     monthly_price_eur: 199,
     sensor_price_eur: MOCK_SENSOR_PRICE_EUR,
     yearly_months: MOCK_YEARLY_MONTHS,
-    max_sites: null,
+    max_sites: 20,
     max_sensors: null,
     features: [
       "Todo lo del plan Profesional",
-      "Edificios y sensores sin límite",
+      "Hasta 20 edificios",
       "Soporte prioritario",
     ],
   },
@@ -1373,7 +1373,7 @@ const mockAdapter = {
         );
       }
       const contract = { sites: data.sites, sensors: data.sensors };
-      const maxima = { sites: 100, sensors: 1000 };
+      const maxima = { sites: 20, sensors: 1000 };
       for (const field of ["sites", "sensors"]) {
         const value = contract[field];
         if (!Number.isInteger(value) || value < 1 || value > maxima[field]) {

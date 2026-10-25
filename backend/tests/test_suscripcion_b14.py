@@ -149,7 +149,9 @@ def test_los_planes_se_ven_sin_sesion(client):
     assert respuesta.status_code == 200
     planes = respuesta.json()
     assert [p["id"] for p in planes] == ["BASIC", "PRO", "ENTERPRISE"]
-    assert (planes[0]["max_sites"], planes[0]["max_sensors"]) == (1, 10)
+    assert [p["max_sites"] for p in planes] == [5, 10, 20]
+    # Los sensores no cambian el plan: se pagan aparte
+    assert all(p["max_sensors"] is None for p in planes)
     assert planes[2]["max_sensors"] is None
     assert (planes[0]["sensor_price_eur"], planes[0]["yearly_months"]) == (10, 10)
 
@@ -157,16 +159,18 @@ def test_los_planes_se_ven_sin_sesion(client):
 @pytest.mark.parametrize(
     ("edificios", "sensores", "plan", "precio"),
     [
-        # Los ejemplos de la tabla de precios
+        # Residencia, hotel y comunidad: Básico (1 a 5 edificios)
         (1, 5, "BASIC", 79),
         (1, 8, "BASIC", 109),
-        (2, 12, "PRO", 199),
-        (3, 18, "PRO", 259),
-        (10, 80, "ENTERPRISE", 999),
-        # Un edificio con más de 10 sensores ya no cabe en el Básico
-        (1, 11, "PRO", 189),
-        # Ni 6 edificios en el Profesional
-        (6, 12, "ENTERPRISE", 319),
+        (3, 18, "BASIC", 209),
+        # Los sensores no cambian el plan: 5 edificios con 60 siguen en Básico
+        (5, 60, "BASIC", 629),
+        # De 6 a 10 edificios: Profesional
+        (6, 12, "PRO", 199),
+        (10, 80, "PRO", 879),
+        # De 11 a 20: Empresa
+        (11, 30, "ENTERPRISE", 499),
+        (20, 200, "ENTERPRISE", 2199),
     ],
 )
 def test_plan_y_precio_salen_de_edificios_y_sensores(edificios, sensores, plan, precio):
@@ -263,8 +267,8 @@ def test_una_prueba_caducada_tambien_puede_suscribirse(client, datos):
 
     assert respuesta.status_code == 200
     cuerpo = respuesta.json()
-    assert (cuerpo["plan"], cuerpo["billing_period"]) == ("PRO", "MONTHLY")
-    assert cuerpo["billed_price_eur"] == 259
+    assert (cuerpo["plan"], cuerpo["billing_period"]) == ("BASIC", "MONTHLY")
+    assert cuerpo["billed_price_eur"] == 209
 
 
 def test_el_admin_ve_lo_contratado_en_la_ficha(client, datos):
@@ -298,7 +302,8 @@ def test_el_admin_ve_lo_contratado_en_la_ficha(client, datos):
         ({"iban": "1234"}, "INVALID_IBAN"),
         ({"sites": 0}, "VALIDATION_ERROR"),
         ({"sensors": 0}, "VALIDATION_ERROR"),
-        ({"sites": 101}, "VALIDATION_ERROR"),
+        # Más de 20 edificios es un presupuesto a medida
+        ({"sites": 21}, "VALIDATION_ERROR"),
         ({"sensors": 1001}, "VALIDATION_ERROR"),
         ({"sensors": -5}, "VALIDATION_ERROR"),
         ({"billing_period": "SEMANAL"}, "VALIDATION_ERROR"),

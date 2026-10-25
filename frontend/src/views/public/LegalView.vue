@@ -360,7 +360,7 @@ const termsSections = [
     title: "Contratación, precio y pago",
     short: "Contratación y pago",
     body: [
-      "Al hacerte cliente eliges cuántos edificios y sensores necesitas, y el plan se elige solo: Básico (1 edificio y hasta 10 sensores), Profesional (de 2 a 5 edificios y hasta 50 sensores) o Empresa (sin límite).",
+      "Al hacerte cliente eliges cuántos edificios y sensores necesitas, y el plan se elige solo según los edificios: Básico (de 1 a 5), Profesional (de 6 a 10) o Empresa (de 11 a 20). Los sensores no cambian el plan, se pagan aparte. Para más de 20 edificios, escríbenos y te preparamos un presupuesto.",
       "El precio al mes es la base del plan (29 €, 79 € o 199 €) más 10 € por cada sensor, IVA no incluido. Puedes pagar cada mes, sin permanencia, o un año por adelantado, que son 10 meses. El precio queda fijado el día del alta y el servicio de pago empieza ese mismo día.",
       "Lo contratado es también tu máximo: no damos de alta más edificios ni sensores de los que pagas, y no puedes contratar menos de los que ya tienes. Para ampliar el contrato, escríbenos.",
       "El cobro es por domiciliación SEPA en la cuenta que indicas al contratar, y para eso nos autorizas en el mismo formulario. Al contratar aceptas también estas condiciones.",

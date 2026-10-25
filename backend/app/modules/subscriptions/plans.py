@@ -8,12 +8,18 @@ falta migración ni seed para tenerlos. La columna `organizations.plan`
 guarda solo el código (`SubscriptionPlan`), con su CHECK.
 
 El cliente no elige el plan: elige cuántos edificios y sensores quiere, y
-le toca el plan más pequeño que los cubre (`plan_for`). El precio al mes
-es la base del plan más cada sensor (`monthly_price`):
+el plan sale de los edificios (`plan_for`): Básico hasta 5, Profesional
+hasta 10 y Empresa hasta `MAX_SITES`. Los sensores no cambian el plan, se
+pagan aparte. El precio al mes es la base del plan más cada sensor
+(`monthly_price`):
 
-    Hotel de 8 plantas, 8 sensores     → Básico       29 +  8 × 10 = 109 €
-    Comunidad con 3 bloques, 18        → Profesional  79 + 18 × 10 = 259 €
-    Cadena con 10 edificios, 80        → Empresa     199 + 80 × 10 = 999 €
+    Hotel de 8 plantas, 8 sensores      → Básico        29 +   8 × 10 =  109 €
+    Comunidad con 3 bloques, 18         → Básico        29 +  18 × 10 =  209 €
+    Cadena con 10 edificios, 80         → Profesional   79 +  80 × 10 =  879 €
+    Cartera de 15 edificios, 120        → Empresa      199 + 120 × 10 = 1399 €
+
+Más de `MAX_SITES` edificios no se contratan desde la app: es un
+presupuesto a medida.
 
 El pago anual son `YEARLY_MONTHS` meses: dos meses gratis.
 
@@ -37,6 +43,8 @@ if TYPE_CHECKING:
 SENSOR_PRICE_EUR = 10
 YEARLY_MONTHS = 10
 TRIAL_MAX_SITES = 1
+# Lo más que se contrata desde la app: el máximo del plan Empresa.
+MAX_SITES = 20
 
 
 @dataclass(frozen=True)
@@ -59,19 +67,19 @@ PLANS: tuple[Plan, ...] = (
     Plan(
         id=SubscriptionPlan.BASIC,
         name="Básico",
-        description="Para un edificio con hasta 10 sensores.",
+        description="De 1 a 5 edificios.",
         monthly_price_eur=29,
-        max_sites=1,
-        max_sensors=10,
+        max_sites=5,
+        max_sensors=None,
         features=("Alertas por presión y desconexión", "Histórico de 30 días"),
     ),
     Plan(
         id=SubscriptionPlan.PRO,
         name="Profesional",
-        description="De 2 a 5 edificios y hasta 50 sensores.",
+        description="De 6 a 10 edificios.",
         monthly_price_eur=79,
-        max_sites=5,
-        max_sensors=50,
+        max_sites=10,
+        max_sensors=None,
         features=(
             "Todo lo del plan Básico",
             "Histórico de 1 año y exportación CSV",
@@ -81,13 +89,13 @@ PLANS: tuple[Plan, ...] = (
     Plan(
         id=SubscriptionPlan.ENTERPRISE,
         name="Empresa",
-        description="Para carteras de edificios, sin límite.",
+        description="De 11 a 20 edificios.",
         monthly_price_eur=199,
-        max_sites=None,
+        max_sites=MAX_SITES,
         max_sensors=None,
         features=(
             "Todo lo del plan Profesional",
-            "Edificios y sensores sin límite",
+            "Hasta 20 edificios",
             "Soporte prioritario",
         ),
     ),
@@ -100,7 +108,10 @@ def get_plan(plan_id: SubscriptionPlan) -> Plan:
 
 
 def plan_for(sites: int, sensors: int) -> Plan:
-    """El plan más pequeño que cubre esos edificios y sensores. Empresa no tiene límite."""
+    """
+    El plan más pequeño que cubre esos edificios. El schema no deja pasar
+    de `MAX_SITES`, así que siempre hay uno.
+    """
     return next(plan for plan in PLANS if plan.covers(sites, sensors))
 
 

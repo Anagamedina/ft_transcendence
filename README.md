@@ -439,15 +439,19 @@ email it would have sent. Tests never send email.
 
 A client on the trial (running or expired) becomes a paying client from
 `/app/subscribe` ("Hazte cliente" in the trial banner or in Mi cuenta). It
-chooses how many buildings and sensors it needs; the plan is the smallest one
-that covers them and the price is the plan base plus 10 € per sensor and month.
-The yearly payment is ten months. Prices exclude VAT.
+chooses how many buildings and sensors it needs. The plan depends only on the
+buildings; sensors are paid apart, 10 € each and month, so the price is the
+plan base plus the sensors. The yearly payment is ten months. Prices exclude
+VAT.
 
-| Plan        | Buildings | Sensors  | Monthly price      | Example                         |
-|-------------|-----------|----------|--------------------|---------------------------------|
-| Básico      | 1         | up to 10 | 29 € + 10 € each   | 1 building, 8 sensors → 109 €   |
-| Profesional | 2 to 5    | up to 50 | 79 € + 10 € each   | 3 buildings, 18 sensors → 259 € |
-| Empresa     | 6 or more | no limit | 199 € + 10 € each  | 10 buildings, 80 sensors → 999 € |
+| Plan        | Buildings | Monthly price             | Example                             |
+|-------------|-----------|---------------------------|-------------------------------------|
+| Básico      | 1 to 5    | 29 € + 10 € per sensor    | 3 buildings, 18 sensors → 209 €     |
+| Profesional | 6 to 10   | 79 € + 10 € per sensor    | 10 buildings, 80 sensors → 879 €    |
+| Empresa     | 11 to 20  | 199 € + 10 € per sensor   | 15 buildings, 120 sensors → 1399 €  |
+
+More than 20 buildings is a custom quote: the page sends the client to
+support.
 
 - The API computes the plan and the price again (`POST
   /api/me/organization/subscribe`) and stores what was contracted, the price

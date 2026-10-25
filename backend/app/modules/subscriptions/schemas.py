@@ -19,11 +19,13 @@ from uuid import UUID
 
 from pydantic import EmailStr, Field
 
+from app.modules.subscriptions.plans import MAX_SITES
 from app.shared.enums import BillingPeriod, OrganizationStatus, SubscriptionPlan
 from app.shared.schemas import ApiModel, ApiRequest
 
-# Topes del formulario: más que eso es un presupuesto a medida.
-MAX_CONTRACT_SITES = 100
+# Topes del formulario. Edificios: el máximo del plan Empresa; más que eso
+# es un presupuesto a medida.
+MAX_CONTRACT_SITES = MAX_SITES
 MAX_CONTRACT_SENSORS = 1000
 
 
@@ -38,8 +40,12 @@ class PlanResponse(ApiModel):
     )
     sensor_price_eur: int = Field(description="Precio de cada sensor al mes, en euros.")
     yearly_months: int = Field(description="Meses que se pagan con el pago anual.")
-    max_sites: int | None = Field(description="Edificios incluidos. `null`: sin límite.")
-    max_sensors: int | None = Field(description="Sensores incluidos. `null`: sin límite.")
+    max_sites: int | None = Field(
+        description="Hasta cuántos edificios cubre el plan. Decide qué plan toca."
+    )
+    max_sensors: int | None = Field(
+        description="Hoy `null` en todos: los sensores no cambian el plan, se pagan aparte."
+    )
     features: list[str]
 
 
@@ -117,17 +123,17 @@ class SubscriptionResponse(ApiModel):
     organization_name: str
     status: OrganizationStatus
     plan: SubscriptionPlan
-    plan_name: str = Field(examples=["Profesional"])
+    plan_name: str = Field(examples=["Básico"])
     billing_period: BillingPeriod
     contracted_sites: int = Field(examples=[2])
     contracted_sensors: int = Field(examples=[12])
     monthly_price_eur: int = Field(
         description="Precio al mes: base del plan más cada sensor, IVA no incluido.",
-        examples=[199],
+        examples=[149],
     )
     billed_price_eur: int = Field(
         description="Lo que se cobra cada vez: el mes, o diez meses si es anual.",
-        examples=[199],
+        examples=[149],
     )
     subscribed_at: datetime = Field(description="Momento de la suscripción, en UTC.")
     legal_name: str

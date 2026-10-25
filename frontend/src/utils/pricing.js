@@ -3,7 +3,8 @@
 // the price the API will store. `plans` is the GET /api/plans list, from the
 // smallest to the largest plan:
 //   - The plan is the smallest one that covers the buildings and sensors
-//     (max_sites / max_sensors; null is "no limit").
+//     (max_sites / max_sensors; null is "no limit"). Today only the
+//     buildings decide it: max_sensors is null in every plan.
 //   - The monthly price is the plan base plus each sensor.
 //   - The yearly payment is `yearly_months` monthly prices.
 // pricing.test.js checks the examples of the price table against both.
