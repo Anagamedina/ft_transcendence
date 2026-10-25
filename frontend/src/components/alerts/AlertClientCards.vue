@@ -2,7 +2,8 @@
   ALERT CLIENT CARDS (#252)
   "Clientes con alertas abiertas": the most urgent clients, each with how many
   alerts are open, how many are critical / leve, its sensors and the oldest
-  one. The cards share the width (3 to 5 per row). Clicking a card filters the table; clicking it again removes the filter.
+  one. The cards share the width (3 to 5 per row); on phones they are one
+  row that slides sideways, so the alerts are not a screen further down. Clicking a card filters the table; clicking it again removes the filter.
   The last card says how many more clients have alerts and shows them all.
 -->
 
@@ -22,13 +23,18 @@
       Ningún cliente tiene alertas abiertas ahora mismo.
     </p>
 
-    <div v-else class="grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-3">
+    <!-- Phone: one sliding row, to the edges of the screen (-mx-6 px-6 undo
+         the p-6 of <main>). From sm: a grid that shares the width. -->
+    <div
+      v-else
+      class="-mx-6 flex snap-x snap-mandatory scroll-px-6 gap-3 overflow-x-auto px-6 pb-2 sm:mx-0 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] sm:overflow-visible sm:px-0 sm:pb-0"
+    >
       <button
         v-for="client in visible"
         :key="client.id"
         type="button"
         :aria-pressed="client.id === selectedId"
-        class="flex flex-col gap-1.5 rounded-xl bg-white px-4 py-3.5 text-left transition"
+        class="flex w-60 shrink-0 snap-start flex-col gap-1.5 rounded-xl bg-white px-4 py-3.5 text-left transition sm:w-auto"
         :class="
           client.id === selectedId
             ? 'border-2 border-aqua-600'
@@ -69,7 +75,7 @@
         v-if="clients.length > max"
         type="button"
         :aria-expanded="expanded"
-        class="flex flex-col justify-center gap-1 rounded-xl border border-dashed border-slate-300 px-4 py-3.5 text-left text-slate-600 hover:border-aqua-400"
+        class="flex w-40 shrink-0 snap-start flex-col justify-center gap-1 rounded-xl border border-dashed border-slate-300 px-4 py-3.5 text-left text-slate-600 hover:border-aqua-400 sm:w-auto"
         @click="expanded = !expanded"
       >
         <template v-if="expanded">
