@@ -7,6 +7,7 @@
 //   floorsWithoutSensor(sites, sensors) // floors where a sensor is missing
 //   alertsPerSensor(alerts)             // { sensorId: count } of a list
 //   sensorTree(sites, sensors, order)   // clients › buildings › floors (tab "Sensores")
+//   clientIssue(client)                 // what is wrong with a client, in a few words
 //   TOO_MANY_ALERTS                     // from this many in 7 days: check the thresholds
 
 import { floorLabel, floorRange } from "./floors";
@@ -132,6 +133,10 @@ export function needsAttention(sensor) {
 function countOf(sensors) {
   return {
     sensors: sensors.length,
+    // Sending readings (the pressure may be out of range: the device works)
+    working: sensors.filter((s) => !isOffline(s)).length,
+    // Installed but never sent anything (not a failure)
+    neverSent: sensors.filter((s) => isOffline(s) && !s.last_seen_at).length,
     offline: sensors.filter((s) => isOffline(s) && s.last_seen_at).length,
     outOfRange: sensors.filter((s) => s.health === "WARNING" || s.health === "CRITICAL").length,
   };
@@ -190,4 +195,28 @@ export function sensorTree(sites, sensors, order = "problems") {
       return client;
     })
     .sort((a, b) => byProblems(a, b) || byName(a.organizationName, b.organizationName));
+}
+
+// What is wrong with a client of sensorTree, for its row in the list:
+// { kind: "pressure" | "offline", text, offlineSince } or null.
+// One sensor: "presión alta en Planta 6" or offlineSince (the page writes
+// "sin conexión desde hace…"); several: "2 fuera de rango · 1 sin conexión".
+export function clientIssue(client) {
+  const problems = client.sites.flatMap((row) =>
+    row.floors.flatMap((f) => f.sensors.filter(needsAttention)),
+  );
+  if (!problems.length) return null;
+  const outOfRange = problems.filter((s) => !isOffline(s));
+  const kind = outOfRange.length ? "pressure" : "offline";
+  if (problems.length === 1) {
+    const [sensor] = problems;
+    if (isOffline(sensor)) return { kind, text: null, offlineSince: sensor.last_seen_at };
+    const side = sensor.last_value > sensor.max_pressure ? "alta" : "baja";
+    return { kind, text: `presión ${side} en ${floorLabel(sensor.floor ?? 0)}`, offlineSince: null };
+  }
+  const offline = problems.length - outOfRange.length;
+  const parts = [];
+  if (outOfRange.length) parts.push(`${outOfRange.length} fuera de rango`);
+  if (offline) parts.push(`${offline} sin conexión`);
+  return { kind, text: parts.join(" · "), offlineSince: null };
 }

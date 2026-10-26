@@ -2,9 +2,10 @@
   SENSOR SIDE PANEL (#283)
   Opens on the right when a sensor is clicked, like the alert panel:
 
-    detail  what matters first ("Sin lecturas desde hace 9 h" or the last
-            reading), the pressure chart (24 h · 7 días · 30 días), the
-            device data and "Ajustar umbrales"
+    detail  what matters first ("Presión alta · 4,8 bar · el aparato
+            funciona", or "Sin lecturas desde hace 9 h"), the pressure chart
+            (24 h · 7 días · 30 días), the device data, its last alerts and
+            "Ajustar umbrales"
     edit    SensorForm with its name, floor and thresholds
     create  SensorForm for a new sensor in the chosen building (and floor,
             from "+ Instalar aquí")
@@ -33,10 +34,11 @@
             <span
               v-if="sensor && mode !== 'create'"
               class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-bold"
-              :class="offline ? 'bg-slate-200 text-slate-700' : 'bg-success-light text-success-dark'"
+              :class="offline ? 'bg-slate-200 text-slate-700' : 'bg-slate-100 text-slate-700'"
+              :title="offline ? '' : 'El aparato envía lecturas: la presión se ve abajo'"
             >
               <span class="h-1.5 w-1.5 rounded-full" :class="offline ? 'bg-slate-500' : 'bg-success'"></span>
-              {{ offline ? "Sin conexión" : "Funciona" }}
+              {{ offline ? "Sin conexión" : "Envía lecturas" }}
             </span>
             <span v-if="sensor && mode !== 'create'" class="text-xs text-slate-500">{{ sensor.external_id }}</span>
             <button
@@ -61,7 +63,7 @@
 
         <!-- DETAIL -->
         <div v-if="mode === 'detail' && sensor" class="flex flex-1 flex-col gap-5 px-5 py-5 text-sm">
-          <div class="rounded-xl p-4" :class="offline ? 'bg-slate-100' : 'bg-slate-50'">
+          <div class="rounded-xl p-4" :class="headline.box">
             <template v-if="offline">
               <p class="font-bold text-slate-900">
                 {{ sensor.last_seen_at ? `Sin lecturas desde hace ${since(sensor.last_seen_at)}` : "Nunca ha enviado lecturas" }}
@@ -74,11 +76,12 @@
               </p>
             </template>
             <template v-else>
+              <p class="text-[13px] font-bold" :class="headline.title">{{ headline.text }}</p>
               <p>
-                <span class="text-2xl font-bold" :class="valueClass">{{ formatPressure(sensor.last_value, sensor.unit) }}</span>
+                <span class="text-3xl font-bold" :class="valueClass">{{ formatPressure(sensor.last_value, sensor.unit) }}</span>
                 <span class="text-slate-500"> · {{ ago }}</span>
               </p>
-              <p class="mt-1 text-slate-600">Rango permitido: {{ formatRange(sensor.min_pressure, sensor.max_pressure, sensor.unit) }}</p>
+              <p class="mt-1 text-slate-600">{{ headline.sub }}</p>
             </template>
           </div>
 
@@ -115,6 +118,10 @@
           <dl class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-2">
             <dt class="text-slate-500">Umbrales</dt>
             <dd class="text-slate-900">{{ formatRange(sensor.min_pressure, sensor.max_pressure, sensor.unit) }}</dd>
+            <dt class="text-slate-500">Última lectura</dt>
+            <dd class="text-slate-900">
+              {{ sensor.last_seen_at ? `${formatDate(sensor.last_seen_at)}, ${formatTime(sensor.last_seen_at)}` : "nunca" }}
+            </dd>
             <dt class="text-slate-500">Dado de alta</dt>
             <dd class="text-slate-900">{{ formatDate(sensor.created_at) }}</dd>
             <dt class="text-slate-500">Alertas en 7 días</dt>
@@ -137,6 +144,19 @@
               <span v-else>—</span>
             </dd>
           </dl>
+
+          <section v-if="recent.length" aria-labelledby="sensor-recent-title" class="flex flex-col gap-2">
+            <h3 id="sensor-recent-title" class="text-xs font-bold uppercase tracking-wide text-slate-500">Últimas alertas</h3>
+            <ul class="divide-y divide-slate-100 rounded-lg border border-slate-100">
+              <li v-for="alert in recent" :key="alert.id" class="flex flex-wrap justify-between gap-x-3 gap-y-0.5 px-3 py-2">
+                <span>
+                  <b :class="alert.severity === 'CRITICAL' ? 'text-rose-700' : 'text-amber-700'">{{ label("AlertType", alert.type) }}</b>
+                  <template v-if="alertReading(alert).value"> · {{ alertReading(alert).value }}</template>
+                </span>
+                <span class="text-slate-500">{{ formatDate(alert.created_at) }} · {{ alertEnd(alert) }}</span>
+              </li>
+            </ul>
+          </section>
         </div>
 
         <!-- EDIT / CREATE -->
@@ -209,7 +229,8 @@ import SensorForm, { emptySensor } from "../SensorForm.vue";
 import { PERIODS, useAdminSensorsStore } from "../../stores/adminSensors";
 import { formatDate, formatPressure, formatRange, formatTime } from "../../composables/useFormat";
 import { floorLabel } from "../../utils/floors";
-import { formatDuration, minutesSince } from "../../utils/alertText";
+import { alertReading, formatDuration, minutesSince } from "../../utils/alertText";
+import { useLabels } from "../../composables/useLabels";
 import { isOffline, TOO_MANY_ALERTS } from "../../utils/sensorMaintenance";
 
 const props = defineProps({
@@ -236,7 +257,51 @@ const panel = ref(null);
 const closeButton = ref(null);
 const sensorForm = ref(null);
 
+const { label } = useLabels();
 const offline = computed(() => isOffline(props.sensor));
+
+// What the water does, so a working device never looks like "all good"
+// next to a red value
+const headline = computed(() => {
+  const sensor = props.sensor;
+  if (sensor?.health === "WARNING" || sensor?.health === "CRITICAL") {
+    const high = sensor.last_value > sensor.max_pressure;
+    const red = sensor.health === "CRITICAL";
+    return {
+      text: high ? "Presión alta" : "Presión baja",
+      sub: `${high ? "máximo" : "mínimo"} ${formatPressure(high ? sensor.max_pressure : sensor.min_pressure, sensor.unit)} · el aparato funciona`,
+      box: red ? "bg-rose-50" : "bg-amber-50",
+      title: red ? "text-rose-800" : "text-amber-800",
+    };
+  }
+  return {
+    text: "Presión normal",
+    sub: `normal entre ${formatRange(sensor?.min_pressure, sensor?.max_pressure, sensor?.unit)}`,
+    box: offline.value ? "bg-slate-100" : "bg-slate-50",
+    title: "text-success-dark",
+  };
+});
+
+// --- Last alerts ---
+const recent = ref([]);
+
+async function loadRecent() {
+  recent.value = [];
+  if (!props.sensor || props.mode !== "detail") return;
+  const id = props.sensor.id;
+  try {
+    const items = await store.recentAlerts(id);
+    if (props.sensor?.id === id) recent.value = items;
+  } catch {
+    // The section just does not show
+  }
+}
+
+// "sin atender", "en curso", "se cerró sola" or "cerrada a mano"
+function alertEnd(alert) {
+  if (alert.state !== "RESOLVED") return label("AlertState", alert.state).toLowerCase();
+  return alert.resolved_by_name ? "cerrada a mano" : "se cerró sola";
+}
 const valueClass = computed(() => {
   if (props.sensor?.health === "CRITICAL") return "text-rose-700";
   if (props.sensor?.health === "WARNING") return "text-amber-700";
@@ -329,6 +394,7 @@ watch(
     if (props.mode === "detail") {
       period.value = "24h";
       loadChart();
+      loadRecent();
     } else {
       resetForm();
     }

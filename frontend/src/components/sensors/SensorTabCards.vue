@@ -1,12 +1,13 @@
 <!--
   SENSOR TAB CARDS (#283)
   The tabs of the Sensores page as three cards: an icon, the number and one
-  sentence that says what is inside ("el más antiguo, hace 10 h"). They work
-  as WAI-ARIA tabs: arrows move between them.
+  sentence that says what is inside ("el más antiguo, hace 10 h"). On the
+  phone the three fit in one row: number, label and the short note. They
+  work as WAI-ARIA tabs: arrows move between them.
 -->
 
 <template>
-  <div role="tablist" aria-label="Sensores" class="grid gap-3 sm:grid-cols-3">
+  <div role="tablist" aria-label="Sensores" class="grid grid-cols-3 gap-2 sm:gap-3">
     <button
       v-for="(tab, index) in tabs"
       :id="`sensor-tab-${tab.key}`"
@@ -17,14 +18,14 @@
       :aria-selected="tab.key === modelValue"
       :tabindex="tab.key === modelValue ? 0 : -1"
       aria-controls="sensor-tab-panel"
-      class="grid grid-cols-[2.75rem_1fr] items-center gap-x-3 gap-y-0.5 rounded-xl bg-white px-4 py-3 text-left transition"
+      class="flex flex-col items-start gap-0.5 rounded-xl bg-white px-3 py-2.5 text-left transition sm:grid sm:grid-cols-[2.75rem_1fr] sm:items-center sm:gap-x-3 sm:px-4 sm:py-3"
       :class="tab.key === modelValue ? 'border-2 border-aqua-600' : 'border border-slate-200 hover:border-aqua-400'"
       @click="$emit('update:modelValue', tab.key)"
       @keydown.right.prevent="move(index, 1)"
       @keydown.left.prevent="move(index, -1)"
     >
       <span
-        class="row-span-2 flex h-11 w-11 items-center justify-center rounded-lg"
+        class="row-span-2 hidden h-11 w-11 items-center justify-center rounded-lg sm:flex"
         :class="ICON_BOX[tab.key]"
         aria-hidden="true"
       >
@@ -40,10 +41,11 @@
           <path v-else d="M12 3s7 7.5 7 12a7 7 0 0 1-14 0c0-4.5 7-12 7-12z" />
         </svg>
       </span>
-      <span class="text-[15px] text-slate-900">
-        <b class="text-[22px]">{{ tab.count ?? "…" }}</b> {{ tab.label }}
+      <span class="text-xs leading-tight text-slate-900 sm:text-[15px]">
+        <b class="block text-[22px] leading-none sm:inline">{{ tab.count ?? "…" }}</b> {{ tab.label }}
       </span>
-      <span class="text-[13px]" :class="tab.noteClass || 'text-slate-500'">{{ tab.note }}</span>
+      <span class="hidden text-[13px] sm:block" :class="tab.noteClass || 'text-slate-500'">{{ tab.note }}</span>
+      <span v-if="tab.shortNote" class="text-[11px] sm:hidden" :class="tab.noteClass || 'text-slate-500'">{{ tab.shortNote }}</span>
     </button>
   </div>
 </template>
@@ -52,7 +54,7 @@
 import { ref } from "vue";
 
 const props = defineProps({
-  // [{ key: 'offline' | 'floors' | 'all', label, count, note, noteClass }]
+  // [{ key: 'offline' | 'floors' | 'all', label, count, note, shortNote, noteClass }]
   tabs: { type: Array, required: true },
   modelValue: { type: String, required: true },
 });

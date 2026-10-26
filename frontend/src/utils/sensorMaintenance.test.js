@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   alertsPerSensor,
+  clientIssue,
   floorsWithoutSensor,
   groupBySite,
   isOffline,
@@ -136,7 +137,7 @@ describe("tab «Sensores»: sensorTree", () => {
     const tree = sensorTree(sites, sensors);
     expect(tree.map((c) => c.organizationName)).toEqual(["Collserola", "Aigües"]);
     expect(tree[0].sites.map((row) => row.site.id)).toEqual(["g", "s"]);
-    expect(tree[0].counts).toEqual({ sensors: 3, offline: 0, outOfRange: 1 });
+    expect(tree[0].counts).toEqual({ sensors: 3, working: 3, neverSent: 0, offline: 0, outOfRange: 1 });
   });
 
   it("can sort by name", () => {
@@ -148,5 +149,32 @@ describe("tab «Sensores»: sensorTree", () => {
     expect(needsAttention({ health: "OFFLINE", last_seen_at: null })).toBe(false);
     expect(needsAttention({ health: "WARNING" })).toBe(true);
     expect(needsAttention({ health: "OK" })).toBe(false);
+  });
+});
+
+describe("clientIssue", () => {
+  const client = (...sensors) => ({ sites: [{ floors: [{ floor: 0, sensors }] }] });
+  const high = { health: "CRITICAL", last_value: 5, max_pressure: 4.5, min_pressure: 2, floor: 6 };
+  const stopped = { health: "OFFLINE", last_seen_at: "2026-10-25T07:00:00Z" };
+
+  it("says nothing when everything works", () => {
+    expect(clientIssue(client({ health: "OK" }))).toBeNull();
+  });
+
+  it("names the floor when only one sensor fails", () => {
+    expect(clientIssue(client(high))).toEqual({ kind: "pressure", text: "presión alta en Planta 6", offlineSince: null });
+    expect(clientIssue(client(stopped))).toEqual({ kind: "offline", text: null, offlineSince: stopped.last_seen_at });
+  });
+
+  it("counts when several fail; the pressure wins the icon", () => {
+    expect(clientIssue(client(high, stopped, high))).toEqual({
+      kind: "pressure",
+      text: "2 fuera de rango · 1 sin conexión",
+      offlineSince: null,
+    });
+  });
+
+  it("a sensor that never sent is not a problem", () => {
+    expect(clientIssue(client({ health: "OFFLINE", last_seen_at: null }))).toBeNull();
   });
 });
