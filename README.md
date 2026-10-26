@@ -834,6 +834,7 @@ users in [Demo data](#demo-data). Backend rules are covered by
 | Frontend       | Admin dashboard: KPI cards, active alerts and the Barcelona sites map (#156)          | Florinda, Eduardo, Ana | `/admin`                                     |
 | Frontend       | Admin clients: status filters, detail tabs, status actions and new-client wizard (F7) | Florinda, Lylia        | `/admin/clients`                             |
 | Frontend       | Admin client users: list, edit name, remove access, invitations (F23)                 | Daruny                 | `/admin/clients/:id` → Usuarios              |
+| Frontend       | Admin client documents: list, filter, download, preview and delete (#293)             | Florinda               | `/admin/clients/:id` → Documentos            |
 | Frontend       | "Hazte cliente": buildings and sensors, live price, monthly/yearly, fiscal data       | Daruny                 | `/app/subscribe` · `hotel@aquaguard.dev`     |
 | Frontend       | Admin buildings and sensors floor by floor, pressure chart and forms (F4, F5, F10)    | Florinda               | `/admin/sites` · `/admin/sensors`            |
 | Frontend       | Admin alerts: client, state and severity filters, counters and sensor ranking (#153)  | Lylia, Eduardo         | `/admin/alerts`                              |
