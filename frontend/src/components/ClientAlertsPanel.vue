@@ -16,6 +16,8 @@
       "En curso" at once, without reloading the page.
     - Severity legend (Crítica / Leve, from useLabels), fixed on every tab.
   All words come from useLabels: the same for client, admin and landing.
+  "Ver alertas de este sensor" (F26) adds ?sensor=<id>: only that sensor,
+  with a removable chip and the tab counts of that sensor.
   The state tab lives in the URL under `stateKey` (?tab= on /app/alerts,
   ?estado= on the building page, whose own tabs use ?tab=); the building
   filter under ?site=.
@@ -41,6 +43,24 @@
           </option>
         </select>
       </label>
+    </div>
+
+    <!-- Sensor filter from "Ver alertas de este sensor" (F26) -->
+    <div v-if="sensorId" class="flex flex-wrap items-center gap-2 text-sm">
+      <span class="text-slate-600">Solo el sensor</span>
+      <span
+        class="inline-flex items-center gap-1 rounded-full bg-aqua-100 py-1 pl-3 pr-1 font-semibold text-aqua-900"
+      >
+        {{ sensorName }}
+        <button
+          type="button"
+          class="flex h-6 w-6 items-center justify-center rounded-full hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-aqua-600"
+          :aria-label="`Quitar el filtro del sensor ${sensorName}`"
+          @click="setQuery({ sensor: null })"
+        >
+          <span aria-hidden="true">×</span>
+        </button>
+      </span>
     </div>
 
     <!-- Tabs by state -->
@@ -78,7 +98,7 @@
         <span
           class="rounded-full bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-800 sm:px-2"
         >
-          {{ counts[tab.state] ?? "–" }}
+          {{ tabCount(tab.state) ?? "–" }}
         </span>
       </button>
     </div>
@@ -354,6 +374,29 @@ const siteId = computed(() => {
 });
 
 // ---------------------------------------------------------------------------
+// Sensor filter (?sensor=<id>), applied in the front to the loaded lists
+// ---------------------------------------------------------------------------
+const sensorId = computed(() => route.query.sensor || null);
+
+const sensorName = computed(() => {
+  for (const list of Object.values(lists)) {
+    const found = list.find((alert) => alert.sensor_id === sensorId.value);
+    if (found?.sensor_name) return found.sensor_name;
+  }
+  return "elegido";
+});
+
+function ofSensor(alert) {
+  return !sensorId.value || alert.sensor_id === sensorId.value;
+}
+
+// Server totals; with a sensor, the count of its loaded alerts
+function tabCount(state) {
+  if (!sensorId.value) return counts[state];
+  return loaded.value ? lists[state].filter(ofSensor).length : null;
+}
+
+// ---------------------------------------------------------------------------
 // Alerts: one request per state, so every tab has its real count
 // ---------------------------------------------------------------------------
 const lists = reactive({ ACTIVE: [], ACKNOWLEDGED: [], RESOLVED: [] });
@@ -441,7 +484,7 @@ const limit = ref(PAGE_STEP);
 const shownAlerts = computed(() => visibleAlerts.value.slice(0, limit.value));
 
 // Back to the first rows when the list changes
-watch([activeTab, period, type, siteId], () => {
+watch([activeTab, period, type, siteId, sensorId], () => {
   limit.value = PAGE_STEP;
 });
 
@@ -469,7 +512,9 @@ function time(value) {
 
 // Critical first, then newest. "Arregladas": most recently fixed first.
 const visibleAlerts = computed(() => {
-  const items = lists[activeTab.value.state].filter(passesFilters);
+  const items = lists[activeTab.value.state]
+    .filter(ofSensor)
+    .filter(passesFilters);
   if (activeTab.value.state === "RESOLVED")
     return items.sort((a, b) => time(b.resolved_at) - time(a.resolved_at));
   return items.sort(

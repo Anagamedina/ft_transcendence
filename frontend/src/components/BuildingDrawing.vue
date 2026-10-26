@@ -14,10 +14,17 @@
   ("Plantas 1–5 · sin sensor"), so tall buildings with few sensors show
   what matters. Floors with sensors are buttons: the parent opens "Plantas
   y sensores" on that floor.
+  With `show-sensors` (F26, "Plantas y sensores") it is the same drawing,
+  same width, and each floor with sensors shows them as SensorPin in the
+  same row (name + state on the left, pins on the right), so a 15-floor
+  building with one sensor per floor stays compact. The pins are the
+  buttons and emit "select-sensor" with the sensor id.
   Usage:
     <BuildingDrawing :floors="4" :basements="1" :sensors="sensors"
                      :states="{ 2: { pending: 1, inProgress: 0 } }"
                      @select="openFloor" />
+    <BuildingDrawing ... show-sensors :selected-id="id"
+                     @select-sensor="selectSensor" />
 -->
 
 <template>
@@ -55,6 +62,8 @@
         <FloorRow :row="row" />
       </li>
     </ol>
+
+    <SensorLegend v-if="showSensors" class="mt-3 max-w-[300px]" />
   </div>
 </template>
 
@@ -64,6 +73,8 @@ import { aqua } from "../theme/palette.js";
 import { useLabels } from "../composables/useLabels";
 import { floorLabel, floorRange } from "../utils/floors.js";
 import { pressureState } from "../utils/pressure.js";
+import SensorPin from "./SensorPin.vue";
+import SensorLegend from "./SensorLegend.vue";
 
 const props = defineProps({
   name: { type: String, default: "el edificio" },
@@ -73,9 +84,23 @@ const props = defineProps({
   states: { type: Object, default: () => ({}) },
   // SensorResponse list of the building
   sensors: { type: Array, default: () => [] },
+  // "Plantas y sensores": also draw the sensors of each floor
+  showSensors: { type: Boolean, default: false },
+  // Sensor shown in the detail panel, to highlight its pin
+  selectedId: { type: String, default: null },
 });
 
-const emit = defineEmits(["select"]);
+const emit = defineEmits(["select", "select-sensor"]);
+
+// { 3: [sensor, …], 0: […], -1: […] }
+const sensorsByFloor = computed(() => {
+  const groups = {};
+  for (const sensor of props.sensors) {
+    const floor = sensor.floor ?? 0;
+    (groups[floor] ??= []).push(sensor);
+  }
+  return groups;
+});
 
 const { toneClasses } = useLabels();
 
@@ -171,6 +196,33 @@ const FloorRow = ({ row }) => {
       h("span", { class: textClass ?? "" }, state.text),
     ]),
   ];
+  // Detailed drawing: one row with the floor and its state on the left and
+  // the sensor pins on the right; the pins are the buttons
+  if (props.showSensors && state.hasSensors) {
+    const pins = (sensorsByFloor.value[row.floor] ?? []).map((sensor) =>
+      h(SensorPin, {
+        key: sensor.id,
+        sensor,
+        selected: sensor.id === props.selectedId,
+        onSelect: (id) => emit("select-sensor", id),
+      }),
+    );
+    return h(
+      "div",
+      { class: `${base} ${look} !py-1.5`, title: `${row.label}: ${state.text}` },
+      [
+        h("span", { class: "shrink-0 leading-tight" }, [
+          h("span", { class: "block" }, row.label),
+          h("span", { class: `block text-xs ${textClass ?? ""}` }, state.text),
+        ]),
+        h(
+          "span",
+          { class: "flex min-w-0 flex-wrap justify-end gap-1" },
+          pins,
+        ),
+      ],
+    );
+  }
   if (!state.hasSensors)
     return h("div", { class: `${base} ${look}` }, children);
   return h(

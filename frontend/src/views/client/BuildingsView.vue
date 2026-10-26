@@ -4,7 +4,8 @@
     - Banner: pending alerts (red); nothing pending but a sensor still out
       of range or offline (amber, e.g. its alert is "En curso"); or
       "Todo en orden" (green). Link to Alertas when there is something.
-    - KPIs: buildings, and sensors with how many are offline.
+    - KPIs: buildings, and "Sensores funcionando" working / total (same as
+      the building page).
     - One BuildingCard per building, most worrying first: offline sensor >
       out of range > smallest margin (utils/pressure.js). Each card shows the
       sensor to watch with its pressure in words and a 7-day sparkline.
@@ -146,17 +147,13 @@ const { toneClasses } = useLabels();
 // ---------------------------------------------------------------------------
 const kpis = computed(() => {
   const o = overviewStore.overview;
-  const offline = o ? o.sensors_total - o.sensors_online : 0;
   return [
     { label: "Edificios", icon: "building", value: o?.sites_total ?? "—" },
     {
-      label: "Sensores",
+      // Same wording as the building page: working / total
+      label: "Sensores funcionando",
       icon: "wifi",
-      value: o
-        ? offline > 0
-          ? `${o.sensors_total} · ${offline} sin conexión`
-          : `${o.sensors_total} · todos conectados`
-        : "—",
+      value: o ? `${o.sensors_online} / ${o.sensors_total}` : "—",
     },
   ];
 });

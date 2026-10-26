@@ -1,10 +1,17 @@
 <!--
   BUILDING FLOORS PANEL ("Plantas y sensores" tab of the building page)
-  Moved as it was from the old open building of BuildingsView (F8) in F25;
-  F26 redesigns it:
-    - The building floor by floor (BuildingStack, F4) and the selected
-      sensor with its 7-day pressure chart (SensorDetailPanel, F5, B7).
-    - Alerts of the week by sensor and day (WeekAlertsGrid, B9).
+  Moved from the old open building of BuildingsView (F8) in F25 and
+  redesigned in F26:
+    - The building drawn as in "Vista general" (BuildingDrawing with
+      show-sensors), so both tabs show the same building, and the selected
+      sensor (SensorDetailPanel): gauge, pressure in words, range, last
+      reading and the chart with 24 h · 7 días · 30 días (B7). The periods
+      are the admin ones (PERIODS in stores/adminSensors.js), so both areas
+      show the same chart.
+    - "Ver alertas de este sensor" opens the Alertas tab filtered by sensor
+      (?sensor=, read by ClientAlertsPanel).
+    - The week by sensor lives only in "Vista general" (WeekStateGrid), so
+      this tab does not repeat it.
   It opens on the most worrying sensor, or on the first sensor of
   `focusFloor` when the parent asks for a floor (click on the drawn
   building of "Vista general").
@@ -24,16 +31,23 @@
 
     <div
       v-else
-      class="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]"
+      class="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]"
     >
-      <BuildingStack
-        :name="site.name"
-        :floors="site.floors"
-        :basements="site.basements"
-        :sensors="sensors"
-        :selected-id="selectedId"
-        @select="selectSensor"
-      />
+      <section
+        class="rounded-xl border border-slate-200 bg-white p-5"
+        :aria-label="`${site.name}: edificio planta a planta`"
+      >
+        <BuildingDrawing
+          :name="site.name"
+          :floors="site.floors"
+          :basements="site.basements"
+          :states="floorStates"
+          :sensors="sensors"
+          show-sensors
+          :selected-id="selectedId"
+          @select-sensor="selectSensor"
+        />
+      </section>
 
       <div ref="sidePanel">
         <SensorDetailPanel
@@ -41,6 +55,10 @@
           :sensor="selectedSensor"
           :readings="readings"
           :alert-count="alertCount"
+          :periods="PERIODS"
+          :period="period"
+          @update:period="period = $event"
+          :alerts-to="{ query: { tab: 'alertas', sensor: selectedSensor.id } }"
           :loading="readingsLoading"
           :error="readingsError"
           @retry="loadReadings()"
@@ -49,54 +67,24 @@
           v-else
           icon="droplet"
           title="Elige un sensor"
-          message="Toca un sensor del edificio para ver su gráfica de los últimos 7 días."
+          message="Toca un sensor del edificio para ver su presión y su gráfica."
           compact
         />
       </div>
     </div>
 
-    <section
-      class="rounded-xl border border-slate-200 bg-white p-5"
-      aria-labelledby="week-alerts-title"
-    >
-      <h2 id="week-alerts-title" class="mb-3 text-lg font-bold text-slate-900">
-        Alertas de la semana por sensor
-      </h2>
-      <LoadingState
-        v-if="weeklyLoading"
-        message="Cargando alertas de la semana…"
-        compact
-      />
-      <ErrorState
-        v-else-if="weeklyError"
-        :message="weeklyError"
-        compact
-        @retry="loadWeekly()"
-      />
-      <WeekAlertsGrid
-        v-else-if="weekly"
-        :days="weekly.days"
-        :rows="weekly.rows"
-        :site-name="site.name"
-        :selected-id="selectedId"
-        @select="selectSensor"
-      />
-    </section>
   </div>
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 
-import BuildingStack from "./BuildingStack.vue";
+import BuildingDrawing from "./BuildingDrawing.vue";
 import SensorDetailPanel from "./SensorDetailPanel.vue";
-import WeekAlertsGrid from "./WeekAlertsGrid.vue";
-import LoadingState from "./LoadingState.vue";
-import ErrorState from "./ErrorState.vue";
 import EmptyState from "./EmptyState.vue";
 
 import readingService from "../services/reading.service.js";
-import analyticsService from "../services/analytics.service.js";
+import { PERIODS } from "../stores/adminSensors.js";
 import { useAutoRefresh } from "../composables/useAutoRefresh";
 
 const REFRESH_MS = 60 * 1000;
@@ -114,7 +102,7 @@ const props = defineProps({
 });
 
 // ---------------------------------------------------------------------------
-// Selected sensor and its 7-day series (B7)
+// Selected sensor and its series for the chosen period (B7)
 // ---------------------------------------------------------------------------
 const selectedId = ref(null);
 const sidePanel = ref(null);
@@ -154,6 +142,9 @@ watch(
   { immediate: true },
 );
 
+// Chart period: same default as before (7 days)
+const period = ref("7d");
+
 const readings = ref([]);
 const readingsLoading = ref(false);
 const readingsError = ref("");
@@ -161,6 +152,7 @@ const readingsError = ref("");
 // silent: refresh without the spinner, keeping the chart if it fails
 async function loadReadings({ silent = false } = {}) {
   const sensorId = selectedId.value;
+  const periodKey = period.value;
   if (!sensorId) return;
   if (!silent) {
     readingsLoading.value = true;
@@ -168,10 +160,13 @@ async function loadReadings({ silent = false } = {}) {
     readings.value = [];
   }
   try {
+    const { days, bucket } = PERIODS[period.value];
     const response = await readingService.getSensorSeries(sensorId, {
-      days: 7,
+      days,
+      bucket,
     });
-    if (selectedId.value !== sensorId) return;
+    // An answer for another sensor or period arrived late: ignore it
+    if (selectedId.value !== sensorId || period.value !== periodKey) return;
     // PressureChart takes ReadingResponse-like points: the bucket average
     readings.value = (response.data.points ?? []).map((point) => ({
       pressure: point.avg,
@@ -186,7 +181,8 @@ async function loadReadings({ silent = false } = {}) {
   }
 }
 
-watch(selectedId, () => loadReadings());
+// A new sensor or a new period: load again, without reloading the page
+watch([selectedId, period], () => loadReadings());
 
 // Alerts of the selected sensor in the last 7 days
 const alertCount = computed(() => {
@@ -199,37 +195,23 @@ const alertCount = computed(() => {
   ).length;
 });
 
-// ---------------------------------------------------------------------------
-// Alerts of the week by sensor and day (B9)
-// ---------------------------------------------------------------------------
-const weekly = ref(null);
-const weeklyLoading = ref(false);
-const weeklyError = ref("");
-
-async function loadWeekly({ silent = false } = {}) {
-  const id = props.site.id;
-  if (!silent) {
-    weeklyLoading.value = true;
-    weeklyError.value = "";
+// Per floor: pending and en curso alerts (same as "Vista general")
+const floorStates = computed(() => {
+  const states = {};
+  for (const alert of props.alerts) {
+    if (!Number.isInteger(alert.floor)) continue;
+    const key =
+      alert.state === "ACTIVE"
+        ? "pending"
+        : alert.state === "ACKNOWLEDGED"
+          ? "inProgress"
+          : null;
+    if (!key) continue;
+    states[alert.floor] ??= { pending: 0, inProgress: 0 };
+    states[alert.floor][key] += 1;
   }
-  try {
-    const response = await analyticsService.getWeeklyAlerts({ site_id: id });
-    if (props.site.id !== id) return;
-    weekly.value = response.data;
-    weeklyError.value = "";
-  } catch {
-    if (props.site.id !== id || silent) return;
-    weeklyError.value = "No se han podido cargar las alertas de la semana.";
-  } finally {
-    weeklyLoading.value = false;
-  }
-}
+  return states;
+});
 
-useAutoRefresh(
-  () =>
-    Promise.all([loadWeekly({ silent: true }), loadReadings({ silent: true })]),
-  REFRESH_MS,
-);
-
-onMounted(() => loadWeekly());
+useAutoRefresh(() => loadReadings({ silent: true }), REFRESH_MS);
 </script>
