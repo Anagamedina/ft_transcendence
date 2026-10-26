@@ -3,7 +3,7 @@
   "Tu edificio" of the building page: the building drawn with its roof, its
   floors top to bottom, the street line and the basements under it. Each
   floor says how it is, with dot + text (never colour alone), worst first:
-    revisar      pending alert (Pendiente)
+    revisar      pending alert (Sin atender)
     en curso     alert somebody is handling (En curso)
     sin conexión a sensor of the floor is offline
     a vigilar    a sensor out of range or near a limit, no alert yet
