@@ -108,7 +108,14 @@ docker compose logs -f backend
 The backend container is not published directly to the host. The gateway
 exposes the API through HTTPS, and the backend entrypoint runs
 `alembic upgrade head` before starting Uvicorn. It never generates
-migrations. The image includes the migration files and `alembic.ini`.
+migrations. The Dockerfile copies only `app/`, `migrations/`, `seeds/`,
+`tools/entrypoint.sh`, `alembic.ini` and `requirements.txt`, so the image has no
+tests, `.env` files or documentation.
+
+The container runs as the non-root user `app` (UID 10001), with a read-only
+filesystem and no Linux capabilities. It can only write to the documents volume
+(`/data/documents`) and to `/tmp`. See
+[Container security](../README.md#container-security) in the root README.
 
 Stop the services with:
 
@@ -118,8 +125,7 @@ docker compose down
 
 ## Current limitations
 
-- The simulator is still under development and runs only through the `sim`
-  Compose profile.
 - PostgreSQL is not published in the default Compose topology. Use
-  `compose.dev.yaml` when Alembic must connect from the host.
-- Authentication and other application-level features continue to evolve.
+  `compose.dev.yaml` (`make dev-infra`) when Alembic must connect from the host.
+- Running Uvicorn on the host does not go through the gateway, so the rate
+  limits and security headers of `gateway/` do not apply there.

@@ -44,6 +44,7 @@ from app.shared.dependencies import (
     Search,
     SensorIdFilter,
     SiteIdFilter,
+    require_role,
     require_trial_not_expired,
 )
 from app.shared.schemas import Page, error_response
@@ -87,7 +88,7 @@ _NO_PUEDE_ESCRIBIR = {
         "Los dos filtros son los que usa el panel: `status` para ver solo "
         "las activas, que es la vista por defecto de quien atiende, y "
         "`sensor_id` para entrar desde el detalle de un sensor.\n\n"
-        "Filtros comunes: `q` busca en el mensaje y el nombre del sensor; "
+        "Filtros comunes: `q` busca en el mensaje, el nombre y el código del sensor, el edificio y el cliente; "
         "`organization_id` y `site_id` dejan solo las de un cliente o un "
         "edificio. Todos los filtros se combinan con AND. `severity` filtra "
         "gravedad y `state` el estado derivado (ACTIVE sin reconocimiento, "
@@ -170,17 +171,22 @@ def acknowledge_alert(
 @router.patch(
     "/{alert_id}/resolve",
     response_model=AlertResponse,
-    summary="Cerrar una alerta",
+    summary="Cerrar una alerta (solo AquaGuard)",
     description=(
-        "Da la alerta por atendida.\n\n"
+        "Da la alerta por atendida. **Solo un admin**: el cliente dice «Me "
+        "encargo» (`acknowledge`), pero quien confirma que el agua vuelve a "
+        "estar bien es AquaGuard. Un cliente recibe 403.\n\n"
         "Resolver una ya resuelta responde **409**, no un éxito "
         "silencioso: volvería a escribir la fecha de cierre y se perdería "
         "cuándo se atendió de verdad. Se registra el usuario de la sesión; "
         "no exige reconocimiento previo ni modifica el existente."
     ),
-    dependencies=_SOLO_LECTURA_SI_CADUCA,
+    dependencies=[Depends(require_role("admin"))],
     responses={
-        **_NO_PUEDE_ESCRIBIR,
+        **error_response(
+            status.HTTP_403_FORBIDDEN,
+            "La sesión no es de un admin (`FORBIDDEN`): el cliente no cierra alertas.",
+        ),
         **_NO_ENCONTRADA,
         **error_response(
             status.HTTP_409_CONFLICT,

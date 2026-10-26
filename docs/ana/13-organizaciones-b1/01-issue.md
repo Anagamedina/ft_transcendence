@@ -22,7 +22,7 @@ facturación (D1, Daruny), pero ninguna ruta los usaba.
 | `GET /api/organizations/{id}` | Ficha con contadores |
 | `PATCH /api/organizations/{id}` | Nombre, contacto, facturación |
 | `POST .../suspend` · `.../reactivate` | Cambiar el acceso |
-| `POST .../extend-trial` · `.../activate` | Gestionar la prueba |
+| `POST .../extend-trial` · ~~`.../activate`~~ | Gestionar la prueba (`activate` se quitó en la B14, #274: ahora contrata el cliente) |
 
 Y la regla de la issue: **una organización suspendida deja fuera a sus usuarios**.
 

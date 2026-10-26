@@ -1,260 +1,279 @@
 <!--
-  ADMIN ALERTS VIEW
-  All alerts with counters, the sensors with most alerts and a DataTable
-  (search, client / state / severity filters, pagination). Each row is an
-  AlertRow; this view calls the store when a row asks to acknowledge or resolve.
+  ADMIN ALERTS VIEW (#252)
+  "Primero lo que nadie está atendiendo". From top to bottom: clients with
+  open alerts (cards), the three states (Sin atender · En curso ·
+  Arregladas), filters and the table. A row opens AlertDetailPanel, where
+  AquaGuard marks the alert as fixed.
+
+  Everything comes from the server (stores/adminAlerts.js): counts never stop
+  at 100. Tab, filters and page live in the URL, so a reload or a shared link
+  shows the same thing. Refreshes every 60 s while the tab is visible.
 -->
 
 <template>
   <AdminLayout>
-    <section class="space-y-6">
-      <header class="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 class="text-2xl font-bold text-slate-900">Alertas</h1>
-          <p class="mt-1 text-sm text-slate-600">
-            Consulta y gestiona las alertas de los sensores.
+    <section class="flex flex-col gap-6">
+      <header class="flex flex-wrap items-center justify-between gap-3">
+        <h1 class="text-2xl font-bold text-slate-900">Alertas</h1>
+        <p class="flex items-center gap-1.5 text-sm text-slate-500" aria-live="polite">
+          <span
+            class="h-2 w-2 rounded-full"
+            :class="store.status === 'error' ? 'bg-rose-600' : 'bg-emerald-500'"
+            aria-hidden="true"
+          ></span>
+          {{ updatedText }}
+        </p>
+      </header>
+
+      <AlertClientCards
+        :clients="store.clientsWithAlerts"
+        :selected-id="organizationId"
+        @select="setFilter('organization_id', $event)"
+      />
+
+      <div class="flex flex-col gap-3">
+        <AlertStateTabs :tabs="tabs" :model-value="state" @update:model-value="setTab" />
+
+        <AlertFilters
+          :q="q"
+          :severity="severity"
+          :client-name="clientName"
+          @update:q="setSearch"
+          @update:organization-id="setFilter('organization_id', $event)"
+          @update:severity="setFilter('severity', $event)"
+        />
+      </div>
+
+      <div
+        id="alert-tab-panel"
+        role="tabpanel"
+        :aria-labelledby="`alert-tab-${state}`"
+        :aria-busy="store.status === 'loading' || store.status === 'refreshing'"
+      >
+        <LoadingState v-if="store.status === 'loading' || store.status === 'idle'" />
+
+        <ErrorState
+          v-else-if="store.status === 'error'"
+          :message="apiErrorMessage(store.error, 'No se han podido cargar las alertas.')"
+          @retry="refresh"
+        />
+
+        <div
+          v-else-if="allClear"
+          class="flex flex-col items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 p-10 text-center"
+        >
+          <p class="text-xl font-bold text-emerald-800">✓ Todo en orden</p>
+          <p class="text-sm text-emerald-900">
+            No hay ninguna alerta abierta. Las arregladas de la semana están en «Arregladas».
           </p>
         </div>
 
-        <button
-          type="button"
-          class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50"
-          :disabled="status === 'loading'"
-          @click="loadAlerts"
+        <p
+          v-else-if="!store.rows.length"
+          class="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600"
         >
-          Actualizar
-        </button>
-      </header>
+          {{ emptyText }}
+        </p>
 
-      <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <div class="rounded-xl border border-slate-200 bg-white p-4">
-          <p class="text-sm text-slate-500">Sin reconocer</p>
-          <p class="mt-1 text-2xl font-semibold">{{ pendingCount }}</p>
-        </div>
-        <div class="rounded-xl border border-slate-200 bg-white p-4">
-          <p class="text-sm text-slate-500">Reconocidas</p>
-          <p class="mt-1 text-2xl font-semibold">{{ acknowledgedCount }}</p>
-        </div>
-        <div class="rounded-xl border border-slate-200 bg-white p-4">
-          <p class="text-sm text-slate-500">Críticas abiertas</p>
-          <p class="mt-1 text-2xl font-semibold">{{ criticalCount }}</p>
-        </div>
-        <div class="rounded-xl border border-slate-200 bg-white p-4">
-          <p class="text-sm text-slate-500">Resueltas</p>
-          <p class="mt-1 text-2xl font-semibold">{{ resolvedCount }}</p>
-        </div>
-      </div>
-
-      <div
-        v-if="sensorRanking.length > 0"
-        class="rounded-xl border border-slate-200 bg-white p-4"
-      >
-        <h2 class="text-sm font-semibold text-slate-800">
-          Sensores con más alertas
-        </h2>
-        <ol class="mt-3 divide-y divide-slate-100 text-sm">
-          <li
-            v-for="(sensor, index) in sensorRanking"
-            :key="sensor.id"
-            class="flex items-center gap-3 py-2"
+        <template v-else>
+          <p
+            v-if="store.truncated"
+            class="mb-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900"
           >
-            <span class="w-5 text-slate-500">{{ index + 1 }}</span>
-            <span class="min-w-0 flex-1 truncate text-slate-800">
-              {{ sensor.name }}
-              <span class="text-slate-500">· {{ sensor.site }}</span>
-            </span>
-            <span class="font-semibold text-slate-900">{{ sensor.total }}</span>
-          </li>
-        </ol>
-      </div>
-
-      <div
-        v-if="actionError"
-        class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
-        role="alert"
-      >
-        {{ actionError }}
-      </div>
-
-      <DataTable
-        :columns="COLUMNS"
-        :rows="alerts"
-        :search-fields="[
-          'message',
-          'type',
-          'sensor_name',
-          'site_name',
-          'organization_name',
-        ]"
-        search-placeholder="Buscar por mensaje, sensor o cliente..."
-        :filters="filters"
-        :loading="status === 'loading' || status === 'idle'"
-        :error="errorMessage"
-        item-name="alertas"
-        empty-title="No hay alertas registradas"
-        empty-message="Cuando haya alertas disponibles, aparecerán aquí."
-        icon="alert"
-        caption="Alertas"
-        @retry="loadAlerts"
-      >
-        <template #row="{ row: alert }">
-          <AlertRow
-            :alert="alert"
-            :busy="busyAlertId === alert.id"
-            @acknowledge="acknowledge"
-            @resolve="resolve"
+            Hay más de 100 alertas en esta pestaña: se ordenan las 100 más recientes.
+            Filtra por cliente o urgencia para ver el resto.
+          </p>
+          <AdminAlertsTable
+            :rows="store.rows"
+            :state="state"
+            :page="page"
+            :page-size="pageSize"
+            :total="store.total"
+            :selected-id="selected?.id ?? null"
+            :client-filtered="Boolean(organizationId)"
+            :now="now"
+            @open="open"
+            @page="setPage"
           />
         </template>
-      </DataTable>
+      </div>
     </section>
+
+    <AlertDetailPanel
+      :alert="selected"
+      :busy="resolving"
+      :error="resolveError"
+      :now="now"
+      @close="selected = null"
+      @resolve="resolve"
+    />
   </AdminLayout>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import AdminLayout from "../../layouts/AdminLayout.vue";
-import DataTable from "../../components/DataTable.vue";
-import AlertRow from "../../components/AlertRow.vue";
-import { useAlertsStore } from "../../stores/alerts.js";
+import LoadingState from "../../components/LoadingState.vue";
+import ErrorState from "../../components/ErrorState.vue";
+import AlertClientCards from "../../components/alerts/AlertClientCards.vue";
+import AlertStateTabs from "../../components/alerts/AlertStateTabs.vue";
+import AlertFilters from "../../components/alerts/AlertFilters.vue";
+import AdminAlertsTable from "../../components/alerts/AdminAlertsTable.vue";
+import AlertDetailPanel from "../../components/alerts/AlertDetailPanel.vue";
+import { useAdminAlertsStore } from "../../stores/adminAlerts";
+import { useOverviewStore } from "../../stores/overview";
+import { useListQuery } from "../../composables/useListQuery";
+import { useAutoRefresh } from "../../composables/useAutoRefresh";
 import { useLabels } from "../../composables/useLabels";
+import { apiErrorMessage } from "../../utils/apiError";
 
-const alertStore = useAlertsStore();
+const STATES = ["ACTIVE", "ACKNOWLEDGED", "RESOLVED"];
+const HINTS = {
+  ACTIVE: "Nadie se ha encargado aún",
+  ACKNOWLEDGED: "El cliente dice que se encarga",
+  RESOLVED: "Detectadas en los últimos 7 días",
+};
+
+const store = useAdminAlertsStore();
+const overviewStore = useOverviewStore();
 const { label } = useLabels();
+const { q, filters, page, pageSize, updateQuery, setSearch, setFilter, setPage } =
+  useListQuery({ pageSize: 20 });
 
-const COLUMNS = [
-  { key: "message", label: "Alerta" },
-  { key: "organization_name", label: "Cliente" },
-  { key: "sensor_name", label: "Sensor" },
-  { key: "severity", label: "Gravedad" },
-  { key: "state", label: "Estado" },
-  { key: "created_at", label: "Fecha" },
-  { key: "actions", label: "Acciones" },
-];
+// URL → what the page shows
+const state = computed(() =>
+  STATES.includes(filters.value.state) ? filters.value.state : "ACTIVE",
+);
+const organizationId = computed(() => filters.value.organization_id ?? null);
+const severity = computed(() => filters.value.severity ?? null);
+const hasFilters = computed(() => Boolean(q.value || organizationId.value || severity.value));
 
-const busyAlertId = ref(null);
-const actionError = ref("");
+const query = computed(() => ({
+  state: state.value,
+  organization_id: organizationId.value,
+  severity: severity.value,
+  q: q.value,
+  page: page.value,
+  pageSize: pageSize.value,
+}));
 
-const alerts = computed(() => alertStore.alerts);
-const status = computed(() => alertStore.status);
-const error = computed(() => alertStore.error);
-
-const errorMessage = computed(() =>
-  status.value === "error"
-    ? error.value?.message || "Se ha producido un error inesperado."
-    : "",
+const tabs = computed(() =>
+  STATES.map((value) => ({
+    state: value,
+    label: value === "RESOLVED" ? "Arregladas" : label("AlertState", value),
+    hint: HINTS[value],
+    count: store.counts[value],
+  })),
 );
 
-const pendingCount = computed(
-  () => alerts.value.filter((alert) => alert.state === "ACTIVE").length,
+// Chip of the client chosen in the cards (also when it came in the URL)
+const clientName = computed(() =>
+  organizationId.value
+    ? store.organizations.find((o) => o.id === organizationId.value)?.name ?? "Cliente"
+    : null,
 );
 
-const acknowledgedCount = computed(
-  () => alerts.value.filter((alert) => alert.state === "ACKNOWLEDGED").length,
-);
-
-const resolvedCount = computed(
-  () => alerts.value.filter((alert) => alert.state === "RESOLVED").length,
-);
-
-const criticalCount = computed(
+const allClear = computed(
   () =>
-    alerts.value.filter(
-      (alert) => alert.severity === "CRITICAL" && alert.status === "ACTIVE",
-    ).length,
+    !hasFilters.value &&
+    state.value !== "RESOLVED" &&
+    store.counts.ACTIVE === 0 &&
+    store.counts.ACKNOWLEDGED === 0,
 );
 
-// One option per client that has alerts, sorted by name
-const clientOptions = computed(() => {
-  const names = new Map();
-
-  for (const alert of alerts.value) {
-    names.set(alert.organization_id, alert.organization_name);
-  }
-
-  return [...names]
-    .map(([value, name]) => ({ value, label: name }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+const emptyText = computed(() => {
+  if (hasFilters.value) return "Ninguna alerta coincide con estos filtros.";
+  if (state.value === "ACTIVE") return "Todas las alertas abiertas tienen a alguien encargándose.";
+  if (state.value === "ACKNOWLEDGED") return "Ningún cliente se está encargando de una alerta ahora mismo.";
+  return "Ninguna alerta detectada en los últimos 7 días está arreglada.";
 });
 
-// Builds the options of an enum filter with the texts from useLabels
-function enumOptions(enumName, values) {
-  return values.map((value) => ({ value, label: label(enumName, value) }));
-}
+// "Actualizado hace 20 s": `now` ticks every 10 s
+const now = ref(new Date());
+const ticker = setInterval(() => (now.value = new Date()), 10000);
+onBeforeUnmount(() => clearInterval(ticker));
 
-const filters = computed(() => [
-  {
-    key: "organization_id",
-    label: "Cliente",
-    allLabel: "Todos los clientes",
-    options: clientOptions.value,
-  },
-  {
-    key: "state",
-    label: "Estado",
-    allLabel: "Todos los estados",
-    options: enumOptions("AlertState", ["ACTIVE", "ACKNOWLEDGED", "RESOLVED"]),
-  },
-  {
-    key: "severity",
-    label: "Gravedad",
-    allLabel: "Todas las gravedades",
-    options: enumOptions("AlertSeverity", ["CRITICAL", "WARNING"]),
-  },
-]);
-
-const sensorRanking = computed(() => {
-  const sensors = new Map();
-
-  for (const alert of alerts.value) {
-    const sensor = sensors.get(alert.sensor_id) || {
-      id: alert.sensor_id,
-      name: alert.sensor_name,
-      site: alert.site_name,
-      total: 0,
-    };
-
-    sensor.total += 1;
-    sensors.set(alert.sensor_id, sensor);
-  }
-
-  return [...sensors.values()].sort((a, b) => b.total - a.total).slice(0, 5);
+const updatedText = computed(() => {
+  if (!store.updatedAt) return "Cargando…";
+  const seconds = Math.max(0, Math.round((now.value - store.updatedAt) / 1000));
+  if (seconds < 60) return `Actualizado hace ${seconds} s`;
+  return `Actualizado hace ${Math.round(seconds / 60)} min`;
 });
 
-async function loadAlerts() {
-  try {
-    await alertStore.fetchAlerts();
-  } catch {
-    // The store exposes the error state to the view.
-  }
+// DATA
+function loadList() {
+  return store.fetchList(query.value);
 }
 
-async function acknowledge(id) {
-  busyAlertId.value = id;
-  actionError.value = "";
+function loadCounts() {
+  return store.fetchCounts({
+    organization_id: organizationId.value,
+    severity: severity.value,
+    q: q.value,
+  });
+}
 
-  try {
-    await alertStore.acknowledgeAlert(id);
-  } catch (err) {
-    actionError.value = err?.message || "No se pudo reconocer la alerta.";
-  } finally {
-    busyAlertId.value = null;
-  }
+async function refresh() {
+  now.value = new Date();
+  await Promise.all([loadList(), loadCounts(), store.fetchOrganizations()]);
+}
+
+// Any change in the URL reloads the list. Open tabs page in memory, so
+// changing page there needs no request.
+watch(
+  () => [state.value, organizationId.value, severity.value, q.value],
+  () => {
+    loadList();
+    loadCounts();
+  },
+);
+watch(page, () => {
+  if (state.value === "RESOLVED") loadList();
+  else store.pageOpen(page.value, pageSize.value);
+});
+
+onMounted(refresh);
+useAutoRefresh(refresh, 60000);
+
+// FILTERS
+function setTab(value) {
+  selected.value = null;
+  updateQuery({ state: value === "ACTIVE" ? null : value, page: 1 });
+}
+
+// DETAIL PANEL
+const selected = ref(null);
+const resolving = ref(false);
+const resolveError = ref("");
+
+// On each refresh the open panel takes the new data of its alert, so the
+// notices timeline moves on (#275)
+watch(
+  () => store.rows,
+  (rows) => {
+    if (!selected.value) return;
+    const fresh = rows.find((row) => row.id === selected.value.id);
+    if (fresh) selected.value = fresh;
+  },
+);
+
+function open(alert) {
+  resolveError.value = "";
+  selected.value = alert;
 }
 
 async function resolve(id) {
-  busyAlertId.value = id;
-  actionError.value = "";
-
+  resolving.value = true;
+  resolveError.value = "";
   try {
-    await alertStore.resolveAlert(id);
+    await store.resolve(id);
+    selected.value = null;
+    await refresh();
+    overviewStore.fetchOverview().catch(() => {});
   } catch (err) {
-    actionError.value = err?.message || "No se pudo resolver la alerta.";
+    resolveError.value = apiErrorMessage(err, "No se ha podido cerrar la alerta.");
   } finally {
-    busyAlertId.value = null;
+    resolving.value = false;
   }
 }
-
-onMounted(() => {
-  loadAlerts();
-});
 </script>

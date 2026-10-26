@@ -17,7 +17,7 @@ each client follows its own buildings, sensors and alerts.
   invitations, buildings and sensors floor by floor, alerts across all
   clients, and an analytics panel with charts, date ranges and CSV export.
 - **Client area (`/app`):** the organization's buildings with a 7-day pressure
-  chart, alerts to acknowledge and resolve, building documents, and the account
+  chart, alerts to take charge of (only AquaGuard closes them), building documents, and the account
   page with data download and account deletion (GDPR).
 - **Public pages:** landing page, trial sign-up, invitation acceptance, and the
   privacy and terms pages.
@@ -33,6 +33,9 @@ whole stack runs in Docker Compose behind an HTTPS Nginx gateway.
   isolated per organization.
 - Organizations with a 7-day trial, suspension, invitations and user
   management.
+- Self-service subscription: a trial client chooses how many buildings and
+  sensors it needs; the plan and the monthly price are computed from them and
+  become its limits.
 - Buildings, floors and sensors, with readings ingested from a simulator.
 - Automatic alerts for low pressure, high pressure and offline sensors.
 - Analytics dashboard with KPIs, charts, date ranges and CSV export.
@@ -249,6 +252,7 @@ The root `Makefile` wraps the Compose commands:
 | `make sim`                 | Validates `.env`, starts the base services, seeds an empty database and then starts the sensor simulator                                     |
 | `make demo`                | Alias of `make all`                                                                                                                          |
 | `make seed`                | Applies pending migrations, then loads the demo data from the working tree (no rebuild needed); safe to run more than once                   |
+| `make seed-avisos`         | Adds one alert in each phase of the client notices (#275), with times from now; run it again to refresh them; needs `make all` first         |
 | `make migrate`             | Applies pending migrations (`alembic upgrade head`)                                                                                          |
 | `make migration MSG="..."` | Generates a migration with `alembic revision --autogenerate` without applying it; fails without `MSG`                                        |
 | `make migration-check`     | Fails if the database is unreachable, has pending migrations, or the models drifted from the migrations                                      |
@@ -270,6 +274,11 @@ The root `Makefile` wraps the Compose commands:
 | `make clean`               | `down --remove-orphans`, simulator included                                                                                                  |
 | `make fclean`              | `down -v --remove-orphans`, simulator included, which deletes the PostgreSQL volume, the backups and the uploaded documents                  |
 | `make re`                  | `fclean` followed by `up`, a start from scratch                                                                                              |
+
+Backend tests that depend on the clock take "now" inside each test (an
+`autouse` fixture), never when the file is loaded: the full suite runs for
+several minutes, and a reading from "10 s ago" would already be more than
+5 minutes old, which turns the sensor offline.
 
 `make fclean` destroys the database volume. PostgreSQL only creates its user on
 the first initialisation of that volume, so this is also the command to run
@@ -366,6 +375,44 @@ backup-verify: OK, aquaguard-20261023-113510.sql.gz can be restored
 backup-verify: simulator running again
 ```
 
+### Container security
+
+Each container runs with the least it needs. Every service in `compose.yaml`
+has the same three lines (`no-new-privileges`, `cap_drop: [ALL]` and
+`read_only`) and then adds only what it needs:
+
+- **No root.** `backend` runs as `app` (UID 10001), `backup` as `backup`
+  (10002), `database` as `postgres` (70), `simulator` and `mailpit` as
+  `nobody`. Only the nginx master process of `gateway` starts as root, to
+  open ports 80 and 443; its workers, which handle the requests, run as
+  `nginx`.
+- **No capabilities** (`cap_drop: [ALL]`), except the five the nginx master
+  needs (see the comment in `compose.yaml`).
+- **`no-new-privileges`**: a setuid binary cannot give a process more rights.
+- **Read-only filesystem.** A process can only write to its volumes and to
+  `tmpfs` folders such as `/tmp`, which start empty.
+- **Memory and CPU limits** per service, about twice the peak measured with
+  `docker stats` during the demo and the tests:
+
+| Service     | Memory | CPUs | Measured peak               |
+|-------------|--------|------|-----------------------------|
+| `backend`   | 512 MB | 2    | 248 MB during `make test-backend` |
+| `database`  | 512 MB | 1    | 86 MB                       |
+| `gateway`   | 128 MB | 1    | 25 MB                       |
+| `backup`    | 128 MB | 0.5  | 6 MB                        |
+| `mailpit`   | 128 MB | 0.5  | 29 MB                       |
+| `simulator` | 128 MB | 0.5  | 33 MB                       |
+
+Volumes created before this change belong to root. The one-shot
+`volume-permissions` service gives them to the new users before `backend` and
+`backup` start, so an existing installation keeps its documents and backups
+without any manual step.
+
+```bash
+docker compose exec backend id     # uid=10001(app), not uid=0
+docker stats --no-stream           # MEM USAGE / LIMIT for every service
+```
+
 ### Demo data
 
 `make seed` (also run by `make demo`) loads `backend/seeds/seed_demo.py`. It is
@@ -381,6 +428,10 @@ with `ENV=production` because these passwords are public.
 
 - 5 organizations: Residencias Collserola, Hotel Gòtic (TRIAL), Comunidad
   Mallorca 401, Polideportivo Poblenou and Aigües Zona Franca (SUSPENDED).
+  Hotel Gòtic is the one to try "Hazte cliente" with (`hotel@aquaguard.dev`);
+  `make seed` puts it back on the trial and clears its contract. The active
+  demo clients have no contract (no plan, price or limits): they stand for
+  clients managed by hand, like the ones an admin creates with "Nuevo cliente".
 - 6 buildings in Barcelona, each in a different district, with floors,
   basements and real coordinates; 8 sensors spread
   across floors, each on a floor that exists in its building (between
@@ -427,6 +478,57 @@ just the `SMTP_*` variables in `.env`:
 `SMTP_FROM` is the bare address: the sender name "AquaGuard" is added by the
 backend. An empty `SMTP_HOST=` disables sending; the backend only logs which
 email it would have sent. Tests never send email.
+
+### Subscription and pricing
+
+A client on the trial (running or expired) becomes a paying client from
+`/app/subscribe` ("Hazte cliente" in the trial banner or in Mi cuenta). It
+chooses how many buildings and sensors it needs. The plan depends only on the
+buildings; sensors are paid apart, 10 € each and month, so the price is the
+plan base plus the sensors. The yearly payment is ten months. Prices exclude
+VAT.
+
+| Plan        | Buildings | Monthly price             | Example                             |
+|-------------|-----------|---------------------------|-------------------------------------|
+| Básico      | 1 to 5    | 29 € + 10 € per sensor    | 3 buildings, 18 sensors → 209 €     |
+| Profesional | 6 to 10   | 79 € + 10 € per sensor    | 10 buildings, 80 sensors → 879 €    |
+| Empresa     | 11 to 20  | 199 € + 10 € per sensor   | 15 buildings, 120 sensors → 1399 €  |
+
+More than 20 buildings is a custom quote: the page sends the client to
+support.
+
+- On the page, every price says "+ IVA" and only the total shows the price
+  with the 21 % VAT. The VAT is only shown: the API, the contract and the
+  admin sheet keep the prices without it.
+- A Barcelona postal code (08001 to 08042) fills the city with "Barcelona";
+  any other code leaves the field free, and what the client writes is never
+  overwritten.
+
+- The API computes the plan and the price again (`POST
+  /api/me/organization/subscribe`) and stores what was contracted, the price
+  of that moment, the billing period, the fiscal data, the SEPA authorization
+  and the IBAN masked. Plans and prices are in
+  `backend/app/modules/subscriptions/plans.py` and come to the page from
+  `GET /api/plans`; the page computes the same price in
+  `frontend/src/utils/pricing.js` to show it while the client types.
+- What was contracted is also the limit: on the trial an organization has one
+  building, and as a client an admin cannot add more buildings or sensors than
+  it pays for (`409 SITE_LIMIT_REACHED`, `409 SENSOR_LIMIT_REACHED`). Clients
+  created by an admin, without a contract, have no limit.
+- A client cannot contract fewer buildings or sensors than it already has
+  (`409 CONTRACT_BELOW_CURRENT`), nor fewer sensors than buildings.
+- Subscribing is the only way out of the trial: an admin can extend a trial
+  but not activate it, so every client that leaves the trial has a contract,
+  a price and limits.
+- The terms of service explain the plans, prices, payment and limits in
+  [`/legal#terminos-contratacion`](https://localhost/legal#terminos-contratacion),
+  which the subscribe form links to. Those prices are written by hand in
+  `frontend/src/views/public/LegalView.vue`: update them together with
+  `plans.py`.
+
+To try it: log in as `hotel@aquaguard.dev`, click "Hazte cliente", subscribe
+with the IBAN `ES91 2100 0418 4502 0005 1332`, then log in as the admin and
+open Hotel Gòtic → Datos. `make seed` puts it back on the trial.
 
 ### Analytics export
 
@@ -504,6 +606,78 @@ make migration-check                             # database at head, no drift
 `make migration-check` compares column types and server defaults as well
 (`compare_type` and `compare_server_default` in `backend/migrations/env.py`).
 See [`backend/migrations/README.md`](backend/migrations/README.md) for details.
+
+### Troubleshooting
+
+Start with `make doctor`: it checks the tools, `.env`, the Compose file and the
+state of every running service. Then look for the message below.
+
+**A port is already in use.** `make up` or `make all` stops with:
+
+```text
+Bind for 0.0.0.0:443 failed: port is already allocated
+```
+
+Another program or container already uses a port the stack publishes: 80 and
+443 (gateway), 8025 (Mailpit), 5432 (`make dev-infra`) or 5173 (`make dev`).
+Find it, stop it and run `make up` again:
+
+```bash
+sudo ss -ltnp | grep -E ':(80|443|8025|5432|5173) '
+docker ps --filter publish=443
+```
+
+**Certificates.** The browser warning on the first visit is expected: the
+certificate is self-signed. `make certs` refuses to continue when only one of
+the two files exists in `gateway/certs/`:
+
+```text
+certs: incomplete certificate pair; refusing to overwrite it
+```
+
+The certificate is also valid for 365 days only. In both cases, delete the
+pair, create a new one and restart the gateway, which reads it when it starts:
+
+```bash
+openssl x509 -enddate -noout -in gateway/certs/aquaguard.crt   # expiry date
+rm -f gateway/certs/aquaguard.crt gateway/certs/aquaguard.key
+make certs
+docker compose restart gateway
+```
+
+**The database is down.** The backend keeps answering `/api/health` with 200,
+but `/api/health/db` answers 503, the status page shows `database` as `DOWN` and
+`make migration-check` cannot connect:
+
+```text
+{"error":{"code":"DATABASE_UNAVAILABLE","message":"La base de datos no está disponible.","details":null}}
+migration-check: cannot connect to the database. Is the stack running? (make up)
+```
+
+Check it with `docker compose ps database` and `docker compose logs database`,
+then start it with `make up`. The backend reconnects by itself, without a
+restart. If the backend logs show `password authentication failed` after the
+`POSTGRES_*` values in `.env` changed, see the note on `make fclean` in
+[Useful commands](#useful-commands).
+
+**Pending migrations.** After pulling a branch with new migrations,
+`make migration-check` prints:
+
+```text
+migration-check: pending migrations, the database is not at head.
+  current: <empty database>
+  head:    9d1f4e7a3b62 (head)
+Apply them with: make migrate
+```
+
+Run `make migrate`. The backend also applies them every time it starts, so
+`make up` after a rebuild has the same effect. If it reports
+`models and migrations are out of sync (drift)` instead, a model changed
+without its migration: create it with `make migration MSG="..."`.
+
+**502 Bad Gateway after the backend was recreated.** nginx looks up the backend
+address only when it starts. `make restore` already reloads it; after any other
+recreation of the backend, run `docker compose restart gateway`.
 
 ## Architecture
 
@@ -599,7 +773,7 @@ erDiagram
 
 | Table           | Key fields                                                                                                       | Rules enforced by the database                                                                                    |
 |-----------------|------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------|
-| `organizations` | `name`, `status`, `trial_ends_at`, contact and billing data, `plan`, `iban_masked`                               | `name` unique ignoring case; `status` in TRIAL/ACTIVE/SUSPENDED; `plan` in BASIC/PRO/ENTERPRISE                   |
+| `organizations` | `name`, `status`, `trial_ends_at`, contact and billing data, contract (`plan`, `billing_period`, `contracted_sites`, `contracted_sensors`, `monthly_price_eur`), `iban_masked`, `sepa_accepted_at` | `name` unique ignoring case; `status` in TRIAL/ACTIVE/SUSPENDED; `plan` in BASIC/PRO/ENTERPRISE; `billing_period` MONTHLY/YEARLY; contracted at least 1, price not negative |
 | `users`         | `organization_id`, `email`, `name`, `password_hash`, `role`, `is_active`, terms and deletion dates               | `email` unique; `role` is `admin` or `client`; a client always has an organization                                |
 | `sites`         | `organization_id`, `name`, `address`, `latitude`/`longitude`, `floors`, `basements`, `building_type`, `district` | `name` unique per organization; valid coordinates; at least 1 floor; building type and Barcelona district lists   |
 | `sensors`       | `site_id`, `external_id`, `name`, `floor`, `sensor_type`, `unit`, `low_threshold`, `high_threshold`              | `external_id` unique per site; `low_threshold < high_threshold`, both within 0–25 bar; type PRESSURE or FLOW      |
@@ -635,7 +809,8 @@ users in [Demo data](#demo-data). Backend rules are covered by
 | Backend        | Organizations: list, create, edit, suspend, reactivate and trial (B1)                 | Ana                    | `/admin/clients`                             |
 | Backend        | Expired trial is read-only: client writes answer `403 TRIAL_EXPIRED` (B12)            | Daruny                 | `make test-backend`                          |
 | Backend        | Invitations and user management: invite, revoke, resend and accept (B4, B6)           | Daruny                 | `/registro?invitacion=AQUAGUARD-DEMO-INVITE` |
-| Backend        | Subscription plans and global search, API only for now (B14, B17)                     | Daruny                 | `/api/docs` → Subscriptions, Search          |
+| Backend        | Subscription: plan and price from buildings and sensors, contract limits (B14)        | Daruny                 | `make test-backend` · `/api/docs`            |
+| Backend        | Global search, API only for now (B17)                                                 | Daruny                 | `/api/docs` → Search                         |
 | Backend        | Buildings: floors, basements, type, sensor count and status (B2)                      | Ana                    | `/admin/sites`                               |
 | Backend        | Building documents: upload, list, download and delete (B11)                           | Daruny                 | `/app/documents`                             |
 | Backend        | Sensors: create, edit, floor, health and last value; offline after 5 min (B3)         | Ana                    | `/admin/sensors`                             |
@@ -653,6 +828,7 @@ users in [Demo data](#demo-data). Backend rules are covered by
 | Frontend       | Admin dashboard: KPI cards, active alerts and the Barcelona sites map (#156)          | Florinda, Eduardo, Ana | `/admin`                                     |
 | Frontend       | Admin clients: status filters, detail tabs, status actions and new-client wizard (F7) | Florinda, Lylia        | `/admin/clients`                             |
 | Frontend       | Admin client users: list, edit name, remove access, invitations (F23)                 | Daruny                 | `/admin/clients/:id` → Usuarios              |
+| Frontend       | "Hazte cliente": buildings and sensors, live price, monthly/yearly, fiscal data       | Daruny                 | `/app/subscribe` · `hotel@aquaguard.dev`     |
 | Frontend       | Admin buildings and sensors floor by floor, pressure chart and forms (F4, F5, F10)    | Florinda               | `/admin/sites` · `/admin/sensors`            |
 | Frontend       | Admin alerts: client, state and severity filters, counters and sensor ranking (#153)  | Lylia, Eduardo         | `/admin/alerts`                              |
 | Frontend       | Client home "Mis edificios": alert banner, KPIs, buildings by urgency (F8, F24)       | Daruny, Florinda       | `/app` · `client@aquaguard.dev`              |
@@ -818,6 +994,13 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 | —          | Cleanup: outdated comments, dead 501 code, notes in `docs/ana/` brought up to date             | #181           | Implemented |
 | #141, #144 | Contract and routes of B4, B6, B8 and B9: invitations, users, my account and KPIs              | —              | Implemented |
 | #150       | B14 subscription (plans, fiscal data, masked IBAN) and B17 global search (optional)            | —              | Implemented |
+| #252       | Admin alerts page, backend: only admins close alerts, crossed `threshold`, oldest open alert per client | —    | In review   |
+| #252       | One alert vocabulary in `useLabels`: Sin atender · En curso · Arreglada, Leve · Crítica, «Fuera de rango» for sensors | — | In review   |
+| #252       | New admin alerts page: clients with open alerts, state tabs with server counts, filters in the URL, side detail panel, refresh every 60 s; turquoise admin menu; alert search also by sensor code, building and client | — | In review   |
+| #275       | Client notices: emails when nobody takes an alert (critical 5 and 20 min, leve 60 min), `notifications` and `next_notification_at` in alerts, provisional `alert_notifications` table; «Avisos al cliente» column and timeline in the alert panel; admin alerts page review (cards, tabs, filters, table) | #276 | In progress |
+| #252       | Same alert words everywhere: the admin sites map says Leve / Crítica (from `useLabels`, no more «Aviso»); the «Arregladas» tab says «Detectadas en los últimos 7 días», which is what it filters | #286 | In review   |
+| #277       | Alerts close by themselves after 15 min of normal readings (`resolved_at` = first normal reading), no client notices meanwhile; «Cerrar a mano…» only for exceptions | #275 | In progress |
+| #283       | Admin sensors page for maintenance: tab cards «Sin conexión» (grouped by building, «Avisar al cliente»), «Plantas sin sensor» and «Sensores» (clients that need attention on the left, the chosen client's buildings and every floor on the right, how many sensors work), side panel with 24 h / 7 / 30 days chart and threshold editing | #277 | In progress |
 
 Notes for each issue, with diagrams and the decisions taken, are in [`docs/ana/`](docs/ana/).
 
@@ -845,6 +1028,7 @@ Issues #130 to #134 were reviewed and merged together in #182.
 | #134  | B18 analytics: shared `DateRange` (`from`/`to`) and `GET /api/analytics/export` in CSV           | #182          | Implemented |
 | #135  | F19 admin analytics panel: Chart.js charts, date presets, CSV export, 30 s refresh               | #186          | Implemented |
 | #148  | B13 complete OpenAPI documentation: examples, error codes, multipart upload and CSV export       | #228          | Implemented |
+| #150  | "Hazte cliente": price from buildings and sensors, contract stored and enforced as the limit     | —             | Implemented |
 
 ### Florinda (`flperez-`)
 
@@ -895,6 +1079,7 @@ Issues #130 to #134 were reviewed and merged together in #182.
 | #243     | Startup order: the simulator waits for a healthy backend, `simulator/.dockerignore`                  | #261          | Implemented |
 | #245     | Docker log rotation: `json-file` driver, 10 MB × 3 files per service                                 | #261          | Implemented |
 | #244     | `make backup-verify`: restores a backup into a temporary database and compares every table           | #269          | Implemented |
+| #246     | Container hardening: non-root users, no capabilities, read-only filesystem, memory and CPU limits    | —             | Implemented |
 
 ## Resources
 
@@ -965,9 +1150,16 @@ Browser-specific limitations:
   <http://localhost:8025> and never reach a real mailbox. Sending them for real
   only needs the `SMTP_*` variables in `.env` (see
   [Confirmation emails (GDPR)](#confirmation-emails-gdpr)).
-- Subscription plans and global search exist only in the API (B14, B17); no
-  screen uses them yet.
+- Global search exists only in the API (B17); no screen uses it yet.
+- Subscribing charges nothing: there is no payment gateway. The IBAN is
+  checked and stored masked only, so a real charge would need a payment
+  provider. A client cannot extend its contract from the app either; it has to
+  write to support.
 - Data export is CSV/JSON only; there is no import.
+- The admin alerts page sorts the open alerts in the browser and loads at most
+  100 of them (a notice says so when there are more). Its «Arregladas» tab
+  shows the alerts detected in the last 7 days, because the API cannot filter
+  by `resolved_at` yet.
 - There is no notification system yet: alerts are only seen by opening the
   admin or client area.
 - Backups live in a Docker volume on the same host as the database. They

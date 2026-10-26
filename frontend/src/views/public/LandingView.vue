@@ -157,7 +157,7 @@
             <span
               class="px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-800"
             >
-              Activa
+              Sin atender
             </span>
             <span class="text-slate-500" aria-hidden="true">→</span>
           </li>
@@ -165,7 +165,7 @@
             <span
               class="px-3 py-1 rounded-full text-sm font-semibold bg-amber-100 text-amber-800"
             >
-              Reconocida
+              En curso
             </span>
             <span class="text-slate-500" aria-hidden="true">→</span>
           </li>
@@ -173,7 +173,7 @@
             <span
               class="px-3 py-1 rounded-full text-sm font-semibold bg-emerald-100 text-emerald-800"
             >
-              Resuelta
+              Arreglada
             </span>
           </li>
         </ol>
@@ -230,7 +230,7 @@
         ¿Tu edificio está en Barcelona?
       </h2>
       <p class="text-slate-600">
-        Pruébalo 7 días gratis. Si te convence, activamos tu cuenta.
+        Pruébalo 7 días gratis. Si te convence, te haces cliente desde tu panel.
       </p>
       <RouterLink
         to="/prueba"
@@ -270,7 +270,7 @@ const statusStyles = {
 const howItWorks = [
   {
     title: "Te registras y pruebas gratis",
-    text: "Creas tu cuenta, eliges el distrito de tu edificio y empiezas 7 días de prueba.",
+    text: "Creas tu cuenta y empiezas 7 días de prueba, sin tarjeta.",
   },
   {
     title: "Instalamos sensores por planta",
@@ -310,7 +310,9 @@ const permissions = [
     team: "Todos",
     client: "Los suyos",
   },
-  { action: "Reconocer y resolver alertas", team: "Sí", client: "Sí" },
+  // #252: the client takes charge («Me encargo»); only AquaGuard closes.
+  { action: "Encargarse de una alerta («Me encargo»)", team: "—", client: "Sí" },
+  { action: "Dar una alerta por arreglada", team: "Sí", client: "—" },
   { action: "Subir y descargar documentos", team: "Sí", client: "Sí" },
 ];
 </script>
@@ -323,14 +325,14 @@ const permissions = [
   background: linear-gradient(
     135deg,
     white 0%,
-    theme('colors.aqua.300') 45%,
-    theme('colors.aqua.600') 100%
+    theme("colors.aqua.300") 45%,
+    theme("colors.aqua.600") 100%
   );
   border-radius: 50% 50% 50% 0;
   transform: rotate(135deg);
   box-shadow:
     inset -6px -6px 14px rgb(255 255 255 / 0.4),
-    6px 6px 18px theme('colors.aqua.600 / 30%');
+    6px 6px 18px theme("colors.aqua.600 / 30%");
   animation: float 3s ease-in-out infinite;
 }
 

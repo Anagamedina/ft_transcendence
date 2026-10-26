@@ -37,7 +37,7 @@
           <span class="h-3.5 w-3.5" aria-hidden="true"
             ><AppIcon name="alert"
           /></span>
-          {{ pending }} {{ pending === 1 ? "pendiente" : "pendientes" }}
+          {{ pending }} sin atender
         </span>
         <span
           v-if="inProgress > 0"

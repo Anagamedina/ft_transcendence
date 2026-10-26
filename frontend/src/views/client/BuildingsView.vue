@@ -279,15 +279,15 @@ const bannerTitle = computed(() => {
   const n = pendingTotal.value;
   if (n > 0)
     return n === 1
-      ? "Tienes 1 aviso pendiente"
-      : `Tienes ${n} avisos pendientes`;
+      ? "Tienes 1 aviso sin atender"
+      : `Tienes ${n} avisos sin atender`;
   const s = sensorsWithProblem.value;
   if (s > 0)
     return s === 1
       ? "Hay 1 sensor fuera de lo normal"
       : `Hay ${s} sensores fuera de lo normal`;
   // Nothing for the client to do, but the team is still on some alerts
-  if (inProgressTotal.value > 0) return "No tienes nada pendiente";
+  if (inProgressTotal.value > 0) return "No tienes nada sin atender";
   return "Todo en orden";
 });
 
@@ -300,7 +300,7 @@ const bannerText = computed(() => {
       ? "Tu equipo ya está atendiendo 1 aviso. AquaGuard revisará las lecturas para cerrarlo."
       : `Tu equipo ya está atendiendo ${n} avisos. AquaGuard revisará las lecturas para cerrarlo.`;
   if (sensorsWithProblem.value > 0) return "AquaGuard lo sigue vigilando.";
-  return "Ningún aviso pendiente. AquaGuard sigue vigilando tus edificios.";
+  return "Ningún aviso sin atender. AquaGuard sigue vigilando tus edificios.";
 });
 
 // ---------------------------------------------------------------------------

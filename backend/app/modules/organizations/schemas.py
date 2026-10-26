@@ -23,7 +23,7 @@ from uuid import UUID
 from pydantic import EmailStr, Field
 
 from app.modules.sites.schemas import SiteBase
-from app.shared.enums import OrganizationStatus, SubscriptionPlan
+from app.shared.enums import BillingPeriod, OrganizationStatus, SubscriptionPlan
 from app.shared.schemas import ApiModel, ApiRequest
 
 # Los nombres de organización se guardan con 120 caracteres como máximo
@@ -123,9 +123,22 @@ class OrganizationResponse(ApiModel):
     tax_id: str | None = None
     billing_email: str | None = None
     billing_address: str | None = None
+    postal_code: str | None = None
     plan: SubscriptionPlan | None = Field(
         default=None,
         description="Plan contratado desde la app (B14). `null` si no se ha suscrito.",
+    )
+    billing_period: BillingPeriod | None = Field(
+        default=None, description="`MONTHLY` o `YEARLY`. `null` si no se ha suscrito."
+    )
+    contracted_sites: int | None = Field(
+        default=None, description="Edificios contratados: también su límite."
+    )
+    contracted_sensors: int | None = Field(
+        default=None, description="Sensores contratados: también su límite."
+    )
+    monthly_price_eur: int | None = Field(
+        default=None, description="Precio al mes acordado al contratar, IVA no incluido."
     )
     subscribed_at: datetime | None = Field(
         default=None, description="Cuándo se suscribió, en UTC."
@@ -133,12 +146,23 @@ class OrganizationResponse(ApiModel):
     iban_masked: str | None = Field(
         default=None, description="Solo enmascarado: el IBAN entero no se guarda."
     )
+    sepa_accepted_at: datetime | None = Field(
+        default=None, description="Cuándo autorizó la domiciliación SEPA, en UTC."
+    )
     site_count: int = Field(default=0, description="Edificios del cliente.")
     sensor_count: int = Field(default=0, description="Sensores en todos sus edificios.")
     user_count: int = Field(default=0, description="Usuarios de la organización.")
     open_alerts: int = Field(default=0, description="Alertas sin resolver.")
     critical_alerts: int = Field(
         default=0, description="De las alertas sin resolver, cuántas son CRITICAL."
+    )
+    oldest_open_alert_at: datetime | None = Field(
+        default=None,
+        description=(
+            "Cuándo se creó la alerta sin resolver más antigua, en UTC. Nulo "
+            "si no tiene ninguna. Sirve para «la más antigua: 6 h» en la "
+            "página de alertas del admin."
+        ),
     )
     created_at: datetime = Field(description="Alta de la organización, en UTC.")
 

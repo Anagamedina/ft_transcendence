@@ -195,7 +195,7 @@ const updatedAt = computed(() =>
           <template #icon><AppIcon name="alert" /></template>
         </KPICard>
         <KPICard
-          label="Resueltas"
+          label="Arregladas"
           :value="
             store.resolvedPercent === null ? '—' : `${store.resolvedPercent} %`
           "

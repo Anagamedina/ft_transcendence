@@ -10,6 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
 
 from app.modules.alerts.model import Alert
+from app.modules.organizations.model import Organization
 from app.modules.sensors.model import Sensor
 from app.modules.sites.model import Site
 from app.shared.utils import matches_text
@@ -21,6 +22,7 @@ def _con_lectura():
         _con_jerarquia(),
         selectinload(Alert.acknowledged_by_user),
         selectinload(Alert.resolved_by_user),
+        selectinload(Alert.notifications),
     )
 
 
@@ -121,7 +123,13 @@ class AlertRepository:
         if site_id is not None:
             query = query.where(Sensor.site_id == site_id)
         if q is not None:
-            query = query.where(matches_text(q, Alert.message, Sensor.name))
+            # #252: también por código del sensor, edificio y cliente
+            # («Buscar sensor, edificio o cliente» en la página del admin).
+            clientes = select(Organization.id).where(matches_text(q, Organization.name))
+            query = query.where(
+                matches_text(q, Alert.message, Sensor.name, Sensor.external_id, Site.name)
+                | Site.organization_id.in_(clientes)
+            )
         if severity is not None:
             query = query.where(Alert.severity == severity)
         if state == "RESOLVED":

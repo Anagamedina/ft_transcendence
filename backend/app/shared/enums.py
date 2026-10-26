@@ -61,6 +61,18 @@ class SubscriptionPlan(str, Enum):
     ENTERPRISE = "ENTERPRISE"
 
 
+class BillingPeriod(str, Enum):
+    """
+    Cada cuánto se cobra el plan (B14). CHECK `ck_organizations_billing_period`.
+
+    - `MONTHLY` → el precio del plan cada mes, sin permanencia.
+    - `YEARLY`  → diez meses por adelantado: dos meses gratis.
+    """
+
+    MONTHLY = "MONTHLY"
+    YEARLY = "YEARLY"
+
+
 # ---------------------------------------------------------
 # EDIFICIOS
 # ---------------------------------------------------------

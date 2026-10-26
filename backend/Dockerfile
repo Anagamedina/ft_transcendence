@@ -16,4 +16,14 @@ COPY alembic.ini .
 COPY tools/entrypoint.sh ./tools/entrypoint.sh
 RUN chmod +x tools/entrypoint.sh
 
+# Run as a normal user, not root. It can run the code but not change it,
+# and it can only write to the documents folder.
+RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin app \
+    && mkdir -p /data/documents \
+    && chown app:app /data/documents
+USER app
+
+# The filesystem is read-only, so Python must not write .pyc files.
+ENV PYTHONDONTWRITEBYTECODE=1
+
 ENTRYPOINT ["sh", "./tools/entrypoint.sh"]

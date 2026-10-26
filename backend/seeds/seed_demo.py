@@ -64,6 +64,20 @@ PREVIOUS_SITE_NAMES = {
     "Polideportivo Poblenou": "Polideportivo Abando",
     "Estación de bombeo Zona Franca": "Estación de bombeo La Cartuja",
 }
+
+# Saved by "Hazte cliente" (B14). No demo client has them, so the seed clears them.
+SUBSCRIPTION_FIELDS = (
+    "plan",
+    "billing_period",
+    "contracted_sites",
+    "contracted_sensors",
+    "monthly_price_eur",
+    "subscribed_at",
+    "billing_address",
+    "postal_code",
+    "iban_masked",
+    "sepa_accepted_at",
+)
 PREVIOUS_USER_EMAILS = {
     "poblenou@aquaguard.dev": "abando@aquaguard.dev",
     "zonafranca@aquaguard.dev": "aguasdelsur@aquaguard.dev",
@@ -365,6 +379,9 @@ def _upsert_organization(db: Session, data: dict, now: datetime) -> Organization
     organization.trial_ends_at = now + timedelta(days=trial_days) if trial_days else None
     for field in ("city", "contact_email", "phone", "legal_name", "tax_id", "billing_email"):
         setattr(organization, field, data[field])
+    # Undo a "Hazte cliente" from the app, so the demo can repeat it
+    for field in SUBSCRIPTION_FIELDS:
+        setattr(organization, field, None)
     db.flush()
     return organization
 

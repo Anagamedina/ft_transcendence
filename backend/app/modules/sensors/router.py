@@ -139,7 +139,9 @@ _SOLO_ADMIN = {
         **error_response(status.HTTP_404_NOT_FOUND, "El site no existe (`SITE_NOT_FOUND`)."),
         **error_response(
             status.HTTP_409_CONFLICT,
-            "Ese `external_id` ya existe en el site (`SENSOR_EXTERNAL_ID_TAKEN`).",
+            "Ese `external_id` ya existe en el site (`SENSOR_EXTERNAL_ID_TAKEN`) "
+            "o el cliente ya tiene todos sus sensores contratados "
+            "(`SENSOR_LIMIT_REACHED`).",
         ),
         **error_response(
             status.HTTP_422_UNPROCESSABLE_CONTENT,

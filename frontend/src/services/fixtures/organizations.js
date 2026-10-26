@@ -70,7 +70,7 @@ export const organizations = [
     created_at: "2026-10-08T10:00:00Z",
   },
   {
-    // Trial already ended but still TRIAL: the admin can extend or activate it
+    // Trial already ended but still TRIAL: the admin can extend it, or the client subscribes
     id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
     name: "Restaurant del Born",
     status: "TRIAL",

@@ -50,6 +50,15 @@ from app.shared.enums import AlertSeverity, AlertState, AlertStatus, AlertType
 from app.shared.schemas import ApiModel
 
 
+class AlertNotificationResponse(ApiModel):
+    """Un aviso enviado al cliente porque nadie se encargaba (#275)."""
+
+    attempt: int = Field(description="1 = primer aviso, 2 = segundo…")
+    channel: str = Field(description="Por dónde se envió. Hoy solo EMAIL.")
+    recipient: str = Field(description="A quién: uno o varios emails separados por «, ».")
+    sent_at: datetime = Field(description="Cuándo, en UTC.")
+
+
 class AlertResponse(ApiModel):
     id: UUID
     sensor_id: UUID = Field(description="Sensor que originó la alerta.")
@@ -68,6 +77,16 @@ class AlertResponse(ApiModel):
     message: str = Field(
         description="Descripción legible del problema.",
         examples=["Presión por debajo del umbral: 0.8 bar (mínimo 1.5)"],
+    )
+    threshold: float | None = Field(
+        default=None,
+        description=(
+            "El límite del sensor que se ha cruzado, en bar: el mínimo para "
+            "LOW_PRESSURE y el máximo para HIGH_PRESSURE. Nulo en "
+            "SENSOR_OFFLINE. Es el límite actual del sensor: si se cambia "
+            "después, aquí sale el nuevo."
+        ),
+        examples=[1.5],
     )
     status: AlertStatus = Field(
         description="Estado guardado: ACTIVE o RESOLVED. Ver también `state`."
@@ -96,6 +115,34 @@ class AlertResponse(ApiModel):
     )
     resolved_by_name: str | None = Field(
         default=None, description="Nombre de quien resolvió; nulo si no consta o fue eliminado."
+    )
+    notifications: list[AlertNotificationResponse] = Field(
+        default_factory=list,
+        description=(
+            "Avisos enviados al cliente mientras la alerta seguía sin atender "
+            "(#275), en orden. Vacía si no se ha enviado ninguno."
+        ),
+    )
+    next_notification_at: datetime | None = Field(
+        default=None,
+        description=(
+            "Cuándo toca el próximo email, en UTC. Nulo si ya no toca ninguno: "
+            "enviados todos, alguien se encarga o está cerrada."
+        ),
+    )
+    normal_since: datetime | None = Field(
+        default=None,
+        description=(
+            "Desde cuándo las lecturas vuelven a ser normales, en UTC, si la "
+            "alerta sigue abierta (#277). Nulo si no lo son o ya está cerrada."
+        ),
+    )
+    closes_at: datetime | None = Field(
+        default=None,
+        description=(
+            "Cuándo se cerrará sola si siguen normales: `normal_since` + 15 min. "
+            "Al cerrarse, `resolved_at` será `normal_since`."
+        ),
     )
     resolution_minutes: float | None = Field(
         default=None,

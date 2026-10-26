@@ -38,10 +38,6 @@ const organizationsService = {
     return adapter.post(`/api/organizations/${id}/extend-trial`);
   },
 
-  activate(id) {
-    return adapter.post(`/api/organizations/${id}/activate`);
-  },
-
   // DELETE /api/organizations/{id} (B16). The API asks for the exact name in the body,
   // so a wrong id cannot delete another client. Axios sends a DELETE body through config.data
   deleteOrganization(id, confirmName) {

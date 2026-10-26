@@ -5,7 +5,9 @@
   Destructive actions (suspend, delete) ask for confirmation on the page itself, no popup.
   Presentational: emits the chosen action; the parent calls the API and updates the client.
   Usage:
-    <ClientActions :client="client" @extend="..." @activate="..." @suspend="..." @reactivate="..." @delete="..." />
+    <ClientActions :client="client" @extend="..." @suspend="..." @reactivate="..." @delete="..." />
+  There is no "activate": a trial becomes a client only by subscribing itself
+  ("Hazte cliente", B14), so every client has a contract, a price and limits.
 -->
 
 <template>
@@ -21,22 +23,14 @@
       <p class="text-gray-600">{{ statusText }}</p>
 
       <div class="flex flex-wrap gap-2">
-        <template v-if="client.status === 'TRIAL'">
-          <button
-            type="button"
-            :class="BUTTON_OUTLINE"
-            @click="$emit('extend')"
-          >
-            Ampliar prueba 7 días
-          </button>
-          <button
-            type="button"
-            :class="BUTTON_PRIMARY"
-            @click="$emit('activate')"
-          >
-            Activar como cliente
-          </button>
-        </template>
+        <button
+          v-if="client.status === 'TRIAL'"
+          type="button"
+          :class="BUTTON_OUTLINE"
+          @click="$emit('extend')"
+        >
+          Ampliar prueba 7 días
+        </button>
         <button
           v-if="client.status !== 'SUSPENDED'"
           ref="suspendButton"
@@ -161,13 +155,7 @@ const props = defineProps({
   client: { type: Object, required: true },
 });
 
-const emit = defineEmits([
-  "extend",
-  "activate",
-  "suspend",
-  "reactivate",
-  "delete",
-]);
+const emit = defineEmits(["extend", "suspend", "reactivate", "delete"]);
 
 const BASE = "min-h-10 rounded-lg border px-4 text-sm font-semibold";
 const BUTTON_PRIMARY = `${BASE} border-aqua-600 bg-aqua-600 text-white hover:bg-aqua-700`;
@@ -201,9 +189,10 @@ const statusText = computed(() => {
   if (props.client.status === "ACTIVE")
     return "El cliente tiene acceso completo.";
   const end = formatDate(props.client.trial_ends_at);
-  return status.value.trialEnded
+  const when = status.value.trialEnded
     ? `Terminó el ${end}. El cliente está en solo lectura.`
     : `Termina el ${end}. Al terminar, el cliente queda en solo lectura.`;
+  return `${when} Pasa a cliente cuando él mismo se da de alta desde "Hazte cliente".`;
 });
 
 // Singular and plural sentences, so the confirmation always reads naturally

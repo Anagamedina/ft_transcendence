@@ -192,11 +192,6 @@ export const useOrganizationsStore = defineStore("organizations", () => {
     return replaceOrganization(response.data);
   }
 
-  async function activate(id) {
-    const response = await organizationsService.activate(id);
-    return replaceOrganization(response.data);
-  }
-
   // True when another client already has this name, ignoring case, as the API (409).
   // Uses the search (q) and compares the whole name, because q also matches parts
   // of other fields. It does not change the list state.
@@ -275,7 +270,6 @@ export const useOrganizationsStore = defineStore("organizations", () => {
     suspend,
     reactivate,
     extendTrial,
-    activate,
     deleteOrganization,
     isNameTaken,
     fetchInvitations,

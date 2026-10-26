@@ -84,6 +84,11 @@ const routes = [
         name: "ClientDocuments",
         component: () => import("../views/client/DocumentsView.vue"),
       },
+      {
+        path: "subscribe",
+        name: "ClientSubscribe",
+        component: () => import("../views/client/SubscribeView.vue"),
+      },
     ],
   },
 

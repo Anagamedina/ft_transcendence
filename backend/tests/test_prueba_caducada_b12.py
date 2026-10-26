@@ -5,7 +5,7 @@ Criterios de la issue:
 
 - Con la prueba vencida, las escrituras responden 403 `TRIAL_EXPIRED` y
   las lecturas funcionan.
-- Al ampliar o activar la prueba, se puede volver a escribir.
+- Al ampliar la prueba o hacerse cliente, se puede volver a escribir.
 - No hay tareas periódicas: la caducidad se calcula en cada petición con
   `trial_ends_at`.
 
@@ -155,7 +155,6 @@ def _escrituras(datos):
     alerta = datos["alerta"].id
     return [
         ("PATCH", f"/api/alerts/{alerta}/acknowledge", {}),
-        ("PATCH", f"/api/alerts/{alerta}/resolve", {}),
         ("PATCH", "/api/me", {"json": {"name": "Otro nombre"}}),
         (
             "POST",
@@ -285,12 +284,18 @@ def test_con_la_prueba_vencida_se_puede_contratar_un_plan(cliente, datos):
     respuesta = cliente.post(
         "/api/me/organization/subscribe",
         json={
-            "plan": "BASIC",
+            "sites": 1,
+            "sensors": 5,
+            "billing_period": "MONTHLY",
             "legal_name": "Hotel Mar S.L.",
             "tax_id": "B12345678",
-            "billing_address": "Passeig Marítim 1, 08003",
+            "billing_address": "Passeig Marítim 1",
+            "postal_code": "08003",
+            "city": "Barcelona",
             "billing_email": "facturas@mar.dev",
+            "iban": "ES91 2100 0418 4502 0005 1332",
             "accept_terms": True,
+            "accept_sepa": True,
         },
     )
 
@@ -325,14 +330,13 @@ def test_una_organizacion_suspendida_sigue_dando_account_disabled(cliente, datos
 
 
 # ---------------------------------------------------------
-# AMPLIAR O ACTIVAR DEVUELVE LA ESCRITURA
+# AMPLIAR DEVUELVE LA ESCRITURA (hacerse cliente: más abajo)
 # ---------------------------------------------------------
-@pytest.mark.parametrize("accion", ["extend-trial", "activate"])
-def test_al_ampliar_o_activar_se_puede_volver_a_escribir(cliente, datos, accion):
+def test_al_ampliar_se_puede_volver_a_escribir(cliente, datos):
     ruta = f"/api/alerts/{datos['alerta'].id}/acknowledge"
     assert cliente.patch(ruta).status_code == 403
 
-    _como_admin(datos, accion)
+    _como_admin(datos, "extend-trial")
 
     assert cliente.patch(ruta).status_code == 200
 
@@ -383,7 +387,6 @@ def test_sin_organizacion_no_hay_prueba_que_vencer():
     "metodo, ruta",
     [
         ("patch", "/api/alerts/{alert_id}/acknowledge"),
-        ("patch", "/api/alerts/{alert_id}/resolve"),
         ("patch", "/api/me"),
         ("post", "/api/me/password"),
         ("post", "/api/documents"),

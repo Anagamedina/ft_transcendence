@@ -34,8 +34,10 @@ from sqlalchemy.orm import Session
 
 from app.core.database import transaction
 from app.core.exceptions import ConflictError, DomainValidationError, NotFoundError
+from app.modules.alerts.autoclose import normal_desde, se_cierra_a
+from app.modules.alerts.notices import siguiente_aviso
 from app.modules.alerts.repository import AlertRepository
-from app.modules.alerts.schemas import AlertResponse, AlertState
+from app.modules.alerts.schemas import AlertNotificationResponse, AlertResponse, AlertState
 from app.shared.dependencies import DbSession, _as_utc
 from app.shared.schemas import Page
 
@@ -170,8 +172,7 @@ class AlertService:
             )
         return alerta
 
-    @staticmethod
-    def _to_response(alerta) -> AlertResponse:
+    def _to_response(self, alerta) -> AlertResponse:
         """
         Convierte la fila al schema de salida.
 
@@ -187,6 +188,8 @@ class AlertService:
         """
         sensor = alerta.sensor
         site = sensor.site
+        # #277: si las lecturas ya son normales, se está confirmando el cierre
+        normal = normal_desde(self.db, alerta)
         return AlertResponse(
             id=alerta.id,
             sensor_id=alerta.sensor_id,
@@ -199,6 +202,7 @@ class AlertService:
             type=alerta.alert_type,
             severity=alerta.severity,
             message=alerta.message,
+            threshold=_limite(alerta.alert_type, sensor),
             status=alerta.status,
             state=AlertState.derive(alerta.status, alerta.acknowledged_at),
             created_at=_as_utc(alerta.created_at),
@@ -210,11 +214,32 @@ class AlertService:
             resolved_by_name=(
                 alerta.resolved_by_user.name if alerta.resolved_by_user else None
             ),
+            notifications=[
+                AlertNotificationResponse(
+                    attempt=n.attempt,
+                    channel=n.channel,
+                    recipient=n.recipient,
+                    sent_at=_as_utc(n.sent_at),
+                )
+                for n in alerta.notifications
+            ],
+            next_notification_at=None if normal else siguiente_aviso(alerta),
+            normal_since=normal,
+            closes_at=se_cierra_a(normal),
             resolution_minutes=(
                 (_as_utc(alerta.resolved_at) - _as_utc(alerta.created_at)).total_seconds() / 60
                 if alerta.status == "RESOLVED" and alerta.resolved_at is not None else None
             ),
         )
+
+
+def _limite(alert_type: str, sensor) -> float | None:
+    """El umbral que corresponde a la alerta (para pintar «1,1 bar · mín. 1,5»)."""
+    valor = {
+        "LOW_PRESSURE": sensor.low_threshold,
+        "HIGH_PRESSURE": sensor.high_threshold,
+    }.get(alert_type)
+    return float(valor) if valor is not None else None
 
 
 def get_alert_service(db: DbSession) -> AlertService:

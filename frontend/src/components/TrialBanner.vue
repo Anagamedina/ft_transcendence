@@ -1,7 +1,8 @@
 <!--
   TRIAL BANNER
   Notice above the client pages while the organization is on the free trial
-  (B10): days left, or the read-only notice once it has expired (B12).
+  (B10): days left, or the read-only notice once it has expired (B12), with a
+  "Hazte cliente" link to /app/subscribe (B14).
   Same rule as the backend (organizations/trial.py): the trial expires at the
   exact instant of `trial_ends_at`, and only a TRIAL organization can expire.
   Renders nothing for ACTIVE organizations or without an organization.
@@ -16,8 +17,11 @@
     role="status"
   >
     <strong>Tu periodo de prueba ha terminado.</strong>
-    Puedes consultar tus datos, pero no modificarlos hasta que AquaGuard amplíe
-    la prueba o active tu cuenta.
+    Puedes consultar tus datos, pero no modificarlos hasta que te hagas cliente
+    o AquaGuard amplíe la prueba.
+    <RouterLink :to="SUBSCRIBE_PATH" :class="LINK_CLASS"
+      >Hazte cliente</RouterLink
+    >
   </div>
 
   <div
@@ -29,6 +33,9 @@
     <template v-if="daysLeft > 1"> quedan {{ daysLeft }} días.</template>
     <template v-else-if="daysLeft === 1"> queda 1 día.</template>
     <template v-else> la prueba termina hoy.</template>
+    <RouterLink :to="SUBSCRIBE_PATH" :class="LINK_CLASS"
+      >Hazte cliente</RouterLink
+    >
   </div>
 </template>
 
@@ -43,6 +50,10 @@ const props = defineProps({
 });
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+// "Hazte cliente" (B14): the subscribe page of the client area
+const SUBSCRIBE_PATH = "/app/subscribe";
+const LINK_CLASS = "ml-2 font-semibold underline hover:no-underline";
 
 const trialEnd = computed(() => {
   const organization = props.organization;

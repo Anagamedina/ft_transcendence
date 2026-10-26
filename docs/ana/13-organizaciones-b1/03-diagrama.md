@@ -7,7 +7,7 @@ stateDiagram-v2
   [*] --> ACTIVE: POST /organizations (admin)
   [*] --> TRIAL: registro público (B10)
   TRIAL --> TRIAL: extend-trial (+TRIAL_DAYS)
-  TRIAL --> ACTIVE: activate (borra trial_ends_at)
+  TRIAL --> ACTIVE: el cliente contrata (B14, borra trial_ends_at)
   ACTIVE --> SUSPENDED: suspend
   TRIAL --> SUSPENDED: suspend
   SUSPENDED --> TRIAL: reactivate, si tiene trial_ends_at
@@ -16,6 +16,10 @@ stateDiagram-v2
 
 Cualquier otra transición → **409** (`ORGANIZATION_ALREADY_SUSPENDED`,
 `ORGANIZATION_NOT_SUSPENDED`, `ORGANIZATION_NOT_IN_TRIAL`).
+
+Desde la B14 (#274) ya no existe `activate`: una prueba solo pasa a cliente
+cuando el propio cliente contrata (`POST /api/me/organization/subscribe`),
+que también borra `trial_ends_at`. El admin ya no puede hacerlo.
 
 ## Suspender deja fuera a los usuarios
 

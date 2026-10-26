@@ -88,7 +88,7 @@ def _estado_final(engine, organization_id) -> Organization:
         ).one()
 
 
-def test_activar_mientras_se_suspende_da_409_y_queda_suspendida(postgres):
+def test_ampliar_mientras_se_suspende_da_409_y_queda_suspendida(postgres):
     organizacion, _ = _organizacion_en_prueba(postgres)
 
     with Session(postgres) as primera:
@@ -97,7 +97,9 @@ def test_activar_mientras_se_suspende_da_409_y_queda_suspendida(postgres):
         en_curso.status = "SUSPENDED"
         primera.flush()
 
-        hilo, resultado = _en_otro_hilo(postgres, lambda s: s.activate(organizacion.id))
+        hilo, resultado = _en_otro_hilo(
+            postgres, lambda s: s.extend_trial(organizacion.id)
+        )
         _esperar_a_que_se_bloquee(postgres)
         primera.commit()
 

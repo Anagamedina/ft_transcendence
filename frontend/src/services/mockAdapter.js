@@ -13,6 +13,7 @@ import {
   demoReadings,
 } from "./fixtures/building.js";
 import { organizations } from "./fixtures/organizations.js";
+import { billedPrice, monthlyPrice, planFor } from "../utils/pricing.js";
 
 // The C-Edificio demo building (8 sensors on 6 floors) also appears in the
 // admin sites and sensors lists, so the floor-by-floor view has real content.
@@ -208,6 +209,94 @@ const MOCK_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Error with the backend shape: { status, code, message, details }
 function domainError(status, code, message) {
   return { status, code, message, details: null };
+}
+
+// Plans of B14 (backend/app/modules/subscriptions/plans.py), same fields.
+// The price is the plan base plus each sensor; yearly is ten months.
+const MOCK_SENSOR_PRICE_EUR = 10;
+const MOCK_YEARLY_MONTHS = 10;
+const MOCK_PLANS = [
+  {
+    id: "BASIC",
+    name: "Básico",
+    description: "De 1 a 5 edificios.",
+    monthly_price_eur: 29,
+    sensor_price_eur: MOCK_SENSOR_PRICE_EUR,
+    yearly_months: MOCK_YEARLY_MONTHS,
+    max_sites: 5,
+    max_sensors: null,
+    features: ["Alertas por presión y desconexión", "Histórico de 30 días"],
+  },
+  {
+    id: "PRO",
+    name: "Profesional",
+    description: "De 6 a 10 edificios.",
+    monthly_price_eur: 79,
+    sensor_price_eur: MOCK_SENSOR_PRICE_EUR,
+    yearly_months: MOCK_YEARLY_MONTHS,
+    max_sites: 10,
+    max_sensors: null,
+    features: [
+      "Todo lo del plan Básico",
+      "Histórico de 1 año y exportación CSV",
+      "Documentos por edificio",
+    ],
+  },
+  {
+    id: "ENTERPRISE",
+    name: "Empresa",
+    description: "De 11 a 20 edificios.",
+    monthly_price_eur: 199,
+    sensor_price_eur: MOCK_SENSOR_PRICE_EUR,
+    yearly_months: MOCK_YEARLY_MONTHS,
+    max_sites: 20,
+    max_sensors: null,
+    features: [
+      "Todo lo del plan Profesional",
+      "Hasta 20 edificios",
+      "Soporte prioritario",
+    ],
+  },
+];
+
+// Limits (max_sites_for, max_sensors_for): 1 building on the trial and no
+// sensor limit; what was contracted as a client; nothing without a contract
+const MOCK_TRIAL_MAX_SITES = 1;
+
+function mockMaxSites(organization) {
+  if (organization.status === "TRIAL") return MOCK_TRIAL_MAX_SITES;
+  return organization.contracted_sites ?? null;
+}
+
+function mockMaxSensors(organization) {
+  if (organization.status === "TRIAL") return null;
+  return organization.contracted_sensors ?? null;
+}
+
+function mockSiteCount(organizationId) {
+  return sites.filter((site) => site.organization_id === organizationId).length;
+}
+
+function mockSensorCount(organizationId) {
+  const siteIds = new Set(
+    sites
+      .filter((site) => site.organization_id === organizationId)
+      .map((site) => site.id),
+  );
+  return sensors.filter((sensor) => siteIds.has(sensor.site_id)).length;
+}
+
+// Same checks as subscriptions/service.py: separators out, then the shape
+const MOCK_SEPARATORS = /[\s.-]/g;
+const MOCK_TAX_ID_PATTERN = /^[A-Z0-9]{8,15}$/;
+const MOCK_POSTAL_CODE_PATTERN = /^[0-9]{5}$/;
+const MOCK_IBAN_PATTERN = /^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/;
+
+// 'ES91 2100 0418 4502 0005 1332' -> 'ES** **** **** **** **** 1332'
+function maskMockIban(iban) {
+  const hidden =
+    iban.slice(0, 2) + "*".repeat(iban.length - 6) + iban.slice(-4);
+  return hidden.match(/.{1,4}/g).join(" ");
 }
 
 // Same rule as backend/app/shared/passwords.py (short list of common ones).
@@ -647,6 +736,11 @@ const mockAdapter = {
         data: toPublicUser(user),
         status: 200,
       });
+    }
+
+    // Plans catalog (B14): public
+    if (url === "/api/plans") {
+      return Promise.resolve({ data: MOCK_PLANS, status: 200 });
     }
 
     // Get the public status page data.
@@ -1253,6 +1347,181 @@ const mockAdapter = {
       });
     }
 
+    // Subscribe (B14): the client's TRIAL organization becomes ACTIVE.
+    // Same order as the backend: 401/403, 422, then 409.
+    if (url === "/api/me/organization/subscribe") {
+      if (!currentUser) return Promise.reject(authError());
+      if (currentUser.role !== "client")
+        return Promise.reject(forbiddenError());
+
+      if (data.accept_terms !== true) {
+        return Promise.reject(
+          domainError(
+            422,
+            "TERMS_NOT_ACCEPTED",
+            "Tienes que aceptar las condiciones de contratación.",
+          ),
+        );
+      }
+      if (data.accept_sepa !== true) {
+        return Promise.reject(
+          domainError(
+            422,
+            "SEPA_NOT_ACCEPTED",
+            "Tienes que autorizar la domiciliación SEPA.",
+          ),
+        );
+      }
+      const contract = { sites: data.sites, sensors: data.sensors };
+      const maxima = { sites: 20, sensors: 1000 };
+      for (const field of ["sites", "sensors"]) {
+        const value = contract[field];
+        if (!Number.isInteger(value) || value < 1 || value > maxima[field]) {
+          return Promise.reject(validationError(field, "Número no válido."));
+        }
+      }
+      if (contract.sensors < contract.sites) {
+        return Promise.reject({
+          status: 422,
+          code: "SENSORS_BELOW_SITES",
+          message: `Necesitas al menos un sensor por edificio: ${contract.sites}.`,
+          details: [{ field: "sensors", min: contract.sites }],
+        });
+      }
+      if (!["MONTHLY", "YEARLY"].includes(data.billing_period)) {
+        return Promise.reject(
+          validationError("billing_period", "Periodo no válido."),
+        );
+      }
+      for (const field of [
+        "legal_name",
+        "billing_address",
+        "postal_code",
+        "city",
+        "iban",
+      ]) {
+        if (!String(data[field] ?? "").trim()) {
+          return Promise.reject(validationError(field, "Campo obligatorio."));
+        }
+      }
+      if (!MOCK_EMAIL_PATTERN.test(String(data.billing_email ?? ""))) {
+        return Promise.reject(
+          validationError("billing_email", "Email no válido."),
+        );
+      }
+      const taxId = String(data.tax_id ?? "")
+        .replace(MOCK_SEPARATORS, "")
+        .toUpperCase();
+      if (!MOCK_TAX_ID_PATTERN.test(taxId)) {
+        return Promise.reject(
+          domainError(422, "INVALID_TAX_ID", "El NIF o CIF no es válido."),
+        );
+      }
+      const postalCode = String(data.postal_code).trim();
+      if (!MOCK_POSTAL_CODE_PATTERN.test(postalCode)) {
+        return Promise.reject(
+          domainError(
+            422,
+            "INVALID_POSTAL_CODE",
+            "El código postal no es válido.",
+          ),
+        );
+      }
+      // Shape only; the backend also checks the ISO 13616 digits
+      const iban = String(data.iban).replace(MOCK_SEPARATORS, "").toUpperCase();
+      if (!MOCK_IBAN_PATTERN.test(iban)) {
+        return Promise.reject(
+          domainError(422, "INVALID_IBAN", "El IBAN no es válido."),
+        );
+      }
+
+      const organization = organizations.find(
+        (item) => item.id === currentUser.organization_id,
+      );
+      if (!organization || organization.status !== "TRIAL") {
+        return Promise.reject(
+          domainError(
+            409,
+            "ORGANIZATION_NOT_IN_TRIAL",
+            "Solo se puede contratar un plan desde la prueba gratuita.",
+          ),
+        );
+      }
+      const current = {
+        sites: [mockSiteCount(organization.id), "edificios"],
+        sensors: [mockSensorCount(organization.id), "sensores"],
+      };
+      for (const [field, [count, what]] of Object.entries(current)) {
+        if (contract[field] < count) {
+          return Promise.reject({
+            status: 409,
+            code: "CONTRACT_BELOW_CURRENT",
+            message: `Ya tienes ${count} ${what}: contrata al menos ${count}.`,
+            details: [{ field, min: count }],
+          });
+        }
+      }
+      const plan = planFor(MOCK_PLANS, contract.sites, contract.sensors);
+      const price = monthlyPrice(plan, contract.sensors);
+
+      const now = new Date().toISOString();
+      Object.assign(organization, {
+        status: "ACTIVE",
+        trial_ends_at: null,
+        plan: plan.id,
+        billing_period: data.billing_period,
+        contracted_sites: contract.sites,
+        contracted_sensors: contract.sensors,
+        monthly_price_eur: price,
+        subscribed_at: now,
+        legal_name: data.legal_name,
+        tax_id: taxId,
+        billing_address: data.billing_address,
+        postal_code: postalCode,
+        city: data.city,
+        billing_email: data.billing_email,
+        iban_masked: maskMockIban(iban),
+        sepa_accepted_at: now,
+      });
+      // Contact data is optional: what does not arrive stays as it was
+      for (const field of ["contact_email", "phone"]) {
+        if (data[field] != null) organization[field] = data[field];
+      }
+      currentUser.terms_version = "2026-10";
+      currentUser.terms_accepted_at = now;
+
+      return Promise.resolve({
+        data: {
+          organization_id: organization.id,
+          organization_name: organization.name,
+          status: organization.status,
+          plan: plan.id,
+          plan_name: plan.name,
+          billing_period: organization.billing_period,
+          contracted_sites: contract.sites,
+          contracted_sensors: contract.sensors,
+          monthly_price_eur: price,
+          billed_price_eur: billedPrice(
+            plan,
+            contract.sensors,
+            data.billing_period,
+          ),
+          subscribed_at: now,
+          legal_name: organization.legal_name,
+          tax_id: organization.tax_id,
+          billing_address: organization.billing_address,
+          postal_code: organization.postal_code,
+          city: organization.city,
+          billing_email: organization.billing_email,
+          contact_email: organization.contact_email ?? null,
+          phone: organization.phone ?? null,
+          iban_masked: organization.iban_masked,
+          sepa_accepted_at: now,
+        },
+        status: 200,
+      });
+    }
+
     if (url === "/api/me/password") {
       if (!currentUser) return Promise.reject(authError());
       if (data.current_password !== currentUser.password) {
@@ -1537,7 +1806,8 @@ const mockAdapter = {
       return Promise.resolve({ data: withCounters(organization), status: 201 });
     }
 
-    // Status actions of an organization (B1): suspend, reactivate, extend-trial, activate
+    // Status actions of an organization (B1): suspend, reactivate, extend-trial.
+    // There is no "activate": a trial becomes a client by subscribing (B14).
     if (url.startsWith("/api/organizations/")) {
       const denied = adminCheck();
       if (denied) return Promise.reject(denied);
@@ -1562,7 +1832,7 @@ const mockAdapter = {
         }
         // Back to TRIAL if it still has a trial date, ACTIVE otherwise
         organization.status = organization.trial_ends_at ? "TRIAL" : "ACTIVE";
-      } else if (action === "extend-trial" || action === "activate") {
+      } else if (action === "extend-trial") {
         if (organization.status !== "TRIAL") {
           return Promise.reject(
             conflict(
@@ -1571,18 +1841,13 @@ const mockAdapter = {
             ),
           );
         }
-        if (action === "activate") {
-          organization.status = "ACTIVE";
-          organization.trial_ends_at = null;
-        } else {
-          // Adds the days to the end date, or to today if the trial already ended
-          const now = new Date();
-          const end = new Date(organization.trial_ends_at);
-          const from = end > now ? end : now;
-          organization.trial_ends_at = new Date(
-            from.getTime() + TRIAL_DAYS * DAY_MS,
-          ).toISOString();
-        }
+        // Adds the days to the end date, or to today if the trial already ended
+        const now = new Date();
+        const end = new Date(organization.trial_ends_at);
+        const from = end > now ? end : now;
+        organization.trial_ends_at = new Date(
+          from.getTime() + TRIAL_DAYS * DAY_MS,
+        ).toISOString();
       } else {
         return Promise.reject({
           status: 404,
@@ -1861,6 +2126,20 @@ const mockAdapter = {
         return Promise.reject(floorOutOfSite(site));
       }
 
+      // Same limit as the API (B14): no more than the contracted sensors
+      const owner = organizations.find(
+        (organization) => organization.id === site.organization_id,
+      );
+      const maxSensors = owner ? mockMaxSensors(owner) : null;
+      if (maxSensors !== null && mockSensorCount(owner.id) >= maxSensors) {
+        return Promise.reject({
+          status: 409,
+          code: "SENSOR_LIMIT_REACHED",
+          message: `${owner.name} ya tiene ${maxSensors} sensores, los que tiene contratados. Para añadir más tiene que ampliar el contrato.`,
+          details: [{ field: "site_id", max_sensors: maxSensors }],
+        });
+      }
+
       // external_id is unique inside its site (409, as the API: exact match).
       // Case variants ('sens-001') are rejected earlier by SensorForm.
       if (
@@ -1937,6 +2216,21 @@ const mockAdapter = {
       const owner = organizations.find(
         (organization) => organization.id === data.organization_id,
       );
+
+      // Same limit as the API (B14)
+      const maxSites = owner ? mockMaxSites(owner) : null;
+      if (maxSites !== null && mockSiteCount(owner.id) >= maxSites) {
+        const count = maxSites === 1 ? "1 edificio" : `${maxSites} edificios`;
+        return Promise.reject({
+          status: 409,
+          code: "SITE_LIMIT_REACHED",
+          message:
+            owner.status === "TRIAL"
+              ? `${owner.name} está en prueba y ya tiene ${count}, que es el máximo. Podrá añadir más cuando se haga cliente.`
+              : `${owner.name} ya tiene ${count}, los que tiene contratados. Para añadir más tiene que ampliar el contrato.`,
+          details: [{ field: "organization_id", max_sites: maxSites }],
+        });
+      }
 
       const site = {
         id: crypto.randomUUID(),
@@ -2521,6 +2815,8 @@ Invitations   GET       /api/invitations
 Invitations   POST      /api/invitations
 Invitations   GET       /api/invitations/by-code/{code}
 Invitations   POST      /api/invitations/by-code/{code}/accept
+Plans         GET       /api/plans
+Subscription  POST      /api/me/organization/subscribe
 */
 
 /*

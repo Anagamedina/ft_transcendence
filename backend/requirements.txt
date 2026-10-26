@@ -1,6 +1,6 @@
 # Backend core
 fastapi[standard]==0.136.1
-uvicorn[standard]
+uvicorn[standard]==0.54.0
 
 # Database
 sqlalchemy>=2.0,<3.0
