@@ -3,7 +3,7 @@
 # AquaGuard
 
 > **Status:** Functional. The full stack runs with `make all`, with demo data;
-> 11 of the 14 planned module points are implemented (see
+> 12 of the 15 planned module points are implemented (see
 > [Modules and point tracking](#modules-and-point-tracking)).
 
 ## Description
@@ -153,7 +153,8 @@ allows a burst of 10 extra requests and the other two a burst of 4, because
 everyone on the campus network shares one public IP. `client_max_body_size` is
 `MAX_UPLOAD_MB` plus 1 MB for the multipart overhead, so a file of exactly
 `MAX_UPLOAD_MB` is not rejected with 413; `gateway/18-upload-limit.envsh`
-computes it when the container starts. The Playwright suite logs in more
+computes it when the container starts. A bigger upload gets 413 with the
+same JSON as the API (`FILE_TOO_LARGE`), not the nginx HTML page. The Playwright suite logs in more
 often than that, so run it against a stack started with
 `PUBLIC_RATE_LIMIT=1000r/m make up`. `backend` and `database` are not
 reachable from the host at all. `backup` writes a compressed `pg_dump` to the
@@ -855,8 +856,9 @@ contributors, and a reproducible verification method.
 
 The project must reach at least 14 validated points. The following selection is
 the team's current AquaGuard plan, based on the product architecture document.
-It adds up to 14: the real-time module (WebSockets, 2 points) was dropped from
-the plan, and the GDPR minor module (B19) brings the missing point.
+It adds up to 15: the real-time module (WebSockets, 2 points) was dropped from
+the plan, the GDPR minor module (B19) brings the missing point, and the file
+upload module counts the building documents already implemented (B11, F14).
 
 | Category           | Module                                          | Type  | Points | Status                           | Contributors                          |
 |--------------------|-------------------------------------------------|-------|-------:|----------------------------------|---------------------------------------|
@@ -865,13 +867,14 @@ the plan, and the GDPR minor module (B19) brings the missing point.
 | Web                | ORM (SQLAlchemy)                                | Minor |      1 | Implemented                      | Daruny                                |
 | Web                | Advanced search                                 | Minor |      1 | Partial - API only, no UI        | Ana, Daruny, Florinda, Lylia          |
 | Web                | Notification system                             | Minor |      1 | Not started                      | Ana, Daruny, Florinda, Lylia          |
+| Web                | File upload and management system               | Minor |      1 | Implemented                      | Daruny, Lylia                         |
 | User Management    | Advanced permissions                            | Major |      2 | Implemented                      | Ana, Daruny, Lylia                    |
 | User Management    | Organization system                             | Major |      2 | Implemented                      | Ana, Daruny                           |
 | User Management    | GDPR compliance features                        | Minor |      1 | Implemented                      | Daruny, Florinda                      |
 | Data and Analytics | Advanced analytics dashboard                    | Major |      2 | Implemented                      | Ana, Daruny, Florinda, Lylia          |
 | Data and Analytics | Data export and import                          | Minor |      1 | Partial - export only, no import | Ana, Daruny, Florinda, Lylia          |
-|                    | **Planned total**                               |       | **14** |                                  |                                       |
-|                    | **Implemented so far**                          |       | **11** |                                  |                                       |
+|                    | **Planned total**                               |       | **15** |                                  |                                       |
+|                    | **Implemented so far**                          |       | **12** |                                  |                                       |
 
 ### Module implementation plan
 
@@ -910,6 +913,21 @@ the plan, and the GDPR minor module (B19) brings the missing point.
   - *Real-time updates:* the panel refreshes every 30 s and pauses while the
     tab is hidden.
   - A client sees the same KPIs for its own organization in `/app`.
+- **File upload and management system:** demonstrated in `/app/documents` as
+  `hotel@aquaguard.dev` (B11, F14).
+  - *Multiple file types:* PDF, JPG, PNG and CSV, for plans, reports,
+    invoices and photos of each building.
+  - *Client and server validation:* the page rejects other extensions, empty
+    files and files over 10 MB before sending them. The API decides the type
+    by the file content, never by its name (`422 UNSUPPORTED_FILE_TYPE`), and
+    the gateway and the API reject files over `MAX_UPLOAD_MB`
+    (`413 FILE_TOO_LARGE`).
+  - *Secure storage and access control:* files live in the `documents_data`
+    volume under a random key, and are only served through the API to the
+    owning organization; another client gets 404, without a session 401.
+  - *Preview:* "Vista previa" shows images and PDFs inside the page.
+  - *Upload progress:* a progress bar with the percentage while it uploads.
+  - *Delete:* "Eliminar" removes the file and its row.
 - **Advanced search:** *partial, API only.* `GET /api/search?q=&limit=`
   (B17) searches clients, buildings and sensors at once, ignoring case, and
   returns the first `limit` of each type plus the total. A client only finds
