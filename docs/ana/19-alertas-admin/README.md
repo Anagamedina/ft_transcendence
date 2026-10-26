@@ -48,7 +48,7 @@ Diseño: lienzo https://claude.ai/artifact/Ldwqv9CwqDsbabhxFKH1xi («G1 v2»).
 
 | Pieza | Archivo | Qué hace |
 |---|---|---|
-| Store | `stores/adminAlerts.js` | Pide al servidor solo lo que se ve. Contadores: 3 peticiones con `page_size=1` (se lee `total`, nunca se queda en 100). Pestañas abiertas: hasta 100 y se ordenan aquí; Arregladas: páginas del servidor, últimos 7 días |
+| Store | `stores/adminAlerts.js` | Pide al servidor solo lo que se ve. Contadores: 3 peticiones con `page_size=1` (se lee `total`, nunca se queda en 100). Pestañas abiertas: hasta 100 y se ordenan aquí; Arregladas: páginas del servidor, las **detectadas** en los últimos 7 días (`created_from`; la API no filtra por `resolved_at`) |
 | Textos | `utils/alertText.js` | `minutesSince`, `formatDuration` («2 h 10 min»), `alertReading` («1,1 bar · mín. 1,5»), `byUrgency` (críticas primero y, dentro, la más antigua) |
 | Tarjetas de clientes | `components/alerts/AlertClientCards.vue` | 4 tarjetas + «+N clientes» (despliega el resto); pulsar filtra |
 | Estados | `components/alerts/AlertStateTabs.vue` | Pestañas subrayadas con su número (rojo si hay alguna sin atender); la explicación de la pestaña, a la derecha; flechas del teclado |

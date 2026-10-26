@@ -22,7 +22,8 @@ import { byUrgency } from "../utils/alertText.js";
 const OPEN_LIMIT = 100;
 const RESOLVED_DAYS = 7;
 
-// ISO date of `days` ago (the "Arregladas" tab shows the last week)
+// ISO date of `days` ago. The "Arregladas" tab shows the alerts *detected*
+// in the last week (`created_from`): the API has no filter by `resolved_at`
 function daysAgo(days, now = new Date()) {
   return new Date(now.getTime() - days * 86400000).toISOString();
 }

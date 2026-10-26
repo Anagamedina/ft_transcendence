@@ -997,6 +997,7 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 | #252       | One alert vocabulary in `useLabels`: Sin atender · En curso · Arreglada, Leve · Crítica, «Fuera de rango» for sensors | — | In review   |
 | #252       | New admin alerts page: clients with open alerts, state tabs with server counts, filters in the URL, side detail panel, refresh every 60 s; turquoise admin menu; alert search also by sensor code, building and client | — | In review   |
 | #275       | Client notices: emails when nobody takes an alert (critical 5 and 20 min, leve 60 min), `notifications` and `next_notification_at` in alerts, provisional `alert_notifications` table; «Avisos al cliente» column and timeline in the alert panel; admin alerts page review (cards, tabs, filters, table) | #276 | In progress |
+| #252       | Same alert words everywhere: the admin sites map says Leve / Crítica (from `useLabels`, no more «Aviso»); the «Arregladas» tab says «Detectadas en los últimos 7 días», which is what it filters | #286 | In review   |
 | #277       | Alerts close by themselves after 15 min of normal readings (`resolved_at` = first normal reading), no client notices meanwhile; «Cerrar a mano…» only for exceptions | #275 | In progress |
 | #283       | Admin sensors page for maintenance: tab cards «Sin conexión» (grouped by building, «Avisar al cliente»), «Plantas sin sensor» and «Sensores» (clients that need attention on the left, the chosen client's buildings and every floor on the right, how many sensors work), side panel with 24 h / 7 / 30 days chart and threshold editing | #277 | In progress |
 
@@ -1154,6 +1155,10 @@ Browser-specific limitations:
   provider. A client cannot extend its contract from the app either; it has to
   write to support.
 - Data export is CSV/JSON only; there is no import.
+- The admin alerts page sorts the open alerts in the browser and loads at most
+  100 of them (a notice says so when there are more). Its «Arregladas» tab
+  shows the alerts detected in the last 7 days, because the API cannot filter
+  by `resolved_at` yet.
 - There is no notification system yet: alerts are only seen by opening the
   admin or client area.
 - Backups live in a Docker volume on the same host as the database. They
