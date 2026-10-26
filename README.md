@@ -607,6 +607,12 @@ make migration-check                             # database at head, no drift
 (`compare_type` and `compare_server_default` in `backend/migrations/env.py`).
 See [`backend/migrations/README.md`](backend/migrations/README.md) for details.
 
+Two branches that add a migration from the same revision leave two heads once
+both are merged, and `alembic upgrade head` fails with *Multiple head
+revisions are present*, so the backend does not start. The fix is an empty
+merge migration (`alembic merge`), as `a47cf27626b1` does; see "Dos heads" in
+the migrations guide.
+
 ### Troubleshooting
 
 Start with `make doctor`: it checks the tools, `.env`, the Compose file and the
