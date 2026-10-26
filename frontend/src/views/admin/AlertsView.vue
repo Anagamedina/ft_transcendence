@@ -131,7 +131,7 @@ const STATES = ["ACTIVE", "ACKNOWLEDGED", "RESOLVED"];
 const HINTS = {
   ACTIVE: "Nadie se ha encargado aún",
   ACKNOWLEDGED: "El cliente dice que se encarga",
-  RESOLVED: "Cerradas en los últimos 7 días",
+  RESOLVED: "Detectadas en los últimos 7 días",
 };
 
 const store = useAdminAlertsStore();
@@ -185,7 +185,7 @@ const emptyText = computed(() => {
   if (hasFilters.value) return "Ninguna alerta coincide con estos filtros.";
   if (state.value === "ACTIVE") return "Todas las alertas abiertas tienen a alguien encargándose.";
   if (state.value === "ACKNOWLEDGED") return "Ningún cliente se está encargando de una alerta ahora mismo.";
-  return "No se ha arreglado ninguna alerta en los últimos 7 días.";
+  return "Ninguna alerta detectada en los últimos 7 días está arreglada.";
 });
 
 // "Actualizado hace 20 s": `now` ticks every 10 s

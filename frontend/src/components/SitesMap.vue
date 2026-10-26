@@ -3,7 +3,8 @@
   MapLibre map of the city of Barcelona, rotated like tourist maps (sea at the bottom,
   Collserola at the top), with the official municipal boundary and the outside faded.
   Zoom and panning are allowed but limited to the city; a button brings back the whole city.
-  Marker colour shows the site's alert level (none / warning / critical).
+  Marker colour shows the site's alert level (none / warning / critical), with
+  the same words as the rest of the app (useLabels: Leve / Crítica).
   Receives sites via props only (no HTTP calls).
   Each site needs: id, name, latitude, longitude. Optional: address, alertLevel.
 -->
@@ -22,13 +23,13 @@
         <span
           class="w-3 h-3 rounded-full bg-warning border border-amber-600"
         ></span>
-        Aviso
+        {{ label("AlertSeverity", "WARNING") }}
       </li>
       <li class="flex items-center gap-1.5">
         <span
           class="w-3 h-3 rounded-full bg-danger border border-red-700"
         ></span>
-        Crítica
+        {{ label("AlertSeverity", "CRITICAL") }}
       </li>
     </ul>
 
@@ -68,6 +69,9 @@ import "maplibre-gl/dist/maplibre-gl.css";
 // simplified. Imported as a static file: bundled by Vite, no HTTP call.
 import barcelonaLimit from "../assets/geo/barcelona-limit.json";
 import { aqua, chartColors } from "../theme/palette";
+import { useLabels } from "../composables/useLabels";
+
+const { label } = useLabels();
 
 const props = defineProps({
   sites: { type: Array, default: () => [] },
@@ -87,8 +91,8 @@ const MARKER_CLASSES = {
   critical: "bg-danger border-red-700 animate-pulse",
 };
 const ALERT_TEXT = {
-  warning: "Aviso activo",
-  critical: "Alerta crítica activa",
+  warning: "Alerta leve abierta",
+  critical: "Alerta crítica abierta",
 };
 
 // Outer rings of the boundary, as [lng, lat] (GeoJSON order)
