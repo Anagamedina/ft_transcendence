@@ -30,7 +30,9 @@ from app.modules.sensors.service import sensor_a_respuesta
 from app.modules.sites.model import Site
 from app.modules.sites.repository import SiteCounts, SiteRepository
 from app.modules.sites.schemas import SiteCreate, SiteResponse, SiteUpdate
+from app.modules.subscriptions.plans import max_sites_for
 from app.shared.dependencies import DbSession
+from app.shared.enums import OrganizationStatus
 from app.shared.schemas import Page
 
 
@@ -120,8 +122,14 @@ class SiteService:
         El nombre no se repite dentro del mismo cliente (restricción
         `uq_sites_organization_name`): se mira antes para dar un 409 claro,
         y la restricción lo garantiza aunque dos altas lleguen a la vez.
+
+        **No se pasa del límite de edificios** (B14): 1 en prueba, los
+        contratados si es cliente. 409 `SITE_LIMIT_REACHED`, con `max_sites` en
+        `details`. La organización se lee bloqueada para que dos altas a
+        la vez no cuenten los mismos edificios y pasen las dos.
         """
-        if OrganizationRepository(self.db).get_by_id(payload.organization_id) is None:
+        organizaciones = OrganizationRepository(self.db)
+        if organizaciones.get_by_id(payload.organization_id) is None:
             raise NotFoundError(
                 "La organización indicada no existe.", code="ORGANIZATION_NOT_FOUND"
             )
@@ -129,6 +137,8 @@ class SiteService:
 
         try:
             with transaction(self.db):
+                organizacion = organizaciones.get_for_update(payload.organization_id)
+                self._cabe_otro_edificio(organizacion)
                 site = self.sites.create(
                     organization_id=payload.organization_id, **site_campos(payload)
                 )
@@ -136,6 +146,27 @@ class SiteService:
             self._nombre_libre(payload.organization_id, payload.name, causa=exc)
             raise
         return self._respuesta(site)
+
+    def _cabe_otro_edificio(self, organizacion) -> None:
+        """409 `SITE_LIMIT_REACHED` si ya tiene todos los edificios que puede."""
+        limite = max_sites_for(organizacion)
+        if limite is None or self.sites.count_by_organization(organizacion.id) < limite:
+            return
+        cuantos = "1 edificio" if limite == 1 else f"{limite} edificios"
+        if organizacion.status == OrganizationStatus.TRIAL.value:
+            motivo = (
+                f"{organizacion.name} está en prueba y ya tiene {cuantos}, que es "
+                "el máximo. Podrá añadir más cuando se haga cliente."
+            )
+        else:
+            motivo = (
+                f"{organizacion.name} ya tiene {cuantos}, los que tiene "
+                "contratados. Para añadir más tiene que ampliar el contrato."
+            )
+        raise ConflictError(
+            motivo, details={"field": "organization_id", "max_sites": limite},
+            code="SITE_LIMIT_REACHED",
+        )
 
     def update(self, site_id: UUID, payload: SiteUpdate) -> SiteResponse:
         """

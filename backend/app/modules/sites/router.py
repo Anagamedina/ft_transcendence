@@ -145,7 +145,9 @@ _NOMBRE_OCUPADO = error_response(
     summary="Dar de alta un site",
     description=(
         "Solo admin. Crea un edificio en el cliente `organization_id`, con sus "
-        "plantas (`floors`, contando la baja), sótanos y tipo."
+        "plantas (`floors`, contando la baja), sótanos y tipo.\n\n"
+        "Respeta el límite de edificios: 1 en prueba y el de su plan si es "
+        "cliente (B14)."
     ),
     dependencies=[Depends(require_role("admin"))],
     responses={
@@ -154,7 +156,11 @@ _NOMBRE_OCUPADO = error_response(
             status.HTTP_404_NOT_FOUND,
             "La organización no existe (`ORGANIZATION_NOT_FOUND`).",
         ),
-        **_NOMBRE_OCUPADO,
+        **error_response(
+            status.HTTP_409_CONFLICT,
+            "Ese cliente ya tiene un edificio con ese nombre (`SITE_NAME_TAKEN`) "
+            "o ha llegado a su límite de edificios (`SITE_LIMIT_REACHED`).",
+        ),
     },
 )
 def create_site(payload: SiteCreate, service: SiteSvc) -> SiteResponse:

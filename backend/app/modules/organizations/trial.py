@@ -11,8 +11,8 @@ solo lectura (`require_trial_not_expired` en `shared/dependencies.py`).
 - **Vence en el instante exacto de `trial_ends_at`**, el mismo criterio
   que usa `extend-trial` para decidir si cuenta desde el fin o desde hoy.
 - **Se calcula, no se guarda.** No hay tarea periódica que pase la
-  organización a otro estado: ampliar o activar la prueba (B1) basta para
-  que deje de estar vencida.
+  organización a otro estado: ampliar la prueba (B1) o hacerse cliente
+  (B14) basta para que deje de estar vencida.
 - Una `SUSPENDED` que estaba en prueba conserva `trial_ends_at`, pero no
   cuenta como vencida: a esa la corta `ACCOUNT_DISABLED` antes.
 """

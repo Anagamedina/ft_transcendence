@@ -159,7 +159,8 @@ const LAST_UPDATED = "octubre de 2026";
 
 const summary = [
   "Solo damos servicio a edificios de Barcelona ciudad.",
-  "La prueba gratuita dura 7 días. Al terminar, tus datos quedan en solo lectura hasta que el equipo active la cuenta.",
+  "La prueba gratuita dura 7 días. Al terminar, tus datos quedan en solo lectura hasta que te hagas cliente desde la plataforma.",
+  "Al hacerte cliente eliges cuántos edificios y sensores necesitas: pagas la base del plan más 10 € por sensor al mes, por domiciliación SEPA.",
   "Los sensores los instala el equipo técnico de AquaGuard: necesitamos acceso al edificio.",
   "Guardamos solo lo necesario: tu cuenta, tus edificios, las lecturas de los sensores y los documentos que se suben.",
   "Una sola cookie, técnica y de sesión. Sin analítica ni publicidad. No vendemos ni cedemos datos.",
@@ -208,9 +209,9 @@ const privacySections = [
         time: "Mientras tu cuenta exista",
       },
       {
-        data: "Datos de la organización y facturación",
+        data: "Datos de la organización, contrato y facturación",
         purpose:
-          "Contactar con la organización y gestionar la suscripción: plan, razón social, NIF/CIF, dirección y email de facturación, email y teléfono de contacto. Del IBAN solo guardamos el país y las 4 últimas cifras",
+          "Contactar con la organización y gestionar su contrato: plan, edificios y sensores contratados, precio, pago mensual o anual, razón social, NIF/CIF, dirección fiscal con código postal, email de facturación, email y teléfono de contacto, y cuándo autorizaste la domiciliación SEPA. Del IBAN solo guardamos el país y las 4 últimas cifras",
         time: "Mientras la organización tenga cuenta",
       },
       {
@@ -273,7 +274,7 @@ const privacySections = [
     short: "Fin de la prueba",
     body: [
       "Cuando terminan los 7 días de prueba, tus datos no se borran: quedan en solo lectura. Puedes seguir viendo tus edificios, lecturas y documentos, pero no hacer cambios.",
-      "Si el equipo activa la cuenta, todo sigue como estaba. Si la cuenta no se activa, el equipo de AquaGuard puede eliminar la organización; al hacerlo se borran de forma definitiva sus usuarios, edificios, sensores, lecturas, alertas y documentos.",
+      "Si te haces cliente, todo sigue como estaba. Si no, el equipo de AquaGuard puede eliminar la organización; al hacerlo se borran de forma definitiva sus usuarios, edificios, sensores, lecturas, alertas y documentos.",
     ],
   },
   {
@@ -341,7 +342,7 @@ const termsSections = [
     title: "Solo edificios de Barcelona",
     short: "Ámbito: Barcelona",
     body: [
-      "AquaGuard solo da servicio a edificios situados en el término municipal de Barcelona. El equipo comprueba la dirección del edificio antes de instalar los sensores: si está fuera de Barcelona, no podremos instalarlos ni activar la cuenta.",
+      "AquaGuard solo da servicio a edificios situados en el término municipal de Barcelona. El equipo comprueba la dirección del edificio antes de instalar los sensores: si está fuera de Barcelona, no podremos instalarlos ni darte de alta como cliente.",
     ],
   },
   {
@@ -349,9 +350,21 @@ const termsSections = [
     title: "Prueba gratuita de 7 días",
     short: "Prueba gratuita",
     body: [
-      "La prueba es gratuita, no pide tarjeta y no te compromete a nada. Dura 7 días desde el registro.",
-      "Al terminar, la cuenta queda en solo lectura: puedes ver tus edificios, lecturas y documentos, pero no hacer cambios. Para seguir usando AquaGuard, pide al equipo que active tu cuenta. El equipo también puede ampliar la prueba.",
-      "Si la cuenta no se activa, el equipo puede eliminar la organización y todos sus datos, como explica la política de privacidad.",
+      "La prueba es gratuita, no pide tarjeta y no te compromete a nada. Dura 7 días desde el registro. Durante la prueba tu organización puede tener un edificio.",
+      "Al terminar, la cuenta queda en solo lectura: puedes ver tus edificios, lecturas y documentos, pero no hacer cambios. Para seguir usando AquaGuard, hazte cliente desde la plataforma (en el aviso de la prueba o en Mi cuenta). El equipo también puede ampliar la prueba.",
+      "Si no te haces cliente, el equipo puede eliminar la organización y todos sus datos, como explica la política de privacidad.",
+    ],
+  },
+  {
+    id: "contratacion",
+    title: "Contratación, precio y pago",
+    short: "Contratación y pago",
+    body: [
+      "Al hacerte cliente eliges cuántos edificios y sensores necesitas, y el plan se elige solo según los edificios: Básico (de 1 a 5), Profesional (de 6 a 10) o Empresa (de 11 a 20). Los sensores no cambian el plan, se pagan aparte. Para más de 20 edificios, escríbenos y te preparamos un presupuesto.",
+      "El precio al mes es la base del plan (29 €, 79 € o 199 €) más 10 € por cada sensor, IVA no incluido. Puedes pagar cada mes, sin permanencia, o un año por adelantado, que son 10 meses. El precio queda fijado el día del alta y el servicio de pago empieza ese mismo día.",
+      "Lo contratado es también tu máximo: no damos de alta más edificios ni sensores de los que pagas, y no puedes contratar menos de los que ya tienes. Para ampliar el contrato, escríbenos.",
+      "El cobro es por domiciliación SEPA en la cuenta que indicas al contratar, y para eso nos autorizas en el mismo formulario. Al contratar aceptas también estas condiciones.",
+      "AquaGuard es un proyecto académico: el alta funciona como una real, pero no se hace ningún cobro.",
     ],
   },
   {
@@ -417,7 +430,7 @@ const termsSections = [
     title: "Darse de baja",
     short: "Baja",
     body: [
-      "Puedes pedir al equipo de AquaGuard que borre tu cuenta en cualquier momento. Un administrador también puede suspender o eliminar una cuenta si se incumplen estos términos.",
+      "Puedes pedir la baja en cualquier momento desde Mi cuenta. Un administrador revisa la petición y cierra la cuenta; con la baja termina también tu contrato. Un administrador también puede suspender o eliminar una cuenta si se incumplen estos términos.",
     ],
   },
   {

@@ -102,8 +102,50 @@ const dataFields = computed(() => [
   { label: "Razón social", value: client.value.legal_name },
   { label: "NIF o CIF", value: client.value.tax_id },
   { label: "Email de facturación", value: client.value.billing_email },
+  { label: "Dirección fiscal", value: billingAddress.value },
+  { label: "Plan", value: planText.value },
+  { label: "Contratado", value: contractText.value },
+  { label: "Cuenta (SEPA)", value: client.value.iban_masked },
   { label: "Cliente desde", value: formatDate(client.value.created_at) },
 ]);
+
+// Saved by "Hazte cliente" (B14); empty for clients created by an admin
+const PLAN_LABELS = {
+  BASIC: "Básico",
+  PRO: "Profesional",
+  ENTERPRISE: "Empresa",
+};
+const PERIOD_LABELS = { MONTHLY: "mensual", YEARLY: "anual" };
+
+const billingAddress = computed(() =>
+  [client.value.billing_address, client.value.postal_code]
+    .filter(Boolean)
+    .join(", "),
+);
+
+const planText = computed(() => {
+  const { plan, billing_period: period, subscribed_at: since } = client.value;
+  if (!plan) return null;
+  const parts = [PLAN_LABELS[plan] ?? plan, PERIOD_LABELS[period]]
+    .filter(Boolean)
+    .join(" ");
+  return since ? `${parts}, desde el ${formatDate(since)}` : parts;
+});
+
+// "2 edificios y 12 sensores · 199 € / mes"
+const contractText = computed(() => {
+  const { contracted_sites: sitesCount, contracted_sensors: sensorsCount } =
+    client.value;
+  if (!sitesCount) return null;
+  const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  const price = client.value.monthly_price_eur;
+  return [
+    `${count(sitesCount, "edificio", "edificios")} y ${count(sensorsCount, "sensor", "sensores")}`,
+    price != null ? `${price} € / mes` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+});
 
 // ---------------------------------------------------------------------------
 // Status actions: call the API and confirm the result in a status message
@@ -146,13 +188,6 @@ function onExtend() {
     organizationsStore.extendTrial,
     (updated) =>
       `Prueba ampliada hasta el ${formatDate(updated.trial_ends_at)}.`,
-  );
-}
-
-function onActivate() {
-  runAction(
-    organizationsStore.activate,
-    (updated) => `${updated.name} ya es cliente activo.`,
   );
 }
 
@@ -356,7 +391,6 @@ watch(
             <ClientActions
               :client="client"
               @extend="onExtend"
-              @activate="onActivate"
               @suspend="onSuspend"
               @reactivate="onReactivate"
               @delete="onDelete"

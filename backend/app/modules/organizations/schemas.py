@@ -23,7 +23,7 @@ from uuid import UUID
 from pydantic import EmailStr, Field
 
 from app.modules.sites.schemas import SiteBase
-from app.shared.enums import OrganizationStatus, SubscriptionPlan
+from app.shared.enums import BillingPeriod, OrganizationStatus, SubscriptionPlan
 from app.shared.schemas import ApiModel, ApiRequest
 
 # Los nombres de organización se guardan con 120 caracteres como máximo
@@ -123,15 +123,31 @@ class OrganizationResponse(ApiModel):
     tax_id: str | None = None
     billing_email: str | None = None
     billing_address: str | None = None
+    postal_code: str | None = None
     plan: SubscriptionPlan | None = Field(
         default=None,
         description="Plan contratado desde la app (B14). `null` si no se ha suscrito.",
+    )
+    billing_period: BillingPeriod | None = Field(
+        default=None, description="`MONTHLY` o `YEARLY`. `null` si no se ha suscrito."
+    )
+    contracted_sites: int | None = Field(
+        default=None, description="Edificios contratados: también su límite."
+    )
+    contracted_sensors: int | None = Field(
+        default=None, description="Sensores contratados: también su límite."
+    )
+    monthly_price_eur: int | None = Field(
+        default=None, description="Precio al mes acordado al contratar, IVA no incluido."
     )
     subscribed_at: datetime | None = Field(
         default=None, description="Cuándo se suscribió, en UTC."
     )
     iban_masked: str | None = Field(
         default=None, description="Solo enmascarado: el IBAN entero no se guarda."
+    )
+    sepa_accepted_at: datetime | None = Field(
+        default=None, description="Cuándo autorizó la domiciliación SEPA, en UTC."
     )
     site_count: int = Field(default=0, description="Edificios del cliente.")
     sensor_count: int = Field(default=0, description="Sensores en todos sus edificios.")

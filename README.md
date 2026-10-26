@@ -33,6 +33,9 @@ whole stack runs in Docker Compose behind an HTTPS Nginx gateway.
   isolated per organization.
 - Organizations with a 7-day trial, suspension, invitations and user
   management.
+- Self-service subscription: a trial client chooses how many buildings and
+  sensors it needs; the plan and the monthly price are computed from them and
+  become its limits.
 - Buildings, floors and sensors, with readings ingested from a simulator.
 - Automatic alerts for low pressure, high pressure and offline sensors.
 - Analytics dashboard with KPIs, charts, date ranges and CSV export.
@@ -425,6 +428,10 @@ with `ENV=production` because these passwords are public.
 
 - 5 organizations: Residencias Collserola, Hotel Gòtic (TRIAL), Comunidad
   Mallorca 401, Polideportivo Poblenou and Aigües Zona Franca (SUSPENDED).
+  Hotel Gòtic is the one to try "Hazte cliente" with (`hotel@aquaguard.dev`);
+  `make seed` puts it back on the trial and clears its contract. The active
+  demo clients have no contract (no plan, price or limits): they stand for
+  clients managed by hand, like the ones an admin creates with "Nuevo cliente".
 - 6 buildings in Barcelona, each in a different district, with floors,
   basements and real coordinates; 8 sensors spread
   across floors, each on a floor that exists in its building (between
@@ -471,6 +478,57 @@ just the `SMTP_*` variables in `.env`:
 `SMTP_FROM` is the bare address: the sender name "AquaGuard" is added by the
 backend. An empty `SMTP_HOST=` disables sending; the backend only logs which
 email it would have sent. Tests never send email.
+
+### Subscription and pricing
+
+A client on the trial (running or expired) becomes a paying client from
+`/app/subscribe` ("Hazte cliente" in the trial banner or in Mi cuenta). It
+chooses how many buildings and sensors it needs. The plan depends only on the
+buildings; sensors are paid apart, 10 € each and month, so the price is the
+plan base plus the sensors. The yearly payment is ten months. Prices exclude
+VAT.
+
+| Plan        | Buildings | Monthly price             | Example                             |
+|-------------|-----------|---------------------------|-------------------------------------|
+| Básico      | 1 to 5    | 29 € + 10 € per sensor    | 3 buildings, 18 sensors → 209 €     |
+| Profesional | 6 to 10   | 79 € + 10 € per sensor    | 10 buildings, 80 sensors → 879 €    |
+| Empresa     | 11 to 20  | 199 € + 10 € per sensor   | 15 buildings, 120 sensors → 1399 €  |
+
+More than 20 buildings is a custom quote: the page sends the client to
+support.
+
+- On the page, every price says "+ IVA" and only the total shows the price
+  with the 21 % VAT. The VAT is only shown: the API, the contract and the
+  admin sheet keep the prices without it.
+- A Barcelona postal code (08001 to 08042) fills the city with "Barcelona";
+  any other code leaves the field free, and what the client writes is never
+  overwritten.
+
+- The API computes the plan and the price again (`POST
+  /api/me/organization/subscribe`) and stores what was contracted, the price
+  of that moment, the billing period, the fiscal data, the SEPA authorization
+  and the IBAN masked. Plans and prices are in
+  `backend/app/modules/subscriptions/plans.py` and come to the page from
+  `GET /api/plans`; the page computes the same price in
+  `frontend/src/utils/pricing.js` to show it while the client types.
+- What was contracted is also the limit: on the trial an organization has one
+  building, and as a client an admin cannot add more buildings or sensors than
+  it pays for (`409 SITE_LIMIT_REACHED`, `409 SENSOR_LIMIT_REACHED`). Clients
+  created by an admin, without a contract, have no limit.
+- A client cannot contract fewer buildings or sensors than it already has
+  (`409 CONTRACT_BELOW_CURRENT`), nor fewer sensors than buildings.
+- Subscribing is the only way out of the trial: an admin can extend a trial
+  but not activate it, so every client that leaves the trial has a contract,
+  a price and limits.
+- The terms of service explain the plans, prices, payment and limits in
+  [`/legal#terminos-contratacion`](https://localhost/legal#terminos-contratacion),
+  which the subscribe form links to. Those prices are written by hand in
+  `frontend/src/views/public/LegalView.vue`: update them together with
+  `plans.py`.
+
+To try it: log in as `hotel@aquaguard.dev`, click "Hazte cliente", subscribe
+with the IBAN `ES91 2100 0418 4502 0005 1332`, then log in as the admin and
+open Hotel Gòtic → Datos. `make seed` puts it back on the trial.
 
 ### Analytics export
 
@@ -715,7 +773,7 @@ erDiagram
 
 | Table           | Key fields                                                                                                       | Rules enforced by the database                                                                                    |
 |-----------------|------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------|
-| `organizations` | `name`, `status`, `trial_ends_at`, contact and billing data, `plan`, `iban_masked`                               | `name` unique ignoring case; `status` in TRIAL/ACTIVE/SUSPENDED; `plan` in BASIC/PRO/ENTERPRISE                   |
+| `organizations` | `name`, `status`, `trial_ends_at`, contact and billing data, contract (`plan`, `billing_period`, `contracted_sites`, `contracted_sensors`, `monthly_price_eur`), `iban_masked`, `sepa_accepted_at` | `name` unique ignoring case; `status` in TRIAL/ACTIVE/SUSPENDED; `plan` in BASIC/PRO/ENTERPRISE; `billing_period` MONTHLY/YEARLY; contracted at least 1, price not negative |
 | `users`         | `organization_id`, `email`, `name`, `password_hash`, `role`, `is_active`, terms and deletion dates               | `email` unique; `role` is `admin` or `client`; a client always has an organization                                |
 | `sites`         | `organization_id`, `name`, `address`, `latitude`/`longitude`, `floors`, `basements`, `building_type`, `district` | `name` unique per organization; valid coordinates; at least 1 floor; building type and Barcelona district lists   |
 | `sensors`       | `site_id`, `external_id`, `name`, `floor`, `sensor_type`, `unit`, `low_threshold`, `high_threshold`              | `external_id` unique per site; `low_threshold < high_threshold`, both within 0–25 bar; type PRESSURE or FLOW      |
@@ -751,7 +809,8 @@ users in [Demo data](#demo-data). Backend rules are covered by
 | Backend        | Organizations: list, create, edit, suspend, reactivate and trial (B1)                 | Ana                    | `/admin/clients`                             |
 | Backend        | Expired trial is read-only: client writes answer `403 TRIAL_EXPIRED` (B12)            | Daruny                 | `make test-backend`                          |
 | Backend        | Invitations and user management: invite, revoke, resend and accept (B4, B6)           | Daruny                 | `/registro?invitacion=AQUAGUARD-DEMO-INVITE` |
-| Backend        | Subscription plans and global search, API only for now (B14, B17)                     | Daruny                 | `/api/docs` → Subscriptions, Search          |
+| Backend        | Subscription: plan and price from buildings and sensors, contract limits (B14)        | Daruny                 | `make test-backend` · `/api/docs`            |
+| Backend        | Global search, API only for now (B17)                                                 | Daruny                 | `/api/docs` → Search                         |
 | Backend        | Buildings: floors, basements, type, sensor count and status (B2)                      | Ana                    | `/admin/sites`                               |
 | Backend        | Building documents: upload, list, download and delete (B11)                           | Daruny                 | `/app/documents`                             |
 | Backend        | Sensors: create, edit, floor, health and last value; offline after 5 min (B3)         | Ana                    | `/admin/sensors`                             |
@@ -769,6 +828,7 @@ users in [Demo data](#demo-data). Backend rules are covered by
 | Frontend       | Admin dashboard: KPI cards, active alerts and the Barcelona sites map (#156)          | Florinda, Eduardo, Ana | `/admin`                                     |
 | Frontend       | Admin clients: status filters, detail tabs, status actions and new-client wizard (F7) | Florinda, Lylia        | `/admin/clients`                             |
 | Frontend       | Admin client users: list, edit name, remove access, invitations (F23)                 | Daruny                 | `/admin/clients/:id` → Usuarios              |
+| Frontend       | "Hazte cliente": buildings and sensors, live price, monthly/yearly, fiscal data       | Daruny                 | `/app/subscribe` · `hotel@aquaguard.dev`     |
 | Frontend       | Admin buildings and sensors floor by floor, pressure chart and forms (F4, F5, F10)    | Florinda               | `/admin/sites` · `/admin/sensors`            |
 | Frontend       | Admin alerts: client, state and severity filters, counters and sensor ranking (#153)  | Lylia, Eduardo         | `/admin/alerts`                              |
 | Frontend       | Client home "Mis edificios": alert banner, KPIs, buildings by urgency (F8, F24)       | Daruny, Florinda       | `/app` · `client@aquaguard.dev`              |
@@ -966,6 +1026,7 @@ Issues #130 to #134 were reviewed and merged together in #182.
 | #134  | B18 analytics: shared `DateRange` (`from`/`to`) and `GET /api/analytics/export` in CSV           | #182          | Implemented |
 | #135  | F19 admin analytics panel: Chart.js charts, date presets, CSV export, 30 s refresh               | #186          | Implemented |
 | #148  | B13 complete OpenAPI documentation: examples, error codes, multipart upload and CSV export       | #228          | Implemented |
+| #150  | "Hazte cliente": price from buildings and sensors, contract stored and enforced as the limit     | —             | Implemented |
 
 ### Florinda (`flperez-`)
 
@@ -1087,8 +1148,11 @@ Browser-specific limitations:
   <http://localhost:8025> and never reach a real mailbox. Sending them for real
   only needs the `SMTP_*` variables in `.env` (see
   [Confirmation emails (GDPR)](#confirmation-emails-gdpr)).
-- Subscription plans and global search exist only in the API (B14, B17); no
-  screen uses them yet.
+- Global search exists only in the API (B17); no screen uses it yet.
+- Subscribing charges nothing: there is no payment gateway. The IBAN is
+  checked and stored masked only, so a real charge would need a payment
+  provider. A client cannot extend its contract from the app either; it has to
+  write to support.
 - Data export is CSV/JSON only; there is no import.
 - There is no notification system yet: alerts are only seen by opening the
   admin or client area.

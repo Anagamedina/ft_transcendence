@@ -153,7 +153,6 @@ RUTAS = [
     ("post", "/api/organizations/{id}/suspend"),
     ("post", "/api/organizations/{id}/reactivate"),
     ("post", "/api/organizations/{id}/extend-trial"),
-    ("post", "/api/organizations/{id}/activate"),
 ]
 
 
@@ -432,15 +431,16 @@ def test_reactivar_una_que_no_esta_suspendida_da_409(admin, datos):
     assert _codigo(respuesta) == "ORGANIZATION_NOT_SUSPENDED"
 
 
-def test_activar_una_prueba(admin, datos):
-    cuerpo = admin.post(f"/api/organizations/{datos['luna'].id}/activate").json()
-    assert cuerpo["status"] == "ACTIVE"
-    assert cuerpo["trial_ends_at"] is None
+def test_el_admin_no_puede_activar_una_prueba(admin, datos):
+    """Solo el cliente pasa de la prueba a cliente, con su contrato (B14)."""
+    respuesta = admin.post(f"/api/organizations/{datos['luna'].id}/activate")
+
+    assert respuesta.status_code in (404, 405)
+    assert admin.get(f"/api/organizations/{datos['luna'].id}").json()["status"] == "TRIAL"
 
 
-@pytest.mark.parametrize("accion", ["activate", "extend-trial"])
-def test_activar_o_ampliar_algo_que_no_es_prueba_da_409(admin, datos, accion):
-    respuesta = admin.post(f"/api/organizations/{datos['sol'].id}/{accion}")
+def test_ampliar_algo_que_no_es_prueba_da_409(admin, datos):
+    respuesta = admin.post(f"/api/organizations/{datos['sol'].id}/extend-trial")
     assert respuesta.status_code == 409
     assert _codigo(respuesta) == "ORGANIZATION_NOT_IN_TRIAL"
 
