@@ -117,7 +117,7 @@
       </li>
     </ul>
     <p v-else class="text-sm text-slate-700">
-      Una semana tranquila: ningún aviso en este edificio.
+      Ningún aviso nuevo esta semana.
     </p>
     <p v-if="weekAlerts.length > MAX_ITEMS" class="text-sm text-slate-600">
       Y {{ weekAlerts.length - MAX_ITEMS }} más esta semana.
