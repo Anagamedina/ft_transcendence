@@ -29,7 +29,7 @@ Rama: `ana/139-b1-organizaciones` (desde `develop` con la limpieza #181).
 | `first_user` | No: solo `first_site` | Los usuarios llegan por invitación (B4); el admin no conoce contraseñas de clientes |
 | Reactivar | TRIAL si tiene `trial_ends_at`, si no ACTIVE | Reactivar no convierte una prueba en cliente de pago |
 | Ampliar prueba | Suma al fin actual; si caducó, desde hoy | Ampliar siempre da días útiles |
-| Activar | Borra `trial_ends_at` | Así «tiene fin de prueba» = «está o estaba en prueba» |
+| Activar | Borra `trial_ends_at` | Así «tiene fin de prueba» = «está o estaba en prueba». Desde la B14 (#274) no hay `activate`: lo hace el alta del cliente (`subscribe`), con la misma regla |
 | Nombre vacío | 422 `INVALID_NAME` desde el service | Código propio que pide la #121, no el genérico |
 | Estado en PATCH | No se acepta (422) | Cada cambio de estado tiene su ruta y sus reglas |
 
@@ -38,6 +38,7 @@ Rama: `ana/139-b1-organizaciones` (desde `develop` con la limpieza #181).
 | Dónde | Qué |
 |---|---|
 | I0 (#151, Edu) | Añadir `TRIAL_DAYS` a `.env.example` |
+| B14 (#274, Daru) | Quedan dos tipos de cliente: los que crea el admin («Nuevo cliente», `ACTIVE` sin contrato ni límites) y los que vienen de la prueba (con lo contratado como límite). Un cliente que paga por transferencia no se puede pasar a cliente. Decidirlo en equipo |
 | B2 (#139) | Plantas, sótanos y tipo de edificio en `first_site` y en sites |
 | B6 (#141) | `is_active` en `ensure_account_enabled` |
 | B12 (#146) | Caducidad automática de la prueba |
