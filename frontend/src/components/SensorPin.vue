@@ -14,14 +14,22 @@
     class="inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition focus:outline-none focus-visible:ring-2 focus-visible:ring-aqua-600 focus-visible:ring-offset-1"
     :class="
       selected
-        ? 'border-2 border-aqua-600 bg-sky-100 text-aqua-900'
+        ? 'border-2 border-aqua-600 bg-aqua-100 text-aqua-900'
         : 'border border-slate-200 bg-white text-slate-700 hover:border-aqua-400'
     "
     :aria-pressed="selected"
     :aria-label="ariaLabel"
     @click="$emit('select', sensor.id)"
   >
+    <!-- Offline: wifi-off icon instead of the grey dot (not only colour) -->
     <span
+      v-if="health === 'OFFLINE'"
+      class="h-3.5 w-3.5 shrink-0 text-slate-600"
+      aria-hidden="true"
+      ><AppIcon name="wifi-off"
+    /></span>
+    <span
+      v-else
       class="h-[9px] w-[9px] shrink-0 rounded-full"
       :class="dotClass"
       aria-hidden="true"
@@ -32,6 +40,7 @@
 
 <script setup>
 import { computed } from "vue";
+import AppIcon from "./AppIcon.vue";
 import { useLabels } from "../composables/useLabels";
 
 const props = defineProps({

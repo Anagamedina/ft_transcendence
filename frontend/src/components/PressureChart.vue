@@ -82,6 +82,14 @@ const tooltipDate = new Intl.DateTimeFormat("es-ES", {
   minute: "2-digit",
 });
 const weekday = new Intl.DateTimeFormat("es-ES", { weekday: "short" });
+const hourOnly = new Intl.DateTimeFormat("es-ES", {
+  hour: "2-digit",
+  minute: "2-digit",
+});
+const dayMonth = new Intl.DateTimeFormat("es-ES", {
+  day: "numeric",
+  month: "short",
+});
 const number = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2 });
 
 // Readings sorted by time, oldest first
@@ -122,19 +130,54 @@ const summary = computed(() => {
 
 // Day name ('Sáb') once per day, on the first reading from midday on, so each
 // name sits in the middle of its day and two names never overlap
+// Days covered by the readings (decides how the x axis is labelled)
+const spanDays = computed(() => {
+  if (points.value.length < 2) return 0;
+  const first = new Date(points.value[0].measured_at);
+  const last = new Date(points.value[points.value.length - 1].measured_at);
+  return (last - first) / 86400000;
+});
+
+// True for the first reading of a new calendar day
+function startsDay(index) {
+  if (index === 0) return true;
+  const current = new Date(points.value[index].measured_at);
+  const previous = new Date(points.value[index - 1].measured_at);
+  return previous.toDateString() !== current.toDateString();
+}
+
+// X axis label: hours for 24 h, weekday for 7 days, "8 sept" every
+// 5 days for longer periods, so labels never overlap
 function dayTick(index) {
-  const current = new Date(points.value[index]?.measured_at);
-  if (current.getHours() < 12) return null;
-  const previous =
-    index > 0 ? new Date(points.value[index - 1].measured_at) : null;
-  if (
-    previous &&
-    previous.toDateString() === current.toDateString() &&
-    previous.getHours() >= 12
-  )
-    return null;
-  const name = weekday.format(current).replace(".", "");
-  return name.charAt(0).toUpperCase() + name.slice(1);
+  const point = points.value[index];
+  if (!point) return null;
+  const current = new Date(point.measured_at);
+  const span = spanDays.value;
+
+  if (span <= 1.5) {
+    const step = Math.max(1, Math.round(points.value.length / 6));
+    return index % step === 0 ? hourOnly.format(current) : null;
+  }
+  if (span <= 8) {
+    if (current.getHours() < 12) return null;
+    const previous =
+      index > 0 ? new Date(points.value[index - 1].measured_at) : null;
+    if (
+      previous &&
+      previous.toDateString() === current.toDateString() &&
+      previous.getHours() >= 12
+    )
+      return null;
+    const name = weekday.format(current).replace(".", "");
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  }
+  if (index === 0 || !startsDay(index)) return null;
+  const first = new Date(points.value[0].measured_at);
+  first.setHours(0, 0, 0, 0);
+  const midnight = new Date(current);
+  midnight.setHours(0, 0, 0, 0);
+  const dayNumber = Math.round((midnight - first) / 86400000);
+  return dayNumber % 5 === 0 ? dayMonth.format(current).replace(".", "") : null;
 }
 
 const canvas = ref(null);
