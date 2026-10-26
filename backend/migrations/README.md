@@ -61,6 +61,23 @@ Las restricciones llevan nombre: `ck_<tabla>_<qué>` y
 `fk_<tabla>_<columna>_<tabla destino>`. Sin nombre, PostgreSQL inventa uno y el
 `downgrade` no lo puede borrar.
 
+## Dos heads
+
+Si dos PR crean una migración desde el mismo `down_revision`, al mergear las
+dos `develop` queda con dos heads y `alembic upgrade head` falla (*Multiple
+head revisions*): el backend no arranca. Se arregla con una migración de merge
+vacía, nunca cambiando el `down_revision` de una que ya está en `develop`:
+
+```bash
+docker compose run --rm --no-deps --user "$(id -u):$(id -g)" \
+  -v "$PWD/backend/app:/app/app:ro" -v "$PWD/backend/migrations:/app/migrations" \
+  --entrypoint alembic backend merge -m "merge <a> and <b> heads" <rev_a> <rev_b>
+```
+
+Ejemplo: `a47cf27626b1` une `e5a8c2f4b913` (contrato) y `e3b8c1f5a7d9`
+(`alert_notifications`). Para evitarlo, antes de mergear una PR con migración,
+comprobar que su `down_revision` sigue siendo el head de `develop`.
+
 ## Drift
 
 Hay drift cuando un modelo ya no coincide con lo que dejan las migraciones:
