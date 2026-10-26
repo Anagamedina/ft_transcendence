@@ -3,7 +3,7 @@
   /app/edificios/:id — one building. The side menu is the general view (all
   buildings); this page and its tabs are only this building.
     - Header: name, address, floors and sensors.
-    - Three indicators, each a link: Pendientes, En curso (to the Alertas
+    - Three indicators, each a link: Sin atender, En curso (to the Alertas
       tab) and Sensores funcionando (to Plantas y sensores).
     - Tabs (?tab=): Vista general (default) · Plantas y sensores (plantas) ·
       Alertas (alertas) · Documentos (link to /app/documents; filtered by
@@ -454,7 +454,7 @@ const indicators = computed(() => {
   ).length;
   return [
     {
-      label: "Pendientes",
+      label: "Sin atender",
       value: loaded ? pending : "—",
       to: { query: { tab: "alertas" } },
       labelClass: "text-danger-dark",
@@ -478,7 +478,7 @@ const indicators = computed(() => {
 });
 
 // ---------------------------------------------------------------------------
-// "Me encargo": the alert moves from Pendiente to En curso without reloading
+// "Me encargo": the alert moves from Sin atender to En curso without reloading
 // ---------------------------------------------------------------------------
 const busyAlertId = ref(null);
 const actionError = ref("");

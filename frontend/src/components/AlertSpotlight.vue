@@ -4,7 +4,7 @@
     - Drop icon and the problem in words ("Presión demasiado baja"), where
       (sensor · floor) and since when.
     - What it may mean, in client words, by alert type.
-    - Pendiente: "Me encargo". En curso: who is handling it.
+    - Sin atender: "Me encargo". En curso: who is handling it.
     - "Ver gráfico": the parent opens "Plantas y sensores" on that floor.
     - One AquaGuard line (we watch it and close it after checking readings).
   Pending is red, en curso blue; both also say it in text.
@@ -34,8 +34,8 @@
         class="text-sm font-semibold"
         :class="pending ? 'text-danger-dark' : 'text-info-dark'"
       >
-        {{ pending ? "Pendiente" : "En curso" }} ·
-        {{ alert.severity === "CRITICAL" ? "Urgente" : "Aviso" }}
+        {{ pending ? label("AlertState", "ACTIVE") : label("AlertState", "ACKNOWLEDGED") }} ·
+        {{ label("AlertSeverity", alert.severity) }}
       </p>
       <h2
         id="spotlight-title"
@@ -95,7 +95,7 @@ const props = defineProps({
 
 defineEmits(["acknowledge", "chart"]);
 
-const { toneClasses } = useLabels();
+const { label, toneClasses } = useLabels();
 const { formatRelative, formatDateTime } = useFormat();
 
 // The problem and what it may mean, in client words

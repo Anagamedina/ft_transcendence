@@ -3,7 +3,7 @@
   "Tu semana" of the building page: this week (Monday to Sunday, local time)
   per sensor and day.
     - Each cell: how many alerts that sensor had that day, red when any of
-      them is still open (Pendiente or En curso), green when all are fixed,
+      them is still open (Sin atender or En curso), green when all are fixed,
       grey when there were none, dashed for the days still to come. The
       number and the cell's label say it too, never colour alone.
     - Under the grid, the alerts of the week in words with their state.
@@ -237,7 +237,7 @@ function stateOf(alert) {
       ? ` · lo confirmó ${alert.resolved_by_name}`
       : "";
     return {
-      text: `Arreglado${who}`,
+      text: `Arreglada${who}`,
       tone: "success",
       textClass: "text-success-dark",
     };
@@ -249,7 +249,7 @@ function stateOf(alert) {
       textClass: "text-info-dark",
     };
   return {
-    text: `Pendiente · ${formatRelative(alert.created_at)}`,
+    text: `Sin atender · ${formatRelative(alert.created_at)}`,
     tone: "danger",
     textClass: "text-danger-dark",
   };
