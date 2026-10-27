@@ -12,7 +12,8 @@
 
   Clicking a sensor opens SensorSidePanel (chart, data, "Ajustar umbrales");
   "+ Añadir sensor" (in a building), "+ Instalar aquí" and "+ Dar de alta"
-  (on a floor) open it to create one: always in a chosen building. Tab, search, client and building of the
+  (on a floor) open it to create one: always in a chosen building. "Importar CSV"
+  creates every sensor of a building from a file (SensorImportDialog). Tab, search, client and building of the
   tab "Sensores" (?client=), building filter (?site=) and open sensor (?sensor=) live
   in the URL. The sensors and buildings come from stores/sensors.js and
   stores/sites.js; refreshed every 60 s.
@@ -23,6 +24,13 @@
     <section class="flex flex-col gap-5">
       <header class="flex flex-wrap items-center justify-between gap-3">
         <h1 class="text-2xl font-bold text-slate-900">Sensores</h1>
+        <button
+          type="button"
+          class="min-h-10 rounded-lg border border-aqua-600 px-4 text-sm font-semibold text-aqua-700 hover:bg-aqua-50"
+          @click="importing = true"
+        >
+          Importar CSV
+        </button>
       </header>
 
       <div class="flex flex-col gap-3">
@@ -149,6 +157,13 @@
       @cancel="panel.mode = 'detail'"
       @save="save"
     />
+
+    <SensorImportDialog
+      :show="importing"
+      :sites="sitesStore.sites"
+      @close="importing = false"
+      @imported="refresh"
+    />
   </AdminLayout>
 </template>
 
@@ -163,6 +178,7 @@ import SensorClientList from "../../components/sensors/SensorClientList.vue";
 import SensorClientDetail from "../../components/sensors/SensorClientDetail.vue";
 import MissingFloorsList from "../../components/sensors/MissingFloorsList.vue";
 import SensorSidePanel from "../../components/sensors/SensorSidePanel.vue";
+import SensorImportDialog from "../../components/sensors/SensorImportDialog.vue";
 import { useSitesStore } from "../../stores/sites.js";
 import { useSensorsStore } from "../../stores/sensors.js";
 import { useAdminSensorsStore } from "../../stores/adminSensors.js";
@@ -302,6 +318,9 @@ async function refresh() {
 }
 
 onMounted(refresh);
+
+// "Importar CSV": the dialog reloads the list through refresh when it creates sensors
+const importing = ref(false);
 // Every minute, everything: a new building or a changed contact shows up
 // without reloading the page
 useAutoRefresh(refresh, 60000);

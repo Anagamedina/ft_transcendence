@@ -10,6 +10,7 @@ la planta, `health`, `last_value` y `?health=`, de la B3 (#139):
     GET   /api/sensors              → issue #25 (PR #113)
     GET   /api/sensors/{id}         → issue #25 (PR #113)
     POST  /api/sensors              → issue #29 (PR #115)
+    POST  /api/sensors/import       → importar un CSV («Data export and import»)
     PATCH /api/sensors/{id}         → issue #29 (PR #115)
 
 `GET /api/sensors/{id}/readings` no está aquí aunque su ruta empiece por
@@ -24,9 +25,15 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, File, Form, Query, Response, UploadFile, status
 
-from app.modules.sensors.schemas import SensorCreate, SensorResponse, SensorUpdate
+from app.modules.sensors.importer import MAX_IMPORT_ROWS
+from app.modules.sensors.schemas import (
+    SensorCreate,
+    SensorImportResponse,
+    SensorResponse,
+    SensorUpdate,
+)
 from app.modules.sensors.service import SensorService, get_sensor_service
 from app.shared.dependencies import (
     OrganizationIdFilter,
@@ -151,6 +158,61 @@ _SOLO_ADMIN = {
 )
 def create_sensor(payload: SensorCreate, service: SensorSvc) -> SensorResponse:
     return service.create(payload)
+
+
+@router.post(
+    "/import",
+    response_model=SensorImportResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Importar sensores desde un CSV",
+    description=(
+        "Solo admin. Da de alta todos los sensores de un CSV en un edificio, "
+        "con las mismas reglas que `POST /api/sensors`. **Todo o nada**: si "
+        "una fila falla no se crea ninguno, y `details` lista cada error con "
+        "su línea (`row`, la cabecera es la 1), su `field` y su `message`.\n\n"
+        "Columnas obligatorias: `external_id`, `name`, `min_pressure` y "
+        "`max_pressure`; opcionales: `location` y `floor` (0 si falta). "
+        "Separador `;` o `,`, UTF-8 o Windows-1252, decimales con coma o "
+        f"punto. Como mucho {MAX_IMPORT_ROWS} sensores por archivo.\n\n"
+        "Con `dry_run=true` valida igual y no crea nada (200): es la vista "
+        "previa antes de confirmar."
+    ),
+    dependencies=[Depends(require_role("admin"))],
+    responses={
+        **_SOLO_ADMIN,
+        **error_response(status.HTTP_404_NOT_FOUND, "El site no existe (`SITE_NOT_FOUND`)."),
+        **error_response(
+            status.HTTP_409_CONFLICT,
+            "Con estos sensores pasaría de los contratados (`SENSOR_LIMIT_REACHED`), "
+            "u otra alta ha usado a la vez una de las etiquetas "
+            "(`SENSOR_EXTERNAL_ID_TAKEN`).",
+        ),
+        **error_response(
+            status.HTTP_413_CONTENT_TOO_LARGE, "El archivo es demasiado grande (`FILE_TOO_LARGE`)."
+        ),
+        **error_response(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "Filas con errores (`IMPORT_INVALID_ROWS`, uno por fila y campo en "
+            "`details`), o el archivo entero no vale: vacío (`EMPTY_FILE`), "
+            "no es texto (`UNSUPPORTED_FILE_TYPE`), le faltan columnas "
+            "(`IMPORT_MISSING_COLUMNS`), no tiene filas (`IMPORT_NO_ROWS`) o "
+            f"tiene más de {MAX_IMPORT_ROWS} (`IMPORT_TOO_MANY_ROWS`).",
+        ),
+    },
+)
+def import_sensors(
+    service: SensorSvc,
+    response: Response,
+    file: Annotated[UploadFile, File(description="El CSV con los sensores.")],
+    site_id: Annotated[UUID, Form(description="Edificio donde se instalan.")],
+    dry_run: Annotated[
+        bool, Form(description="true: solo valida y devuelve la vista previa.")
+    ] = False,
+) -> SensorImportResponse:
+    resultado = service.import_csv(site_id=site_id, source=file.file, dry_run=dry_run)
+    if dry_run:
+        response.status_code = status.HTTP_200_OK
+    return resultado
 
 
 @router.patch(

@@ -203,6 +203,10 @@ class SensorRepository(Protocol):
         """Si ya hay un sensor con esa etiqueta en ese site (#29)."""
         ...
 
+    def external_ids_in_site(self, site_id: UUID) -> set[str]:
+        """Las etiquetas ya usadas en ese site, para importar de una vez."""
+        ...
+
     def create(self, **campos: Any) -> Any:
         """Crea el sensor y devuelve la fila, con su id (#29)."""
         ...

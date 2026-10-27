@@ -3,7 +3,7 @@
 # AquaGuard
 
 > **Status:** Functional. The full stack runs with `make all`, with demo data;
-> 13 of the 15 planned module points are implemented (see
+> 14 of the 15 planned module points are implemented (see
 > [Modules and point tracking](#modules-and-point-tracking)).
 
 ## Description
@@ -872,9 +872,9 @@ upload module counts the building documents already implemented (B11, F14).
 | User Management    | Organization system                             | Major |      2 | Implemented                      | Ana, Daruny                           |
 | User Management    | GDPR compliance features                        | Minor |      1 | Implemented                      | Daruny, Florinda                      |
 | Data and Analytics | Advanced analytics dashboard                    | Major |      2 | Implemented                      | Ana, Daruny, Florinda, Lylia          |
-| Data and Analytics | Data export and import                          | Minor |      1 | Partial - export only, no import | Ana, Daruny, Florinda, Lylia          |
+| Data and Analytics | Data export and import                          | Minor |      1 | Implemented                      | Ana, Daruny, Florinda, Lylia          |
 |                    | **Planned total**                               |       | **15** |                                  |                                       |
-|                    | **Implemented so far**                          |       | **13** |                                  |                                       |
+|                    | **Implemented so far**                          |       | **14** |                                  |                                       |
 
 ### Module implementation plan
 
@@ -944,10 +944,23 @@ upload module counts the building documents already implemented (B11, F14).
   - All of it combines in one request and the API applies it in SQL, so the
     pages follow the order. `GET /api/search` (B17) also searches clients,
     buildings and sensors at once.
-- **Data export and import:** *partial, export only.*
-  `GET /api/analytics/export` returns the readings and alerts of a period as
-  CSV or JSON, scoped to the user's organization (B18). Import is not
-  implemented.
+- **Data export and import:** demonstrated as `admin@aquaguard.dev`.
+  - *Export in several formats:* `GET /api/analytics/export` returns the
+    readings and alerts of a period as CSV or JSON, scoped to the user's
+    organization (B18); "Exportar CSV" in the panel downloads it.
+  - *Import with validation:* Sensores → "Importar CSV" creates every sensor
+    of a building from a CSV (`POST /api/sensors/import`). Each line goes
+    through the same rules as creating one sensor: required fields,
+    pressure between 0 and 25 bar with the minimum below the maximum, a
+    floor the building has, and a label not used in the file nor in the
+    building. Every error comes back at once with its line and column.
+    "Descargar plantilla" gives a file to fill in; Excel's Spanish CSV
+    (`;`, decimal comma, Windows-1252) is read as it is.
+  - *Bulk operations:* the whole file is created in one transaction, all or
+    nothing: if a line fails, no sensor is created. "Comprobar archivo"
+    (`dry_run`) shows the preview first, and the import as a whole cannot
+    go over the contracted sensors (`409 SENSOR_LIMIT_REACHED`). Up to 500
+    sensors per file.
 - **Notification system:** *not started.* Alerts are shown when the admin or
   client area is opened, but creating, updating or deleting data does not
   generate notifications for the user.
