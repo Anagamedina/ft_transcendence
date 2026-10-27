@@ -11,9 +11,10 @@ export async function login(page, user) {
 }
 
 // Client home since the role-based routes (F1): /dashboard now redirects here.
+// Its heading is "Mis edificios" since F24.
 export async function expectDashboard(page) {
   await expect(page).toHaveURL('/app')
-  await expect(page.getByRole('heading', { name: 'Panel de control', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Mis edificios', exact: true })).toBeVisible()
 }
 
 export async function expectAdminHome(page) {
