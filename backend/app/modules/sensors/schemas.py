@@ -242,3 +242,29 @@ class SensorResponse(ApiModel):
         examples=[3.4],
     )
     created_at: datetime
+
+
+class SensorImportRow(ApiModel):
+    """Un sensor del CSV, tal como se va a crear (o se ha creado)."""
+
+    line: int = Field(description="Línea del archivo; la cabecera es la 1.")
+    external_id: str
+    name: str
+    location: str | None = None
+    floor: int
+    min_pressure: float
+    max_pressure: float
+
+
+class SensorImportResponse(ApiModel):
+    """
+    Resultado de `POST /api/sensors/import`.
+
+    Con `dry_run` no se crea nada: es la vista previa de lo que se crearía.
+    """
+
+    dry_run: bool
+    site_id: UUID
+    site_name: str
+    created: int = Field(description="Sensores creados: 0 en la vista previa.")
+    sensors: list[SensorImportRow]

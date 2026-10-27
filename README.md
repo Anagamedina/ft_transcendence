@@ -3,7 +3,7 @@
 # AquaGuard
 
 > **Status:** Functional. The full stack runs with `make all`, with demo data;
-> 11 of the 14 planned module points are implemented (see
+> 14 of the 15 planned module points are implemented (see
 > [Modules and point tracking](#modules-and-point-tracking)).
 
 ## Description
@@ -153,7 +153,8 @@ allows a burst of 10 extra requests and the other two a burst of 4, because
 everyone on the campus network shares one public IP. `client_max_body_size` is
 `MAX_UPLOAD_MB` plus 1 MB for the multipart overhead, so a file of exactly
 `MAX_UPLOAD_MB` is not rejected with 413; `gateway/18-upload-limit.envsh`
-computes it when the container starts. The Playwright suite logs in more
+computes it when the container starts. A bigger upload gets 413 with the
+same JSON as the API (`FILE_TOO_LARGE`), not the nginx HTML page. The Playwright suite logs in more
 often than that, so run it against a stack started with
 `PUBLIC_RATE_LIMIT=1000r/m make up`. `backend` and `database` are not
 reachable from the host at all. `backup` writes a compressed `pg_dump` to the
@@ -394,14 +395,14 @@ has the same three lines (`no-new-privileges`, `cap_drop: [ALL]` and
 - **Memory and CPU limits** per service, about twice the peak measured with
   `docker stats` during the demo and the tests:
 
-| Service     | Memory | CPUs | Measured peak               |
-|-------------|--------|------|-----------------------------|
+| Service     | Memory | CPUs | Measured peak                     |
+|-------------|--------|------|-----------------------------------|
 | `backend`   | 512 MB | 2    | 248 MB during `make test-backend` |
-| `database`  | 512 MB | 1    | 86 MB                       |
-| `gateway`   | 128 MB | 1    | 25 MB                       |
-| `backup`    | 128 MB | 0.5  | 6 MB                        |
-| `mailpit`   | 128 MB | 0.5  | 29 MB                       |
-| `simulator` | 128 MB | 0.5  | 33 MB                       |
+| `database`  | 512 MB | 1    | 86 MB                             |
+| `gateway`   | 128 MB | 1    | 25 MB                             |
+| `backup`    | 128 MB | 0.5  | 6 MB                              |
+| `mailpit`   | 128 MB | 0.5  | 29 MB                             |
+| `simulator` | 128 MB | 0.5  | 33 MB                             |
 
 Volumes created before this change belong to root. The one-shot
 `volume-permissions` service gives them to the new users before `backend` and
@@ -428,21 +429,32 @@ with `ENV=production` because these passwords are public.
 
 - 5 organizations: Residencias Collserola, Hotel Gòtic (TRIAL), Comunidad
   Mallorca 401, Polideportivo Poblenou and Aigües Zona Franca (SUSPENDED).
-  Hotel Gòtic is the one to try "Hazte cliente" with (`hotel@aquaguard.dev`);
-  `make seed` puts it back on the trial and clears its contract. The active
-  demo clients have no contract (no plan, price or limits): they stand for
-  clients managed by hand, like the ones an admin creates with "Nuevo cliente".
-- 6 buildings in Barcelona, each in a different district, with floors,
-  basements and real coordinates; 8 sensors spread
-  across floors, each on a floor that exists in its building (between
-  `-basements` and `floors - 1`, the same rule the API applies, B3).
+  Every client out of the trial has the contract "Hazte cliente" would have
+  saved (plan and price from `plans.py`), each at a different point of it:
+
+  | Client                 | Plan        | Payment | Buildings | Sensors  | Price     | To try                                              |
+  |------------------------|-------------|---------|-----------|----------|-----------|-----------------------------------------------------|
+  | Residencias Collserola | Empresa     | Monthly | 15 of 15  | 45 of 45 | 649 €/mes | At the limit: one more building or sensor gives 409 |
+  | Polideportivo Poblenou | Profesional | Yearly  | 6 of 6    | 12 of 15 | 229 €/mes | A CSV import of 3 sensors fits, 4 do not            |
+  | Comunidad Mallorca 401 | Básico      | Monthly | 2 of 2    | 4 of 6   | 89 €/mes  | Room for 2 sensors                                  |
+  | Aigües Zona Franca     | Básico      | Monthly | 2 of 2    | 2 of 4   | 69 €/mes  | Suspended: kept its contract                        |
+  | Hotel Gòtic            | —           | Trial   | 1 of 1    | 2        | —         | "Hazte cliente" (`hotel@aquaguard.dev`)             |
+
+  `make seed` writes these contracts again and puts Hotel Gòtic back on the
+  trial, undoing a "Hazte cliente".
+- 26 buildings in Barcelona, with floors, basements and real coordinates,
+  in every district of the city. 65 sensors, each on a floor that exists in
+  its building (between `-basements` and `floors - 1`, the same rule the API
+  applies, B3); the simulator sends readings to all of them
+  (`SIMULATOR_SENSOR_IDS`).
   `SENS-006` is out of range (its upper threshold is 2.0 bar) and `SENS-007`
   is offline. The simulator follows that story with
   `SIMULATOR_SCENARIOS`: `SENS-004` gets the `low` scenario (its alert stays
   real), `SENS-007` gets `offline` and the rest use `SIMULATOR_SCENARIO`. If
   your `.env` predates this, copy `SIMULATOR_SENSOR_IDS` and
   `SIMULATOR_SCENARIOS` from `.env.example` (`make demo` warns about it).
-- 19 alerts over the last 30 days (16 resolved, 3 active), a week of hourly
+- 19 alerts over the last 30 days (16 resolved, 3 active), all on the first
+  8 sensors, a week of hourly
   readings, and one pending invitation for `nuevo.gestor@residenciascollserola.cat`
   with the code `AQUAGUARD-DEMO-INVITE`.
 
@@ -777,16 +789,16 @@ erDiagram
     users |o--o{ documents : "uploads"
 ```
 
-| Table           | Key fields                                                                                                       | Rules enforced by the database                                                                                    |
-|-----------------|------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------|
+| Table           | Key fields                                                                                                                                                                                         | Rules enforced by the database                                                                                                                                              |
+|-----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `organizations` | `name`, `status`, `trial_ends_at`, contact and billing data, contract (`plan`, `billing_period`, `contracted_sites`, `contracted_sensors`, `monthly_price_eur`), `iban_masked`, `sepa_accepted_at` | `name` unique ignoring case; `status` in TRIAL/ACTIVE/SUSPENDED; `plan` in BASIC/PRO/ENTERPRISE; `billing_period` MONTHLY/YEARLY; contracted at least 1, price not negative |
-| `users`         | `organization_id`, `email`, `name`, `password_hash`, `role`, `is_active`, terms and deletion dates               | `email` unique; `role` is `admin` or `client`; a client always has an organization                                |
-| `sites`         | `organization_id`, `name`, `address`, `latitude`/`longitude`, `floors`, `basements`, `building_type`, `district` | `name` unique per organization; valid coordinates; at least 1 floor; building type and Barcelona district lists   |
-| `sensors`       | `site_id`, `external_id`, `name`, `floor`, `sensor_type`, `unit`, `low_threshold`, `high_threshold`              | `external_id` unique per site; `low_threshold < high_threshold`, both within 0–25 bar; type PRESSURE or FLOW      |
-| `readings`      | `sensor_id`, `value` (`numeric(10,3)`), `unit`, `recorded_at`, `created_at`                                      | The client-generated `id` makes ingestion idempotent; indexed by sensor and time for history and the offline rule |
-| `alerts`        | `sensor_id`, `alert_type`, `status`, `severity`, `message`, acknowledged and resolved date and user              | Type LOW_PRESSURE/HIGH_PRESSURE/SENSOR_OFFLINE; status ACTIVE/RESOLVED; severity WARNING/CRITICAL                 |
-| `invitations`   | `organization_id`, `email`, `code_hash`, `expires_at`, `accepted_at`, `revoked_at`, `created_by`                 | `code_hash` unique; email stored lowercase; one pending invitation per organization and email                     |
-| `documents`     | `organization_id`, `site_id`, `kind`, `filename`, `content_type`, `size`, `storage_key`                          | `storage_key` unique; `kind` in PLAN/REPORT/INVOICE/PHOTO/OTHER; `size >= 0`                                      |
+| `users`         | `organization_id`, `email`, `name`, `password_hash`, `role`, `is_active`, terms and deletion dates                                                                                                 | `email` unique; `role` is `admin` or `client`; a client always has an organization                                                                                          |
+| `sites`         | `organization_id`, `name`, `address`, `latitude`/`longitude`, `floors`, `basements`, `building_type`, `district`                                                                                   | `name` unique per organization; valid coordinates; at least 1 floor; building type and Barcelona district lists                                                             |
+| `sensors`       | `site_id`, `external_id`, `name`, `floor`, `sensor_type`, `unit`, `low_threshold`, `high_threshold`                                                                                                | `external_id` unique per site; `low_threshold < high_threshold`, both within 0–25 bar; type PRESSURE or FLOW                                                                |
+| `readings`      | `sensor_id`, `value` (`numeric(10,3)`), `unit`, `recorded_at`, `created_at`                                                                                                                        | The client-generated `id` makes ingestion idempotent; indexed by sensor and time for history and the offline rule                                                           |
+| `alerts`        | `sensor_id`, `alert_type`, `status`, `severity`, `message`, acknowledged and resolved date and user                                                                                                | Type LOW_PRESSURE/HIGH_PRESSURE/SENSOR_OFFLINE; status ACTIVE/RESOLVED; severity WARNING/CRITICAL                                                                           |
+| `invitations`   | `organization_id`, `email`, `code_hash`, `expires_at`, `accepted_at`, `revoked_at`, `created_by`                                                                                                   | `code_hash` unique; email stored lowercase; one pending invitation per organization and email                                                                               |
+| `documents`     | `organization_id`, `site_id`, `kind`, `filename`, `content_type`, `size`, `storage_key`                                                                                                            | `storage_key` unique; `kind` in PLAN/REPORT/INVOICE/PHOTO/OTHER; `size >= 0`                                                                                                |
 
 **Deleting data.** Links to a user (who acknowledged an alert, created an
 invitation or uploaded a document) become `NULL` when that user is deleted.
@@ -825,7 +837,7 @@ users in [Demo data](#demo-data). Backend rules are covered by
 | Backend        | GDPR: export my data, request deletion and confirmation emails (B15, B19)             | Daruny, Florinda       | `/app/account` · <http://localhost:8025>     |
 | Database       | Schema: 8 tables with constraints, indexes and Alembic migrations (#129, #130, #132)  | Daruny                 | `make migration-check`                       |
 | Database       | Alembic targets: migrate, generate and check for drift (#92)                          | Eduardo                | `make migrate` · `make migration-check`      |
-| Database       | Idempotent demo seed: 5 clients, 6 buildings, 8 sensors, 30 days of alerts (D6, #131) | Daruny                 | `make seed`                                  |
+| Database       | Idempotent demo seed: 5 clients, 26 buildings, 65 sensors, contracts, 30 days of alerts (D6, #131) | Daruny                 | `make seed`                                  |
 | Database       | Purge: delete an organization and all its data in one transaction (B16, D9)           | Daruny                 | `/admin/clients/:id` → Acciones              |
 | Database       | Readings: ingest with the simulator key, history and chart series (#24, B7)           | Daruny, Ana            | `make smoke`                                 |
 | Frontend       | Public: landing page, fixed header and legal page with privacy and terms (#195)       | Florinda               | `/` · `/legal`                               |
@@ -848,6 +860,7 @@ users in [Demo data](#demo-data). Backend rules are covered by
 | Frontend       | Shared palette and the new design for public views and panels (F18–F20)               | Florinda               | `make lint` · any page                       |
 | Frontend       | Spanish formats, keyboard focus and responsive review down to 375 px (F18)            | Florinda               | DevTools at 375 px                           |
 | Other          | E2E: Playwright tests for login, register, logout, guards and roles (#41)             | Eduardo                | `make test-e2e`                              |
+| Other          | E2E: documents, client search and sensor import, one spec per claimed module          | Daruny                 | `make test-e2e`                              |
 
 Every pull request that adds a feature should add or update its row here, with its area,
 contributors, and a reproducible verification method.
@@ -856,23 +869,25 @@ contributors, and a reproducible verification method.
 
 The project must reach at least 14 validated points. The following selection is
 the team's current AquaGuard plan, based on the product architecture document.
-It adds up to 14: the real-time module (WebSockets, 2 points) was dropped from
-the plan, and the GDPR minor module (B19) brings the missing point.
+It adds up to 15: the real-time module (WebSockets, 2 points) was dropped from
+the plan, the GDPR minor module (B19) brings the missing point, and the file
+upload module counts the building documents already implemented (B11, F14).
 
 | Category           | Module                                          | Type  | Points | Status                           | Contributors                          |
 |--------------------|-------------------------------------------------|-------|-------:|----------------------------------|---------------------------------------|
 | DevOps             | Health checks, status page and backups          | Minor |      1 | Implemented                      | Eduardo                               |
 | Web                | Frontend and backend frameworks (Vue + FastAPI) | Major |      2 | Implemented                      | Ana, Florinda, Lylia, Daruny, Eduardo |
 | Web                | ORM (SQLAlchemy)                                | Minor |      1 | Implemented                      | Daruny                                |
-| Web                | Advanced search                                 | Minor |      1 | Partial - API only, no UI        | Ana, Daruny, Florinda, Lylia          |
-| Web                | Notification system                             | Minor |      1 | Not started                      | Ana, Daruny, Florinda, Lylia          |
+| Web                | Advanced search                                 | Minor |      1 | Implemented                      | Ana, Daruny, Florinda, Lylia          |
+| Web                | Notification system                             | Minor |      1 | Partial - alert emails only      | Ana, Daruny, Florinda, Lylia          |
+| Web                | File upload and management system               | Minor |      1 | Implemented                      | Daruny, Lylia                         |
 | User Management    | Advanced permissions                            | Major |      2 | Implemented                      | Ana, Daruny, Lylia                    |
 | User Management    | Organization system                             | Major |      2 | Implemented                      | Ana, Daruny                           |
 | User Management    | GDPR compliance features                        | Minor |      1 | Implemented                      | Daruny, Florinda                      |
 | Data and Analytics | Advanced analytics dashboard                    | Major |      2 | Implemented                      | Ana, Daruny, Florinda, Lylia          |
-| Data and Analytics | Data export and import                          | Minor |      1 | Partial - export only, no import | Ana, Daruny, Florinda, Lylia          |
-|                    | **Planned total**                               |       | **14** |                                  |                                       |
-|                    | **Implemented so far**                          |       | **11** |                                  |                                       |
+| Data and Analytics | Data export and import                          | Minor |      1 | Implemented                      | Ana, Daruny, Florinda, Lylia          |
+|                    | **Planned total**                               |       | **15** |                                  |                                       |
+|                    | **Implemented so far**                          |       | **14** |                                  |                                       |
 
 ### Module implementation plan
 
@@ -911,18 +926,58 @@ the plan, and the GDPR minor module (B19) brings the missing point.
   - *Real-time updates:* the panel refreshes every 30 s and pauses while the
     tab is hidden.
   - A client sees the same KPIs for its own organization in `/app`.
-- **Advanced search:** *partial, API only.* `GET /api/search?q=&limit=`
-  (B17) searches clients, buildings and sensors at once, ignoring case, and
-  returns the first `limit` of each type plus the total. A client only finds
-  its own buildings and sensors. No screen uses it yet; to claim the module it
-  still needs a UI with filters, sorting and pagination.
-- **Data export and import:** *partial, export only.*
-  `GET /api/analytics/export` returns the readings and alerts of a period as
-  CSV or JSON, scoped to the user's organization (B18). Import is not
-  implemented.
-- **Notification system:** *not started.* Alerts are shown when the admin or
-  client area is opened, but creating, updating or deleting data does not
-  generate notifications for the user.
+- **File upload and management system:** demonstrated in `/app/documents` as
+  `hotel@aquaguard.dev` (B11, F14).
+  - *Multiple file types:* PDF, JPG, PNG and CSV, for plans, reports,
+    invoices and photos of each building.
+  - *Client and server validation:* the page rejects other extensions, empty
+    files and files over 10 MB before sending them. The API decides the type
+    by the file content, never by its name (`422 UNSUPPORTED_FILE_TYPE`), and
+    the gateway and the API reject files over `MAX_UPLOAD_MB`
+    (`413 FILE_TOO_LARGE`).
+  - *Secure storage and access control:* files live in the `documents_data`
+    volume under a random key, and are only served through the API to the
+    owning organization; another client gets 404, without a session 401.
+  - *Preview:* "Vista previa" shows images and PDFs inside the page.
+  - *Upload progress:* a progress bar with the percentage while it uploads.
+  - *Delete:* "Eliminar" removes the file and its row.
+- **Advanced search:** demonstrated in Clientes (`/admin/clients`) as
+  `admin@aquaguard.dev`, backed by `GET /api/organizations` (B1).
+  - *Search:* the search box looks in the name, city, legal name and tax id,
+    ignoring case (`q`).
+  - *Filters:* the state buttons (Todos, En prueba, Activos, Suspendidos;
+    `status`), and `has_open_alerts` in the API.
+  - *Sorting:* every column but Estado sorts the list; the same header again
+    flips the direction (`sort`, `order`). Ties go by name, and clients with
+    no trial end go last. The header says the order to screen readers
+    (`aria-sort`) and works with the keyboard.
+  - *Pagination:* 10 or 25 per page, with the range ("1–10 de 23") and page
+    buttons (`page`, `page_size`). A new search, filter or order goes back
+    to page 1.
+  - All of it combines in one request and the API applies it in SQL, so the
+    pages follow the order. `GET /api/search` (B17) also searches clients,
+    buildings and sensors at once.
+- **Data export and import:** demonstrated as `admin@aquaguard.dev`.
+  - *Export in several formats:* `GET /api/analytics/export` returns the
+    readings and alerts of a period as CSV or JSON, scoped to the user's
+    organization (B18); "Exportar CSV" in the panel downloads it.
+  - *Import with validation:* Sensores → "Importar CSV" creates every sensor
+    of a building from a CSV (`POST /api/sensors/import`). Each line goes
+    through the same rules as creating one sensor: required fields,
+    pressure between 0 and 25 bar with the minimum below the maximum, a
+    floor the building has, and a label not used in the file nor in the
+    building. Every error comes back at once with its line and column.
+    "Descargar plantilla" gives a file to fill in; Excel's Spanish CSV
+    (`;`, decimal comma, Windows-1252) is read as it is.
+  - *Bulk operations:* the whole file is created in one transaction, all or
+    nothing: if a line fails, no sensor is created. "Comprobar archivo"
+    (`dry_run`) shows the preview first, and the import as a whole cannot
+    go over the contracted sensors (`409 SENSOR_LIMIT_REACHED`). Up to 500
+    sensors per file.
+- **Notification system:** *partial, alert emails only.* When nobody takes
+  an alert, the client gets an email, and the alert shows the notices sent
+  in its timeline (#275). Creating, updating or deleting data does not
+  notify the user yet, which the module requires.
 - **Health checks, status page and backups:** Every service has a health check,
   `/status` shows the state of each component, and the database is backed up
   on a schedule with a tested restore procedure.
@@ -942,6 +997,11 @@ the plan, and the GDPR minor module (B19) brings the missing point.
   validated data contracts.
 - Every claimed module must include tests, a reproducible demo path, and the
   responsible contributors in this section.
+- End-to-end evidence on the real stack (`make test-e2e`), besides the
+  backend tests: `e2e/tests/documents.spec.js` (file upload and
+  management), `e2e/tests/clients-search.spec.js` (advanced search) and
+  `e2e/tests/sensors-import.spec.js` (data export and import). The tests
+  that create data delete it at the end.
 
 The DevOps health/status system (health checks, status page, automated backups
 and disaster recovery, 1 point) is implemented and described in
@@ -981,34 +1041,34 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 
 ### Ana (`anamedin`)
 
-| Issue      | Contribution                                                                                   | Pull requests  | Status      |
-|------------|------------------------------------------------------------------------------------------------|----------------|-------------|
-| #22        | FastAPI modular architecture (8 routers), unified error format and health checks               | #46            | Implemented |
-| #23        | Pydantic schemas and OpenAPI contract, including schemas published before their routes         | #46            | Implemented |
-| #24        | `POST /api/readings`: stores the reading, idempotent by `id`, evaluates alert rules            | #72            | Implemented |
-| #25        | `GET /api/sensors`, `GET /api/sensors/{id}` and reading history; `OFFLINE` after 5 minutes     | #77, #113      | Implemented |
-| #26        | Register, login, logout and `GET /api/me`: Argon2 hashing, signed httpOnly session cookie      | #75, #79       | Implemented |
-| #27        | Roles and per-organization isolation (`require_role`, `get_org_scope`)                         | #105           | Implemented |
-| #28        | Alerts: list, acknowledge, resolve; `LOW_PRESSURE`/`HIGH_PRESSURE` and `SENSOR_OFFLINE` rules  | #78, #98, #118 | Implemented |
-| #29        | Sites, sensors of a site, sensor create and edit                                               | #108, #115     | Implemented |
-| #30        | Pytest coverage of critical routes                                                             | #109, #114     | Implemented |
-| #106       | `POST /api/readings` requires the simulator key (`X-Ingest-Key`)                               | #116           | Implemented |
-| #138       | B0 common contract: shared enums, `q`/`organization_id`/`site_id` filters, `*_name` fields     | #180           | Implemented |
-| #139       | B1 organizations: list with counters, create with first site, edit, suspend/reactivate, trial  | #191           | Implemented |
-| #139       | B2 buildings: create, edit and delete sites, floors and building type, sensor count and status | #194           | Implemented |
-| #139       | B3 sensors: floor on create and edit, health, last value and health filter                     | #197           | Implemented |
-| #140       | B10 public register: own organization on a 7-day trial, session opened, common password rule   | #205           | Implemented |
-| —          | List of the redesign issues (B0–B18) and their mocks                                           | #124           | Implemented |
-| —          | Cleanup: outdated comments, dead 501 code, notes in `docs/ana/` brought up to date             | #181           | Implemented |
-| #141, #144 | Contract and routes of B4, B6, B8 and B9: invitations, users, my account and KPIs              | —              | Implemented |
-| #150       | B14 subscription (plans, fiscal data, masked IBAN) and B17 global search (optional)            | —              | Implemented |
-| #252       | Admin alerts page, backend: only admins close alerts, crossed `threshold`, oldest open alert per client | —    | In review   |
-| #252       | One alert vocabulary in `useLabels`: Sin atender · En curso · Arreglada, Leve · Crítica, «Fuera de rango» for sensors | — | In review   |
-| #252       | New admin alerts page: clients with open alerts, state tabs with server counts, filters in the URL, side detail panel, refresh every 60 s; turquoise admin menu; alert search also by sensor code, building and client | — | In review   |
-| #275       | Client notices: emails when nobody takes an alert (critical 5 and 20 min, leve 60 min), `notifications` and `next_notification_at` in alerts, provisional `alert_notifications` table; «Avisos al cliente» column and timeline in the alert panel; admin alerts page review (cards, tabs, filters, table) | #276 | In progress |
-| #252       | Same alert words everywhere: the admin sites map says Leve / Crítica (from `useLabels`, no more «Aviso»); the «Arregladas» tab says «Detectadas en los últimos 7 días», which is what it filters | #286 | In review   |
-| #277       | Alerts close by themselves after 15 min of normal readings (`resolved_at` = first normal reading), no client notices meanwhile; «Cerrar a mano…» only for exceptions | #275 | In progress |
-| #283       | Admin sensors page for maintenance: tab cards «Sin conexión» (grouped by building, «Avisar al cliente»), «Plantas sin sensor» and «Sensores» (clients that need attention on the left, the chosen client's buildings and every floor on the right, how many sensors work), side panel with 24 h / 7 / 30 days chart and threshold editing | #277 | In progress |
+| Issue      | Contribution                                                                                                                                                                                                                                                                                                                              | Pull requests  | Status      |
+|------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|-------------|
+| #22        | FastAPI modular architecture (8 routers), unified error format and health checks                                                                                                                                                                                                                                                          | #46            | Implemented |
+| #23        | Pydantic schemas and OpenAPI contract, including schemas published before their routes                                                                                                                                                                                                                                                    | #46            | Implemented |
+| #24        | `POST /api/readings`: stores the reading, idempotent by `id`, evaluates alert rules                                                                                                                                                                                                                                                       | #72            | Implemented |
+| #25        | `GET /api/sensors`, `GET /api/sensors/{id}` and reading history; `OFFLINE` after 5 minutes                                                                                                                                                                                                                                                | #77, #113      | Implemented |
+| #26        | Register, login, logout and `GET /api/me`: Argon2 hashing, signed httpOnly session cookie                                                                                                                                                                                                                                                 | #75, #79       | Implemented |
+| #27        | Roles and per-organization isolation (`require_role`, `get_org_scope`)                                                                                                                                                                                                                                                                    | #105           | Implemented |
+| #28        | Alerts: list, acknowledge, resolve; `LOW_PRESSURE`/`HIGH_PRESSURE` and `SENSOR_OFFLINE` rules                                                                                                                                                                                                                                             | #78, #98, #118 | Implemented |
+| #29        | Sites, sensors of a site, sensor create and edit                                                                                                                                                                                                                                                                                          | #108, #115     | Implemented |
+| #30        | Pytest coverage of critical routes                                                                                                                                                                                                                                                                                                        | #109, #114     | Implemented |
+| #106       | `POST /api/readings` requires the simulator key (`X-Ingest-Key`)                                                                                                                                                                                                                                                                          | #116           | Implemented |
+| #138       | B0 common contract: shared enums, `q`/`organization_id`/`site_id` filters, `*_name` fields                                                                                                                                                                                                                                                | #180           | Implemented |
+| #139       | B1 organizations: list with counters, create with first site, edit, suspend/reactivate, trial                                                                                                                                                                                                                                             | #191           | Implemented |
+| #139       | B2 buildings: create, edit and delete sites, floors and building type, sensor count and status                                                                                                                                                                                                                                            | #194           | Implemented |
+| #139       | B3 sensors: floor on create and edit, health, last value and health filter                                                                                                                                                                                                                                                                | #197           | Implemented |
+| #140       | B10 public register: own organization on a 7-day trial, session opened, common password rule                                                                                                                                                                                                                                              | #205           | Implemented |
+| —          | List of the redesign issues (B0–B18) and their mocks                                                                                                                                                                                                                                                                                      | #124           | Implemented |
+| —          | Cleanup: outdated comments, dead 501 code, notes in `docs/ana/` brought up to date                                                                                                                                                                                                                                                        | #181           | Implemented |
+| #141, #144 | Contract and routes of B4, B6, B8 and B9: invitations, users, my account and KPIs                                                                                                                                                                                                                                                         | —              | Implemented |
+| #150       | B14 subscription (plans, fiscal data, masked IBAN) and B17 global search (optional)                                                                                                                                                                                                                                                       | —              | Implemented |
+| #252       | Admin alerts page, backend: only admins close alerts, crossed `threshold`, oldest open alert per client                                                                                                                                                                                                                                   | —              | In review   |
+| #252       | One alert vocabulary in `useLabels`: Sin atender · En curso · Arreglada, Leve · Crítica, «Fuera de rango» for sensors                                                                                                                                                                                                                     | —              | In review   |
+| #252       | New admin alerts page: clients with open alerts, state tabs with server counts, filters in the URL, side detail panel, refresh every 60 s; turquoise admin menu; alert search also by sensor code, building and client                                                                                                                    | —              | In review   |
+| #275       | Client notices: emails when nobody takes an alert (critical 5 and 20 min, leve 60 min), `notifications` and `next_notification_at` in alerts, provisional `alert_notifications` table; «Avisos al cliente» column and timeline in the alert panel; admin alerts page review (cards, tabs, filters, table)                                 | #276           | In progress |
+| #252       | Same alert words everywhere: the admin sites map says Leve / Crítica (from `useLabels`, no more «Aviso»); the «Arregladas» tab says «Detectadas en los últimos 7 días», which is what it filters                                                                                                                                          | #286           | In review   |
+| #277       | Alerts close by themselves after 15 min of normal readings (`resolved_at` = first normal reading), no client notices meanwhile; «Cerrar a mano…» only for exceptions                                                                                                                                                                      | #275           | In progress |
+| #283       | Admin sensors page for maintenance: tab cards «Sin conexión» (grouped by building, «Avisar al cliente»), «Plantas sin sensor» and «Sensores» (clients that need attention on the left, the chosen client's buildings and every floor on the right, how many sensors work), side panel with 24 h / 7 / 30 days chart and threshold editing | #277           | In progress |
 
 Notes for each issue, with diagrams and the decisions taken, are in [`docs/ana/`](docs/ana/).
 

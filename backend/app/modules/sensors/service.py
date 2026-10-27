@@ -27,8 +27,10 @@ Implementación: issues #25 (lectura) y #29 (alta y modificación); planta,
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from datetime import datetime, timezone
 from decimal import Decimal
+from typing import BinaryIO
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
@@ -41,9 +43,16 @@ from app.core.exceptions import (
     NotFoundError,
 )
 from app.modules.organizations.repository import OrganizationRepository
+from app.modules.sensors.importer import invalid_rows, parse_sensors_csv, row_error
 from app.modules.sensors.repository import SensorLive
 from app.modules.sensors.repository import SensorRepository as SqlSensorRepository
-from app.modules.sensors.schemas import SensorCreate, SensorResponse, SensorUpdate
+from app.modules.sensors.schemas import (
+    SensorCreate,
+    SensorImportResponse,
+    SensorImportRow,
+    SensorResponse,
+    SensorUpdate,
+)
 from app.modules.sensors.status import calcular_estado, calcular_salud
 from app.modules.sites.repository import SiteRepository
 from app.modules.subscriptions.plans import max_sensors_for
@@ -182,16 +191,102 @@ class SensorService:
             raise
         return sensor_a_respuesta(sensor, None, datetime.now(timezone.utc))
 
-    def _cabe_otro_sensor(self, organization_id: UUID) -> None:
-        """409 `SENSOR_LIMIT_REACHED` si ya tiene todos los sensores contratados."""
+    def import_csv(
+        self, site_id: UUID, source: BinaryIO, dry_run: bool
+    ) -> SensorImportResponse:
+        """
+        Alta de todos los sensores de un CSV en un edificio. Solo admin.
+
+        Las mismas reglas que `create`, para todo el archivo a la vez: la
+        planta existe en el edificio, la etiqueta no se repite (ni en el
+        archivo ni con los sensores que ya tiene el edificio) y no se pasa
+        de los sensores contratados. Todo o nada: si una fila falla, 422
+        `IMPORT_INVALID_ROWS` con todos los errores y no se crea ninguno.
+
+        Con `dry_run` valida igual pero no crea nada: es la vista previa
+        que la pantalla enseña antes de confirmar.
+
+        El CSV se lee antes de abrir la transacción, para no bloquear el
+        edificio mientras se valida un archivo que puede estar mal entero.
+        """
+        filas, errores = parse_sensors_csv(source)
+        try:
+            with transaction(self.db):
+                site = SiteRepository(self.db).get_for_update(site_id)
+                if site is None:
+                    raise NotFoundError(
+                        "El site indicado no existe.", code="SITE_NOT_FOUND"
+                    )
+                usadas = self.sensors.external_ids_in_site(site_id)
+                for fila in filas:
+                    if fila.external_id in usadas:
+                        errores.append(
+                            row_error(
+                                fila.line,
+                                "external_id",
+                                f"{site.name} ya tiene un sensor «{fila.external_id}».",
+                            )
+                        )
+                    try:
+                        _planta_del_edificio(fila.floor, site)
+                    except DomainValidationError as exc:
+                        errores.append(row_error(fila.line, "floor", exc.message))
+                if errores:
+                    raise invalid_rows(errores)
+
+                self._cabe_otro_sensor(site.organization_id, nuevos=len(filas))
+                if not dry_run:
+                    for fila in filas:
+                        self.sensors.create(
+                            site_id=site_id,
+                            external_id=fila.external_id,
+                            name=fila.name,
+                            location=fila.location,
+                            floor=fila.floor,
+                            sensor_type="PRESSURE",
+                            unit="bar",
+                            low_threshold=Decimal(str(fila.min_pressure)),
+                            high_threshold=Decimal(str(fila.max_pressure)),
+                        )
+        except IntegrityError as exc:
+            # Otra alta ha usado a la vez una de estas etiquetas: la tabla
+            # para la importación entera y `transaction` la deshace.
+            raise ConflictError(
+                "Mientras se importaba, otra alta ha usado una de estas "
+                "etiquetas. No se ha importado nada: sube el archivo otra vez.",
+                code="SENSOR_EXTERNAL_ID_TAKEN",
+            ) from exc
+        return SensorImportResponse(
+            dry_run=dry_run,
+            site_id=site.id,
+            site_name=site.name,
+            created=0 if dry_run else len(filas),
+            sensors=[SensorImportRow(**asdict(f)) for f in filas],
+        )
+
+    def _cabe_otro_sensor(self, organization_id: UUID, nuevos: int = 1) -> None:
+        """
+        409 `SENSOR_LIMIT_REACHED` si con `nuevos` sensores más pasaría de
+        los contratados. Uno en el alta; todos los del archivo al importar.
+        """
         organizacion = OrganizationRepository(self.db).get_for_update(organization_id)
         limite = max_sensors_for(organizacion)
         sensores = SqlSensorRepository(self.db).count_by_organization(organization_id)
-        if limite is None or sensores < limite:
+        if limite is None or sensores + nuevos <= limite:
             return
+        if nuevos == 1:
+            mensaje = (
+                f"{organizacion.name} ya tiene {limite} sensores, los que tiene "
+                "contratados. Para añadir más tiene que ampliar el contrato."
+            )
+        else:
+            mensaje = (
+                f"{organizacion.name} tiene {sensores} de sus {limite} sensores "
+                f"contratados: caben {max(limite - sensores, 0)} más y el archivo "
+                f"trae {nuevos}. Para añadirlos tiene que ampliar el contrato."
+            )
         raise ConflictError(
-            f"{organizacion.name} ya tiene {limite} sensores, los que tiene "
-            "contratados. Para añadir más tiene que ampliar el contrato.",
+            mensaje,
             details={"field": "site_id", "max_sensors": limite},
             code="SENSOR_LIMIT_REACHED",
         )

@@ -5,7 +5,7 @@ import adapter from "./adapter.js";
 // Every route is admin only: 401 without session, 403 with a client session.
 const organizationsService = {
   // GET /api/organizations -> Page { items, total, page, page_size, pages }
-  // params (optional): { q, status, has_open_alerts, page, page_size }
+  // params (optional): { q, status, has_open_alerts, sort, order, page, page_size }
   getOrganizations(params = {}) {
     return adapter.get("/api/organizations", { params });
   },

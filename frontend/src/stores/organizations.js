@@ -63,6 +63,8 @@ export const useOrganizationsStore = defineStore("organizations", () => {
     const query = { page: params.page ?? 1, page_size: params.page_size ?? 10 };
     if (params.status) query.status = params.status;
     if (params.q && params.q.trim() !== "") query.q = params.q.trim();
+    if (params.sort) query.sort = params.sort;
+    if (params.order) query.order = params.order;
 
     try {
       const response = await organizationsService.getOrganizations(query);

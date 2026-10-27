@@ -1,6 +1,6 @@
 <!--
   ADMIN CLIENTS VIEW
-  Lists client organizations from the API (B1) with a status filter, search, pagination and
+  Lists client organizations from the API (B1) with a status filter, search, sorting, pagination and
   expandable buildings; "+ Nuevo cliente" opens the sign-up wizard on the same page.
   Rendered inside AdminLayout. Data: organizations, sites and sensors stores.
   No district column: OrganizationResponse does not return a district yet.
@@ -35,10 +35,11 @@ const PAGE_SIZES = [10, 25];
 // Wait this long after the last key before searching, so typing a word sends one request
 const SEARCH_DELAY_MS = 300;
 
-// Everything the admin can change in the list. These four values are exactly
-// the query params of GET /api/organizations: status, q, page and page_size
+// Everything the admin can change in the list. These values are exactly the
+// query params of GET /api/organizations: status, q, sort, order, page and page_size
 const selectedStatus = ref(null);
 const search = ref("");
+const sorting = ref({ sort: "name", order: "asc" });
 const page = ref(1);
 const pageSize = ref(PAGE_SIZES[0]);
 
@@ -59,6 +60,8 @@ function loadClients() {
     .fetchOrganizations({
       status: selectedStatus.value,
       q: query.value,
+      sort: sorting.value.sort,
+      order: sorting.value.order,
       page: page.value,
       page_size: pageSize.value,
     })
@@ -67,10 +70,10 @@ function loadClients() {
     });
 }
 
-// A new filter, search or page size changes the results: go back to page 1,
-// otherwise the admin could stay on a page that no longer exists.
+// A new filter, search, order or page size changes the results: go back to
+// page 1, otherwise the admin could stay on a page that no longer exists.
 // If the page was already 1, the page watcher does not fire, so load here
-watch([selectedStatus, query, pageSize], () => {
+watch([selectedStatus, query, sorting, pageSize], () => {
   if (page.value === 1) loadClients();
   else page.value = 1;
 });
@@ -263,6 +266,8 @@ async function onCreate(data) {
         :search="search"
         :page="page"
         :page-size="pageSize"
+        :sort="sorting.sort"
+        :order="sorting.order"
         :clients="organizationsStore.organizations"
         :total="organizationsStore.total"
         :page-sizes="PAGE_SIZES"
@@ -273,6 +278,7 @@ async function onCreate(data) {
         @update:search="search = $event"
         @update:page="page = $event"
         @update:page-size="pageSize = $event"
+        @update:sort="sorting = $event"
         @select="openClient"
         @retry="loadClients"
       />

@@ -38,6 +38,7 @@ from app.modules.organizations.model import Organization
 from app.modules.readings.model import Reading
 from app.modules.sensors.model import Sensor
 from app.modules.sites.model import Site
+from app.modules.subscriptions.plans import monthly_price, plan_for
 from app.modules.users.model import User
 
 # Namespace for the deterministic ids of alerts and readings (uuid5).
@@ -65,7 +66,8 @@ PREVIOUS_SITE_NAMES = {
     "Estación de bombeo Zona Franca": "Estación de bombeo La Cartuja",
 }
 
-# Saved by "Hazte cliente" (B14). No demo client has them, so the seed clears them.
+# Saved by "Hazte cliente" (B14). The seed clears them and writes the contract
+# of each demo client again, so a "Hazte cliente" tried on Hotel Gòtic is undone.
 SUBSCRIPTION_FIELDS = (
     "plan",
     "billing_period",
@@ -104,6 +106,17 @@ ORGANIZATIONS = [
         "legal_name": "Residencias Collserola S.L.",
         "tax_id": "B08412357",
         "billing_email": "facturacion@residenciascollserola.cat",
+        # Plan Empresa exactly at its limit: 15 buildings and 45 sensors, all
+        # of them installed. One more building or sensor gives 409.
+        "contract": {
+            "billing_period": "MONTHLY",
+            "sites": 15,
+            "sensors": 45,
+            "days_ago": 180,
+            "billing_address": "Carrer de Ganduxer 25",
+            "postal_code": "08021",
+            "iban_masked": "ES** **** **** **** **** 1332",
+        },
     },
     {
         "name": "Hotel Gòtic",
@@ -125,6 +138,16 @@ ORGANIZATIONS = [
         "legal_name": "Comunidad de Propietarios Mallorca 401",
         "tax_id": "H08765432",
         "billing_email": "admin@fincamallorca401.cat",
+        # Plan Básico with room left: 2 of 2 buildings, 4 of 6 sensors.
+        "contract": {
+            "billing_period": "MONTHLY",
+            "sites": 2,
+            "sensors": 6,
+            "days_ago": 60,
+            "billing_address": "Carrer de Mallorca 401",
+            "postal_code": "08013",
+            "iban_masked": "ES** **** **** **** **** 7741",
+        },
     },
     {
         "name": "Polideportivo Poblenou",
@@ -135,6 +158,17 @@ ORGANIZATIONS = [
         "legal_name": "Poblenou Esports S.A.",
         "tax_id": "A08123456",
         "billing_email": "contabilidad@poblenouesports.cat",
+        # Plan Profesional, paid yearly: all 6 buildings, 12 of 15 sensors.
+        # The 3 left are the ones to fill with a CSV import.
+        "contract": {
+            "billing_period": "YEARLY",
+            "sites": 6,
+            "sensors": 15,
+            "days_ago": 90,
+            "billing_address": "Carrer de Llull 220",
+            "postal_code": "08005",
+            "iban_masked": "ES** **** **** **** **** 4421",
+        },
     },
     {
         "name": "Aigües Zona Franca",
@@ -145,6 +179,16 @@ ORGANIZATIONS = [
         "legal_name": "Aigües Zona Franca Gestió Hídrica S.L.",
         "tax_id": "B08987654",
         "billing_email": "pagos@aigueszonafranca.cat",
+        # It was a client before it was suspended, so it kept its contract.
+        "contract": {
+            "billing_period": "MONTHLY",
+            "sites": 2,
+            "sensors": 4,
+            "days_ago": 300,
+            "billing_address": "Carrer A de la Zona Franca 30",
+            "postal_code": "08040",
+            "iban_masked": "ES** **** **** **** **** 9056",
+        },
     },
 ]
 
@@ -173,6 +217,20 @@ SITES = [
         "basements": 0,
         "building_type": "RESIDENCE",
     },
+    # Third building of the same client, still without sensors: the demo has
+    # clients with 1, 2 and 3 buildings to try the limits and the CSV import.
+    {
+        "key": "les_corts",
+        "organization": "Residencias Collserola",
+        "name": "Residencia Les Corts",
+        "address": "Carrer de Numància 150, 08029 Barcelona",
+        "district": "LES_CORTS",
+        "latitude": Decimal("41.385000"),
+        "longitude": Decimal("2.134000"),
+        "floors": 5,
+        "basements": 1,
+        "building_type": "RESIDENCE",
+    },
     {
         "key": "gotic",
         "organization": "Hotel Gòtic",
@@ -198,6 +256,18 @@ SITES = [
         "building_type": "COMMUNITY",
     },
     {
+        "key": "sant_andreu",
+        "organization": "Comunidad Mallorca 401",
+        "name": "Finca Sant Andreu",
+        "address": "Carrer Gran de Sant Andreu 150, 08030 Barcelona",
+        "district": "SANT_ANDREU",
+        "latitude": Decimal("41.435500"),
+        "longitude": Decimal("2.190000"),
+        "floors": 6,
+        "basements": 1,
+        "building_type": "COMMUNITY",
+    },
+    {
         "key": "poblenou",
         "organization": "Polideportivo Poblenou",
         "name": "Polideportivo Poblenou",
@@ -207,6 +277,18 @@ SITES = [
         "longitude": Decimal("2.198500"),
         "floors": 2,
         "basements": 1,
+        "building_type": "SPORTS",
+    },
+    {
+        "key": "nou_barris",
+        "organization": "Polideportivo Poblenou",
+        "name": "Pabellón Nou Barris",
+        "address": "Via Júlia 100, 08042 Barcelona",
+        "district": "NOU_BARRIS",
+        "latitude": Decimal("41.443000"),
+        "longitude": Decimal("2.177000"),
+        "floors": 2,
+        "basements": 0,
         "building_type": "SPORTS",
     },
     {
@@ -221,6 +303,70 @@ SITES = [
         "basements": 1,
         "building_type": "INDUSTRIAL",
     },
+    {
+        "key": "horta",
+        "organization": "Aigües Zona Franca",
+        "name": "Depósito Horta",
+        "address": "Carrer de Lisboa 20, 08032 Barcelona",
+        "district": "HORTA_GUINARDO",
+        "latitude": Decimal("41.429500"),
+        "longitude": Decimal("2.160000"),
+        "floors": 1,
+        "basements": 1,
+        "building_type": "INDUSTRIAL",
+    },
+]
+
+# The rest of the buildings of the two biggest clients, in a table to keep it
+# short: Residencias Collserola reaches 15 (plan Empresa) and Polideportivo
+# Poblenou 6 (plan Profesional). Several share a district with another one.
+# (key, organization, name, address, district, latitude, longitude, floors,
+#  basements, building type)
+_MORE_SITES = [
+    ("pedralbes", "Residencias Collserola", "Residencia Pedralbes",
+     "Avinguda de Pedralbes 60, 08034 Barcelona", "LES_CORTS", "41.392500", "2.118000", 4, 1, "RESIDENCE"),
+    ("sarria", "Residencias Collserola", "Residencia Sarrià",
+     "Carrer Major de Sarrià 90, 08017 Barcelona", "SARRIA_SANT_GERVASI", "41.400000", "2.121500", 3, 1, "RESIDENCE"),
+    ("putxet", "Residencias Collserola", "Residencia Putxet",
+     "Carrer de Marmellà 20, 08023 Barcelona", "SARRIA_SANT_GERVASI", "41.407500", "2.144000", 4, 0, "RESIDENCE"),
+    ("vallcarca", "Residencias Collserola", "Residencia Vallcarca",
+     "Avinguda de Vallcarca 180, 08023 Barcelona", "GRACIA", "41.411500", "2.144500", 3, 1, "RESIDENCE"),
+    ("horta_res", "Residencias Collserola", "Residencia Horta",
+     "Carrer d'Horta 40, 08032 Barcelona", "HORTA_GUINARDO", "41.430000", "2.161000", 4, 1, "RESIDENCE"),
+    ("guinardo", "Residencias Collserola", "Residencia Guinardó",
+     "Passeig de Maragall 200, 08041 Barcelona", "HORTA_GUINARDO", "41.417500", "2.174500", 5, 1, "RESIDENCE"),
+    ("sagrada_familia", "Residencias Collserola", "Residencia Sagrada Família",
+     "Carrer de Provença 450, 08025 Barcelona", "EIXAMPLE", "41.404000", "2.176000", 6, 1, "RESIDENCE"),
+    ("sant_antoni", "Residencias Collserola", "Residencia Sant Antoni",
+     "Carrer del Comte Borrell 50, 08015 Barcelona", "EIXAMPLE", "41.379000", "2.159500", 5, 1, "RESIDENCE"),
+    ("sants", "Residencias Collserola", "Residencia Sants",
+     "Carrer de Sants 200, 08028 Barcelona", "SANTS_MONTJUIC", "41.375000", "2.133000", 4, 1, "RESIDENCE"),
+    ("fabra_puig", "Residencias Collserola", "Residencia Fabra i Puig",
+     "Passeig de Fabra i Puig 300, 08031 Barcelona", "NOU_BARRIS", "41.433000", "2.174500", 5, 1, "RESIDENCE"),
+    ("torras_bages", "Residencias Collserola", "Residencia Torras i Bages",
+     "Passeig de Torras i Bages 100, 08030 Barcelona", "SANT_ANDREU", "41.440000", "2.191500", 4, 0, "RESIDENCE"),
+    ("barceloneta", "Residencias Collserola", "Residencia Barceloneta",
+     "Passeig de Joan de Borbó 40, 08003 Barcelona", "CIUTAT_VELLA", "41.378000", "2.189000", 3, 0, "RESIDENCE"),
+    ("piscina_sant_marti", "Polideportivo Poblenou", "Piscina Sant Martí",
+     "Carrer de Bac de Roda 100, 08019 Barcelona", "SANT_MARTI", "41.411000", "2.196000", 2, 1, "SPORTS"),
+    ("pabellon_clot", "Polideportivo Poblenou", "Pabellón Clot",
+     "Carrer del Clot 50, 08018 Barcelona", "SANT_MARTI", "41.408500", "2.188000", 2, 0, "SPORTS"),
+    ("polideportivo_sants", "Polideportivo Poblenou", "Polideportivo Sants",
+     "Carrer de Joan Güell 150, 08028 Barcelona", "SANTS_MONTJUIC", "41.380000", "2.136000", 2, 1, "SPORTS"),
+    ("piscina_horta", "Polideportivo Poblenou", "Piscina Horta",
+     "Carrer de Feliu i Codina 30, 08031 Barcelona", "HORTA_GUINARDO", "41.428000", "2.163000", 2, 1, "SPORTS"),
+]
+_SITE_FIELDS = (
+    "key", "organization", "name", "address", "district", "latitude", "longitude",
+    "floors", "basements", "building_type",
+)
+SITES += [
+    {
+        **dict(zip(_SITE_FIELDS, row)),
+        "latitude": Decimal(row[5]),
+        "longitude": Decimal(row[6]),
+    }
+    for row in _MORE_SITES
 ]
 
 # The first three keep the ids that the simulator and the smoke test use.
@@ -252,6 +398,62 @@ SENSORS = [
     {"n": 8, "site": "gracia", "external_id": "SENS-008", "name": "Presión cocina",
      "location": "Planta 1 - Cocina", "floor": 1, "low": "1.500", "high": "6.000"},
 ]
+
+# How many sensors each building ends up with: 45 for Residencias Collserola
+# (its contract), 12 for Polideportivo Poblenou, 4 for Comunidad Mallorca 401
+# and 2 for Aigües Zona Franca. The 8 above keep their ids (simulator, smoke
+# test, alerts); `_more_sensors` adds the rest, one per floor, from the
+# lowest. Hotel Gòtic keeps its 2, the ones above.
+SENSORS_PER_SITE = {
+    "sant_gervasi": 3, "gracia": 3, "les_corts": 3, "pedralbes": 3, "sarria": 3,
+    "putxet": 3, "vallcarca": 3, "horta_res": 3, "guinardo": 3, "sagrada_familia": 3,
+    "sant_antoni": 3, "sants": 3, "fabra_puig": 3, "torras_bages": 3, "barceloneta": 3,
+    "poblenou": 2, "nou_barris": 2, "piscina_sant_marti": 2, "pabellon_clot": 2,
+    "polideportivo_sants": 2, "piscina_horta": 2,
+    "mallorca": 2, "sant_andreu": 2,
+    "bombeo": 1, "horta": 1,
+}
+
+
+def _install_order(floors: int, basements: int) -> list[int]:
+    """Where the sensors of a building go: lowest basement, ground floor, top, the rest."""
+    top = floors - 1
+    first = ([-basements] if basements else []) + [0] + ([top] if top > 0 else [])
+    rest = [f for f in range(-basements, top + 1) if f not in first]
+    return first + rest
+
+
+def _sensor_on(floor: int, top: int) -> tuple[str, str]:
+    """Name and location of a sensor on that floor."""
+    if floor < 0:
+        return f"Presión sótano {-floor}", f"Sótano {-floor} - Sala de bombas"
+    if floor == 0:
+        return "Presión acometida", "Planta baja - Contador general"
+    if floor == top:
+        return "Presión cubierta", f"Planta {floor} - Depósito"
+    return f"Presión planta {floor}", f"Planta {floor} - Distribución"
+
+
+def _more_sensors() -> list[dict]:
+    sites = {site["key"]: site for site in SITES}
+    n = len(SENSORS)
+    extra = []
+    for key, total in SENSORS_PER_SITE.items():
+        site = sites[key]
+        used = [data["floor"] for data in SENSORS if data["site"] == key]
+        free = [f for f in _install_order(site["floors"], site["basements"]) if f not in used]
+        assert len(used) + len(free) >= total, f"{key} has fewer floors than sensors"
+        for floor in free[: total - len(used)]:
+            n += 1
+            name, location = _sensor_on(floor, site["floors"] - 1)
+            extra.append(
+                {"n": n, "site": key, "external_id": f"SENS-{n:03d}", "name": name,
+                 "location": location, "floor": floor, "low": "1.500", "high": "6.000"}
+            )
+    return extra
+
+
+SENSORS += _more_sensors()
 
 OUT_OF_RANGE_SENSOR = 6
 OFFLINE_SENSOR = 7
@@ -382,8 +584,29 @@ def _upsert_organization(db: Session, data: dict, now: datetime) -> Organization
     # Undo a "Hazte cliente" from the app, so the demo can repeat it
     for field in SUBSCRIPTION_FIELDS:
         setattr(organization, field, None)
+    if "contract" in data:
+        _set_contract(organization, data["contract"], now)
     db.flush()
     return organization
+
+
+def _set_contract(organization: Organization, contract: dict, now: datetime) -> None:
+    """
+    What "Hazte cliente" would have saved (B14). The plan and the price come
+    from plans.py, as in the API, so the demo never disagrees with the app.
+    """
+    plan = plan_for(contract["sites"], contract["sensors"])
+    subscribed_at = now - timedelta(days=contract["days_ago"])
+    organization.plan = plan.id.value
+    organization.billing_period = contract["billing_period"]
+    organization.contracted_sites = contract["sites"]
+    organization.contracted_sensors = contract["sensors"]
+    organization.monthly_price_eur = monthly_price(plan, contract["sensors"])
+    organization.subscribed_at = subscribed_at
+    organization.billing_address = contract["billing_address"]
+    organization.postal_code = contract["postal_code"]
+    organization.iban_masked = contract["iban_masked"]
+    organization.sepa_accepted_at = subscribed_at
 
 
 def _upsert_user(

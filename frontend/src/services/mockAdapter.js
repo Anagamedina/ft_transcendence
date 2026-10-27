@@ -628,6 +628,173 @@ function toPage(items, params = {}) {
   };
 }
 
+// Same order as GET /api/organizations: by `sort` (name by default), then by
+// name. Clients without a trial end go last in both directions
+function compareOrganizations(sort = "name", order = "asc") {
+  const direction = order === "desc" ? -1 : 1;
+  const byName = (a, b) => a.name.localeCompare(b.name, "es");
+  return (a, b) => {
+    if (sort === "name") return direction * byName(a, b);
+    const left = a[sort] ?? null;
+    const right = b[sort] ?? null;
+    if (left === null || right === null) {
+      if (left !== right) return left === null ? 1 : -1;
+      return byName(a, b);
+    }
+    const value = sort === "trial_ends_at" ? Date.parse(left) : Number(left);
+    const other = sort === "trial_ends_at" ? Date.parse(right) : Number(right);
+    return direction * (value - other) || byName(a, b);
+  };
+}
+
+// POST /api/sensors/import in the mock. A simple CSV reader (no quoted
+// fields), enough for the template and the demo
+function importSensorsMock(text, site, dryRun) {
+  const lines = text.replace(/^\ufeff/, "").split(/\r?\n/);
+  const delimiter =
+    (lines[0].match(/;/g) ?? []).length > (lines[0].match(/,/g) ?? []).length
+      ? ";"
+      : ",";
+  const header = lines[0]
+    .split(delimiter)
+    .map((name) => name.trim().toLowerCase());
+  const required = ["external_id", "name", "min_pressure", "max_pressure"];
+  const missing = required.filter((name) => !header.includes(name));
+  if (missing.length) {
+    return Promise.reject({
+      status: 422,
+      code: "IMPORT_MISSING_COLUMNS",
+      message: `Al archivo le faltan columnas: ${missing.join(", ")}.`,
+      details: missing.map((field) => ({
+        field,
+        message: "Falta esta columna.",
+      })),
+    });
+  }
+
+  const taken = new Set(
+    sensors
+      .filter((item) => item.site_id === site.id)
+      .map((item) => item.external_id),
+  );
+  const seen = new Map();
+  const rows = [];
+  const errors = [];
+  lines.slice(1).forEach((line, index) => {
+    const row = index + 2;
+    const cells = line.split(delimiter).map((cell) => cell.trim());
+    if (!cells.some(Boolean)) return;
+    const value = (name) => cells[header.indexOf(name)] ?? "";
+    const fail = (field, message) => errors.push({ row, field, message });
+    const pressure = (name) => {
+      const number = Number(value(name).replace(",", "."));
+      if (
+        value(name) === "" ||
+        !Number.isFinite(number) ||
+        number < 0 ||
+        number > 25
+      ) {
+        fail(name, "Tiene que ser un número entre 0 y 25 bar.");
+        return null;
+      }
+      return number;
+    };
+    const externalId = value("external_id");
+    const name = value("name");
+    if (!externalId) fail("external_id", "Falta este dato.");
+    else if (taken.has(externalId))
+      fail("external_id", `${site.name} ya tiene un sensor «${externalId}».`);
+    else if (seen.has(externalId))
+      fail(
+        "external_id",
+        `«${externalId}» ya está en la línea ${seen.get(externalId)}.`,
+      );
+    if (!name) fail("name", "Falta este dato.");
+    const min = pressure("min_pressure");
+    const max = pressure("max_pressure");
+    if (min !== null && max !== null && min >= max)
+      fail("min_pressure", "Tiene que ser menor que max_pressure.");
+    const floor = value("floor") === "" ? 0 : Number(value("floor"));
+    if (!Number.isInteger(floor) || !floorInSite(floor, site))
+      fail("floor", floorOutOfSite(site).message);
+    seen.set(externalId, row);
+    rows.push({
+      line: row,
+      external_id: externalId,
+      name,
+      location: value("location") || null,
+      floor,
+      min_pressure: min,
+      max_pressure: max,
+    });
+  });
+
+  if (errors.length) {
+    const count = new Set(errors.map((item) => item.row)).size;
+    return Promise.reject({
+      status: 422,
+      code: "IMPORT_INVALID_ROWS",
+      message: `${count} ${count === 1 ? "fila tiene" : "filas tienen"} errores. No se ha importado ningún sensor.`,
+      details: errors,
+    });
+  }
+  if (!rows.length) {
+    return Promise.reject({
+      status: 422,
+      code: "IMPORT_NO_ROWS",
+      message: "El archivo no tiene ningún sensor: solo la cabecera.",
+      details: null,
+    });
+  }
+
+  const owner = organizations.find((item) => item.id === site.organization_id);
+  const maxSensors = owner ? mockMaxSensors(owner) : null;
+  const current = owner ? mockSensorCount(owner.id) : 0;
+  if (maxSensors !== null && current + rows.length > maxSensors) {
+    return Promise.reject({
+      status: 409,
+      code: "SENSOR_LIMIT_REACHED",
+      message: `${owner.name} tiene ${current} de sus ${maxSensors} sensores contratados: caben ${Math.max(maxSensors - current, 0)} más y el archivo trae ${rows.length}. Para añadirlos tiene que ampliar el contrato.`,
+      details: [{ field: "site_id", max_sensors: maxSensors }],
+    });
+  }
+
+  if (!dryRun) {
+    for (const row of rows) {
+      sensors.push({
+        id: crypto.randomUUID(),
+        site_id: site.id,
+        site_name: site.name,
+        organization_id: site.organization_id,
+        organization_name: site.organization_name,
+        floor: row.floor,
+        external_id: row.external_id,
+        name: row.name,
+        location: row.location,
+        sensor_type: "PRESSURE",
+        unit: "bar",
+        min_pressure: row.min_pressure,
+        max_pressure: row.max_pressure,
+        status: "OFFLINE",
+        health: "OFFLINE",
+        last_seen_at: null,
+        last_value: null,
+        created_at: new Date().toISOString(),
+      });
+    }
+  }
+  return {
+    data: {
+      dry_run: dryRun,
+      site_id: site.id,
+      site_name: site.name,
+      created: dryRun ? 0 : rows.length,
+      sensors: rows,
+    },
+    status: dryRun ? 200 : 201,
+  };
+}
+
 // Removes in place every item of a fixture list that matches
 function removeWhere(list, matches) {
   let removed = 0;
@@ -751,7 +918,7 @@ const mockAdapter = {
       });
     }
 
-    // List organizations (B1): filters, sorted by name, one page
+    // List organizations (B1): filters, sort and order, one page
     if (url === "/api/organizations") {
       const denied = adminCheck();
       if (denied) return Promise.reject(denied);
@@ -783,7 +950,7 @@ const mockAdapter = {
               ? organization.open_alerts > 0
               : organization.open_alerts === 0,
         )
-        .sort((a, b) => a.name.localeCompare(b.name, "es"));
+        .sort(compareOrganizations(params.sort, params.order));
 
       return Promise.resolve({ data: toPage(items, params), status: 200 });
     }
@@ -2069,6 +2236,28 @@ const mockAdapter = {
         data: reading,
         status: 201,
       });
+    }
+
+    // Import the sensors of a building from a CSV: same rules as the API
+    // (errors by line, all or nothing, dry_run for the preview, contract limit)
+    if (url === "/api/sensors/import") {
+      const denied = adminCheck();
+      if (denied) return Promise.reject(denied);
+      const site = sites.find((item) => item.id === data.get("site_id"));
+      if (!site) {
+        return Promise.reject({
+          status: 404,
+          code: "SITE_NOT_FOUND",
+          message: "El site indicado no existe.",
+          details: null,
+        });
+      }
+      return data
+        .get("file")
+        .text()
+        .then((text) =>
+          importSensorsMock(text, site, data.get("dry_run") === "true"),
+        );
     }
 
     // Create a sensor.

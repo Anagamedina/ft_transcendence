@@ -258,6 +258,15 @@ class SensorRepository:
             is not None
         )
 
+    def external_ids_in_site(self, site_id: UUID) -> set[str]:
+        """
+        Las etiquetas ya usadas en ese site. Una consulta para todo el
+        archivo de la importación, no una por fila.
+        """
+        return set(
+            self.db.scalars(select(Sensor.external_id).where(Sensor.site_id == site_id))
+        )
+
     def create(self, **campos) -> Sensor:
         sensor = Sensor(**campos)
         self.db.add(sensor)
