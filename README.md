@@ -572,6 +572,42 @@ admin gets all of them.
 
 The file starts with a UTF-8 BOM so Excel shows accents correctly.
 
+### Public read-only API (subject Web major)
+
+AquaGuard exposes a separate, read-only API for external integrations. It is
+not the simulator ingestion endpoint and does not use the browser session
+cookie. The consumer sends `X-API-Key`; the key is configured outside Git with
+`PUBLIC_API_KEY` and is restricted to `PUBLIC_API_ORGANIZATION_ID`.
+
+The five documented endpoints are:
+
+```text
+GET /api/public/v1/overview
+GET /api/public/v1/sites
+GET /api/public/v1/sensors
+GET /api/public/v1/alerts
+GET /api/public/v1/analytics/export?from=YYYY-MM-DD&to=YYYY-MM-DD
+```
+
+They reuse the existing services and repositories, return only data from the
+configured organization, and never expose write operations. Nginx applies a
+separate `PUBLIC_API_RATE_LIMIT` before forwarding requests to FastAPI. The
+OpenAPI document at `/api/docs` publishes the `PublicApiKey` security scheme,
+examples and response contracts.
+
+For a local demo, set `PUBLIC_API_ORGANIZATION_ID` in `.env` after loading the
+seed and use:
+
+```bash
+curl -k -H "X-API-Key: $PUBLIC_API_KEY" \
+  https://localhost/api/public/v1/overview
+```
+
+The backend tests cover missing and invalid keys, all five endpoints, tenant
+isolation and OpenAPI security metadata. The gateway rate limit must be checked
+with the running Compose stack because it is enforced by Nginx, not by the
+FastAPI test client.
+
 ### Frontend development
 
 `make dev` starts the infrastructure and the Vite dev server with HMR at
@@ -834,6 +870,7 @@ users in [Demo data](#demo-data). Backend rules are covered by
 | Backend        | Sensors: create, edit, floor, health and last value; offline after 5 min (B3)         | Ana                    | `/admin/sensors`                             |
 | Backend        | Alerts: low/high pressure and offline rules, acknowledge and resolve (#28, B5)        | Daruny, Ana            | `/admin/alerts`                              |
 | Backend        | Analytics: KPIs, charts, date range and CSV/JSON export (B9, B18, F19)                | Daruny, Ana            | `/admin` → Exportar CSV                      |
+| Backend        | Public read-only API: API key, organization scope, 5 endpoints, OpenAPI and rate limit (subject Web major) | Daruny, Ana | `/api/docs` · `curl -k -H "X-API-Key: …" https://localhost/api/public/v1/overview` |
 | Backend        | GDPR: export my data, request deletion and confirmation emails (B15, B19)             | Daruny, Florinda       | `/app/account` · <http://localhost:8025>     |
 | Database       | Schema: 8 tables with constraints, indexes and Alembic migrations (#129, #130, #132)  | Daruny                 | `make migration-check`                       |
 | Database       | Alembic targets: migrate, generate and check for drift (#92)                          | Eduardo                | `make migrate` · `make migration-check`      |
@@ -870,7 +907,12 @@ contributors, and a reproducible verification method.
 
 The project must reach at least 14 validated points. The following selection is
 the team's current AquaGuard plan, based on the product architecture document.
-It adds up to 15: the real-time module (WebSockets, 2 points) was dropped from
+The official subject scorecard is maintained separately in
+[`docs/subject/aquaguard-scorecard.html`](docs/subject/aquaguard-scorecard.html),
+because this legacy plan contains product modules such as ORM and notifications
+that are not independent entries in the official PDF. The public API below is
+implemented in code and remains pending full Compose/runtime validation.
+The original selection adds up to 15: the real-time module (WebSockets, 2 points) was dropped from
 the plan, the GDPR minor module (B19) brings the missing point, and the file
 upload module counts the building documents already implemented (B11, F14).
 
