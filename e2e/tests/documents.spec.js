@@ -24,6 +24,16 @@ async function openDocuments(page) {
   await expect(page.getByRole('heading', { name: 'Documentos' })).toBeVisible()
 }
 
+// Since F27 the upload form lives in a modal: "Subir documento" opens it (in
+// the header, or in the empty state when there are no documents yet) and
+// "Subir" inside the modal sends the file.
+async function openUpload(page) {
+  await page.getByRole('button', { name: 'Subir documento' }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toBeVisible()
+  return dialog
+}
+
 // Deletes what the test uploaded, also when it failed halfway
 async function removeDocuments(page, names) {
   const list = await (await page.request.get('/api/documents?page_size=100')).json()
@@ -40,8 +50,9 @@ async function siteId(page) {
 test.describe('documents', () => {
   test('the page rejects other types, empty files and files over 10 MB', async ({ page }) => {
     await openDocuments(page)
-    const input = page.locator('input[type="file"]')
-    const alert = page.locator('form [role="alert"]')
+    const dialog = await openUpload(page)
+    const input = dialog.locator('input[type="file"]')
+    const alert = dialog.locator('form [role="alert"]')
 
     await input.setInputFiles(file('virus.exe', 'application/octet-stream', Buffer.from('MZ')))
     await expect(alert).toHaveText('Formato no admitido. Usa PDF, JPG, PNG o CSV.')
@@ -49,23 +60,28 @@ test.describe('documents', () => {
     await expect(alert).toHaveText('El archivo está vacío.')
     await input.setInputFiles(file('grande.pdf', 'application/pdf', OVER_10_MB))
     await expect(alert).toHaveText('El archivo supera el límite de 10 MB.')
-    await expect(page.getByRole('button', { name: 'Subir documento' })).toBeDisabled()
+    await expect(dialog.getByRole('button', { name: 'Subir', exact: true })).toBeDisabled()
   })
 
   test('a client uploads an image and a PDF, previews and deletes them', async ({ page }) => {
     const names = ['e2e-plano.png', 'e2e-informe.pdf']
     await openDocuments(page)
     await removeDocuments(page, names)
+    // The list was loaded before the cleanup: reload it
+    await page.reload()
     try {
-      const form = page.locator('form')
-      await form.locator('select').first().selectOption({ index: 1 })
-      await form.locator('input[type="file"]').setInputFiles(file(names[0], 'image/png', PNG))
-      await page.getByRole('button', { name: 'Subir documento' }).click()
+      let dialog = await openUpload(page)
+      await dialog.locator('select').first().selectOption({ index: 1 })
+      await dialog.locator('input[type="file"]').setInputFiles(file(names[0], 'image/png', PNG))
+      await dialog.getByRole('button', { name: 'Subir', exact: true }).click()
+      await expect(dialog).toBeHidden()
       await expect(page.getByRole('cell', { name: names[0] })).toBeVisible()
 
-      await form.locator('select').first().selectOption({ index: 1 })
-      await form.locator('input[type="file"]').setInputFiles(file(names[1], 'application/pdf', PDF))
-      await page.getByRole('button', { name: 'Subir documento' }).click()
+      dialog = await openUpload(page)
+      await dialog.locator('select').first().selectOption({ index: 1 })
+      await dialog.locator('input[type="file"]').setInputFiles(file(names[1], 'application/pdf', PDF))
+      await dialog.getByRole('button', { name: 'Subir', exact: true }).click()
+      await expect(dialog).toBeHidden()
       await expect(page.getByRole('cell', { name: names[1] })).toBeVisible()
 
       const row = (name) => page.getByRole('row').filter({ hasText: name })
@@ -99,13 +115,13 @@ test.describe('documents', () => {
         downloadThroughput: -1,
         uploadThroughput: 600 * 1024,
       })
-      const form = page.locator('form')
-      await form.locator('select').first().selectOption({ index: 1 })
+      const dialog = await openUpload(page)
+      await dialog.locator('select').first().selectOption({ index: 1 })
       const big = Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.alloc(3 * 1024 * 1024, '0')])
-      await form.locator('input[type="file"]').setInputFiles(file(name, 'application/pdf', big))
-      await page.getByRole('button', { name: 'Subir documento' }).click()
+      await dialog.locator('input[type="file"]').setInputFiles(file(name, 'application/pdf', big))
+      await dialog.getByRole('button', { name: 'Subir', exact: true }).click()
 
-      const bar = page.getByRole('progressbar', { name: 'Progreso de subida' })
+      const bar = dialog.getByRole('progressbar', { name: 'Progreso de subida' })
       await expect(bar).toBeVisible()
       await expect
         .poll(async () => Number(await bar.getAttribute('aria-valuenow')), { timeout: 10000 })

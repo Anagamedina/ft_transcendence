@@ -10,15 +10,15 @@
 
 <template>
   <div
-    class="flex flex-col items-center justify-center gap-3 text-center rounded-xl border border-dashed border-gray-300 bg-white px-6"
+    class="flex flex-col items-center justify-center gap-3 text-center rounded-xl border border-dashed border-slate-300 bg-white px-6"
     :class="compact ? 'py-6' : 'py-12'"
   >
     <div class="w-10 h-10 text-aqua-600">
       <AppIcon :name="icon" />
     </div>
     <div class="flex flex-col gap-1">
-      <p class="font-semibold text-gray-800">{{ title }}</p>
-      <p v-if="message" class="text-sm text-gray-600">{{ message }}</p>
+      <p class="font-semibold text-slate-800">{{ title }}</p>
+      <p v-if="message" class="text-sm text-slate-600">{{ message }}</p>
     </div>
     <div v-if="$slots.action">
       <slot name="action" />

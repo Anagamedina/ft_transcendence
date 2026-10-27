@@ -856,6 +856,7 @@ users in [Demo data](#demo-data). Backend rules are covered by
 | Frontend       | Client alerts: Pendiente / En curso / Arreglado tabs and "Me encargo" (F9-C, F21)     | Daruny, Florinda       | `/app/alerts` → Me encargo                   |
 | Frontend       | Client documents: list, upload and delete the organization's files                    | Lylia                  | `/app/documents`                             |
 | Frontend       | Account: name, password and privacy card, for admin and client (F13-C)                | Florinda               | `/app/account` · `/admin/account`            |
+| Frontend       | Documents and account: upload modal, building tab, phone cards, Baja solicitada (F27) | Florinda               | `/app/documents` · `/app/account`            |
 | Frontend       | UI components: `DataTable`, `Tabs`, `StatusPill`, `AlertRow`, async states (F3)       | Florinda               | `/admin/alerts`                              |
 | Frontend       | Shared palette and the new design for public views and panels (F18–F20)               | Florinda               | `make lint` · any page                       |
 | Frontend       | Spanish formats, keyboard focus and responsive review down to 375 px (F18)            | Florinda               | DevTools at 375 px                           |

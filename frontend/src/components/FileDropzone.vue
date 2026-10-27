@@ -1,15 +1,18 @@
-<!--Component used for Documentsview-->
+<!--
+  FILE DROPZONE
+  Upload form of a document: building, type and file (PDF, JPG, PNG or CSV,
+  10 MB max). Shown inside the "Subir documento" modal of DocumentsView (F27).
+  Emits "upload" with { file, site_id, kind } and "cancel" to close the modal.
+  Usage:
+    <FileDropzone :sites="sites" :uploading="uploading" :progress="progress"
+      @upload="handleUpload" @cancel="close" />
+-->
+
 <template>
-  <form
-    class="space-y-4 rounded-xl border border-slate-200 bg-white p-5"
-    @submit.prevent="submit"
-  >
-    <div>
-      <h2 class="text-lg font-semibold text-slate-900">Subir un documento</h2>
-      <p class="mt-1 text-sm text-slate-600">
-        PDF, JPG, PNG o CSV. Tamaño máximo: 10 MB.
-      </p>
-    </div>
+  <form class="space-y-4" @submit.prevent="submit">
+    <p class="text-sm text-slate-600">
+      PDF, JPG, PNG o CSV. Tamaño máximo: 10 MB.
+    </p>
 
     <div class="grid gap-4 sm:grid-cols-2">
       <label class="block text-sm font-medium text-slate-700">
@@ -17,7 +20,7 @@
         <select
           v-model="siteId"
           required
-          class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2"
+          class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
         >
           <option value="" disabled>Selecciona un edificio</option>
           <option v-for="site in sites" :key="site.id" :value="site.id">
@@ -31,9 +34,9 @@
         <select
           v-model="kind"
           required
-          class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2"
+          class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
         >
-          <option value="PLAN">Plan</option>
+          <option value="PLAN">Plano</option>
           <option value="REPORT">Informe</option>
           <option value="INVOICE">Factura</option>
           <option value="PHOTO">Foto</option>
@@ -42,13 +45,14 @@
       </label>
     </div>
 
+    <!-- The whole box opens the file picker; the input stays reachable by keyboard -->
     <label
-      class="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 px-5 py-8 text-center hover:border-blue-400 hover:bg-slate-50"
+      class="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 px-5 py-8 text-center hover:border-aqua-400 hover:bg-aqua-50 focus-within:border-aqua-600 focus-within:ring-2 focus-within:ring-aqua-400"
     >
-      <span class="text-sm font-medium text-slate-800">
+      <span class="text-sm font-semibold text-slate-800">
         Selecciona un archivo
       </span>
-      <span class="mt-1 text-xs text-slate-500">
+      <span class="mt-1 text-xs text-slate-600">
         PDF, JPG, PNG o CSV · 10 MB máximo
       </span>
       <input
@@ -63,19 +67,19 @@
     <div v-if="file" class="flex items-center justify-between gap-3 text-sm">
       <div class="min-w-0">
         <p class="truncate font-medium text-slate-800">{{ file.name }}</p>
-        <p class="text-slate-500">{{ formatSize(file.size) }}</p>
+        <p class="text-slate-600">{{ formatSize(file.size) }}</p>
       </div>
       <button
         v-if="!uploading"
         type="button"
-        class="text-sm text-red-600 hover:underline"
+        class="shrink-0 text-sm font-semibold text-danger-dark hover:underline"
         @click="clearFile"
       >
         Quitar
       </button>
     </div>
 
-    <p v-if="error" role="alert" class="text-sm text-red-600">
+    <p v-if="error" role="alert" class="text-sm text-danger-dark">
       {{ error }}
     </p>
 
@@ -93,24 +97,37 @@
         aria-valuemax="100"
       >
         <div
-          class="h-full rounded-full bg-blue-600 transition-all"
+          class="h-full rounded-full bg-aqua-600 transition-all"
           :style="{ width: `${progress}%` }"
         />
       </div>
     </div>
 
-    <button
-      type="submit"
-      :disabled="!file || !siteId || uploading || sites.length === 0"
-      class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-    >
-      {{ uploading ? "Subiendo…" : "Subir documento" }}
-    </button>
+    <p v-if="sites.length === 0" class="text-sm text-slate-600">
+      Necesitas al menos un edificio para subir documentos.
+    </p>
+
+    <div class="flex flex-wrap justify-end gap-3">
+      <button
+        type="button"
+        :disabled="uploading"
+        class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+        @click="$emit('cancel')"
+      >
+        Cancelar
+      </button>
+      <button
+        type="submit"
+        :disabled="!file || !siteId || uploading || sites.length === 0"
+        class="rounded-lg bg-aqua-600 px-4 py-2 text-sm font-semibold text-white hover:bg-aqua-700 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {{ uploading ? "Subiendo…" : "Subir" }}
+      </button>
+    </div>
   </form>
 </template>
 
 <script setup>
-
 import { ref } from "vue";
 
 const props = defineProps({
@@ -119,13 +136,14 @@ const props = defineProps({
   progress: { type: Number, default: 0 },
 });
 
-const emit = defineEmits(["upload"]);
+const emit = defineEmits(["upload", "cancel"]);
 
 const MAX_SIZE = 10 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = ["pdf", "jpg", "jpeg", "png", "csv"];
 
 const file = ref(null);
-const siteId = ref("");
+// With only one building it is selected already
+const siteId = ref(props.sites.length === 1 ? props.sites[0].id : "");
 const kind = ref("OTHER");
 const error = ref("");
 
@@ -150,6 +168,7 @@ function selectFile(event) {
     file.value = selected;
   }
 
+  // Lets the same file be chosen again after "Quitar"
   event.target.value = "";
 }
 
@@ -173,5 +192,4 @@ function formatSize(size) {
     ? `${(size / 1024).toFixed(0)} KB`
     : `${(size / (1024 * 1024)).toFixed(2)} MB`;
 }
-
 </script>
