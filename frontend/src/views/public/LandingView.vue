@@ -34,52 +34,39 @@
           </div>
         </div>
 
-        <!-- Right column: example building card (static data, no API call) -->
-        <div
+        <!-- Right column: example building with the same drawing as the
+             client panel (BuildingDrawing, static data, no API call) -->
+        <figure
           class="bg-white border border-aqua-100 rounded-xl p-5 flex flex-col gap-4 shadow-[0_16px_40px_theme(colors.aqua.600/10%)]"
         >
           <div class="flex justify-between items-center gap-3">
-            <strong class="text-aqua-900"
-              >Hotel Diagonal Mar · Sant Martí</strong
-            >
+            <strong class="text-aqua-900">Tu edificio</strong>
             <span
-              class="shrink-0 whitespace-nowrap px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-800"
+              class="shrink-0 whitespace-nowrap px-3 py-1 rounded-full text-sm font-semibold"
+              :class="toneClasses(tone('AlertState', 'ACTIVE')).pill"
             >
-              1 alerta
+              1 sin atender
             </span>
           </div>
 
-          <ul
-            class="flex flex-col gap-1.5"
-            aria-label="Plantas del edificio de ejemplo"
-          >
-            <li
-              v-for="floor in exampleFloors"
-              :key="floor.name"
-              class="grid grid-cols-[90px_1fr] gap-2.5 items-center text-sm"
-            >
-              <span class="text-slate-600">{{ floor.name }}</span>
-              <div
-                class="flex items-center gap-2 px-2.5 py-2 rounded-lg text-slate-800"
-                :class="statusStyles[floor.status].row"
-              >
-                <span
-                  class="w-2.5 h-2.5 rounded-full"
-                  :class="statusStyles[floor.status].dot"
-                  aria-hidden="true"
-                ></span>
-                <span>{{ floor.point }} · {{ floor.pressure }} bar</span>
-                <span class="sr-only"
-                  >({{ statusStyles[floor.status].label }})</span
-                >
-              </div>
-            </li>
-          </ul>
+          <!-- inert: in the panel the sensors open their detail; here they are
+               only a picture, so they cannot be clicked or focused -->
+          <div inert>
+            <BuildingDrawing
+              name="el edificio de ejemplo"
+              :floors="exampleBuilding.floors"
+              :basements="exampleBuilding.basements"
+              :sensors="exampleBuilding.sensors"
+              :states="exampleBuilding.states"
+              show-sensors
+            />
+          </div>
 
-          <p class="text-xs text-slate-500">
-            Vista de ejemplo del panel del cliente.
-          </p>
-        </div>
+          <figcaption class="text-xs text-slate-600">
+            Vista de ejemplo del panel del cliente: la planta 2 tiene una
+            alerta sin atender.
+          </figcaption>
+        </figure>
       </div>
     </section>
 
@@ -135,46 +122,35 @@
       </div>
     </section>
 
-    <!-- Alert lifecycle: active, acknowledged, resolved -->
+    <!-- Alert lifecycle (F28): AquaGuard warns, the client fixes, the
+         readings confirm. Same states and colours as the panels (useLabels). -->
     <section id="alertas" class="bg-aqua-50 px-6 pb-14 md:px-20">
       <div
-        class="max-w-6xl mx-auto bg-white border border-aqua-100 rounded-xl p-7 grid gap-8 items-center md:grid-cols-[1fr_1.3fr]"
+        class="max-w-6xl mx-auto bg-white border border-aqua-100 rounded-xl p-7 flex flex-col gap-6"
       >
         <div class="flex flex-col gap-2">
           <h2 class="text-2xl font-bold text-aqua-900">
-            Alertas que se cierran
+            Así funciona una alerta
           </h2>
           <p class="text-slate-600">
-            Cada alerta pasa por tres estados y queda registrado quién actuó y
-            cuánto tardó.
+            Te avisamos, tú lo arreglas y las lecturas confirman que ya va bien.
           </p>
         </div>
-        <ol
-          class="flex flex-wrap items-center gap-2.5"
-          aria-label="Estados de una alerta"
-        >
-          <li class="flex items-center gap-2.5">
+        <ol class="grid gap-4 md:grid-cols-3" aria-label="Estados de una alerta">
+          <li
+            v-for="(step, index) in alertSteps"
+            :key="step.state"
+            class="flex flex-col gap-2 rounded-xl border border-slate-200 p-5"
+          >
+            <!-- The state is written out, not only shown by its colour -->
             <span
-              class="px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-800"
+              class="self-start rounded-full px-3 py-1 text-sm font-semibold"
+              :class="toneClasses(tone('AlertState', step.state)).pill"
             >
-              Sin atender
+              {{ index + 1 }}. {{ label("AlertState", step.state) }}
             </span>
-            <span class="text-slate-500" aria-hidden="true">→</span>
-          </li>
-          <li class="flex items-center gap-2.5">
-            <span
-              class="px-3 py-1 rounded-full text-sm font-semibold bg-amber-100 text-amber-800"
-            >
-              En curso
-            </span>
-            <span class="text-slate-500" aria-hidden="true">→</span>
-          </li>
-          <li>
-            <span
-              class="px-3 py-1 rounded-full text-sm font-semibold bg-emerald-100 text-emerald-800"
-            >
-              Arreglada
-            </span>
+            <h3 class="text-lg font-bold text-aqua-900">{{ step.title }}</h3>
+            <p class="text-slate-600">{{ step.text }}</p>
           </li>
         </ol>
       </div>
@@ -218,6 +194,11 @@
             </tbody>
           </table>
         </div>
+        <p class="text-sm text-slate-600 text-center">
+          AquaGuard da la alerta por arreglada cuando la presión lleva 15
+          minutos normal. Solo la cierra a mano si las lecturas no pueden
+          confirmarlo, por ejemplo al cambiar un sensor.
+        </p>
       </div>
     </section>
 
@@ -244,26 +225,59 @@
 
 <script setup>
 import PublicLayout from "../../layouts/PublicLayout.vue";
+import BuildingDrawing from "../../components/BuildingDrawing.vue";
+import { useLabels } from "../../composables/useLabels";
 
-// Illustrative data for the hero card (not from the API)
-const exampleFloors = [
-  { name: "Planta 3", point: "Montante", pressure: "4,2", status: "ok" },
-  { name: "Planta 2", point: "Cocina", pressure: "1,1", status: "critical" },
-  { name: "Planta 1", point: "Habitaciones", pressure: "4,4", status: "ok" },
+// Alert states with the panels' own texts and colours (F28)
+const { label, tone, toneClasses } = useLabels();
+
+// "Así funciona una alerta": the same flow the client sees in the panel
+// (notices #275, "Me encargo" #252, closing by the readings #277)
+const alertSteps = [
   {
-    name: "Planta baja",
-    point: "Recepción",
-    pressure: "3,0",
-    status: "warning",
+    state: "ACTIVE",
+    title: "AquaGuard te avisa",
+    text: "Se abre una alerta en tu panel. Si nadie se encarga, te avisamos por email y, si sigue sin respuesta, te llamamos.",
   },
-  { name: "Sótano 1", point: "Bomba", pressure: "6,1", status: "ok" },
+  {
+    state: "ACKNOWLEDGED",
+    title: "Tú lo arreglas",
+    text: "Pulsas «Me encargo»: tu equipo sabe que alguien se ocupa y dejamos de insistir.",
+  },
+  {
+    state: "RESOLVED",
+    title: "Las lecturas lo confirman",
+    text: "Cuando la presión vuelve a lo normal durante 15 minutos, la alerta se cierra sola. Queda registrado quién se encargó y cuánto tardó.",
+  },
 ];
 
-// Full class names so Tailwind can detect them at build time
-const statusStyles = {
-  ok: { row: "bg-green-50", dot: "bg-success", label: "normal" },
-  warning: { row: "bg-amber-50", dot: "bg-warning", label: "aviso" },
-  critical: { row: "bg-red-50", dot: "bg-danger", label: "alerta" },
+// Illustrative building for the hero (not from the API). Same shapes as the
+// API: floors counts the ground floor (4 = ground floor to floor 3) and each
+// sensor is a SensorResponse with the fields BuildingDrawing and SensorPin read
+const exampleSensor = (id, name, floor, value, health) => ({
+  id: `demo-${id}`,
+  name,
+  floor,
+  last_value: value,
+  min_pressure: 2,
+  max_pressure: 6.5,
+  unit: "bar",
+  status: "ACTIVE",
+  health,
+});
+
+const exampleBuilding = {
+  floors: 4,
+  basements: 1,
+  sensors: [
+    exampleSensor(1, "Montante", 3, 4.2, "OK"),
+    exampleSensor(2, "Cocina", 2, 1.1, "CRITICAL"),
+    exampleSensor(3, "Habitaciones", 1, 4.4, "OK"),
+    exampleSensor(4, "Recepción", 0, 2.3, "WARNING"),
+    exampleSensor(5, "Bomba", -1, 4.8, "OK"),
+  ],
+  // Floor 2 has an alert nobody has taken yet: "revisar"
+  states: { 2: { pending: 1, inProgress: 0 } },
 };
 
 // Steps shown in the "How it works" section
@@ -310,9 +324,19 @@ const permissions = [
     team: "Todos",
     client: "Los suyos",
   },
-  // #252: the client takes charge («Me encargo»); only AquaGuard closes.
+  // F28: the client takes charge; the readings close the alert, and
+  // AquaGuard closes it by hand only when they cannot confirm it.
   { action: "Encargarse de una alerta («Me encargo»)", team: "—", client: "Sí" },
-  { action: "Dar una alerta por arreglada", team: "Sí", client: "—" },
+  {
+    action: "Avisar si nadie se encarga (email y llamada)",
+    team: "Sí",
+    client: "—",
+  },
+  {
+    action: "Dar una alerta por arreglada",
+    team: "Sí (con las lecturas)",
+    client: "—",
+  },
   { action: "Subir y descargar documentos", team: "Sí", client: "Sí" },
 ];
 </script>
