@@ -46,6 +46,7 @@ en local.
 from __future__ import annotations
 
 from pathlib import Path
+from uuid import UUID
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -99,6 +100,12 @@ class AppSettings(BaseSettings):
     # variable del mismo .env (compose.yaml), así que en desarrollo los dos
     # coinciden sin configurar nada.
     INGEST_API_KEY: str = "dev-only-ingest-key"
+
+    # Read-only public API (subject, Web major). It is intentionally
+    # separate from INGEST_API_KEY: ingestion writes readings, while this
+    # API only reads the configured organization's data.
+    PUBLIC_API_KEY: str = "dev-only-public-api-key"
+    PUBLIC_API_ORGANIZATION_ID: UUID | None = None
 
     # Días de prueba de una organización TRIAL: los que da el registro
     # público (B10) y los que suma «ampliar prueba» (B1). Lo pide la I0 en
@@ -188,6 +195,11 @@ class AppSettings(BaseSettings):
         """True si la clave del simulador sigue con el valor de desarrollo."""
         return self.INGEST_API_KEY == "dev-only-ingest-key"
 
+    @property
+    def has_default_public_api_key(self) -> bool:
+        """True si la API pública sigue con la clave publicada de desarrollo."""
+        return self.PUBLIC_API_KEY == "dev-only-public-api-key"
+
 
 app_settings = AppSettings()
 
@@ -209,4 +221,18 @@ if app_settings.is_production and app_settings.has_default_ingest_key:
     raise RuntimeError(
         "INGEST_API_KEY sigue con el valor por defecto y ENV=production. "
         "Define INGEST_API_KEY en el .env antes de desplegar."
+    )
+
+# La API pública permite consultar datos desde fuera de la SPA. Nunca debe
+# arrancar en producción con una clave conocida ni sin una organización
+# explícita a la que limitar las respuestas.
+if app_settings.is_production and app_settings.has_default_public_api_key:
+    raise RuntimeError(
+        "PUBLIC_API_KEY sigue con el valor por defecto y ENV=production. "
+        "Define PUBLIC_API_KEY en el .env antes de desplegar."
+    )
+if app_settings.is_production and app_settings.PUBLIC_API_ORGANIZATION_ID is None:
+    raise RuntimeError(
+        "PUBLIC_API_ORGANIZATION_ID es obligatorio con ENV=production. "
+        "Limita la API pública a una organización concreta."
     )
