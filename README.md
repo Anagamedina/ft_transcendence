@@ -841,6 +841,7 @@ users in [Demo data](#demo-data). Backend rules are covered by
 | Database       | Purge: delete an organization and all its data in one transaction (B16, D9)           | Daruny                 | `/admin/clients/:id` → Acciones              |
 | Database       | Readings: ingest with the simulator key, history and chart series (#24, B7)           | Daruny, Ana            | `make smoke`                                 |
 | Frontend       | Public: landing page, fixed header and legal page with privacy and terms (#195)       | Florinda               | `/` · `/legal`                               |
+| Frontend       | Landing: how an alert works and who can do what, panel states and colours (F28)       | Florinda               | `/` → #alertas · #roles                      |
 | Frontend       | Public: trial sign-up and invitation acceptance, shared password rule (F15-P, F6)     | Florinda               | `/prueba` · `/registro`                      |
 | Frontend       | Auth UI: login, logout, route guards and role-based redirects (#99, #174)             | Lylia                  | `/login` · `/admin` as a client              |
 | Frontend       | Admin dashboard: KPI cards, active alerts and the Barcelona sites map (#156)          | Florinda, Eduardo, Ana | `/admin`                                     |
