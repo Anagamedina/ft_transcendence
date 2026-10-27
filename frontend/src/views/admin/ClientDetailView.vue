@@ -5,6 +5,7 @@
   Data: organizations store (B1, B16) and sites store (B2).
   Usuarios: ClientUsersPanel (list, edit and remove users, B6, F23) and
   ClientInvitationsPanel (pending invitations and new invitation, B4).
+  Documentos: ClientDocumentsPanel (documents of this client, B11).
 -->
 
 <script setup>
@@ -19,6 +20,7 @@ import ErrorState from "../../components/ErrorState.vue";
 import ClientActions from "../../components/ClientActions.vue";
 import ClientUsersPanel from "../../components/ClientUsersPanel.vue";
 import ClientInvitationsPanel from "../../components/ClientInvitationsPanel.vue";
+import ClientDocumentsPanel from "../../components/ClientDocumentsPanel.vue";
 import { useClientStatus } from "../../composables/useClientStatus";
 import { useOrganizationsStore } from "../../stores/organizations";
 import { useSitesStore } from "../../stores/sites";
@@ -363,12 +365,11 @@ watch(
             </div>
           </template>
 
-          <!-- Documentos: arrives with the documents API (B11) and its components (F14) -->
+          <!-- Documentos: documents of this client (B11) -->
           <template #documents>
-            <EmptyState
-              title="Todavía no hay documentos"
-              message="Aquí aparecerán los planos, informes y facturas de sus edificios."
-              icon="building"
+            <ClientDocumentsPanel
+              :organization-id="client.id"
+              :sites="clientSites"
             />
           </template>
 
