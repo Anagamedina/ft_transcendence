@@ -6,8 +6,7 @@
     - Three indicators, each a link: Sin atender, En curso (to the Alertas
       tab) and Sensores funcionando (to Plantas y sensores).
     - Tabs (?tab=): Vista general (default) · Plantas y sensores (plantas) ·
-      Alertas (alertas) · Documentos (link to /app/documents; filtered by
-      building in F27).
+      Alertas (alertas) · Documentos (documentos, F27).
   Vista general:
     - AlertSpotlight: the most important open alert (pending first), with
       "Me encargo" and "Ver gráfico". All fine: a short green message.
@@ -17,6 +16,7 @@
     - Tu semana: WeekStateGrid (sensor x day, by state) and the week's alerts.
   Plantas y sensores: BuildingFloorsPanel (F26 redesigns it).
   Alertas: ClientAlertsPanel fixed to this building (state in ?estado=).
+  Documentos: DocumentsPanel fixed to this building (upload set to it).
   A building that is not the client's (or does not exist): message and the
   way back. Data: GET /api/alerts of this building per state, every minute.
   No backend changes.
@@ -83,7 +83,7 @@
         </RouterLink>
       </section>
 
-      <!-- Tabs of this building; Documentos is a link for now (F27) -->
+      <!-- Tabs of this building -->
       <div
         class="flex items-end gap-1 overflow-x-auto border-b border-slate-200"
       >
@@ -115,12 +115,6 @@
             {{ tab.label }}
           </button>
         </div>
-        <RouterLink
-          to="/app/documents"
-          class="-mb-px shrink-0 whitespace-nowrap border-b-[3px] border-transparent px-3 py-3 text-sm text-slate-700 hover:text-aqua-700 sm:px-4 sm:text-base"
-        >
-          Documentos
-        </RouterLink>
       </div>
 
       <section
@@ -241,7 +235,14 @@
         />
 
         <!-- Alertas of this building -->
-        <ClientAlertsPanel v-else :fixed-site-id="site.id" state-key="estado" />
+        <ClientAlertsPanel
+          v-else-if="activeTab === 'alertas'"
+          :fixed-site-id="site.id"
+          state-key="estado"
+        />
+
+        <!-- Documentos of this building -->
+        <DocumentsPanel v-else :site="site" />
       </section>
 
       <!-- Announces "Me encargo" to screen readers -->
@@ -260,6 +261,7 @@ import BuildingDrawing from "../../components/BuildingDrawing.vue";
 import WeekStateGrid from "../../components/WeekStateGrid.vue";
 import BuildingFloorsPanel from "../../components/BuildingFloorsPanel.vue";
 import ClientAlertsPanel from "../../components/ClientAlertsPanel.vue";
+import DocumentsPanel from "../../components/DocumentsPanel.vue";
 import LoadingState from "../../components/LoadingState.vue";
 import ErrorState from "../../components/ErrorState.vue";
 import EmptyState from "../../components/EmptyState.vue";
@@ -279,6 +281,7 @@ const TABS = [
   { key: "general", label: "Vista general" },
   { key: "plantas", label: "Plantas y sensores" },
   { key: "alertas", label: "Alertas" },
+  { key: "documentos", label: "Documentos" },
 ];
 
 const route = useRoute();
@@ -289,7 +292,7 @@ const overviewStore = useOverviewStore();
 const { toneClasses } = useLabels();
 
 // ---------------------------------------------------------------------------
-// Tabs in the URL (?tab=plantas | alertas) and the floor asked for
+// Tabs in the URL (?tab=plantas | alertas | documentos) and the floor asked for
 // ---------------------------------------------------------------------------
 const activeTab = computed(() =>
   TABS.some((tab) => tab.key === route.query.tab) ? route.query.tab : "general",

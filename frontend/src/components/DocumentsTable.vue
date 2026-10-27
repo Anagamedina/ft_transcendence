@@ -1,8 +1,9 @@
 <!--
   DOCUMENTS TABLE
   List of documents with building and type filters, download, preview,
-  delete and pagination. Used by the client (DocumentsView) and by the admin
-  client detail (ClientDocumentsPanel).
+  delete and pagination. Used by the client (DocumentsPanel, in Documentos and
+  in the Documentos tab of a building) and by the admin client detail
+  (ClientDocumentsPanel). The building filter only shows with several buildings.
   Table from 1024 px up (the sidebar takes room from 768 px); one card per document below, so there is no
   horizontal scroll on a phone (F27).
   Usage:
@@ -13,7 +14,8 @@
 <template>
   <section class="space-y-4">
     <div class="grid gap-3 sm:flex sm:flex-wrap">
-      <label class="block text-sm font-medium text-slate-700">
+      <!-- Only with several buildings: a building tab passes just its own -->
+      <label v-if="sites.length > 1" class="block text-sm font-medium text-slate-700">
         Edificio
         <select
           v-model="siteId"
