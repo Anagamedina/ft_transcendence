@@ -1,15 +1,15 @@
 <template>
   <section
-    class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
+    class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
     aria-labelledby="subscription-title"
   >
-    <h2 id="subscription-title" class="mb-4 text-lg font-bold text-gray-800">
+    <h2 id="subscription-title" class="mb-4 text-lg font-bold text-slate-800">
       Suscripción
     </h2>
 
     <div v-if="organization" class="space-y-4">
       <div class="flex items-center justify-between gap-3">
-        <span class="font-medium text-gray-800">{{ organization.name }}</span>
+        <span class="font-medium text-slate-800">{{ organization.name }}</span>
         <span
           class="rounded-full px-3 py-0.5 text-xs font-semibold"
           :class="status.pillClass"
@@ -20,7 +20,7 @@
       <!-- Trial still running: progress bar and end date -->
       <template v-if="trial && !trial.extended">
         <div
-          class="h-2 rounded bg-gray-200"
+          class="h-2 rounded bg-slate-200"
           role="progressbar"
           :aria-valuenow="trial.day"
           aria-valuemin="0"
@@ -32,12 +32,12 @@
             :style="{ width: `${trial.percent}%` }"
           ></div>
         </div>
-        <p class="text-sm text-gray-700">
+        <p class="text-sm text-slate-700">
           Día {{ trial.day }} de {{ TRIAL_DAYS }} · termina el
           <strong>{{ formatDate(organization.trial_ends_at) }}</strong
           >.
         </p>
-        <p class="text-xs text-gray-500">
+        <p class="text-xs text-slate-600">
           Al terminar, tus datos quedan en solo lectura hasta que te hagas
           cliente.
         </p>
@@ -45,18 +45,18 @@
 
       <!-- Extended by an admin: longer than TRIAL_DAYS, so only the end date -->
       <template v-else-if="trial">
-        <p class="text-sm text-gray-700">
+        <p class="text-sm text-slate-700">
           Tu prueba termina el
           <strong>{{ formatDate(organization.trial_ends_at) }}</strong
           >.
         </p>
-        <p class="text-xs text-gray-500">
+        <p class="text-xs text-slate-600">
           Al terminar, tus datos quedan en solo lectura hasta que te hagas
           cliente.
         </p>
       </template>
 
-      <p v-else-if="status.trialEnded" class="text-sm text-gray-700">
+      <p v-else-if="status.trialEnded" class="text-sm text-slate-700">
         La prueba terminó el {{ formatDate(organization.trial_ends_at) }}. Tus
         datos están en solo lectura hasta que te hagas cliente.
       </p>
@@ -72,20 +72,20 @@
 
       <p
         v-else-if="organization.status === 'ACTIVE'"
-        class="text-sm text-gray-700"
+        class="text-sm text-slate-700"
       >
         Tu cuenta está activa.
       </p>
 
       <p
         v-else-if="organization.status === 'SUSPENDED'"
-        class="text-sm text-gray-700"
+        class="text-sm text-slate-700"
       >
         Tu cuenta está suspendida. Escribe al equipo AquaGuard para reactivarla.
       </p>
     </div>
 
-    <p v-else class="text-sm text-gray-500">
+    <p v-else class="text-sm text-slate-600">
       No hay ninguna organización asociada a tu cuenta.
     </p>
   </section>

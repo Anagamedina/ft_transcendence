@@ -1,22 +1,23 @@
 <template>
   <div class="space-y-6">
-    <h1 class="text-3xl font-bold text-gray-900">Mi cuenta</h1>
+    <h1 class="text-3xl font-bold text-slate-900">Mi cuenta</h1>
 
     <!-- Two columns on desktop, one on mobile. Extra cards come from the slots:
-         the client view adds Suscripción and Privacidad, the admin view adds nothing. -->
+         the client view adds Suscripción and Privacidad, the admin view adds nothing.
+         No "Sesión" card: both layouts already have "Cerrar sesión" (F27). -->
     <div class="grid items-start gap-6 lg:grid-cols-2">
       <section
-        class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
+        class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
         aria-labelledby="profile-title"
       >
-        <h2 id="profile-title" class="mb-4 text-lg font-bold text-gray-800">
+        <h2 id="profile-title" class="mb-4 text-lg font-bold text-slate-800">
           Datos personales
         </h2>
         <form class="space-y-4" @submit.prevent="saveProfile">
           <div>
             <label
               for="account-name"
-              class="block text-sm font-medium text-gray-700"
+              class="block text-sm font-medium text-slate-700"
               >Nombre</label
             >
             <input
@@ -26,7 +27,7 @@
               maxlength="120"
               autocomplete="name"
               :disabled="trialExpired"
-              class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 disabled:bg-gray-50 disabled:text-gray-500"
+              class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-50 disabled:text-slate-600"
               @input="
                 profileSaved = false;
                 profileError = '';
@@ -36,7 +37,7 @@
           <div>
             <label
               for="account-email"
-              class="block text-sm font-medium text-gray-700"
+              class="block text-sm font-medium text-slate-700"
               >Email</label
             >
             <input
@@ -44,21 +45,21 @@
               :value="authStore.user?.email"
               readonly
               aria-describedby="account-email-hint"
-              class="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-gray-500"
+              class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-600"
             />
-            <p id="account-email-hint" class="mt-1 text-xs text-gray-500">
+            <p id="account-email-hint" class="mt-1 text-xs text-slate-600">
               El email no se puede cambiar.
             </p>
           </div>
-          <p class="text-xs text-gray-500">
+          <p class="text-xs text-slate-600">
             <template v-if="authStore.isAdmin">Rol: Administrador · </template>
             <!-- The backend sets last_login_at on every login -->
             Último inicio de sesión: {{ formatDateTime(authStore.lastLoginAt) }}
           </p>
-          <p v-if="profileError" class="text-sm text-red-700" role="alert">
+          <p v-if="profileError" class="text-sm text-danger-dark" role="alert">
             {{ profileError }}
           </p>
-          <p v-if="profileSaved" class="text-sm text-green-700" role="status">
+          <p v-if="profileSaved" class="text-sm text-success-dark" role="status">
             Datos actualizados.
           </p>
           <button
@@ -68,7 +69,7 @@
           >
             {{ profileLoading ? "Guardando…" : "Guardar cambios" }}
           </button>
-          <p v-if="trialExpired" class="text-xs text-gray-500">
+          <p v-if="trialExpired" class="text-xs text-slate-600">
             No disponible con la prueba terminada.
           </p>
         </form>
@@ -77,17 +78,17 @@
       <slot name="after-profile" />
 
       <section
-        class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
+        class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
         aria-labelledby="password-title"
       >
-        <h2 id="password-title" class="mb-4 text-lg font-bold text-gray-800">
+        <h2 id="password-title" class="mb-4 text-lg font-bold text-slate-800">
           Cambiar contraseña
         </h2>
         <form class="space-y-4" @submit.prevent="savePassword">
           <div v-for="field in passwordFields" :key="field.key">
             <label
               :for="`account-${field.key}`"
-              class="block text-sm font-medium text-gray-700"
+              class="block text-sm font-medium text-slate-700"
               >{{ field.label }}</label
             >
             <div class="relative mt-1">
@@ -113,7 +114,7 @@
                     ? 'account-password-hint'
                     : undefined
                 "
-                class="w-full rounded-lg border border-gray-300 px-3 py-2 pr-20 disabled:bg-gray-50"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 pr-20 disabled:bg-slate-50"
                 @input="
                   passwordSaved = false;
                   passwordError = '';
@@ -134,14 +135,14 @@
             <p
               v-if="field.key === 'new_password'"
               id="account-password-hint"
-              class="mt-1 text-xs text-gray-500"
+              class="mt-1 text-xs text-slate-600"
             >
               Mínimo {{ PASSWORD_MIN_LENGTH }} caracteres y sin tu email, la
               misma regla que el registro.
               <span
                 :class="
                   password.new_password.length >= PASSWORD_MIN_LENGTH
-                    ? 'font-semibold text-emerald-700'
+                    ? 'font-semibold text-success-dark'
                     : ''
                 "
               >
@@ -149,13 +150,13 @@
               </span>
             </p>
           </div>
-          <p v-if="passwordError" class="text-sm text-red-700" role="alert">
+          <p v-if="passwordError" class="text-sm text-danger-dark" role="alert">
             {{ passwordError }}
           </p>
           <p
             v-if="passwordSaved"
             role="status"
-            class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
+            class="rounded-lg border border-success-light bg-success-light px-3 py-2 text-sm text-success-dark"
           >
             Contraseña cambiada. La próxima vez entra con la nueva.
           </p>
@@ -166,7 +167,7 @@
           >
             {{ passwordLoading ? "Actualizando…" : "Cambiar contraseña" }}
           </button>
-          <p v-if="trialExpired" class="text-xs text-gray-500">
+          <p v-if="trialExpired" class="text-xs text-slate-600">
             No disponible con la prueba terminada.
           </p>
         </form>
@@ -174,36 +175,12 @@
 
       <slot name="after-password" />
 
-      <section
-        class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
-        aria-labelledby="session-title"
-      >
-        <h2 id="session-title" class="mb-4 text-lg font-bold text-gray-800">
-          Sesión
-        </h2>
-        <p class="mb-4 text-sm text-gray-700">
-          Cierra la sesión en este navegador.
-        </p>
-        <button
-          type="button"
-          :disabled="authStore.status === 'loading'"
-          class="rounded-lg border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-          @click="logout"
-        >
-          {{
-            authStore.status === "loading"
-              ? "Cerrando sesión…"
-              : "Cerrar sesión"
-          }}
-        </button>
-      </section>
     </div>
   </div>
 </template>
 
 <script setup>
 import { computed, ref, watch } from "vue";
-import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import { formatDateTime } from "../composables/useFormat";
 import { useClientStatus } from "../composables/useClientStatus";
@@ -215,7 +192,6 @@ import {
 } from "../utils/passwords";
 import { apiErrorMessage } from "../utils/apiError";
 
-const router = useRouter();
 const authStore = useAuthStore();
 // Expired trial: the backend answers 403 TRIAL_EXPIRED to both forms (B12), so they
 // are disabled; TrialBanner in ClientLayout already explains why.
@@ -322,10 +298,5 @@ async function savePassword() {
   } finally {
     passwordLoading.value = false;
   }
-}
-
-async function logout() {
-  await authStore.logout();
-  await router.replace("/login");
 }
 </script>
