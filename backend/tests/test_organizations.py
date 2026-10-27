@@ -202,6 +202,88 @@ def test_filtros_del_listado(admin, datos, params, esperado):
     assert [o["name"] for o in cuerpo["items"]] == esperado
 
 
+# ---------------------------------------------------------
+# ORDENAR (búsqueda avanzada: filtros, orden y paginación)
+# ---------------------------------------------------------
+@pytest.fixture()
+def con_mar(engine, datos):
+    """
+    Añade Agencia Mar: vacía y en prueba, que acaba después que Colegio Luna.
+    Hotel Sol es la única con contadores y no tiene fecha de fin de prueba.
+    """
+    with Session(engine) as s:
+        s.add(
+            Organization(
+                name="Agencia Mar",
+                status="TRIAL",
+                trial_ends_at=datetime.now(timezone.utc) + timedelta(days=10),
+            )
+        )
+        s.commit()
+    return datos
+
+
+MAR, LUNA, SOL = "Agencia Mar", "Colegio Luna", "Hotel Sol"
+
+
+@pytest.mark.parametrize(
+    ("sort", "order", "esperado"),
+    [
+        ("name", "asc", [MAR, LUNA, SOL]),
+        ("name", "desc", [SOL, LUNA, MAR]),
+        # Sin fecha de fin de prueba (Hotel Sol), al final en los dos sentidos
+        ("trial_ends_at", "asc", [LUNA, MAR, SOL]),
+        ("trial_ends_at", "desc", [MAR, LUNA, SOL]),
+        # Mar y Luna empatan a 0: desempata el nombre
+        ("site_count", "desc", [SOL, MAR, LUNA]),
+        ("sensor_count", "desc", [SOL, MAR, LUNA]),
+        ("user_count", "desc", [SOL, MAR, LUNA]),
+        ("open_alerts", "desc", [SOL, MAR, LUNA]),
+        ("open_alerts", "asc", [MAR, LUNA, SOL]),
+    ],
+)
+def test_ordenar_el_listado(admin, con_mar, sort, order, esperado):
+    cuerpo = admin.get(
+        "/api/organizations", params={"sort": sort, "order": order}
+    ).json()
+    assert [o["name"] for o in cuerpo["items"]] == esperado
+
+
+def test_sin_sort_ordena_por_nombre(admin, con_mar):
+    cuerpo = admin.get("/api/organizations").json()
+    assert [o["name"] for o in cuerpo["items"]] == [MAR, LUNA, SOL]
+
+
+def test_la_paginacion_sigue_el_orden(admin, con_mar):
+    paginas = [
+        admin.get(
+            "/api/organizations",
+            params={"sort": "trial_ends_at", "page": page, "page_size": 1},
+        ).json()
+        for page in (1, 2, 3)
+    ]
+    assert [p["items"][0]["name"] for p in paginas] == [LUNA, MAR, SOL]
+    assert {p["total"] for p in paginas} == {3}
+
+
+def test_ordenar_junto_con_filtro_y_busqueda(admin, con_mar):
+    cuerpo = admin.get(
+        "/api/organizations",
+        params={"status": "TRIAL", "q": "a", "sort": "trial_ends_at", "order": "desc"},
+    ).json()
+    assert [o["name"] for o in cuerpo["items"]] == [MAR, LUNA]
+    assert cuerpo["total"] == 2
+
+
+@pytest.mark.parametrize(
+    "params", [{"sort": "password_hash"}, {"sort": "-name"}, {"order": "up"}]
+)
+def test_un_orden_que_no_existe_da_422(admin, datos, params):
+    respuesta = admin.get("/api/organizations", params=params)
+    assert respuesta.status_code == 422
+    assert _codigo(respuesta) == "VALIDATION_ERROR"
+
+
 def test_los_contadores_no_hacen_una_consulta_por_organizacion(engine, datos):
     """Con 2 o con 12 organizaciones, las mismas consultas."""
     from sqlalchemy import event

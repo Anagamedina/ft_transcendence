@@ -24,7 +24,7 @@ sus reglas y su error propio, y un campo editable los escondería.
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
@@ -34,6 +34,7 @@ from app.modules.organizations.schemas import (
     OrganizationDelete,
     OrganizationDeleted,
     OrganizationResponse,
+    OrganizationSort,
     OrganizationUpdate,
 )
 from app.modules.organizations.service import (
@@ -81,11 +82,14 @@ _NOMBRE = {
     response_model=Page[OrganizationResponse],
     summary="Listar organizaciones",
     description=(
-        "Clientes por nombre, con sus contadores: edificios, sensores, "
-        "usuarios y alertas abiertas (y cuántas son críticas).\n\n"
+        "Clientes con sus contadores: edificios, sensores, usuarios y "
+        "alertas abiertas (y cuántas son críticas).\n\n"
         "`q` busca en el nombre, la ciudad, la razón social y el NIF. "
         "`has_open_alerts=true` deja solo los que tienen alguna alerta sin "
-        "resolver, que es la vista «clientes que necesitan atención»."
+        "resolver, que es la vista «clientes que necesitan atención».\n\n"
+        "`sort` y `order` ordenan por nombre (por defecto), fin de la prueba "
+        "o cualquiera de los contadores. Los empates van por nombre, y los "
+        "clientes sin fecha de fin de prueba salen siempre al final."
     ),
     responses={**_SOLO_ADMIN},
 )
@@ -101,6 +105,12 @@ def list_organizations(
         bool | None,
         Query(description="true: solo con alertas sin resolver. false: solo sin ninguna."),
     ] = None,
+    sort: Annotated[
+        OrganizationSort, Query(description="Campo por el que se ordena.")
+    ] = "name",
+    order: Annotated[
+        Literal["asc", "desc"], Query(description="`desc`: de mayor a menor.")
+    ] = "asc",
 ) -> Page[OrganizationResponse]:
     return service.list(
         offset=pagination.offset,
@@ -108,6 +118,8 @@ def list_organizations(
         q=q,
         status=status_filtro,
         has_open_alerts=has_open_alerts,
+        sort=sort,
+        descending=order == "desc",
     )
 
 

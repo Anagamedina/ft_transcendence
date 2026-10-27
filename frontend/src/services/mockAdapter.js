@@ -628,6 +628,25 @@ function toPage(items, params = {}) {
   };
 }
 
+// Same order as GET /api/organizations: by `sort` (name by default), then by
+// name. Clients without a trial end go last in both directions
+function compareOrganizations(sort = "name", order = "asc") {
+  const direction = order === "desc" ? -1 : 1;
+  const byName = (a, b) => a.name.localeCompare(b.name, "es");
+  return (a, b) => {
+    if (sort === "name") return direction * byName(a, b);
+    const left = a[sort] ?? null;
+    const right = b[sort] ?? null;
+    if (left === null || right === null) {
+      if (left !== right) return left === null ? 1 : -1;
+      return byName(a, b);
+    }
+    const value = sort === "trial_ends_at" ? Date.parse(left) : Number(left);
+    const other = sort === "trial_ends_at" ? Date.parse(right) : Number(right);
+    return direction * (value - other) || byName(a, b);
+  };
+}
+
 // Removes in place every item of a fixture list that matches
 function removeWhere(list, matches) {
   let removed = 0;
@@ -751,7 +770,7 @@ const mockAdapter = {
       });
     }
 
-    // List organizations (B1): filters, sorted by name, one page
+    // List organizations (B1): filters, sort and order, one page
     if (url === "/api/organizations") {
       const denied = adminCheck();
       if (denied) return Promise.reject(denied);
@@ -783,7 +802,7 @@ const mockAdapter = {
               ? organization.open_alerts > 0
               : organization.open_alerts === 0,
         )
-        .sort((a, b) => a.name.localeCompare(b.name, "es"));
+        .sort(compareOrganizations(params.sort, params.order));
 
       return Promise.resolve({ data: toPage(items, params), status: 200 });
     }

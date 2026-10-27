@@ -45,6 +45,40 @@ def _has_open_alerts():
     )
 
 
+def _sort_column(sort: str):
+    """
+    La expresión por la que ordena `list()` cada valor de `OrganizationSort`.
+
+    Los contadores son subconsultas correlacionadas y no un JOIN con
+    GROUP BY: así el filtro, el total y la paginación no cambian, y solo se
+    calculan para las filas que se ordenan.
+    """
+    if sort == "name":
+        return Organization.name
+    if sort == "trial_ends_at":
+        return Organization.trial_ends_at
+    if sort == "site_count":
+        query = select(func.count(Site.id)).where(Site.organization_id == Organization.id)
+    elif sort == "sensor_count":
+        query = (
+            select(func.count(Sensor.id))
+            .join(Site, Sensor.site_id == Site.id)
+            .where(Site.organization_id == Organization.id)
+        )
+    elif sort == "user_count":
+        query = select(func.count(User.id)).where(User.organization_id == Organization.id)
+    elif sort == "open_alerts":
+        query = (
+            select(func.count(Alert.id))
+            .join(Sensor, Alert.sensor_id == Sensor.id)
+            .join(Site, Sensor.site_id == Site.id)
+            .where(Site.organization_id == Organization.id, Alert.status == "ACTIVE")
+        )
+    else:
+        raise ValueError(f"Unknown sort: {sort}")
+    return query.correlate(Organization).scalar_subquery()
+
+
 class OrganizationRepository:
     def __init__(self, db: Session) -> None:
         self.db = db
@@ -79,10 +113,13 @@ class OrganizationRepository:
         q: str | None = None,
         status: str | None = None,
         has_open_alerts: bool | None = None,
+        sort: str = "name",
+        descending: bool = False,
     ) -> tuple[list[Organization], int]:
         """
-        Organizaciones por nombre. Sin alcance por organización: solo las
-        lista el admin, y eso lo comprueba el router.
+        Organizaciones ordenadas por `sort` (ver `_sort_column`). Sin alcance
+        por organización: solo las lista el admin, y eso lo comprueba el
+        router.
 
         `q` busca en el nombre, la ciudad, la razón social y el NIF.
         """
@@ -108,11 +145,17 @@ class OrganizationRepository:
             query = query.where(~_has_open_alerts())
 
         total = self.db.scalar(select(func.count()).select_from(query.subquery()))
+
+        column = _sort_column(sort)
+        # Sin fecha de fin de prueba (los clientes activos) van al final en
+        # los dos sentidos: no son «los que antes acaban».
+        primary = (column.desc() if descending else column.asc()).nulls_last()
         items = list(
             self.db.scalars(
-                # El id desempata, como en sites y sensores, para que la
-                # paginación nunca repita ni salte una organización.
-                query.order_by(Organization.name, Organization.id)
+                # El nombre desempata, y el id después, como en sites y
+                # sensores, para que la paginación nunca repita ni salte una
+                # organización.
+                query.order_by(primary, Organization.name, Organization.id)
                 .offset(offset)
                 .limit(limit)
             ).all()

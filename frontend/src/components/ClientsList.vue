@@ -1,7 +1,8 @@
 <!--
   CLIENTS LIST
   Presentational table of client organizations for the admin zone:
-  status, trial, counters, expandable buildings and sensors, and pagination.
+  status, trial, counters, sortable columns, expandable buildings and sensors,
+  and pagination.
   Receives data via props only and emits events; the parent decides what to do.
 -->
 
@@ -52,26 +53,33 @@
         </caption>
         <thead class="bg-gray-50 text-left text-gray-600">
           <tr>
-            <!-- sticky left-0: the client name stays visible while the table scrolls sideways -->
+            <!-- aria-sort: screen readers say which column orders the list and in which direction -->
             <th
+              v-for="column in columns"
+              :key="column.label"
               scope="col"
-              class="sticky left-0 bg-gray-50 px-4 py-3 font-semibold"
+              class="px-4 py-3 font-semibold"
+              :class="column.class"
+              :aria-sort="column.sort ? ariaSort(column.sort) : undefined"
             >
-              Cliente
-            </th>
-            <th scope="col" class="px-4 py-3 font-semibold">Estado</th>
-            <th scope="col" class="px-4 py-3 font-semibold">Prueba</th>
-            <th scope="col" class="px-4 py-3 font-semibold text-right">
-              Edificios
-            </th>
-            <th scope="col" class="px-4 py-3 font-semibold text-right">
-              Sensores
-            </th>
-            <th scope="col" class="px-4 py-3 font-semibold text-right">
-              Usuarios
-            </th>
-            <th scope="col" class="px-4 py-3 font-semibold text-right">
-              Alertas
+              <button
+                v-if="column.sort"
+                type="button"
+                class="inline-flex items-center gap-1 font-semibold hover:text-aqua-700"
+                :class="{ 'flex-row-reverse': column.numeric }"
+                @click="sortBy(column)"
+              >
+                {{ column.label }}
+                <span
+                  aria-hidden="true"
+                  class="w-3 text-xs"
+                  :class="
+                    sort === column.sort ? 'text-aqua-600' : 'text-gray-400'
+                  "
+                  >{{ arrow(column.sort) }}</span
+                >
+              </button>
+              <template v-else>{{ column.label }}</template>
             </th>
           </tr>
         </thead>
@@ -266,16 +274,68 @@ const props = defineProps({
   page: { type: Number, default: 1 },
   // Clients per page (use with v-model:pageSize in the parent)
   pageSize: { type: Number, default: 10 },
+  // Column and direction of the order, as the API's sort and order.
+  // The parent gets both together in update:sort as { sort, order }
+  sort: { type: String, default: "name" },
+  order: { type: String, default: "asc" },
   pageSizes: { type: Array, default: () => [10, 25] },
 });
 
-defineEmits([
+const emit = defineEmits([
   "select",
   "retry",
   "update:search",
   "update:page",
   "update:pageSize",
+  "update:sort",
 ]);
+
+// Table columns. `sort` is the API value; `first` is the direction of the
+// first click: names and trial ends from A/soonest, counters from the biggest.
+// sticky left-0: the client name stays visible while the table scrolls sideways
+const columns = [
+  {
+    label: "Cliente",
+    sort: "name",
+    first: "asc",
+    class: "sticky left-0 bg-gray-50",
+  },
+  { label: "Estado" },
+  { label: "Prueba", sort: "trial_ends_at", first: "asc" },
+  ...[
+    ["Edificios", "site_count"],
+    ["Sensores", "sensor_count"],
+    ["Usuarios", "user_count"],
+    ["Alertas", "open_alerts"],
+  ].map(([label, sort]) => ({
+    label,
+    sort,
+    first: "desc",
+    numeric: true,
+    class: "text-right",
+  })),
+];
+
+// The same column again flips the direction; a new one starts at its first
+function sortBy(column) {
+  const order =
+    props.sort === column.sort
+      ? props.order === "asc"
+        ? "desc"
+        : "asc"
+      : column.first;
+  emit("update:sort", { sort: column.sort, order });
+}
+
+function ariaSort(sort) {
+  if (props.sort !== sort) return "none";
+  return props.order === "asc" ? "ascending" : "descending";
+}
+
+function arrow(sort) {
+  if (props.sort !== sort) return "↕";
+  return props.order === "asc" ? "▲" : "▼";
+}
 
 // Pairs each client with its translated status, computed once per client
 // instead of calling useClientStatus several times inside the template

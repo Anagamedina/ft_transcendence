@@ -95,14 +95,18 @@ class OrganizationService:
         q: str | None = None,
         status: OrganizationStatus | None = None,
         has_open_alerts: bool | None = None,
+        sort: str = "name",
+        descending: bool = False,
     ) -> Page[OrganizationResponse]:
-        """Organizaciones por nombre, con sus contadores."""
+        """Organizaciones ordenadas por `sort`, con sus contadores."""
         filas, total = self.organizations.list(
             offset=offset,
             limit=limit,
             q=q,
             status=status.value if status else None,
             has_open_alerts=has_open_alerts,
+            sort=sort,
+            descending=descending,
         )
         contadores = self.organizations.counts([f.id for f in filas])
         return Page[OrganizationResponse](

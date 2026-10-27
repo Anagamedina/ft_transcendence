@@ -3,7 +3,7 @@
 # AquaGuard
 
 > **Status:** Functional. The full stack runs with `make all`, with demo data;
-> 12 of the 15 planned module points are implemented (see
+> 13 of the 15 planned module points are implemented (see
 > [Modules and point tracking](#modules-and-point-tracking)).
 
 ## Description
@@ -865,7 +865,7 @@ upload module counts the building documents already implemented (B11, F14).
 | DevOps             | Health checks, status page and backups          | Minor |      1 | Implemented                      | Eduardo                               |
 | Web                | Frontend and backend frameworks (Vue + FastAPI) | Major |      2 | Implemented                      | Ana, Florinda, Lylia, Daruny, Eduardo |
 | Web                | ORM (SQLAlchemy)                                | Minor |      1 | Implemented                      | Daruny                                |
-| Web                | Advanced search                                 | Minor |      1 | Partial - API only, no UI        | Ana, Daruny, Florinda, Lylia          |
+| Web                | Advanced search                                 | Minor |      1 | Implemented                      | Ana, Daruny, Florinda, Lylia          |
 | Web                | Notification system                             | Minor |      1 | Not started                      | Ana, Daruny, Florinda, Lylia          |
 | Web                | File upload and management system               | Minor |      1 | Implemented                      | Daruny, Lylia                         |
 | User Management    | Advanced permissions                            | Major |      2 | Implemented                      | Ana, Daruny, Lylia                    |
@@ -874,7 +874,7 @@ upload module counts the building documents already implemented (B11, F14).
 | Data and Analytics | Advanced analytics dashboard                    | Major |      2 | Implemented                      | Ana, Daruny, Florinda, Lylia          |
 | Data and Analytics | Data export and import                          | Minor |      1 | Partial - export only, no import | Ana, Daruny, Florinda, Lylia          |
 |                    | **Planned total**                               |       | **15** |                                  |                                       |
-|                    | **Implemented so far**                          |       | **12** |                                  |                                       |
+|                    | **Implemented so far**                          |       | **13** |                                  |                                       |
 
 ### Module implementation plan
 
@@ -928,11 +928,22 @@ upload module counts the building documents already implemented (B11, F14).
   - *Preview:* "Vista previa" shows images and PDFs inside the page.
   - *Upload progress:* a progress bar with the percentage while it uploads.
   - *Delete:* "Eliminar" removes the file and its row.
-- **Advanced search:** *partial, API only.* `GET /api/search?q=&limit=`
-  (B17) searches clients, buildings and sensors at once, ignoring case, and
-  returns the first `limit` of each type plus the total. A client only finds
-  its own buildings and sensors. No screen uses it yet; to claim the module it
-  still needs a UI with filters, sorting and pagination.
+- **Advanced search:** demonstrated in Clientes (`/admin/clients`) as
+  `admin@aquaguard.dev`, backed by `GET /api/organizations` (B1).
+  - *Search:* the search box looks in the name, city, legal name and tax id,
+    ignoring case (`q`).
+  - *Filters:* the state buttons (Todos, En prueba, Activos, Suspendidos;
+    `status`), and `has_open_alerts` in the API.
+  - *Sorting:* every column but Estado sorts the list; the same header again
+    flips the direction (`sort`, `order`). Ties go by name, and clients with
+    no trial end go last. The header says the order to screen readers
+    (`aria-sort`) and works with the keyboard.
+  - *Pagination:* 10 or 25 per page, with the range ("1–10 de 23") and page
+    buttons (`page`, `page_size`). A new search, filter or order goes back
+    to page 1.
+  - All of it combines in one request and the API applies it in SQL, so the
+    pages follow the order. `GET /api/search` (B17) also searches clients,
+    buildings and sensors at once.
 - **Data export and import:** *partial, export only.*
   `GET /api/analytics/export` returns the readings and alerts of a period as
   CSV or JSON, scoped to the user's organization (B18). Import is not

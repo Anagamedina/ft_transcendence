@@ -18,6 +18,7 @@ relaciones hasta la organización. El aislamiento lo aplica
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import EmailStr, Field
@@ -29,6 +30,12 @@ from app.shared.schemas import ApiModel, ApiRequest
 # Los nombres de organización se guardan con 120 caracteres como máximo
 # (columna `name` y migración de la #120).
 NAME_MAX = 120
+
+# Columnas por las que se puede ordenar el listado: las mismas que muestra la
+# tabla de Clientes, con el nombre del campo de `OrganizationResponse`.
+OrganizationSort = Literal[
+    "name", "trial_ends_at", "site_count", "sensor_count", "user_count", "open_alerts"
+]
 
 
 class OrganizationContact(ApiRequest):
