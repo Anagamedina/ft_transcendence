@@ -1,5 +1,6 @@
 import hashlib
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from decimal import Decimal
 
 import pytest
@@ -18,6 +19,12 @@ from app.modules.readings.model import Reading
 from app.modules.sensors.model import Sensor
 from app.modules.sensors.status import OFFLINE_TRAS
 from app.modules.sites.model import Site
+from app.modules.subscriptions.plans import (
+    max_sensors_for,
+    max_sites_for,
+    monthly_price,
+    plan_for,
+)
 from app.modules.users.model import User
 from seeds import seed_demo
 
@@ -176,6 +183,81 @@ def test_five_clients_in_different_states(engine):
     assert _naive(gotic.trial_ends_at) > _now_naive()
 
 
+# Contracts (B14): the demo has a client at every point of its contract
+def _with_counts(session):
+    organizations = {o.name: o for o in session.query(Organization)}
+    sites = dict(
+        session.query(Site.organization_id, func.count(Site.id)).group_by(Site.organization_id)
+    )
+    sensors = dict(
+        session.query(Site.organization_id, func.count(Sensor.id))
+        .join(Sensor, Sensor.site_id == Site.id)
+        .group_by(Site.organization_id)
+    )
+    return {
+        name: (o, sites.get(o.id, 0), sensors.get(o.id, 0))
+        for name, o in organizations.items()
+    }
+
+
+def test_every_client_out_of_the_trial_has_a_contract_that_matches_the_plans(engine):
+    seed_demo.seed()
+
+    with Session(engine) as session:
+        for name, (o, sites, sensors) in _with_counts(session).items():
+            if o.status == "TRIAL":
+                assert o.plan is None and o.contracted_sites is None, name
+                continue
+            plan = plan_for(o.contracted_sites, o.contracted_sensors)
+            assert o.plan == plan.id.value, name
+            assert o.monthly_price_eur == monthly_price(plan, o.contracted_sensors), name
+            assert o.subscribed_at is not None and o.sepa_accepted_at is not None, name
+            assert o.iban_masked.startswith("ES**"), name
+            # Never more than contracted: the API would not have allowed it
+            assert sites <= o.contracted_sites and sensors <= o.contracted_sensors, name
+
+
+def test_the_biggest_client_is_at_its_limit(engine):
+    """Residencias Collserola: plan Empresa, 15 buildings and 45 sensors, all used."""
+    seed_demo.seed()
+
+    with Session(engine) as session:
+        o, sites, sensors = _with_counts(session)["Residencias Collserola"]
+        assert (o.plan, o.billing_period) == ("ENTERPRISE", "MONTHLY")
+        assert (sites, sensors) == (15, 45)
+        assert (max_sites_for(o), max_sensors_for(o)) == (15, 45)
+        assert o.monthly_price_eur == 199 + 45 * 10
+
+
+def test_the_other_clients_leave_room_to_try_the_limits(engine):
+    seed_demo.seed()
+
+    with Session(engine) as session:
+        counts = _with_counts(session)
+    poblenou, sites, sensors = counts["Polideportivo Poblenou"]
+    assert (poblenou.plan, poblenou.billing_period) == ("PRO", "YEARLY")
+    assert (sites, sensors) == (6, 12)  # 3 sensors left for a CSV import
+    mallorca, sites, sensors = counts["Comunidad Mallorca 401"]
+    assert mallorca.plan == "BASIC"
+    assert (sites, sensors) == (2, 4)
+    gotic, sites, _ = counts["Hotel Gòtic"]
+    assert (gotic.status, sites, max_sites_for(gotic)) == ("TRIAL", 1, 1)
+
+
+def test_a_hazte_cliente_on_the_trial_is_undone(engine):
+    seed_demo.seed()
+    with Session(engine) as session:
+        gotic = session.query(Organization).filter_by(name="Hotel Gòtic").one()
+        gotic.status, gotic.plan, gotic.contracted_sites = "ACTIVE", "BASIC", 3
+        session.commit()
+
+    seed_demo.seed()
+
+    with Session(engine) as session:
+        gotic = session.query(Organization).filter_by(name="Hotel Gòtic").one()
+        assert (gotic.status, gotic.plan, gotic.contracted_sites) == ("TRIAL", None, None)
+
+
 def test_the_old_demo_organization_becomes_the_first_client(engine):
     _seed_like_the_old_version(engine)
 
@@ -233,8 +315,13 @@ def test_every_site_is_in_a_barcelona_district(engine):
         sites = session.query(Site).all()
         cities = {city for (city,) in session.query(Organization.city)}
 
-    assert all(site.district is not None for site in sites)
-    assert len({site.district for site in sites}) == len(sites)
+    # Every district has at least one building, so the map covers the city.
+    # The same ten as the CHECK ck_sites_district.
+    assert {site.district for site in sites} == {
+        "CIUTAT_VELLA", "EIXAMPLE", "SANTS_MONTJUIC", "LES_CORTS",
+        "SARRIA_SANT_GERVASI", "GRACIA", "HORTA_GUINARDO", "NOU_BARRIS",
+        "SANT_ANDREU", "SANT_MARTI",
+    }
     for site in sites:
         assert site.address.endswith("Barcelona")
         # Rough box around the city, the same area the admin map shows.
@@ -252,8 +339,32 @@ def test_simulator_and_smoke_sensors_keep_their_ids(engine):
     with Session(engine) as session:
         ids = {str(sensor_id) for (sensor_id,) in session.query(Sensor.id)}
 
-    assert len(ids) == 8
+    assert len(ids) == len(seed_demo.SENSORS)
     assert SIMULATOR_AND_SMOKE_IDS <= ids
+
+
+def test_every_sensor_is_on_a_floor_of_its_building(engine):
+    seed_demo.seed()
+
+    with Session(engine) as session:
+        sensors = session.query(Sensor).all()
+        assert all(
+            -s.site.basements <= s.floor <= s.site.floors - 1 for s in sensors
+        )
+
+
+def test_the_simulator_list_covers_every_sensor():
+    """
+    A seeded sensor the simulator does not know goes offline after 5 minutes
+    and opens a SENSOR_OFFLINE alert, so .env.example must list them all.
+    """
+    env_example = Path(__file__).resolve().parents[2] / ".env.example"
+    if not env_example.exists():
+        pytest.skip("needs the whole repo: make test-backend only mounts backend/")
+    with open(env_example) as env:
+        line = next(l for l in env if l.startswith("SIMULATOR_SENSOR_IDS="))
+    listed = set(line.strip().split("=", 1)[1].split(","))
+    assert listed == {str(seed_demo._sensor_id(d["n"])) for d in seed_demo.SENSORS}
 
 
 def test_one_sensor_is_offline(engine):
