@@ -396,6 +396,7 @@ import invitationsService from "../../services/invitations.service.js";
 import PublicLayout from "../../layouts/PublicLayout.vue";
 import LoadingState from "../../components/LoadingState.vue";
 import ErrorState from "../../components/ErrorState.vue";
+import { FIELD_LIMITS } from "../../utils/limits.js";
 // Same rule as the backend (backend/app/shared/passwords.py), /prueba and Mi cuenta.
 // The backend also rejects common passwords.
 import {
