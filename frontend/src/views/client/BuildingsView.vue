@@ -4,8 +4,9 @@
     - Banner: pending alerts (red); nothing pending but a sensor still out
       of range or offline (amber, e.g. its alert is "En curso"); or
       "Todo en orden" (green). Link to Alertas when there is something.
-    - KPIs: buildings, and "Sensores funcionando" working / total (same as
-      the building page).
+    - KPIs: buildings, and "Sensores conectados" as "X de Y" (same as the
+      building page). It counts the same sensor list as the cards and the
+      banner, so all of them change at the same refresh (F30).
     - One BuildingCard per building, most worrying first: offline sensor >
       out of range > smallest margin (utils/pressure.js). Each card shows the
       sensor to watch with its pressure in words and a 7-day sparkline.
@@ -133,7 +134,8 @@ import {
   worstSensor,
 } from "../../utils/pressure.js";
 
-const REFRESH_MS = 60 * 1000;
+// Same pace as the admin dashboard and ClientLayout (F30)
+const REFRESH_MS = 30 * 1000;
 
 const route = useRoute();
 const router = useRouter();
@@ -144,16 +146,23 @@ const { toneClasses } = useLabels();
 
 // ---------------------------------------------------------------------------
 // KPIs. ClientLayout already loads and refreshes the overview (B9).
+// "Sensores conectados" is counted from sensorsStore, the same list as the
+// cards and the banner: one source, one refresh, no mismatch (F30).
 // ---------------------------------------------------------------------------
 const kpis = computed(() => {
   const o = overviewStore.overview;
+  const all = sensorsStore.sensors;
+  const loaded = sensorsStore.status === "success" || all.length > 0;
+  const connected = all.filter(
+    (sensor) => pressureState(sensor).key !== "offline",
+  ).length;
   return [
     { label: "Edificios", icon: "building", value: o?.sites_total ?? "—" },
     {
-      // Same wording as the building page: working / total
-      label: "Sensores funcionando",
+      // Same wording as the building page and the admin dashboard
+      label: "Sensores conectados",
       icon: "wifi",
-      value: o ? `${o.sensors_online} / ${o.sensors_total}` : "—",
+      value: loaded ? `${connected} de ${all.length}` : "—",
     },
   ];
 });

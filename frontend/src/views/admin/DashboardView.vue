@@ -2,12 +2,15 @@
   ADMIN DASHBOARD VIEW
   Main admin page: KPIs summary, sites, sensors and alerts overview.
   Rendered inside AdminLayout. Data comes only from Pinia stores (no direct HTTP calls).
-  KPIs, sites, sensors and alerts are fetched on mount; loading / error / empty states are shown
-  inside each summary card, and retry re-runs the store action.
+  KPIs, sites, sensors and alerts are fetched on mount and refreshed every 30 s
+  (F30, #303), the same rhythm as AnalyticsPanel, so every number on the page
+  changes at the same time. Loading / error / empty states are shown inside
+  each summary card, and retry re-runs the store action.
 -->
 
 <script setup>
-import { computed, onMounted, defineAsyncComponent } from "vue";
+import { computed, onMounted, ref, defineAsyncComponent } from "vue";
+import { useAutoRefresh } from "../../composables/useAutoRefresh";
 import AdminLayout from "../../layouts/AdminLayout.vue";
 import KPICard from "../../components/KPICard.vue";
 import AppIcon from "../../components/AppIcon.vue";
@@ -29,9 +32,14 @@ const overviewStore = useOverviewStore();
 
 // Load data on mount. Errors are already stored in each store (status/error),
 // so we only catch them here to avoid unhandled promise rejections.
+// True after the first successful load of the alerts list. From then on a
+// background refresh keeps the list on screen instead of showing the spinner.
+const alertsLoaded = ref(false);
+
 async function loadAlerts() {
   try {
     await alertsStore.fetchAlerts();
+    alertsLoaded.value = true;
   } catch {
     /* handled via alertsStore.error */
   }
@@ -51,11 +59,26 @@ async function loadOverview() {
   }
 }
 
-onMounted(() => {
+function loadAll() {
   loadOverview();
   loadSites();
   loadAlerts();
-});
+}
+
+onMounted(loadAll);
+
+// Same 30 s as AnalyticsPanel: KPIs, map and alerts never fall behind the
+// charts. Paused while the tab is hidden (useAutoRefresh).
+const REFRESH_MS = 30000;
+useAutoRefresh(loadAll, REFRESH_MS);
+
+// Status given to AlertsSummary: a background refresh ("loading" after the
+// first load) is shown as "success", so the list does not blink every 30 s
+const alertsStatus = computed(() =>
+  alertsStore.status === "loading" && alertsLoaded.value
+    ? "success"
+    : alertsStore.status,
+);
 
 // KPIs come from GET /api/analytics/overview. They show "—" until the API
 // answers, so "0" always means a real zero.
@@ -121,7 +144,9 @@ const criticalSites = computed(
         <template #icon><AppIcon name="users" /></template>
       </KPICard>
 
-      <KPICard label="Sensores en línea" :value="kpis.sensors">
+      <!-- F30: sensors that sent a reading in the last 5 minutes. Pressure
+           problems are counted in "Alertas abiertas", not here -->
+      <KPICard label="Sensores conectados" :value="kpis.sensors">
         <template #icon><AppIcon name="wifi" /></template>
       </KPICard>
 
@@ -180,7 +205,7 @@ const criticalSites = computed(
 
     <AlertsSummary
       :alerts="activeAlertList"
-      :status="alertsStore.status"
+      :status="alertsStatus"
       :error="alertsStore.error"
       @retry="loadAlerts"
     />

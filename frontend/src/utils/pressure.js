@@ -13,6 +13,14 @@
 //   out of range               -> "Demasiado alta" / "Demasiado baja"
 //   margin < NEAR_LIMIT (15 %) -> "Algo alta, a vigilar" / "Algo baja, a vigilar"
 //   otherwise                  -> "Normal"
+//
+// pressureWords (F30): the words shown next to the pin. When the value is
+// already normal but the sensor still has an open alert (health !== "OK",
+// e.g. SENSOR_OFFLINE after it came back), the pin stays red until a person
+// closes the alert. Then the text says so instead of a bare "Normal".
+// pressureState itself does not change: BuildingDrawing and the risk order
+// keep using it as before.
+//
 // NEAR_LIMIT is a proposal for the Saturday meeting: change it here only.
 
 export const NEAR_LIMIT = 0.15;
@@ -76,4 +84,23 @@ export function compareSensorRisk(a, b) {
 // The most worrying sensor of a list (null if empty)
 export function worstSensor(sensors) {
   return [...sensors].sort(compareSensorRisk)[0] ?? null;
+}
+
+export const PENDING_CLOSURE_TEXT =
+  "Resuelto, pendiente de cierre por AquaGuard";
+
+// True when the reading is normal but the sensor still has an open alert
+export function isPendingClosure(sensor) {
+  return (
+    pressureState(sensor).key === "ok" &&
+    Boolean(sensor.health) &&
+    sensor.health !== "OK"
+  );
+}
+
+// pressureState with the "pending closure" wording; same key and margin
+export function pressureWords(sensor) {
+  const state = pressureState(sensor);
+  if (!isPendingClosure(sensor)) return state;
+  return { ...state, text: PENDING_CLOSURE_TEXT, tone: "info" };
 }

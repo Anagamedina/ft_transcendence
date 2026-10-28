@@ -134,7 +134,11 @@ import PressureSparkline from "./PressureSparkline.vue";
 import { useLabels } from "../composables/useLabels";
 import { useFormat } from "../composables/useFormat";
 import { floorLabel } from "../utils/floors.js";
-import { pressureState, worstSensor } from "../utils/pressure.js";
+import {
+  pressureState,
+  pressureWords,
+  worstSensor,
+} from "../utils/pressure.js";
 
 const props = defineProps({
   // SiteResponse: id, name, address, building_type
@@ -160,7 +164,8 @@ const subtitle = computed(
 );
 
 const watched = computed(() => worstSensor(props.sensors));
-const state = computed(() => pressureState(watched.value));
+// pressureWords: same words as the sensor panel, incl. pending closure (F30)
+const state = computed(() => pressureWords(watched.value));
 const offline = computed(
   () => props.sensors.filter((s) => pressureState(s).key === "offline").length,
 );
