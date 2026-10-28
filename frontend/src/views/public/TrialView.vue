@@ -62,7 +62,7 @@
                 v-model="form.name"
                 type="text"
                 autocomplete="name"
-                maxlength="120"
+                :maxlength="MAX_NAME_LENGTH"
                 :aria-invalid="Boolean(fieldErrors.name)"
                 :aria-describedby="
                   fieldErrors.name ? 'trial-name-error' : undefined
@@ -131,7 +131,7 @@
                   v-model="form.password"
                   :type="showPassword ? 'text' : 'password'"
                   autocomplete="new-password"
-                  maxlength="128"
+                  :maxlength="PASSWORD_MAX_LENGTH"
                   :aria-invalid="Boolean(fieldErrors.password)"
                   :aria-describedby="
                     fieldErrors.password
@@ -183,7 +183,7 @@
                 v-model="form.organization_name"
                 type="text"
                 autocomplete="organization"
-                maxlength="120"
+                :maxlength="MAX_ORGANIZATION_LENGTH"
                 :aria-invalid="Boolean(fieldErrors.organization_name)"
                 :aria-describedby="
                   fieldErrors.organization_name
@@ -285,11 +285,17 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../../stores/auth.js";
 import PublicLayout from "../../layouts/PublicLayout.vue";
+import { FIELD_LIMITS } from "../../utils/limits.js";
 // Same rule as the backend (backend/app/shared/passwords.py) and Mi cuenta.
 // The backend also rejects common passwords and passwords containing the email.
-import { PASSWORD_MIN_LENGTH } from "../../utils/passwords.js";
+import {
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_MAX_LENGTH,
+  passwordProblem,
+} from "../../utils/passwords.js";
 
-const MAX_NAME_LENGTH = 120;
+const MAX_NAME_LENGTH = FIELD_LIMITS.username;
+const MAX_ORGANIZATION_LENGTH = FIELD_LIMITS.organizationName;
 
 // Where a new client lands after signing up.
 // The session is already open: the register response sets the cookie.
@@ -382,7 +388,7 @@ const MESSAGE_BY_FIELD = {
   name: `Escribe tu nombre (máximo ${MAX_NAME_LENGTH} caracteres).`,
   email: "Escribe un email válido.",
   password: "Revisa la contraseña.",
-  organization_name: `Escribe el nombre de tu empresa (máximo ${MAX_NAME_LENGTH} caracteres).`,
+  organization_name: `Escribe el nombre de tu empresa (máximo ${MAX_ORGANIZATION_LENGTH} caracteres).`,
   accept_terms: "Tienes que aceptar los términos y la política de privacidad.",
 };
 
@@ -414,17 +420,21 @@ function validate() {
   }
 
   if (!EMAIL_PATTERN.test(form.email.trim())) {
-    fieldErrors.email = "Escribe un email válido, por ejemplo tu@empresa.com.";
+    fieldErrors.email =
+      "Escribe un email válido, por ejemplo tu@empresa.com.";
   }
 
-  if (form.password.length < PASSWORD_MIN_LENGTH) {
-    fieldErrors.password = `La contraseña tiene que tener al menos ${PASSWORD_MIN_LENGTH} caracteres.`;
+  const passwordError = passwordProblem(form.password, form.email);
+  if (passwordError) {
+    fieldErrors.password = passwordError;
   }
 
   if (!organization) {
-    fieldErrors.organization_name = "Escribe el nombre de tu empresa.";
-  } else if (organization.length > MAX_NAME_LENGTH) {
-    fieldErrors.organization_name = MESSAGE_BY_FIELD.organization_name;
+    fieldErrors.organization_name =
+      "Escribe el nombre de tu empresa.";
+  } else if (organization.length > MAX_ORGANIZATION_LENGTH) {
+    fieldErrors.organization_name =
+      MESSAGE_BY_FIELD.organization_name;
   }
 
   if (!form.accept_terms) {

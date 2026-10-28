@@ -30,7 +30,7 @@ from app.shared.enums import (
     OrganizationStatus,
     SubscriptionPlan,
 )
-from app.shared.schemas import ApiModel, ApiRequest
+from app.shared.schemas import ApiModel, ApiRequest, Password
 
 
 class UserRole(str, Enum):

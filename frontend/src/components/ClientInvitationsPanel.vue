@@ -75,6 +75,7 @@
             ref="emailInput"
             v-model="email"
             type="email"
+            :maxlength="FIELD_LIMITS.email"
             required
             autocomplete="email"
             placeholder="persona@empresa.com"
@@ -136,6 +137,7 @@ import InviteLinkCopy from "./InviteLinkCopy.vue";
 import { useOrganizationsStore } from "../stores/organizations";
 import { formatDate } from "../composables/useFormat";
 import { apiErrorMessage } from "../utils/apiError";
+import { FIELD_LIMITS } from "../utils/limits.js";
 
 const props = defineProps({
   // Organization the invitations belong to

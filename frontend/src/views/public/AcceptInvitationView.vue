@@ -398,9 +398,12 @@ import LoadingState from "../../components/LoadingState.vue";
 import ErrorState from "../../components/ErrorState.vue";
 // Same rule as the backend (backend/app/shared/passwords.py), /prueba and Mi cuenta.
 // The backend also rejects common passwords.
-import { PASSWORD_MIN_LENGTH } from "../../utils/passwords.js";
+import {
+  PASSWORD_MIN_LENGTH,
+  passwordProblem,
+} from "../../utils/passwords.js";
 
-const MAX_NAME_LENGTH = 120;
+const MAX_NAME_LENGTH = FIELD_LIMITS.username;
 
 // Where the new client lands. The session is already open: the accept
 // response sets the cookie, as the register one does.
@@ -617,12 +620,13 @@ function validate() {
     fieldErrors.name = MESSAGE_BY_FIELD.name;
   }
 
-  if (form.password.length < PASSWORD_MIN_LENGTH) {
-    fieldErrors.password = `La contraseña tiene que tener al menos ${PASSWORD_MIN_LENGTH} caracteres.`;
-  } else if (
-    form.password.toLowerCase().includes(invitation.value.email.toLowerCase())
-  ) {
-    fieldErrors.password = "La contraseña no puede contener tu email.";
+  const passwordError = passwordProblem(
+    form.password,
+    invitation.value.email,
+  );
+
+  if (passwordError) {
+    fieldErrors.password = passwordError;
   }
 
   if (!form.accept_terms) {

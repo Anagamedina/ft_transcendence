@@ -25,6 +25,7 @@
                 id="email"
                 v-model="form.email"
                 type="email"
+                :maxlength="FIELD_LIMITS.email"
                 autocomplete="email"
                 required
                 class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-aqua-400"
@@ -103,6 +104,7 @@ import { computed, reactive, ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "../../stores/auth.js";
 import PublicLayout from "../../layouts/PublicLayout.vue";
+import { FIELD_LIMITS } from "../../utils/limits.js";
 
 const router = useRouter();
 const route = useRoute();

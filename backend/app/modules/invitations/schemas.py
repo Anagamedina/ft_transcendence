@@ -30,7 +30,7 @@ from uuid import UUID
 from pydantic import EmailStr, Field
 
 from app.shared.enums import InvitationStatus
-from app.shared.schemas import ApiModel, ApiRequest
+from app.shared.schemas import ApiModel, ApiRequest, Password
 
 
 class InvitationCreate(ApiRequest):
@@ -111,7 +111,7 @@ class InvitationAccept(ApiRequest):
     """
 
     name: str = Field(min_length=1, max_length=120, examples=["Laura Puig"])
-    password: str = Field(
+    password: Password = Field(
         max_length=128,
         description=(
             "Misma regla que el registro (B10): al menos 12 caracteres, que "

@@ -10,6 +10,9 @@ export const PASSWORD_MAX_LENGTH = 128;
 // Client-side check before calling the API. Returns the problem in Spanish,
 // or null when the password passes what the frontend can check.
 export function passwordProblem(password, email = "") {
+  if (password !== password.trim()) {
+    return "La contraseña no puede empezar ni terminar con espacios.";
+  }
   if (password.length < PASSWORD_MIN_LENGTH) {
     return `La contraseña tiene que tener al menos ${PASSWORD_MIN_LENGTH} caracteres.`;
   }

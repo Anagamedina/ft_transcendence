@@ -14,6 +14,7 @@ import {
 } from "./fixtures/building.js";
 import { organizations } from "./fixtures/organizations.js";
 import { billedPrice, monthlyPrice, planFor } from "../utils/pricing.js";
+import { passwordProblem } from "../utils/passwords.js";
 
 // The C-Edificio demo building (8 sensors on 6 floors) also appears in the
 // admin sites and sensors lists, so the floor-by-floor view has real content.
@@ -301,7 +302,6 @@ function maskMockIban(iban) {
 
 // Same rule as backend/app/shared/passwords.py (short list of common ones).
 // Returns the error message, or null when the password is valid.
-const MOCK_PASSWORD_MIN_LENGTH = 12;
 const MOCK_COMMON_PASSWORDS = [
   "password1234",
   "contraseña123",
@@ -313,25 +313,14 @@ const MOCK_COMMON_PASSWORDS = [
 ];
 
 function checkMockPassword(password, email) {
-  if (password.length < MOCK_PASSWORD_MIN_LENGTH) {
-    return `La contraseña tiene que tener al menos ${MOCK_PASSWORD_MIN_LENGTH} caracteres.`;
-  }
-  if (password.length > 128) {
-    return "La contraseña no puede pasar de 128 caracteres.";
+  const problem = passwordProblem(password, email);
+  if (problem) {
+    return problem;
   }
 
   const lower = password.toLowerCase();
   if (MOCK_COMMON_PASSWORDS.includes(lower) || new Set(lower).size < 5) {
     return "Esa contraseña es demasiado fácil de adivinar. Elige otra.";
-  }
-
-  const normalizedEmail = email.toLowerCase();
-  const localPart = normalizedEmail.split("@")[0];
-  if (
-    lower.includes(normalizedEmail) ||
-    (localPart.length >= 4 && lower.includes(localPart))
-  ) {
-    return "La contraseña no puede contener tu email.";
   }
 
   return null;
