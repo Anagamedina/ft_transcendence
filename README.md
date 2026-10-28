@@ -1132,7 +1132,7 @@ Issues #130 to #134 were reviewed and merged together in #182.
 | #164  | F14 client documents: list, upload and delete, count updated after each change           | #254          | Implemented |
 | #250  | Admin dashboard reorganized: summaries removed, map height and icons refined             | #255          | Implemented |
 | #253  | New client wizard: required fields, phone format and address validation                  | #257          | Implemented |
-| #284  | Password validation, consistent field length limits and English code comments            | #303          | Implemented |
+| #284  | Password validation, consistent field length limits and English code comments            | #304          | Implemented |
 
 ### Eduardo (`egalindo`)
 
