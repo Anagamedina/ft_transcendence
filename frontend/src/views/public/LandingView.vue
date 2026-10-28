@@ -63,8 +63,9 @@
           </div>
 
           <figcaption class="text-xs text-slate-600">
-            Vista de ejemplo del panel del cliente: la planta 2 tiene una
-            alerta sin atender.
+            Vista de ejemplo del panel del cliente: la planta 2 está para
+            «revisar» porque tiene una alerta sin atender, y la planta baja,
+            «a vigilar» porque su presión está cerca del mínimo.
           </figcaption>
         </figure>
       </div>
@@ -237,7 +238,7 @@ const alertSteps = [
   {
     state: "ACTIVE",
     title: "AquaGuard te avisa",
-    text: "Se abre una alerta en tu panel. Si nadie se encarga, te avisamos por email y, si sigue sin respuesta, te llamamos.",
+    text: "Se abre una alerta en tu panel. Si nadie se encarga, te avisamos por email y, si es crítica y sigue sin respuesta, te llamamos.",
   },
   {
     state: "ACKNOWLEDGED",
@@ -273,7 +274,8 @@ const exampleBuilding = {
     exampleSensor(1, "Montante", 3, 4.2, "OK"),
     exampleSensor(2, "Cocina", 2, 1.1, "CRITICAL"),
     exampleSensor(3, "Habitaciones", 1, 4.4, "OK"),
-    exampleSensor(4, "Recepción", 0, 2.3, "WARNING"),
+    // Inside its range (2–6,5) but close to the minimum: "a vigilar", no alert
+    exampleSensor(4, "Recepción", 0, 2.3, "OK"),
     exampleSensor(5, "Bomba", -1, 4.8, "OK"),
   ],
   // Floor 2 has an alert nobody has taken yet: "revisar"
