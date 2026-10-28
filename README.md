@@ -1121,7 +1121,9 @@ Issues #130 to #134 were reviewed and merged together in #182.
 | #31   | Pinia setup and centralized global stores                                                | #49           | Implemented |
 | #32   | Axios API layer: services, adapters and common error handling                            | #57           | Implemented |
 | #33   | MockAdapter with the same interface as the real API, fixtures and pagination             | #62           | Implemented |
+| #34   | Frontend MVP: integrate sensors and readings with services/stores                        | #68           | Implemented |
 | #35   | Login, register and logout: Auth store, loading/error states, no double submission       | #99           | Implemented |
+| #111  | Frontend fixes after merging #99: authentication, alerts and client dashboard            | #126          | Implemented |
 | #36   | Route guards and role-based navigation, session initialization and 404 page              | #174          | Implemented |
 | #38   | Admin sensors and alerts views with filters and loading/error/empty states               | #187          | Implemented |
 | #39   | Client dashboard: sensors, active alerts and reading history, independent section states | #214          | Implemented |
@@ -1130,6 +1132,7 @@ Issues #130 to #134 were reviewed and merged together in #182.
 | #164  | F14 client documents: list, upload and delete, count updated after each change           | #254          | Implemented |
 | #250  | Admin dashboard reorganized: summaries removed, map height and icons refined             | #255          | Implemented |
 | #253  | New client wizard: required fields, phone format and address validation                  | #257          | Implemented |
+| #284  | Password validation, consistent field length limits and English code comments            | #303          | Implemented |
 
 ### Eduardo (`egalindo`)
 
