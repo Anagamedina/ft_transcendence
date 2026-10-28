@@ -32,6 +32,7 @@ from app.modules.auth.schemas import MessageResponse
 from app.modules.users import emails
 from app.modules.users.model import User
 from app.modules.users.schemas import (
+    CurrentSessionResponse,
     DeletionRequestResponse,
     MeResponse,
     MeUpdate,
@@ -43,6 +44,7 @@ from app.modules.users.schemas import (
 from app.modules.users.service import UserService, get_user_service
 from app.shared.dependencies import (
     CurrentUser,
+    OptionalUser,
     OrganizationIdFilter,
     Pagination,
     Search,
@@ -84,6 +86,28 @@ _PRUEBA_VENCIDA = error_response(
 )
 def get_me(service: UserSvc, user: CurrentUser) -> MeResponse:
     return service.get_me(user)
+
+
+@router.get(
+    "/me/session",
+    response_model=CurrentSessionResponse,
+    summary="¿Hay sesión?",
+    description=(
+        "Lo mismo que `GET /api/me`, pero sin sesión responde 200 con "
+        "`user: null` en vez de 401.\n\n"
+        "Es lo que usa el frontend al arrancar: abrir la portada o el login "
+        "sin haber entrado es lo normal, y un 401 saldría como error en la "
+        "consola del navegador."
+    ),
+    responses={
+        **error_response(
+            status.HTTP_403_FORBIDDEN,
+            "Cuenta desactivada u organización suspendida (`ACCOUNT_DISABLED`).",
+        ),
+    },
+)
+def get_my_session(service: UserSvc, user: OptionalUser) -> CurrentSessionResponse:
+    return CurrentSessionResponse(user=service.get_me(user) if user else None)
 
 
 @router.patch(

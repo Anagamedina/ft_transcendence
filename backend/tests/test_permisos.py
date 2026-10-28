@@ -43,6 +43,9 @@ RUTAS_PUBLICAS = {
     ("POST", "/api/auth/login"),  # es como se consigue la sesión
     ("POST", "/api/auth/logout"),  # salir tiene que funcionar siempre
     ("POST", "/api/auth/register"),  # registro público, B10 (#140)
+    # Al abrir la app sin sesión responde user null, no 401: un 401 saldría
+    # como error en la consola del navegador. No devuelve nada sin sesión.
+    ("GET", "/api/me/session"),
     ("GET", "/api/plans"),  # precios públicos, como en la portada, B14 (#150)
     # Quien abre el enlace de una invitación aún no tiene cuenta, B4 (#141)
     ("GET", "/api/invitations/by-code/{code}"),
