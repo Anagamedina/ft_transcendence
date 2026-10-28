@@ -12,7 +12,6 @@
           </div>
 
           <form @submit.prevent="handleSubmit" class="space-y-5">
-            <!-- Email -->
             <div>
               <label
                 for="email"
@@ -33,7 +32,6 @@
               />
             </div>
 
-            <!-- Password -->
             <div>
               <label
                 for="password"

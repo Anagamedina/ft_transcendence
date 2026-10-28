@@ -811,7 +811,6 @@ function invitationStatus(invitation) {
 const mockAdapter = {
   // GET requests
   get(url, config = {}) {
-    console.log("[MOCK GET]", url, config);
 
     // Get the currently authenticated user.
     if (url === "/api/me") {
@@ -989,7 +988,6 @@ const mockAdapter = {
       });
     }
 
-    // Get all sites.
     if (url === "/api/sites") {
       if (!currentUser) {
         return Promise.reject(authError());
@@ -1009,7 +1007,6 @@ const mockAdapter = {
       });
     }
 
-    // Get all sensors.
     if (url === "/api/sensors") {
       // Temporary test: simulate a slow API response
       //await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -1189,7 +1186,6 @@ const mockAdapter = {
       });
     }
 
-    // Get a specific sensor.
     if (url.startsWith("/api/sensors/")) {
       if (!currentUser) {
         return Promise.reject(authError());
@@ -1217,7 +1213,6 @@ const mockAdapter = {
       });
     }
 
-    // Get all alerts.
     if (url === "/api/alerts") {
       if (!currentUser) {
         return Promise.reject(authError());
@@ -1479,13 +1474,8 @@ const mockAdapter = {
     });
   },
 
-  // POST requests
   post(url, data = {}, config = {}) {
     if (url.startsWith("/api/auth/")) {
-      console.log("[MOCK POST]", url);
-    } else {
-      console.log("[MOCK POST]", url, data, config);
-    }
 
     // Deletion request (B15): asking again keeps the first date
     if (url === "/api/me/deletion-request") {
@@ -1639,7 +1629,7 @@ const mockAdapter = {
         iban_masked: maskMockIban(iban),
         sepa_accepted_at: now,
       });
-      // Contact data is optional: what does not arrive stays as it was
+
       for (const field of ["contact_email", "phone"]) {
         if (data[field] != null) organization[field] = data[field];
       }
@@ -2159,7 +2149,6 @@ const mockAdapter = {
       });
     }
 
-    // Create a reading.
     if (url === "/api/readings") {
       if (!currentUser) {
         return Promise.reject(authError());
@@ -2249,7 +2238,6 @@ const mockAdapter = {
         );
     }
 
-    // Create a sensor.
     if (url === "/api/sensors") {
       if (!currentUser) {
         return Promise.reject(authError());
@@ -2493,14 +2481,12 @@ const mockAdapter = {
     return Promise.reject({
       status: 404,
       code: "UNKNOWN_ENDPOINT",
-      message: "Mock endpoint not found.",
+      message: "Mock endpoint no encontrado",
       details: null,
     });
   },
 
-  // PATCH requests
   patch(url, data = {}, config = {}) {
-    console.log("[MOCK PATCH]", url, data, config);
 
     // Users (B6): partial update
     if (url.startsWith("/api/users/")) {
@@ -2569,7 +2555,7 @@ const mockAdapter = {
         return Promise.reject({
           status: 404,
           code: "ALERT_NOT_FOUND",
-          message: "Alert not found.",
+          message: "Alerta no encontrada",
           details: null,
         });
       }
@@ -2604,7 +2590,7 @@ const mockAdapter = {
         return Promise.reject({
           status: 404,
           code: "ALERT_NOT_FOUND",
-          message: "Alert not found.",
+          message: "Alerta no encontrada",
           details: null,
         });
       }
@@ -2640,7 +2626,7 @@ const mockAdapter = {
         return Promise.reject({
           status: 404,
           code: "SENSOR_NOT_FOUND",
-          message: "Sensor not found.",
+          message: "Sensor no encontrado.",
           details: null,
         });
       }
@@ -2665,7 +2651,7 @@ const mockAdapter = {
         return Promise.reject(
           validationError(
             "min_pressure",
-            "Pressure limits must be numbers between 0 and 25.",
+            "Los límites de presión deben ser números entre 0 y 25.",
           ),
         );
       }
@@ -2684,7 +2670,7 @@ const mockAdapter = {
         return Promise.reject(
           validationError(
             "min_pressure",
-            "min_pressure must be lower than max_pressure.",
+            "min_pressure debe ser menor que max_pressure.",
           ),
         );
       }
@@ -2694,7 +2680,7 @@ const mockAdapter = {
         (typeof data.name !== "string" || !data.name.trim())
       ) {
         return Promise.reject(
-          validationError("name", "Sensor name cannot be empty."),
+          validationError("name", "El nombre del sensor no puede estar vacío."),
         );
       }
 
@@ -2704,7 +2690,7 @@ const mockAdapter = {
         typeof data.location !== "string"
       ) {
         return Promise.reject(
-          validationError("location", "Location must be a string or null."),
+          validationError("location", "La ubicación debe ser una cadena de texto o nula."),
         );
       }
 
@@ -2828,14 +2814,13 @@ const mockAdapter = {
     return Promise.reject({
       status: 404,
       code: "UNKNOWN_ENDPOINT",
-      message: "Mock endpoint not found.",
+      message: "Mock endpoint no encontrado.",
       details: null,
     });
   },
 
   // DELETE requests
   delete(url, config = {}) {
-    console.log("[MOCK DELETE]", url, config);
 
     // Users (B6): delete
     if (url.startsWith("/api/users/")) {
@@ -2954,7 +2939,7 @@ const mockAdapter = {
     return Promise.reject({
       status: 404,
       code: "UNKNOWN_ENDPOINT",
-      message: "Mock endpoint not found.",
+      message: "Mock endpoint no encontrado",
       details: null,
     });
   },
@@ -2962,40 +2947,6 @@ const mockAdapter = {
 
 export default mockAdapter;
 
-/*
-Here is exactly what the services tell us the MockAdapter must support:
-
-Domaine       Méthode   Endpoint
-Auth          POST      /api/auth/register
-Auth          POST      /api/auth/login
-Auth          POST      /api/auth/logout
-Auth          GET       /api/me
-Sites         GET       /api/sites
-Sites         GET       /api/sites/{id}
-Sites         GET       /api/sites/{id}/sensors
-Sensors       GET       /api/sensors
-Sensors       GET       /api/sensors/{id}
-Sensors       POST      /api/sensors
-Sensors       PATCH     /api/sensors/{id}
-Readings      POST      /api/readings
-Readings      GET       /api/sensors/{id}/readings
-Alerts        GET       /api/alerts
-Alerts        PATCH     /api/alerts/{id}/acknowledge
-Alerts        PATCH     /api/alerts/{id}/resolve
-Analytics     GET       /api/analytics/overview
-Orgs          GET       /api/organizations
-Orgs          GET       /api/organizations/{id}
-Orgs          POST      /api/organizations
-Orgs          PATCH     /api/organizations/{id}
-Orgs          POST      /api/organizations/{id}/suspend | reactivate | extend-trial | activate
-Orgs          DELETE    /api/organizations/{id}
-Invitations   GET       /api/invitations
-Invitations   POST      /api/invitations
-Invitations   GET       /api/invitations/by-code/{code}
-Invitations   POST      /api/invitations/by-code/{code}/accept
-Plans         GET       /api/plans
-Subscription  POST      /api/me/organization/subscribe
-*/
 
 /*
 All endpoints work the same way; GET request essentially does this:

@@ -211,7 +211,6 @@ export const useAuthStore = defineStore("auth", () => {
         details: err.details,
       };
     } finally {
-      // cleaning local state
       user.value = null;
       role.value = null;
       organization.value = null;
