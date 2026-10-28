@@ -259,7 +259,7 @@ The root `Makefile` wraps the Compose commands:
 | `make migration-check`     | Fails if the database is unreachable, has pending migrations, or the models drifted from the migrations                                      |
 | `make test-backend`        | Starts PostgreSQL if necessary and runs the complete backend pytest suite in its Docker image                                                |
 | `make test-frontend`       | Runs the frontend Vitest suite once                                                                                                          |
-| `make test-e2e`            | Runs the Playwright tests against the running stack with a raised gateway rate limit, then restores the normal limit; needs `make all` first |
+| `make test-e2e`            | Runs the Playwright tests in Chromium, Firefox and WebKit against the running stack with a raised gateway rate limit, then restores the normal limit; needs `make all` first |
 | `make lint`                | Runs ESLint on the frontend source                                                                                                           |
 | `make format`              | Formats frontend JS, Vue and CSS files with Prettier                                                                                         |
 | `make check`               | Runs Compose validation, frontend lint and frontend unit tests                                                                               |
@@ -901,6 +901,7 @@ users in [Demo data](#demo-data). Backend rules are covered by
 | Infrastructure | Sensor simulator: normal, low, high and offline scenarios (#89)                       | Eduardo                | `cd simulator && pytest` · `/status`         |
 | Backend        | Common contract and OpenAPI docs: shared enums, filters, examples (B0, B13)           | Ana, Daruny            | `/api/docs`                                  |
 | Backend        | Auth: register, login, logout and `GET /api/me` with an httpOnly session cookie (#26) | Ana                    | `make test-backend`                          |
+| Backend        | `GET /api/me/session`: the app checks the session on start without a 401 in the browser console | Daruny                 | DevTools console on `/` and `/login`         |
 | Backend        | Permissions: admin sees every organization, client only its own (#27)                 | Ana                    | `make test-backend`                          |
 | Backend        | Organizations: list, create, edit, suspend, reactivate and trial (B1)                 | Ana                    | `/admin/clients`                             |
 | Backend        | Expired trial is read-only: client writes answer `403 TRIAL_EXPIRED` (B12)            | Daruny                 | `make test-backend`                          |
@@ -1075,7 +1076,8 @@ browsers ([Supported browsers](#supported-browsers)).
 - **Support for additional browsers:** Firefox and Brave, besides the
   required Chrome (see [Supported browsers](#supported-browsers)).
   - *Full compatibility and every feature tested:* public pages, admin and
-    client areas, documents, import and export, in each browser.
+    client areas, documents, import and export, in each browser, and the
+    whole Playwright suite runs in Firefox as well as Chromium.
   - *Limitations documented:* WebGL for the map, the native date picker and
     the Clipboard API.
   - *Consistent UI/UX:* same palette, layout and responsive behaviour at
@@ -1303,6 +1305,19 @@ of each browser at 768 px and 375 px. The UI and the behaviour are the same in
 the three browsers. Brave uses the same engine as Chrome (Chromium), so
 Firefox (Gecko) is the one that covers a different rendering engine.
 
+The Playwright suite (`make test-e2e`) runs every spec in Chromium, then in
+Firefox and then in WebKit (Safari's engine), one browser after the other
+because they share the database. Chromium and Firefox pass the whole suite.
+The upload progress test only runs in Chromium: it slows the network down
+with a Chrome-only tool. WebKit needs a system library that Playwright
+cannot install without root; on Debian/Ubuntu run once
+`sudo npx --prefix e2e playwright install-deps webkit`.
+
+Fixed while testing in Firefox: file downloads (the CSV template, the
+analytics export, "Descargar mis datos" and documents) now add the link to
+the page and free the file a moment later (`frontend/src/utils/download.js`).
+Firefox could cancel them before.
+
 Browser-specific limitations:
 
 - The admin sites map uses MapLibre GL, which needs WebGL. If WebGL is
@@ -1313,8 +1328,7 @@ Browser-specific limitations:
 - "Copiar enlace" uses the Clipboard API, which browsers only allow on HTTPS or
   `localhost`. On plain HTTP it falls back to the older copy command and, if the
   browser blocks it too, the link stays selected so it can be copied by hand.
-- Edge and Safari are not part of the review. The Playwright e2e suite runs
-  in Chromium only.
+- Edge is not part of the review: it uses the same engine as Chrome.
 
 ## Known limitations
 
