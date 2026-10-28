@@ -1054,7 +1054,7 @@ const mockAdapter = {
         return Promise.reject({
           status: 404,
           code: "SITE_NOT_FOUND",
-          message: "El sitio indicado no existe."
+          message: "El sitio indicado no existe.",
           details: null,
         });
       }
@@ -1490,13 +1490,7 @@ const mockAdapter = {
   },
 
   // POST requests
-  post(url, data = {}, config = {}) {
-    if (url.startsWith("/api/auth/")) {
-      console.log("[MOCK POST]", url);
-    } else {
-      console.log("[MOCK POST]", url, data, config);
-    }
-
+  post(url, data = {}) {
     // Deletion request (B15): asking again keeps the first date
     if (url === "/api/me/deletion-request") {
       if (!currentUser) return Promise.reject(authError());
@@ -2503,15 +2497,13 @@ const mockAdapter = {
     return Promise.reject({
       status: 404,
       code: "UNKNOWN_ENDPOINT",
-      message: "El mock endpoint no existe.",,
+      message: "El mock endpoint no existe.",
       details: null,
     });
   },
 
   // PATCH requests
-  patch(url, data = {}, config = {}) {
-    console.log("[MOCK PATCH]", url, data, config);
-
+  patch(url, data = {}) {
     // Users (B6): partial update
     if (url.startsWith("/api/users/")) {
       const denied = adminCheck();
@@ -2838,15 +2830,13 @@ const mockAdapter = {
     return Promise.reject({
       status: 404,
       code: "UNKNOWN_ENDPOINT",
-      message: "El mock endpoint no existe.",,
+      message: "El mock endpoint no existe.",
       details: null,
     });
   },
 
   // DELETE requests
   delete(url, config = {}) {
-    console.log("[MOCK DELETE]", url, config);
-
     // Users (B6): delete
     if (url.startsWith("/api/users/")) {
       const denied = adminCheck();
@@ -2964,7 +2954,7 @@ const mockAdapter = {
     return Promise.reject({
       status: 404,
       code: "UNKNOWN_ENDPOINT",
-      message: "El mock endpoint no existe.",,
+      message: "El mock endpoint no existe.",
       details: null,
     });
   },
