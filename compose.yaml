@@ -230,6 +230,7 @@ services:
     cpus: 1.0
     environment:
       PUBLIC_RATE_LIMIT: ${PUBLIC_RATE_LIMIT:-10r/m}
+      PUBLIC_API_RATE_LIMIT: ${PUBLIC_API_RATE_LIMIT:-60r/m}
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-10}
     volumes:
       - ./gateway/certs:/etc/nginx/certs:ro

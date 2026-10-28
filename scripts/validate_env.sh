@@ -41,6 +41,13 @@ for variable in POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB SECRET_KEY INGEST_AP
   required "$variable"
 done
 
+# These were added after the first .env versions. Keep older local files
+# usable in development; production is still rejected below unless the key
+# and organization scope are explicitly configured.
+PUBLIC_API_KEY="${PUBLIC_API_KEY:-dev-only-public-api-key}"
+PUBLIC_API_WRITE_KEY="${PUBLIC_API_WRITE_KEY-}"
+PUBLIC_API_RATE_LIMIT="${PUBLIC_API_RATE_LIMIT:-60r/m}"
+
 case "$ENV" in
   development|test|production) ;;
   *) fail "ENV must be development, test, or production" ;;
@@ -59,6 +66,11 @@ done
 for variable in SIMULATOR_INTERVAL_SECONDS SIMULATOR_REQUEST_TIMEOUT_SECONDS; do
   positive_number "$variable"
 done
+
+case "${PUBLIC_API_RATE_LIMIT-}" in
+  *r/*) ;;
+  *) fail "PUBLIC_API_RATE_LIMIT must use Nginx format such as 60r/m" ;;
+esac
 
 # Emails (B19): all optional. An empty or missing SMTP_HOST just disables them.
 [ -z "${SMTP_PORT-}" ] || positive_integer SMTP_PORT
@@ -80,6 +92,10 @@ fi
 if [ "$ENV" = "production" ]; then
   [ "$SECRET_KEY" != "dev-only-change-me" ] || fail "SECRET_KEY uses the development placeholder"
   [ "$INGEST_API_KEY" != "dev-only-ingest-key" ] || fail "INGEST_API_KEY uses the development placeholder"
+  [ "$PUBLIC_API_KEY" != "dev-only-public-api-key" ] || fail "PUBLIC_API_KEY uses the development placeholder"
+  [ "$PUBLIC_API_WRITE_KEY" != "dev-only-public-api-write-key" ] || fail "PUBLIC_API_WRITE_KEY uses the development placeholder (set your own or leave it empty)"
+  [ -n "${PUBLIC_API_ORGANIZATION_ID-}" ] || fail "PUBLIC_API_ORGANIZATION_ID is required in production"
+  [ "$PUBLIC_API_ORGANIZATION_ID" != "00000000-0000-4000-9000-000000000001" ] || fail "PUBLIC_API_ORGANIZATION_ID is the demo organization"
   [ "$COOKIE_SECURE" = "true" ] || fail "COOKIE_SECURE must be true in production"
 fi
 

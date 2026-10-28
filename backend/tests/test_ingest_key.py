@@ -155,9 +155,11 @@ def _arrancar_config(**entorno):
     Carga app_config en un proceso aparte, con el entorno indicado.
 
     Va en otro proceso porque la comprobación se hace al importar el módulo,
-    y aquí ya está importado.
+    y aquí ya está importado. Una variable con `None` se quita del entorno,
+    también si llega del `.env` del contenedor.
     """
     env = {**os.environ, **entorno}
+    env = {nombre: valor for nombre, valor in env.items() if valor is not None}
     return subprocess.run(
         [sys.executable, "-c", "import app.core.app_config"],
         cwd=BACKEND,
@@ -178,11 +180,67 @@ def test_en_produccion_no_arranca_con_la_clave_de_ejemplo():
     assert "INGEST_API_KEY" in resultado.stderr
 
 
+# En producción también son obligatorias la clave propia de la API pública y
+# la organización a la que queda limitada (app_config.py).
+PRODUCCION_COMPLETA = {
+    "ENV": "production",
+    "SECRET_KEY": "una-clave-de-sesion-de-verdad",
+    "INGEST_API_KEY": "una-clave-del-simulador-de-verdad",
+    "PUBLIC_API_KEY": "una-clave-de-la-api-publica-de-verdad",
+    "PUBLIC_API_WRITE_KEY": "una-clave-de-escritura-de-verdad",
+    "PUBLIC_API_ORGANIZATION_ID": "00000000-0000-4000-8000-000000000001",
+}
+
+
 def test_en_produccion_arranca_con_una_clave_propia():
-    resultado = _arrancar_config(
-        ENV="production",
-        SECRET_KEY="una-clave-de-sesion-de-verdad",
-        INGEST_API_KEY="una-clave-del-simulador-de-verdad",
-    )
+    resultado = _arrancar_config(**PRODUCCION_COMPLETA)
 
     assert resultado.returncode == 0, resultado.stderr
+
+
+def test_en_produccion_no_arranca_con_la_clave_de_ejemplo_de_la_api_publica():
+    resultado = _arrancar_config(
+        **{**PRODUCCION_COMPLETA, "PUBLIC_API_KEY": "dev-only-public-api-key"}
+    )
+
+    assert resultado.returncode != 0
+    assert "PUBLIC_API_KEY" in resultado.stderr
+
+
+def test_en_produccion_no_arranca_sin_la_organizacion_de_la_api_publica():
+    entorno = {**PRODUCCION_COMPLETA, "PUBLIC_API_ORGANIZATION_ID": None}
+    resultado = _arrancar_config(**entorno)
+
+    assert resultado.returncode != 0
+    assert "PUBLIC_API_ORGANIZATION_ID" in resultado.stderr
+
+
+def test_en_produccion_no_arranca_con_la_clave_de_escritura_de_ejemplo():
+    resultado = _arrancar_config(
+        **{
+            **PRODUCCION_COMPLETA,
+            "PUBLIC_API_WRITE_KEY": "dev-only-public-api-write-key",
+        }
+    )
+
+    assert resultado.returncode != 0
+    assert "PUBLIC_API_WRITE_KEY" in resultado.stderr
+
+
+def test_en_produccion_arranca_sin_clave_de_escritura():
+    """Vacía, la API pública solo lee: es una configuración válida."""
+    resultado = _arrancar_config(**{**PRODUCCION_COMPLETA, "PUBLIC_API_WRITE_KEY": ""})
+
+    assert resultado.returncode == 0, resultado.stderr
+
+
+def test_en_produccion_no_arranca_con_la_organizacion_de_la_demo():
+    resultado = _arrancar_config(
+        **{
+            **PRODUCCION_COMPLETA,
+            "PUBLIC_API_ORGANIZATION_ID": "00000000-0000-4000-9000-000000000001",
+        }
+    )
+
+    assert resultado.returncode != 0
+    assert "PUBLIC_API_ORGANIZATION_ID" in resultado.stderr
