@@ -82,6 +82,14 @@ TAGS_METADATA = [
     },
     {"name": "Alerts", "description": "Reglas, reconocimiento y resolución. **Issue #28.**"},
     {"name": "Analytics", "description": "KPIs y agregaciones. Nivel Intermedio (§9.2)."},
+    {
+        "name": "Public API",
+        "description": (
+            "API para integraciones externas: lee datos y crea, reemplaza o "
+            "borra edificios. Requiere X-API-Key (de lectura o de escritura), "
+            "tiene rate limiting y queda limitada a una organización."
+        ),
+    },
 ]
 
 DESCRIPTION = """

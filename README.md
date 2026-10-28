@@ -434,7 +434,7 @@ with `ENV=production` because these passwords are public.
 
   | Client                 | Plan        | Payment | Buildings | Sensors  | Price     | To try                                              |
   |------------------------|-------------|---------|-----------|----------|-----------|-----------------------------------------------------|
-  | Residencias Collserola | Empresa     | Monthly | 15 of 15  | 45 of 45 | 649 €/mes | At the limit: one more building or sensor gives 409 |
+  | Residencias Collserola | Empresa     | Monthly | 15 of 16  | 45 of 45 | 649 €/mes | One building left for the public API demo; one more sensor gives 409 |
   | Polideportivo Poblenou | Profesional | Yearly  | 6 of 6    | 12 of 15 | 229 €/mes | A CSV import of 3 sensors fits, 4 do not            |
   | Comunidad Mallorca 401 | Básico      | Monthly | 2 of 2    | 4 of 6   | 89 €/mes  | Room for 2 sensors                                  |
   | Aigües Zona Franca     | Básico      | Monthly | 2 of 2    | 2 of 4   | 69 €/mes  | Suspended: kept its contract                        |
@@ -571,6 +571,84 @@ admin gets all of them.
 | `alerts_critical`, `alerts_resolved`             | Of those, how many are CRITICAL and how many are resolved |
 
 The file starts with a UTF-8 BOM so Excel shows accents correctly.
+
+### Public API
+
+AquaGuard exposes a separate API for external integrations. It is not the
+simulator ingestion endpoint and does not use the browser session cookie. The
+consumer sends `X-API-Key` with one of two keys, both configured in `.env`
+outside Git and both restricted to `PUBLIC_API_ORGANIZATION_ID`:
+
+| Key                    | Can                                        | Empty                     |
+|------------------------|--------------------------------------------|---------------------------|
+| `PUBLIC_API_KEY`       | read (`GET`)                               | -                         |
+| `PUBLIC_API_WRITE_KEY` | read and create, replace or delete buildings | writes are off (401/403) |
+
+`make env` generates both with `openssl rand -hex 32`. An existing `.env` needs
+the new line added by hand (`PUBLIC_API_WRITE_KEY=$(openssl rand -hex 32)`).
+
+```text
+GET    /api/public/v1/overview
+GET    /api/public/v1/sites
+GET    /api/public/v1/sites/{site_id}
+POST   /api/public/v1/sites               write key
+PUT    /api/public/v1/sites/{site_id}     write key
+DELETE /api/public/v1/sites/{site_id}     write key
+GET    /api/public/v1/sensors
+GET    /api/public/v1/alerts
+GET    /api/public/v1/analytics/export?from=YYYY-MM-DD&to=YYYY-MM-DD
+```
+
+They reuse the existing services, so the API follows the same rules as the app:
+
+- The organization always comes from the key. The body has no
+  `organization_id` (sending one is a 422), and a building of another
+  organization answers 404, as if it did not exist.
+- `POST` respects the contracted buildings (`409 SITE_LIMIT_REACHED`) and
+  unique names (`409 SITE_NAME_TAKEN`). `PUT` replaces the whole building: an
+  optional field left out goes back to its default. `DELETE` only removes an
+  empty building (`409 SITE_HAS_SENSORS` / `SITE_HAS_DOCUMENTS`).
+- The read key on a write answers `403 PUBLIC_API_READ_ONLY`. A suspended
+  organization answers `403 ACCOUNT_DISABLED` to everything, and an expired
+  trial can read but not write (`403 TRIAL_EXPIRED`, B12).
+
+Nginx applies a separate `PUBLIC_API_RATE_LIMIT` (60 requests per minute, burst
+20) before forwarding requests to FastAPI. The OpenAPI document at `/api/docs`
+publishes the `PublicApiKey` security scheme, examples and every error code.
+
+`make demo` serves it without editing `.env`: the seed gives Residencias
+Collserola a fixed id (`PUBLIC_API_DEMO_ORGANIZATION_ID` in
+`app/core/app_config.py`), which is the default and the `.env.example` value of
+`PUBLIC_API_ORGANIZATION_ID`, and `make env` generates both keys. In production
+the backend refuses that id, like the example keys. A database seeded before
+this change keeps a random id; the seed warns and `make re` starts it over.
+
+Collserola has 15 of its 16 contracted buildings, so the first `POST` answers
+`201` and a second one `409 SITE_LIMIT_REACHED`; deleting the new building
+leaves the demo as it was:
+
+```bash
+set -a; . ./.env; set +a
+API=https://localhost/api/public/v1
+curl -k -H "X-API-Key: $PUBLIC_API_KEY" $API/sites
+curl -k -X POST -H "X-API-Key: $PUBLIC_API_WRITE_KEY" -H "Content-Type: application/json" \
+  -d '{"name":"Edificio API","floors":3}' $API/sites
+curl -k -X PUT -H "X-API-Key: $PUBLIC_API_WRITE_KEY" -H "Content-Type: application/json" \
+  -d '{"name":"Edificio API","floors":5,"building_type":"OFFICE"}' $API/sites/<id>
+curl -k -X DELETE -H "X-API-Key: $PUBLIC_API_WRITE_KEY" $API/sites/<id>
+```
+
+`backend/tests/test_public_api.py` covers both keys, the full
+create/read/replace/delete cycle, tenant isolation, contract limits, suspended
+and expired organizations and the OpenAPI security metadata;
+`test_ingest_key.py` checks that the backend refuses to start in production
+with the example keys, without `PUBLIC_API_ORGANIZATION_ID` or with the demo
+one. `test_seed_demo.py` checks the fixed id and the demo `POST` (201, then 409). The gateway
+rate limit is enforced by Nginx, not by the FastAPI test client, so it was
+checked on the running Compose stack: after about 20 requests in a row the
+gateway answers 429. If the backend container is recreated, restart the
+gateway (`docker compose restart gateway`): Nginx keeps the old address and
+answers 502 until then.
 
 ### Frontend development
 
@@ -834,6 +912,7 @@ users in [Demo data](#demo-data). Backend rules are covered by
 | Backend        | Sensors: create, edit, floor, health and last value; offline after 5 min (B3)         | Ana                    | `/admin/sensors`                             |
 | Backend        | Alerts: low/high pressure and offline rules, acknowledge and resolve (#28, B5)        | Daruny, Ana            | `/admin/alerts`                              |
 | Backend        | Analytics: KPIs, charts, date range and CSV/JSON export (B9, B18, F19)                | Daruny, Ana            | `/admin` → Exportar CSV                      |
+| Backend        | Public API: read and write keys, organization scope, 9 endpoints (GET/POST/PUT/DELETE), OpenAPI and rate limit | Daruny, Ana | `/api/docs` · [Public API](#public-api) |
 | Backend        | GDPR: export my data, request deletion and confirmation emails (B15, B19)             | Daruny, Florinda       | `/app/account` · <http://localhost:8025>     |
 | Database       | Schema: 8 tables with constraints, indexes and Alembic migrations (#129, #130, #132)  | Daruny                 | `make migration-check`                       |
 | Database       | Alembic targets: migrate, generate and check for drift (#92)                          | Eduardo                | `make migrate` · `make migration-check`      |
@@ -871,10 +950,15 @@ contributors, and a reproducible verification method.
 ## Modules and point tracking
 
 The project must reach at least 14 validated points. The following selection is
-the team's current AquaGuard plan, based on the product architecture document.
-It adds up to 15: the real-time module (WebSockets, 2 points) was dropped from
-the plan, the GDPR minor module (B19) brings the missing point, and the file
-upload module counts the building documents already implemented (B11, F14).
+the team's current AquaGuard plan, based on the product architecture document
+and the modules of the official subject
+([`docs/subject/en.subject_ft_transcendence.pdf`](docs/subject/en.subject_ft_transcendence.pdf)).
+The selection adds up to 18: the real-time module (WebSockets, 2 points) was dropped from
+the plan, the GDPR minor module (B19) brings the missing point, the file
+upload module counts the building documents already implemented (B11, F14),
+the public API ([Public API](#public-api)) adds a major with GET, POST,
+PUT and DELETE endpoints, and Firefox and Brave count as the two additional
+browsers ([Supported browsers](#supported-browsers)).
 
 | Category           | Module                                          | Type  | Points | Status                           | Contributors                          |
 |--------------------|-------------------------------------------------|-------|-------:|----------------------------------|---------------------------------------|
@@ -884,13 +968,15 @@ upload module counts the building documents already implemented (B11, F14).
 | Web                | Advanced search                                 | Minor |      1 | Implemented                      | Ana, Daruny, Florinda, Lylia          |
 | Web                | Notification system                             | Minor |      1 | Partial - alert emails only      | Ana, Daruny, Florinda, Lylia          |
 | Web                | File upload and management system               | Minor |      1 | Implemented                      | Daruny, Lylia                         |
+| Web                | Public API                                      | Major |      2 | Implemented                      | Daruny, Ana                           |
+| Accessibility      | Support for additional browsers                 | Minor |      1 | Implemented                      | Daruny                                |
 | User Management    | Advanced permissions                            | Major |      2 | Implemented                      | Ana, Daruny, Lylia                    |
 | User Management    | Organization system                             | Major |      2 | Implemented                      | Ana, Daruny                           |
 | User Management    | GDPR compliance features                        | Minor |      1 | Implemented                      | Daruny, Florinda                      |
 | Data and Analytics | Advanced analytics dashboard                    | Major |      2 | Implemented                      | Ana, Daruny, Florinda, Lylia          |
 | Data and Analytics | Data export and import                          | Minor |      1 | Implemented                      | Ana, Daruny, Florinda, Lylia          |
-|                    | **Planned total**                               |       | **15** |                                  |                                       |
-|                    | **Implemented so far**                          |       | **14** |                                  |                                       |
+|                    | **Planned total**                               |       | **18** |                                  |                                       |
+|                    | **Implemented so far**                          |       | **17** |                                  |                                       |
 
 ### Module implementation plan
 
@@ -977,6 +1063,24 @@ upload module counts the building documents already implemented (B11, F14).
     (`dry_run`) shows the preview first, and the import as a whole cannot
     go over the contracted sensors (`409 SENSOR_LIMIT_REACHED`). Up to 500
     sensors per file.
+- **Public API:** demonstrated with `curl` or `/api/docs` (see
+  [Public API](#public-api)).
+  - *Secured API key:* `X-API-Key`, with a read key and a separate write
+    key, both in `.env` and scoped to one organization.
+  - *Rate limiting:* Nginx zone `public_api` (`PUBLIC_API_RATE_LIMIT`),
+    `429 TOO_MANY_REQUESTS` past the burst.
+  - *Documentation:* the OpenAPI page lists every endpoint with its key,
+    examples and error codes.
+  - *At least 5 endpoints:* 9, including `GET`, `POST`, `PUT` and `DELETE`
+    on `/api/public/v1/sites`.
+- **Support for additional browsers:** Firefox and Brave, besides the
+  required Chrome (see [Supported browsers](#supported-browsers)).
+  - *Full compatibility and every feature tested:* public pages, admin and
+    client areas, documents, import and export, in each browser.
+  - *Limitations documented:* WebGL for the map, the native date picker and
+    the Clipboard API.
+  - *Consistent UI/UX:* same palette, layout and responsive behaviour at
+    768 px and 375 px.
 - **Notification system:** *partial, alert emails only.* When nobody takes
   an alert, the client gets an email, and the alert shows the notices sent
   in its timeline (#275). Creating, updating or deleting data does not
@@ -1193,8 +1297,13 @@ label planned work separately from implemented work.
 
 ## Supported browsers
 
-The frontend is checked in the latest stable Chrome and Firefox (the browsers required by the subject)
-(desktop, plus the responsive mode of each browser at 768 px and 375 px).
+The subject requires the latest stable Google Chrome. For the "Support for
+additional browsers" minor module, every feature was also tested by hand in
+the latest stable **Firefox** and **Brave**: desktop, plus the responsive mode
+of each browser at 768 px and 375 px. The UI and the behaviour are the same in
+the three browsers. Brave uses the same engine as Chrome (Chromium), so
+Firefox (Gecko) is the one that covers a different rendering engine.
+
 Browser-specific limitations:
 
 - The admin sites map uses MapLibre GL, which needs WebGL. If WebGL is
@@ -1205,7 +1314,8 @@ Browser-specific limitations:
 - "Copiar enlace" uses the Clipboard API, which browsers only allow on HTTPS or
   `localhost`. On plain HTTP it falls back to the older copy command and, if the
   browser blocks it too, the link stays selected so it can be copied by hand.
-- Edge and Safari are not part of the review.
+- Edge and Safari are not part of the review. The Playwright e2e suite runs
+  in Chromium only.
 
 ## Known limitations
 

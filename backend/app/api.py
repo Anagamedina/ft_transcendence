@@ -51,6 +51,7 @@ from app.modules.auth import router as auth
 from app.modules.documents import router as documents
 from app.modules.invitations import router as invitations
 from app.modules.organizations import router as organizations
+from app.modules.public_api import router as public_api
 from app.modules.readings import router as readings
 from app.modules.search import router as search
 from app.modules.sensors import router as sensors
@@ -76,3 +77,4 @@ api_router.include_router(analytics.router)
 # Opcionales de la issue #150: «Hazte cliente» (B14) y búsqueda global (B17).
 api_router.include_router(subscriptions.router)
 api_router.include_router(search.router)
+api_router.include_router(public_api.router)
