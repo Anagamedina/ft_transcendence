@@ -101,10 +101,12 @@ class AppSettings(BaseSettings):
     # coinciden sin configurar nada.
     INGEST_API_KEY: str = "dev-only-ingest-key"
 
-    # Read-only public API (subject, Web major). It is intentionally
-    # separate from INGEST_API_KEY: ingestion writes readings, while this
-    # API only reads the configured organization's data.
+    # Public API (subject, Web major). It is intentionally separate from
+    # INGEST_API_KEY. PUBLIC_API_KEY only reads; PUBLIC_API_WRITE_KEY also
+    # creates, replaces and deletes buildings. Empty means writes are off,
+    # so an old .env without it keeps the API read-only.
     PUBLIC_API_KEY: str = "dev-only-public-api-key"
+    PUBLIC_API_WRITE_KEY: str = ""
     PUBLIC_API_ORGANIZATION_ID: UUID | None = None
 
     # Días de prueba de una organización TRIAL: los que da el registro
@@ -200,6 +202,11 @@ class AppSettings(BaseSettings):
         """True si la API pública sigue con la clave publicada de desarrollo."""
         return self.PUBLIC_API_KEY == "dev-only-public-api-key"
 
+    @property
+    def has_default_public_api_write_key(self) -> bool:
+        """True si la escritura de la API pública usa la clave de ejemplo."""
+        return self.PUBLIC_API_WRITE_KEY == "dev-only-public-api-write-key"
+
 
 app_settings = AppSettings()
 
@@ -230,6 +237,11 @@ if app_settings.is_production and app_settings.has_default_public_api_key:
     raise RuntimeError(
         "PUBLIC_API_KEY sigue con el valor por defecto y ENV=production. "
         "Define PUBLIC_API_KEY en el .env antes de desplegar."
+    )
+if app_settings.is_production and app_settings.has_default_public_api_write_key:
+    raise RuntimeError(
+        "PUBLIC_API_WRITE_KEY sigue con el valor de ejemplo y ENV=production. "
+        "Define una clave propia en el .env o déjala vacía para no permitir escritura."
     )
 if app_settings.is_production and app_settings.PUBLIC_API_ORGANIZATION_ID is None:
     raise RuntimeError(

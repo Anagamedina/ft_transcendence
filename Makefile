@@ -39,6 +39,7 @@ env:
 		-e "s|^SECRET_KEY=.*|SECRET_KEY=$$(openssl rand -hex 32)|" \
 		-e "s|^INGEST_API_KEY=.*|INGEST_API_KEY=$$(openssl rand -hex 32)|" \
 		-e "s|^PUBLIC_API_KEY=.*|PUBLIC_API_KEY=$$(openssl rand -hex 32)|" \
+		-e "s|^PUBLIC_API_WRITE_KEY=.*|PUBLIC_API_WRITE_KEY=$$(openssl rand -hex 32)|" \
 		.env.example > .env
 
 config-check: env

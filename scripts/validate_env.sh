@@ -45,6 +45,7 @@ done
 # usable in development; production is still rejected below unless the key
 # and organization scope are explicitly configured.
 PUBLIC_API_KEY="${PUBLIC_API_KEY:-dev-only-public-api-key}"
+PUBLIC_API_WRITE_KEY="${PUBLIC_API_WRITE_KEY-}"
 PUBLIC_API_RATE_LIMIT="${PUBLIC_API_RATE_LIMIT:-60r/m}"
 
 case "$ENV" in
@@ -92,6 +93,7 @@ if [ "$ENV" = "production" ]; then
   [ "$SECRET_KEY" != "dev-only-change-me" ] || fail "SECRET_KEY uses the development placeholder"
   [ "$INGEST_API_KEY" != "dev-only-ingest-key" ] || fail "INGEST_API_KEY uses the development placeholder"
   [ "$PUBLIC_API_KEY" != "dev-only-public-api-key" ] || fail "PUBLIC_API_KEY uses the development placeholder"
+  [ "$PUBLIC_API_WRITE_KEY" != "dev-only-public-api-write-key" ] || fail "PUBLIC_API_WRITE_KEY uses the development placeholder (set your own or leave it empty)"
   [ -n "${PUBLIC_API_ORGANIZATION_ID-}" ] || fail "PUBLIC_API_ORGANIZATION_ID is required in production"
   [ "$COOKIE_SECURE" = "true" ] || fail "COOKIE_SECURE must be true in production"
 fi

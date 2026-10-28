@@ -1,11 +1,15 @@
-"""Endpoints read-only para integraciones externas (subject Web major)."""
+"""Endpoints para integraciones externas (subject Web major).
+
+Los GET valen con cualquiera de las dos claves; crear, reemplazar y borrar
+edificios necesita la de escritura (ver `auth.py`).
+"""
 
 from __future__ import annotations
 
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
 from app.modules.alerts.schemas import AlertResponse, AlertSeverity, AlertState, AlertStatus
 from app.modules.alerts.service import AlertService, get_alert_service
@@ -13,13 +17,14 @@ from app.modules.analytics.schemas import DailyRow, OverviewResponse
 from app.modules.analytics.service import AnalyticsService, get_analytics_service
 from app.modules.sensors.schemas import SensorResponse
 from app.modules.sensors.service import SensorService, get_sensor_service
-from app.modules.sites.schemas import SiteResponse
+from app.modules.sites.schemas import SiteCreate, SiteResponse, SiteUpdate
 from app.modules.sites.service import SiteService, get_site_service
 from app.shared.dependencies import DateRange, Pagination, Search
 from app.shared.enums import SensorHealth
 from app.shared.schemas import Page, error_response
 
-from .auth import PublicOrganizationId
+from .auth import PublicOrganizationId, PublicWriteOrganizationId
+from .schemas import PublicSiteWrite
 
 router = APIRouter(prefix="/public/v1", tags=["Public API"])
 
@@ -38,10 +43,27 @@ _PUBLIC_ERRORS = {
         "La API pública no está configurada correctamente (`PUBLIC_API_NOT_CONFIGURED`).",
     ),
     **error_response(
+        status.HTTP_403_FORBIDDEN,
+        "La organización está suspendida (`ACCOUNT_DISABLED`).",
+    ),
+    **error_response(
         status.HTTP_429_TOO_MANY_REQUESTS,
         "El límite de peticiones del gateway se ha superado (`TOO_MANY_REQUESTS`).",
     ),
 }
+_WRITE_ERRORS = {
+    **_PUBLIC_ERRORS,
+    **error_response(
+        status.HTTP_403_FORBIDDEN,
+        "La API key es de solo lectura (`PUBLIC_API_READ_ONLY`), la "
+        "organización está suspendida (`ACCOUNT_DISABLED`) o su prueba ha "
+        "vencido (`TRIAL_EXPIRED`).",
+    ),
+}
+_SITE_NOT_FOUND = error_response(
+    status.HTTP_404_NOT_FOUND,
+    "El edificio no existe o es de otra organización (`SITE_NOT_FOUND`).",
+)
 
 
 @router.get(
@@ -49,7 +71,7 @@ _PUBLIC_ERRORS = {
     response_model=OverviewResponse,
     summary="Resumen de la organización",
     description=(
-        "KPIs read-only de la organización asociada a la API key. No requiere "
+        "KPIs de la organización asociada a la API key. No requiere "
         "cookie de sesión y nunca amplía el scope configurado."
     ),
     responses=_PUBLIC_ERRORS,
@@ -79,6 +101,105 @@ def public_sites(
         limit=pagination.limit,
         q=q,
     )
+
+
+@router.get(
+    "/sites/{site_id}",
+    response_model=SiteResponse,
+    summary="Ver un edificio",
+    description="Un edificio de la organización de la API key.",
+    responses={**_PUBLIC_ERRORS, **_SITE_NOT_FOUND},
+)
+def public_site(
+    site_id: UUID, service: SiteSvc, organization_id: PublicOrganizationId
+) -> SiteResponse:
+    return service.get(site_id, organization_id)
+
+
+@router.post(
+    "/sites",
+    response_model=SiteResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Crear un edificio",
+    description=(
+        "Crea un edificio en la organización de la API key. Requiere "
+        "`PUBLIC_API_WRITE_KEY`. Respeta el límite de edificios del contrato "
+        "o de la prueba (`SITE_LIMIT_REACHED`)."
+    ),
+    responses={
+        **_WRITE_ERRORS,
+        **error_response(
+            status.HTTP_409_CONFLICT,
+            "Ya hay un edificio con ese nombre (`SITE_NAME_TAKEN`) o se ha "
+            "llegado al límite de edificios (`SITE_LIMIT_REACHED`).",
+        ),
+    },
+)
+def public_create_site(
+    payload: PublicSiteWrite,
+    service: SiteSvc,
+    organization_id: PublicWriteOrganizationId,
+) -> SiteResponse:
+    return service.create(
+        SiteCreate(**payload.model_dump(), organization_id=organization_id)
+    )
+
+
+@router.put(
+    "/sites/{site_id}",
+    response_model=SiteResponse,
+    summary="Reemplazar un edificio",
+    description=(
+        "Reemplaza todos los datos editables de un edificio de la "
+        "organización de la API key: un campo opcional que no se envía vuelve "
+        "a su valor por defecto. Requiere `PUBLIC_API_WRITE_KEY`. Quitar "
+        "plantas con sensores responde 422 `FLOOR_OUT_OF_SITE`."
+    ),
+    responses={
+        **_WRITE_ERRORS,
+        **_SITE_NOT_FOUND,
+        **error_response(
+            status.HTTP_409_CONFLICT,
+            "Ya hay un edificio con ese nombre (`SITE_NAME_TAKEN`).",
+        ),
+    },
+)
+def public_replace_site(
+    site_id: UUID,
+    payload: PublicSiteWrite,
+    service: SiteSvc,
+    organization_id: PublicWriteOrganizationId,
+) -> SiteResponse:
+    # El servicio del admin no mira la organización: antes de tocar nada se
+    # comprueba que el edificio es de la de la clave (404 si no).
+    service.get(site_id, organization_id)
+    return service.update(site_id, SiteUpdate(**payload.model_dump()))
+
+
+@router.delete(
+    "/sites/{site_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Borrar un edificio",
+    description=(
+        "Borra un edificio vacío de la organización de la API key. Requiere "
+        "`PUBLIC_API_WRITE_KEY`. Con sensores o documentos responde 409."
+    ),
+    responses={
+        **_WRITE_ERRORS,
+        **_SITE_NOT_FOUND,
+        **error_response(
+            status.HTTP_409_CONFLICT,
+            "El edificio tiene sensores (`SITE_HAS_SENSORS`) o documentos "
+            "(`SITE_HAS_DOCUMENTS`).",
+        ),
+    },
+)
+def public_delete_site(
+    site_id: UUID, service: SiteSvc, organization_id: PublicWriteOrganizationId
+) -> Response:
+    service.get(site_id, organization_id)
+    service.delete(site_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get(

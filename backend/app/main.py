@@ -85,8 +85,9 @@ TAGS_METADATA = [
     {
         "name": "Public API",
         "description": (
-            "API read-only para integraciones externas. Requiere X-API-Key, "
-            "rate limiting y queda limitada a una organización."
+            "API para integraciones externas: lee datos y crea, reemplaza o "
+            "borra edificios. Requiere X-API-Key (de lectura o de escritura), "
+            "tiene rate limiting y queda limitada a una organización."
         ),
     },
 ]
