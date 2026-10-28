@@ -1,4 +1,4 @@
-// STORE sensors — lista/filtros de sensores desde la API.
+// SENSORS STORE — sensor list and filters from the API.
 
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";

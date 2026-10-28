@@ -1,9 +1,9 @@
 import adapter from "./adapter.js";
 
 const authService = {
-  //creamos un objeto que agrupará todas las operaciones de autenticación
+  //we create an object that will group all authentication operations
   register(data) {
-    return adapter.post("/api/auth/register", data); //Cuando alguien llama a authService.register(data), se envían los datos al backend mediante POST /api/auth/register.
+    return adapter.post("/api/auth/register", data); // When someone calls authService.register(data), the data is sent to the backend via POST /api/auth/register.
   },
 
   login(data) {

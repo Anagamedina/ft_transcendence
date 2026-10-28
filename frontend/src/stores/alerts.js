@@ -1,4 +1,4 @@
-// STORE alerts — listado de alertas (Panel, Sensores y Mis edificios). Cerrar o encargarse va en stores/adminAlerts.js y en la vista del cliente.
+// ALERTS STORE — alert listing (Dashboard, Sensors, and My Buildings). Dismissing or handling alerts is managed in stores/adminAlerts.js and the client view.
 
 import { defineStore } from "pinia";
 import { ref } from "vue";
