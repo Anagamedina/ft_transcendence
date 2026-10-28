@@ -232,3 +232,15 @@ def test_en_produccion_arranca_sin_clave_de_escritura():
     resultado = _arrancar_config(**{**PRODUCCION_COMPLETA, "PUBLIC_API_WRITE_KEY": ""})
 
     assert resultado.returncode == 0, resultado.stderr
+
+
+def test_en_produccion_no_arranca_con_la_organizacion_de_la_demo():
+    resultado = _arrancar_config(
+        **{
+            **PRODUCCION_COMPLETA,
+            "PUBLIC_API_ORGANIZATION_ID": "00000000-0000-4000-9000-000000000001",
+        }
+    )
+
+    assert resultado.returncode != 0
+    assert "PUBLIC_API_ORGANIZATION_ID" in resultado.stderr

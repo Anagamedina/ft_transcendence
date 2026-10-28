@@ -50,6 +50,11 @@ from uuid import UUID
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Residencias Collserola en la demo (`seeds/seed_demo.py`). Es el valor por
+# defecto de PUBLIC_API_ORGANIZATION_ID, para que `make demo` sirva la API pública
+# sin editar el .env; en producción no se acepta, igual que las claves de ejemplo.
+PUBLIC_API_DEMO_ORGANIZATION_ID = UUID("00000000-0000-4000-9000-000000000001")
+
 # El .env vive en la raíz del repositorio, no dentro de backend/.
 # Se resuelve desde este archivo para que uvicorn funcione igual
 # se lance desde donde se lance. Misma convención que core/config.py
@@ -101,13 +106,14 @@ class AppSettings(BaseSettings):
     # coinciden sin configurar nada.
     INGEST_API_KEY: str = "dev-only-ingest-key"
 
-    # Public API (subject, Web major). It is intentionally separate from
-    # INGEST_API_KEY. PUBLIC_API_KEY only reads; PUBLIC_API_WRITE_KEY also
-    # creates, replaces and deletes buildings. Empty means writes are off,
-    # so an old .env without it keeps the API read-only.
+    # API pública (subject, major de Web), separada de INGEST_API_KEY.
+    # PUBLIC_API_KEY solo lee; PUBLIC_API_WRITE_KEY además crea, reemplaza y
+    # borra edificios. Vacía, la escritura queda apagada: un .env antiguo sin
+    # ella deja la API en solo lectura. Las dos quedan limitadas a
+    # PUBLIC_API_ORGANIZATION_ID.
     PUBLIC_API_KEY: str = "dev-only-public-api-key"
     PUBLIC_API_WRITE_KEY: str = ""
-    PUBLIC_API_ORGANIZATION_ID: UUID | None = None
+    PUBLIC_API_ORGANIZATION_ID: UUID | None = PUBLIC_API_DEMO_ORGANIZATION_ID
 
     # Días de prueba de una organización TRIAL: los que da el registro
     # público (B10) y los que suma «ampliar prueba» (B1). Lo pide la I0 en
@@ -243,8 +249,11 @@ if app_settings.is_production and app_settings.has_default_public_api_write_key:
         "PUBLIC_API_WRITE_KEY sigue con el valor de ejemplo y ENV=production. "
         "Define una clave propia en el .env o déjala vacía para no permitir escritura."
     )
-if app_settings.is_production and app_settings.PUBLIC_API_ORGANIZATION_ID is None:
+if app_settings.is_production and app_settings.PUBLIC_API_ORGANIZATION_ID in (
+    None,
+    PUBLIC_API_DEMO_ORGANIZATION_ID,
+):
     raise RuntimeError(
-        "PUBLIC_API_ORGANIZATION_ID es obligatorio con ENV=production. "
-        "Limita la API pública a una organización concreta."
+        "PUBLIC_API_ORGANIZATION_ID es obligatorio con ENV=production y no puede "
+        "ser el de la demo. Limita la API pública a una organización concreta."
     )

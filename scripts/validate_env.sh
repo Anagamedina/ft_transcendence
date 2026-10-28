@@ -95,6 +95,7 @@ if [ "$ENV" = "production" ]; then
   [ "$PUBLIC_API_KEY" != "dev-only-public-api-key" ] || fail "PUBLIC_API_KEY uses the development placeholder"
   [ "$PUBLIC_API_WRITE_KEY" != "dev-only-public-api-write-key" ] || fail "PUBLIC_API_WRITE_KEY uses the development placeholder (set your own or leave it empty)"
   [ -n "${PUBLIC_API_ORGANIZATION_ID-}" ] || fail "PUBLIC_API_ORGANIZATION_ID is required in production"
+  [ "$PUBLIC_API_ORGANIZATION_ID" != "00000000-0000-4000-9000-000000000001" ] || fail "PUBLIC_API_ORGANIZATION_ID is the demo organization"
   [ "$COOKIE_SECURE" = "true" ] || fail "COOKIE_SECURE must be true in production"
 fi
 

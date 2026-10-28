@@ -434,7 +434,7 @@ with `ENV=production` because these passwords are public.
 
   | Client                 | Plan        | Payment | Buildings | Sensors  | Price     | To try                                              |
   |------------------------|-------------|---------|-----------|----------|-----------|-----------------------------------------------------|
-  | Residencias Collserola | Empresa     | Monthly | 15 of 15  | 45 of 45 | 649 €/mes | At the limit: one more building or sensor gives 409 |
+  | Residencias Collserola | Empresa     | Monthly | 15 of 16  | 45 of 45 | 649 €/mes | One building left for the public API demo; one more sensor gives 409 |
   | Polideportivo Poblenou | Profesional | Yearly  | 6 of 6    | 12 of 15 | 229 €/mes | A CSV import of 3 sensors fits, 4 do not            |
   | Comunidad Mallorca 401 | Básico      | Monthly | 2 of 2    | 4 of 6   | 89 €/mes  | Room for 2 sensors                                  |
   | Aigües Zona Franca     | Básico      | Monthly | 2 of 2    | 2 of 4   | 69 €/mes  | Suspended: kept its contract                        |
@@ -616,8 +616,16 @@ Nginx applies a separate `PUBLIC_API_RATE_LIMIT` (60 requests per minute, burst
 20) before forwarding requests to FastAPI. The OpenAPI document at `/api/docs`
 publishes the `PublicApiKey` security scheme, examples and every error code.
 
-For a local demo, set `PUBLIC_API_ORGANIZATION_ID` in `.env` after loading the
-seed, then:
+`make demo` serves it without editing `.env`: the seed gives Residencias
+Collserola a fixed id (`PUBLIC_API_DEMO_ORGANIZATION_ID` in
+`app/core/app_config.py`), which is the default and the `.env.example` value of
+`PUBLIC_API_ORGANIZATION_ID`, and `make env` generates both keys. In production
+the backend refuses that id, like the example keys. A database seeded before
+this change keeps a random id; the seed warns and `make re` starts it over.
+
+Collserola has 15 of its 16 contracted buildings, so the first `POST` answers
+`201` and a second one `409 SITE_LIMIT_REACHED`; deleting the new building
+leaves the demo as it was:
 
 ```bash
 set -a; . ./.env; set +a
@@ -630,15 +638,12 @@ curl -k -X PUT -H "X-API-Key: $PUBLIC_API_WRITE_KEY" -H "Content-Type: applicati
 curl -k -X DELETE -H "X-API-Key: $PUBLIC_API_WRITE_KEY" $API/sites/<id>
 ```
 
-With Residencias Collserola the `POST` answers `409 SITE_LIMIT_REACHED`: it has
-the 15 buildings it contracted. Point the API to a client with room to create
-one.
-
 `backend/tests/test_public_api.py` covers both keys, the full
 create/read/replace/delete cycle, tenant isolation, contract limits, suspended
 and expired organizations and the OpenAPI security metadata;
 `test_ingest_key.py` checks that the backend refuses to start in production
-with the example keys or without `PUBLIC_API_ORGANIZATION_ID`. The gateway
+with the example keys, without `PUBLIC_API_ORGANIZATION_ID` or with the demo
+one. `test_seed_demo.py` checks the fixed id and the demo `POST` (201, then 409). The gateway
 rate limit is enforced by Nginx, not by the FastAPI test client, so it was
 checked on the running Compose stack: after about 20 requests in a row the
 gateway answers 429. If the backend container is recreated, restart the
