@@ -30,33 +30,25 @@ GET    /analytics/export?from=YYYY-MM-DD&to=YYYY-MM-DD
 
 ## Antes de la evaluación
 
-1. Stack levantado y demo cargada:
+Desde un clon vacío no hay que tocar nada:
 
-   ```bash
-   make all        # o: make up && make seed
-   ```
+```bash
+make demo
+```
 
-2. En `.env`:
-   - `PUBLIC_API_ORGANIZATION_ID` con el id de **Residencias Collserola**.
-   - `PUBLIC_API_WRITE_KEY` con una clave propia. `make env` la genera en un
-     `.env` nuevo; en uno que ya existe, añádela con
-     `echo "PUBLIC_API_WRITE_KEY=$(openssl rand -hex 32)" >> .env`.
+- `make env` crea el `.env` con `PUBLIC_API_KEY` y `PUBLIC_API_WRITE_KEY`
+  aleatorias.
+- El seed crea Residencias Collserola con un id fijo
+  (`00000000-0000-4000-9000-000000000001`, `PUBLIC_API_DEMO_ORGANIZATION_ID`
+  en `app/core/app_config.py`). Ese id es el valor por defecto de
+  `PUBLIC_API_ORGANIZATION_ID` y el que trae `.env.example`, así que la API
+  queda limitada a Collserola sin configurar nada.
+- En producción el backend no arranca con ese id, igual que con las claves de
+  ejemplo.
 
-   El id de Collserola se saca con:
-
-   ```bash
-   set -a; . ./.env; set +a
-   docker compose exec -T database psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc \
-     "select id from organizations where name='Residencias Collserola'"
-   ```
-
-3. Si cambias el `.env`, recrea el backend y **reinicia el gateway**. Si no,
-   nginx sigue apuntando al contenedor viejo y responde 502:
-
-   ```bash
-   docker compose up -d backend && docker compose restart gateway
-   make config-check
-   ```
+Si tu base se cargó antes de este cambio, Collserola conserva un id
+aleatorio: el seed lo avisa (`Seed warning`) y la API responde
+`400 PUBLIC_API_NOT_CONFIGURED`. `make re` empieza de cero.
 
 ## 1. Tests automáticos
 
@@ -81,6 +73,7 @@ las claves de ejemplo.
 1. Abre <https://localhost/api/docs> y baja a **Public API**.
 2. Pulsa **Authorize** y pega `PUBLIC_API_WRITE_KEY`.
 3. Prueba `GET /api/public/v1/sites`: solo salen los 15 edificios de Collserola.
+   En **Authorize** pega la clave de `.env` (`grep PUBLIC_API_WRITE_KEY .env`).
 4. Enseña que cada endpoint de escritura documenta sus errores:
    401, 403, 404, 409, 422 y 429.
 
@@ -102,7 +95,9 @@ SITE=$(curl -sk -H "$R" "$API/sites?page_size=1" | python3 -c 'import sys,json;p
 | 1 | Sin clave no entra | `curl -k $API/sites` | `401 UNAUTHORIZED` |
 | 2 | Lectura limitada a una organización | `curl -k -H "$R" $API/sites` | `200`, `total: 15`, todo Collserola |
 | 3 | La clave de lectura no escribe | `curl -k -X POST -H "$R" -H "$J" -d '{"name":"X"}' $API/sites` | `403 PUBLIC_API_READ_ONLY` |
-| 4 | `POST` respeta el contrato | `curl -k -X POST -H "$W" -H "$J" -d '{"name":"X"}' $API/sites` | `409 SITE_LIMIT_REACHED` (15/15) |
+| 4 | `POST` crea | `NEW=$(curl -sk -X POST -H "$W" -H "$J" -d '{"name":"Edificio API","floors":3}' $API/sites \| python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')` | `201`, Collserola pasa a 16/16 |
+| 4b | `POST` respeta el contrato | `curl -k -X POST -H "$W" -H "$J" -d '{"name":"Otro"}' $API/sites` | `409 SITE_LIMIT_REACHED` |
+| 4c | `DELETE` del nuevo | `curl -k -X DELETE -H "$W" $API/sites/$NEW -w '%{http_code}\n'` | `204`, vuelve a 15/16 |
 | 5 | `GET` de uno | `curl -k -H "$R" $API/sites/$SITE` | `200` |
 | 6 | `PUT` reemplaza | `curl -k -X PUT -H "$W" -H "$J" -d "$(curl -sk -H "$R" $API/sites/$SITE \| python3 -c 'import sys,json;d=json.load(sys.stdin);print(json.dumps({k:d[k] for k in ["name","address","latitude","longitude","floors","basements","building_type"]}))')" $API/sites/$SITE` | `200`, mismos datos |
 | 7 | Validación | `curl -k -X PUT -H "$W" -H "$J" -d '{"name":"X","floors":0}' $API/sites/$SITE` | `422 VALIDATION_ERROR` en `floors` |
@@ -110,7 +105,7 @@ SITE=$(curl -sk -H "$R" "$API/sites?page_size=1" | python3 -c 'import sys,json;p
 | 9 | No toca otras organizaciones | `curl -k -X DELETE -H "$W" $API/sites/<id de otro cliente>` | `404 SITE_NOT_FOUND` |
 | 10 | Rate limiting | `for i in $(seq 30); do curl -sk -o /dev/null -w '%{http_code} ' -H "$R" $API/overview; done` | `200` unas 20 veces y luego `429` |
 
-En la tabla, `\|` es una barra `|` normal: al copiar el comando 6 a la
+En la tabla, `\|` es una barra `|` normal: al copiar los comandos 4 y 6 a la
 terminal, quita la barra invertida.
 
 El id de otro cliente para el paso 9 sale de:
@@ -120,30 +115,13 @@ docker compose exec -T database psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc 
   "select s.id from sites s join organizations o on o.id=s.organization_id where o.name<>'Residencias Collserola' limit 1"
 ```
 
-## 4. Un `POST` con 201 en vivo
+## 4. El `POST` con 201 en vivo
 
-Con la demo tal cual, **ningún `POST` da 201**: los 5 clientes están en su
-límite de edificios, y Collserola tiene 15 contratados y 15 creados. Eso
-está hecho a propósito, para enseñar el límite del contrato. El 409 del
-paso 4 ya demuestra que el `POST` funciona y respeta las reglas, y el
-ciclo 201 → 200 → 204 está en `make test-backend`.
-
-Si el evaluador pide ver el alta en vivo, se le da un hueco a Collserola un
-momento y se deja como estaba al terminar:
-
-```bash
-Q(){ docker compose exec -T database psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "$1"; }
-Q "update organizations set contracted_sites=16 where name='Residencias Collserola'"
-
-ID=$(curl -sk -X POST -H "$W" -H "$J" -d '{"name":"Edificio API","floors":3}' $API/sites \
-  | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')        # 201
-curl -k -X PUT -H "$W" -H "$J" \
-  -d '{"name":"Edificio API v2","floors":5,"building_type":"OFFICE"}' $API/sites/$ID   # 200
-curl -k -X DELETE -H "$W" $API/sites/$ID -w '%{http_code}\n'               # 204
-curl -k -H "$R" $API/sites/$ID -w '%{http_code}\n'                         # 404
-
-Q "update organizations set contracted_sites=15 where name='Residencias Collserola'"
-```
+Collserola tiene contratados 16 edificios y tiene 15, así que el hueco
+existe sin tocar la base de datos. Los pasos 4, 4b y 4c lo enseñan: crea uno
+(201), el siguiente se pasa del contrato (409), y al borrarlo la demo queda
+como estaba. Si se olvida el `DELETE`, `make seed` no lo borra (no es un
+edificio de la demo): bórralo por la API o desde la app.
 
 Mientras el edificio existe, se puede enseñar en la app: entra como
 `admin@aquaguard.dev`, ve a Edificios y aparece en Residencias Collserola y
@@ -170,5 +148,6 @@ en el mapa. Así se ve que la API y la app usan los mismos datos.
 |---|---|---|
 | `502` en `/api/` | Se recreó el backend y nginx apunta al contenedor viejo | `docker compose restart gateway` |
 | `401` con la clave de lectura | `PUBLIC_API_KEY` no está en `.env` y se mandó vacía | Usar `dev-only-public-api-key` o definir la clave en `.env` |
-| `400 PUBLIC_API_NOT_CONFIGURED` | Falta `PUBLIC_API_ORGANIZATION_ID`, o apunta a una organización borrada (por ejemplo tras `make seed` en una base nueva) | Volver a sacar el id de Collserola y recrear el backend |
+| `400 PUBLIC_API_NOT_CONFIGURED` | La base se cargó con un seed anterior y Collserola tiene otro id (el seed avisa con `Seed warning`) | `make re` |
+| `409` ya en el paso 4 | Quedó el edificio de una prueba anterior: Collserola está en 16/16 | `GET /sites`, y `DELETE` del que sobra |
 | `429` en todo | Se agotó el límite del gateway | Esperar un minuto |
