@@ -1349,7 +1349,7 @@ Issues #130 to #134 were reviewed and merged together in #182.
 | #8, #107 | Admin sites map: MapLibre GL + OpenFreeMap, Barcelona boundary, markers by alert, lazy-loaded modal       | #104, #117    | Implemented |
 | #9       | Admin clients and sites views: `ClientsList`, client detail, router-based `Sidebar` with active entry     | #128          | Implemented |
 | #37      | Shared async states `LoadingState`, `ErrorState` (retry + focus restore) and `EmptyState`                 | #125          | Implemented |
-| #309     | Gateway resolves the backend on each request: no 502 when `make all` recreates the backend                | —             | In review   |
+| #309     | Gateway resolves the backend on each request: no 502 when `make all` recreates the backend                | #310          | In review   |
 
 ### Lylia (`lylfergu`)
 
