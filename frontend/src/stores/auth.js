@@ -34,6 +34,16 @@ export const useAuthStore = defineStore("auth", () => {
     deletionRequestedAt.value = data.deletion_requested_at ?? null;
   }
 
+  function clearUser() {
+    user.value = null;
+    role.value = null;
+    organization.value = null;
+    lastLoginAt.value = null;
+    termsVersion.value = null;
+    termsAcceptedAt.value = null;
+    deletionRequestedAt.value = null;
+  }
+
   //ACTIONS
 
   async function fetchMe() {
@@ -42,21 +52,22 @@ export const useAuthStore = defineStore("auth", () => {
     error.value = null;
 
     try {
-      const response = await authService.me();
+      const response = await authService.session();
 
-      applyMe(response.data);
+      // No session: 200 with user null, not a 401 (see auth.service.js)
+      if (!response.data.user) {
+        clearUser();
+        status.value = "idle";
+        return null;
+      }
+
+      applyMe(response.data.user);
 
       status.value = "success";
 
       return user.value;
     } catch (err) {
-      user.value = null;
-      role.value = null;
-      organization.value = null;
-      lastLoginAt.value = null;
-      termsVersion.value = null;
-      termsAcceptedAt.value = null;
-      deletionRequestedAt.value = null;
+      clearUser();
 
       if (err.status === 401 || err.code === "UNAUTHORIZED") {
         error.value = null;
@@ -212,13 +223,7 @@ export const useAuthStore = defineStore("auth", () => {
       };
     } finally {
       // cleaning local state
-      user.value = null;
-      role.value = null;
-      organization.value = null;
-      lastLoginAt.value = null;
-      termsVersion.value = null;
-      termsAcceptedAt.value = null;
-      deletionRequestedAt.value = null;
+      clearUser();
 
       initialized.value = true;
 
