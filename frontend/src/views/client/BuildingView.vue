@@ -18,7 +18,7 @@
   Alertas: ClientAlertsPanel fixed to this building (state in ?estado=).
   Documentos: DocumentsPanel fixed to this building (upload set to it).
   A building that is not the client's (or does not exist): message and the
-  way back. Data: GET /api/alerts of this building per state, every minute.
+  way back. Data: GET /api/alerts of this building per state, every 30 s.
   No backend changes.
 -->
 
@@ -271,12 +271,9 @@ import { useSitesStore } from "../../stores/sites.js";
 import { useSensorsStore } from "../../stores/sensors.js";
 import { useOverviewStore } from "../../stores/overview.js";
 import { useLabels } from "../../composables/useLabels";
-import { useAutoRefresh } from "../../composables/useAutoRefresh";
+import { REFRESH_MS, useAutoRefresh } from "../../composables/useAutoRefresh";
 import { apiErrorMessage } from "../../utils/apiError.js";
 import { pressureState } from "../../utils/pressure.js";
-
-// Same pace as the admin dashboard and ClientLayout (F30)
-const REFRESH_MS = 30 * 1000;
 
 const TABS = [
   { key: "general", label: "Vista general" },

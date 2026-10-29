@@ -85,9 +85,8 @@ import EmptyState from "./EmptyState.vue";
 
 import readingService from "../services/reading.service.js";
 import { PERIODS } from "../stores/adminSensors.js";
-import { useAutoRefresh } from "../composables/useAutoRefresh";
+import { REFRESH_MS, useAutoRefresh } from "../composables/useAutoRefresh";
 
-const REFRESH_MS = 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const props = defineProps({

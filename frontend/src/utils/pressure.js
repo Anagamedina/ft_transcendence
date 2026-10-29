@@ -16,8 +16,9 @@
 //
 // pressureWords (F30): the words shown next to the pin. When the value is
 // already normal but the sensor still has an open alert (health !== "OK",
-// e.g. SENSOR_OFFLINE after it came back), the pin stays red until a person
-// closes the alert. Then the text says so instead of a bare "Normal".
+// e.g. SENSOR_OFFLINE after it came back), the pin stays red until the alert
+// closes: on its own after 15 min of normal readings (#277), or by hand.
+// Then the text says so instead of a bare "Normal".
 // pressureState itself does not change: BuildingDrawing and the risk order
 // keep using it as before.
 //
@@ -38,7 +39,8 @@ function isHigh(value, min, max) {
 
 // { key, text, tone, margin }
 //   key: 'offline' | 'unknown' | 'out' | 'near' | 'ok'
-//   tone: useLabels tone (danger | warning | success | neutral)
+//   tone: useLabels tone (danger | warning | success | neutral;
+//         pressureWords may also return info)
 export function pressureState(sensor) {
   if (!sensor) return { key: "unknown", text: "Sin datos", tone: "neutral" };
   if (sensor.status === "OFFLINE" || sensor.health === "OFFLINE")

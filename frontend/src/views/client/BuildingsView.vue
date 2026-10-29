@@ -11,7 +11,7 @@
       out of range > smallest margin (utils/pressure.js). Each card shows the
       sensor to watch with its pressure in words and a 7-day sparkline.
   A card opens the building page /app/edificios/:id (F25). Old links with
-  ?site=<id> are sent there. Data reloads every minute and when the tab is
+  ?site=<id> are sent there. Data reloads every 30 s and when the tab is
   visible again (useAutoRefresh). The trial banner is in ClientLayout (TrialBanner).
   Detailed alerts are in /app/alerts (F9-C).
 -->
@@ -125,7 +125,7 @@ import { useSitesStore } from "../../stores/sites.js";
 import { useSensorsStore } from "../../stores/sensors.js";
 import { useOverviewStore } from "../../stores/overview.js";
 import readingService from "../../services/reading.service.js";
-import { useAutoRefresh } from "../../composables/useAutoRefresh";
+import { REFRESH_MS, useAutoRefresh } from "../../composables/useAutoRefresh";
 import { useLabels } from "../../composables/useLabels";
 import alertsService from "../../services/alerts.service.js";
 import {
@@ -133,9 +133,6 @@ import {
   pressureState,
   worstSensor,
 } from "../../utils/pressure.js";
-
-// Same pace as the admin dashboard and ClientLayout (F30)
-const REFRESH_MS = 30 * 1000;
 
 const route = useRoute();
 const router = useRouter();
@@ -368,7 +365,7 @@ function openSite(id) {
 }
 
 // ---------------------------------------------------------------------------
-// Loading and auto refresh (every minute and when the tab is visible again)
+// Loading and auto refresh (every 30 s and when the tab is visible again)
 // ---------------------------------------------------------------------------
 function loadAll() {
   return Promise.all([loadSites(), loadSensors(), loadPending()]);

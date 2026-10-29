@@ -10,7 +10,7 @@
 
 <script setup>
 import { computed, onMounted, ref, defineAsyncComponent } from "vue";
-import { useAutoRefresh } from "../../composables/useAutoRefresh";
+import { REFRESH_MS, useAutoRefresh } from "../../composables/useAutoRefresh";
 import AdminLayout from "../../layouts/AdminLayout.vue";
 import KPICard from "../../components/KPICard.vue";
 import AppIcon from "../../components/AppIcon.vue";
@@ -67,9 +67,8 @@ function loadAll() {
 
 onMounted(loadAll);
 
-// Same 30 s as AnalyticsPanel: KPIs, map and alerts never fall behind the
-// charts. Paused while the tab is hidden (useAutoRefresh).
-const REFRESH_MS = 30000;
+// Same pace as AnalyticsPanel (REFRESH_MS): KPIs, map and alerts never fall
+// behind the charts. Paused while the tab is hidden (useAutoRefresh).
 useAutoRefresh(loadAll, REFRESH_MS);
 
 // Status given to AlertsSummary: a background refresh ("loading" after the

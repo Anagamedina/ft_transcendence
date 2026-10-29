@@ -16,7 +16,7 @@
   creates every sensor of a building from a file (SensorImportDialog). Tab, search, client and building of the
   tab "Sensores" (?client=), building filter (?site=) and open sensor (?sensor=) live
   in the URL. The sensors and buildings come from stores/sensors.js and
-  stores/sites.js; refreshed every 60 s.
+  stores/sites.js; refreshed every 30 s (REFRESH_MS).
 -->
 
 <template>
@@ -183,7 +183,7 @@ import { useSitesStore } from "../../stores/sites.js";
 import { useSensorsStore } from "../../stores/sensors.js";
 import { useAdminSensorsStore } from "../../stores/adminSensors.js";
 import { useListQuery } from "../../composables/useListQuery";
-import { useAutoRefresh } from "../../composables/useAutoRefresh";
+import { REFRESH_MS, useAutoRefresh } from "../../composables/useAutoRefresh";
 import { apiErrorMessage } from "../../utils/apiError";
 import { floorsWithoutSensor, isOffline, sensorTree, splitOffline } from "../../utils/sensorMaintenance";
 import { formatDuration, minutesSince } from "../../utils/alertText";
@@ -321,9 +321,9 @@ onMounted(refresh);
 
 // "Importar CSV": the dialog reloads the list through refresh when it creates sensors
 const importing = ref(false);
-// Every minute, everything: a new building or a changed contact shows up
+// Every REFRESH_MS, everything: a new building or a changed contact shows up
 // without reloading the page
-useAutoRefresh(refresh, 60000);
+useAutoRefresh(refresh, REFRESH_MS);
 onBeforeUnmount(() => clearTimeout(timer));
 
 // --- Side panel. The open sensor lives in the URL (?sensor=), so
