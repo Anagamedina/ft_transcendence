@@ -221,11 +221,16 @@ def _todas_las_escrituras():
     registro), aceptar una invitación pública (B4), la ingesta del
     simulador, contratar un plan (B14) y pedir la baja (B15). Estas dos
     últimas tienen que funcionar también con la prueba vencida.
+
+    La API pública (`/api/public/`) tampoco usa sesión, sino API key: su
+    `TRIAL_EXPIRED` lo prueba `test_public_api.py`.
     """
     for ruta in app.routes:
         if not isinstance(ruta, APIRoute):
             continue
-        if ruta.path.startswith("/api/auth/") or ruta.path in _SIEMPRE_ABIERTAS:
+        if ruta.path.startswith(("/api/auth/", "/api/public/")):
+            continue
+        if ruta.path in _SIEMPRE_ABIERTAS:
             continue
         for metodo in sorted(ruta.methods - {"GET", "HEAD", "OPTIONS"}):
             yield metodo, ruta.path

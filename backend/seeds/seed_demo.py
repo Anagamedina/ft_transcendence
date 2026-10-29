@@ -29,7 +29,7 @@ from sqlalchemy import delete, func
 from sqlalchemy.orm import Session
 
 from app.core import models  # noqa: F401 - registers the ORM models
-from app.core.app_config import app_settings
+from app.core.app_config import PUBLIC_API_DEMO_ORGANIZATION_ID, app_settings
 from app.core.database import SessionLocal, transaction
 from app.core.security import hash_password, verify_password
 from app.modules.alerts.model import Alert
@@ -93,12 +93,19 @@ def _sensor_id(n: int) -> UUID:
     return UUID(f"00000000-0000-4000-8000-{n:012d}")
 
 
+# Residencias Collserola gets a fixed id, PUBLIC_API_DEMO_ORGANIZATION_ID: the
+# public API is scoped to it by default, so `make demo` serves the API without
+# editing .env. A database seeded before keeps the random id it had: the seed
+# warns, and `make re` starts it over.
+
+
 # ---------------------------------------------------------
 # DATA
 # ---------------------------------------------------------
 ORGANIZATIONS = [
     {
         "name": "Residencias Collserola",
+        "id": PUBLIC_API_DEMO_ORGANIZATION_ID,
         "status": "ACTIVE",
         "city": "Barcelona",
         "contact_email": "mantenimiento@residenciascollserola.cat",
@@ -106,11 +113,13 @@ ORGANIZATIONS = [
         "legal_name": "Residencias Collserola S.L.",
         "tax_id": "B08412357",
         "billing_email": "facturacion@residenciascollserola.cat",
-        # Plan Empresa exactly at its limit: 15 buildings and 45 sensors, all
-        # of them installed. One more building or sensor gives 409.
+        # Plan Empresa: 16 buildings with 15 built, and 45 sensors, all of
+        # them installed. One more sensor gives 409. The free building is for
+        # the public API demo: the first POST /sites answers 201 and the
+        # second one 409 SITE_LIMIT_REACHED.
         "contract": {
             "billing_period": "MONTHLY",
-            "sites": 15,
+            "sites": 16,
             "sensors": 45,
             "days_ago": 180,
             "billing_address": "Carrer de Ganduxer 25",
@@ -573,7 +582,7 @@ def _upsert_organization(db: Session, data: dict, now: datetime) -> Organization
             organization = legacy
             organization.name = data["name"]
         else:
-            organization = Organization(name=data["name"])
+            organization = Organization(id=data.get("id"), name=data["name"])
             db.add(organization)
 
     organization.status = data["status"]
@@ -871,6 +880,14 @@ def seed() -> None:
                 now,
             )
 
+        api_organization = organizations[ORGANIZATIONS[0]["name"]]
+        if api_organization.id != PUBLIC_API_DEMO_ORGANIZATION_ID:
+            print(
+                f"Seed warning — {api_organization.name} was created by an older "
+                f"seed with id {api_organization.id}. The public API of the demo "
+                f"expects {PUBLIC_API_DEMO_ORGANIZATION_ID}: run `make re` to "
+                "start the database over, or set PUBLIC_API_ORGANIZATION_ID in .env."
+            )
         print(
             f"Seed OK — {len(organizations)} organizations, {len(sites)} sites, "
             f"{len(sensors)} sensors, {len(ALERTS)} alerts, {readings} readings, "

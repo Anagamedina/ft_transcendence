@@ -216,6 +216,7 @@ import Modal from "./Modal.vue";
 import { useDocumentsStore } from "../stores/documents";
 // API dates are UTC; formatDate shows them in the user's local time
 import { formatDate } from "../composables/useFormat";
+import { saveBlob } from "../utils/download.js";
 
 defineProps({
   documents: { type: Array, default: () => [] },
@@ -272,23 +273,12 @@ async function getBlob(doc) {
     : new Blob([response.data], { type: doc.content_type });
 }
 
-function saveBlob(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename || "documento";
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
-}
-
 async function download(doc) {
   busyId.value = doc.id;
   actionError.value = "";
   try {
     const blob = await getBlob(doc);
-    saveBlob(blob, doc.filename);
+    saveBlob(blob, doc.filename || "documento");
   } catch (error) {
     actionError.value = error.message || "No se pudo descargar el documento.";
   } finally {

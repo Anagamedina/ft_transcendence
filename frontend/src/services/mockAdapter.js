@@ -835,6 +835,14 @@ const mockAdapter = {
       });
     }
 
+    // Same as /api/me, but 200 with user null when nobody is logged in
+    if (url === "/api/me/session") {
+      return Promise.resolve({
+        data: { user: currentUser ? toMeResponse(currentUser) : null },
+        status: 200,
+      });
+    }
+
     // Export my data (B15)
     if (url === "/api/me/export") {
       if (!currentUser) return Promise.reject(authError());

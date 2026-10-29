@@ -11,6 +11,7 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import analyticsService from "../services/analytics.service.js";
+import { saveBlob } from "../utils/download.js";
 
 const DEFAULT_DAYS = 30;
 const MAX_DAYS = 366; // same limit as the backend (DateRangeParams.MAX_DAYS)
@@ -163,12 +164,7 @@ export const useAnalyticsStore = defineStore("analytics", () => {
       const filename =
         /filename="([^"]+)"/.exec(disposition)?.[1] ??
         `aquaguard-analytics_${apiRange.value.from}_${apiRange.value.to}.csv`;
-      const url = URL.createObjectURL(response.data);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = filename;
-      link.click();
-      URL.revokeObjectURL(url);
+      saveBlob(response.data, filename);
     } catch (err) {
       error.value = {
         code: err.code,

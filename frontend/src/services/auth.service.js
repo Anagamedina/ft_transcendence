@@ -18,6 +18,12 @@ const authService = {
     return adapter.get("/api/me"); //gets the currently authenticated user using the active session cookie
   },
 
+  // Same as me(), but answers 200 with { user: null } when nobody is logged
+  // in, so opening the app without a session logs no 401 in the console.
+  session() {
+    return adapter.get("/api/me/session");
+  },
+
   updateMe(data) {
     return adapter.patch("/api/me", data);
   },

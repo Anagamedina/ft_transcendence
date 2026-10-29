@@ -10,6 +10,11 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.core import models  # noqa: F401
+from app.core.app_config import (
+    PUBLIC_API_DEMO_ORGANIZATION_ID,
+    AppSettings,
+    app_settings,
+)
 from app.core.database import Base, get_db
 from app.main import app
 from app.modules.alerts.model import Alert
@@ -217,16 +222,67 @@ def test_every_client_out_of_the_trial_has_a_contract_that_matches_the_plans(eng
             assert sites <= o.contracted_sites and sensors <= o.contracted_sensors, name
 
 
-def test_the_biggest_client_is_at_its_limit(engine):
-    """Residencias Collserola: plan Empresa, 15 buildings and 45 sensors, all used."""
+def test_the_biggest_client_has_one_building_left_and_no_sensors(engine):
+    """
+    Residencias Collserola: plan Empresa, 15 of its 16 buildings and its 45
+    sensors. The free building is for the public API demo.
+    """
     seed_demo.seed()
 
     with Session(engine) as session:
         o, sites, sensors = _with_counts(session)["Residencias Collserola"]
         assert (o.plan, o.billing_period) == ("ENTERPRISE", "MONTHLY")
         assert (sites, sensors) == (15, 45)
-        assert (max_sites_for(o), max_sensors_for(o)) == (15, 45)
+        assert (max_sites_for(o), max_sensors_for(o)) == (16, 45)
         assert o.monthly_price_eur == 199 + 45 * 10
+
+
+# ---------------------------------------------------------
+# Public API: `make demo` serves it without editing .env
+# ---------------------------------------------------------
+def test_the_public_api_organization_has_the_fixed_demo_id(engine):
+    seed_demo.seed()
+    seed_demo.seed()  # idempotent: the id does not change on a second run
+
+    with Session(engine) as session:
+        collserola = session.query(Organization).filter_by(
+            name="Residencias Collserola"
+        ).one()
+    assert collserola.id == PUBLIC_API_DEMO_ORGANIZATION_ID
+    # Without PUBLIC_API_ORGANIZATION_ID in .env, the API is scoped to it
+    default = AppSettings.model_fields["PUBLIC_API_ORGANIZATION_ID"].default
+    assert default == PUBLIC_API_DEMO_ORGANIZATION_ID
+
+
+def test_env_example_points_the_public_api_to_the_demo_organization():
+    env_example = Path(__file__).resolve().parents[2] / ".env.example"
+    if not env_example.exists():
+        pytest.skip("make test-backend only mounts backend/")
+    assert (
+        f"PUBLIC_API_ORGANIZATION_ID={PUBLIC_API_DEMO_ORGANIZATION_ID}\n"
+        in env_example.read_text()
+    )
+
+
+def test_the_demo_public_api_creates_one_building_and_then_hits_the_limit(
+    client, monkeypatch
+):
+    seed_demo.seed()
+    monkeypatch.setattr(
+        app_settings, "PUBLIC_API_ORGANIZATION_ID", PUBLIC_API_DEMO_ORGANIZATION_ID
+    )
+    monkeypatch.setattr(app_settings, "PUBLIC_API_WRITE_KEY", "demo-write-key")
+    headers = {"X-API-Key": "demo-write-key"}
+    url = "/api/public/v1/sites"
+
+    first = client.post(url, headers=headers, json={"name": "Edificio API"})
+    second = client.post(url, headers=headers, json={"name": "Edificio API 2"})
+    deleted = client.delete(f"{url}/{first.json()['id']}", headers=headers)
+
+    assert first.status_code == 201, first.text
+    assert second.status_code == 409
+    assert second.json()["error"]["code"] == "SITE_LIMIT_REACHED"
+    assert deleted.status_code == 204
 
 
 def test_the_other_clients_leave_room_to_try_the_limits(engine):

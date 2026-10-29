@@ -38,6 +38,8 @@ env:
 	@test -f .env || sed \
 		-e "s|^SECRET_KEY=.*|SECRET_KEY=$$(openssl rand -hex 32)|" \
 		-e "s|^INGEST_API_KEY=.*|INGEST_API_KEY=$$(openssl rand -hex 32)|" \
+		-e "s|^PUBLIC_API_KEY=.*|PUBLIC_API_KEY=$$(openssl rand -hex 32)|" \
+		-e "s|^PUBLIC_API_WRITE_KEY=.*|PUBLIC_API_WRITE_KEY=$$(openssl rand -hex 32)|" \
 		.env.example > .env
 
 config-check: env
@@ -92,7 +94,7 @@ e2e-install: $(E2E_DEPS)
 
 $(E2E_DEPS): e2e/package-lock.json
 	npm --prefix e2e ci --no-audit --no-fund
-	npx --prefix e2e playwright install chromium
+	npx --prefix e2e playwright install chromium firefox webkit
 
 frontend-dev: env certs $(FRONTEND_DEPS)
 	npm --prefix frontend run dev -- --host localhost

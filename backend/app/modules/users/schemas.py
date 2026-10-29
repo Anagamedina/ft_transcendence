@@ -193,6 +193,14 @@ class MeResponse(ApiModel):
     )
 
 
+class CurrentSessionResponse(ApiModel):
+    """Respuesta de `GET /api/me/session`: el usuario, o `null` sin sesión."""
+
+    user: MeResponse | None = Field(
+        default=None, description="Lo mismo que `GET /api/me`, o nulo si no hay sesión."
+    )
+
+
 class MeUpdate(ApiRequest):
     """Lo que cada uno puede cambiar de su cuenta (B8). El email no."""
 

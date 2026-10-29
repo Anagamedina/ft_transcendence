@@ -259,7 +259,7 @@ The root `Makefile` wraps the Compose commands:
 | `make migration-check`     | Fails if the database is unreachable, has pending migrations, or the models drifted from the migrations                                      |
 | `make test-backend`        | Starts PostgreSQL if necessary and runs the complete backend pytest suite in its Docker image                                                |
 | `make test-frontend`       | Runs the frontend Vitest suite once                                                                                                          |
-| `make test-e2e`            | Runs the Playwright tests against the running stack with a raised gateway rate limit, then restores the normal limit; needs `make all` first |
+| `make test-e2e`            | Runs the Playwright tests in Chromium, Firefox and WebKit against the running stack with a raised gateway rate limit, then restores the normal limit; needs `make all` first |
 | `make lint`                | Runs ESLint on the frontend source                                                                                                           |
 | `make format`              | Formats frontend JS, Vue and CSS files with Prettier                                                                                         |
 | `make check`               | Runs Compose validation, frontend lint and frontend unit tests                                                                               |
@@ -434,7 +434,7 @@ with `ENV=production` because these passwords are public.
 
   | Client                 | Plan        | Payment | Buildings | Sensors  | Price     | To try                                              |
   |------------------------|-------------|---------|-----------|----------|-----------|-----------------------------------------------------|
-  | Residencias Collserola | Empresa     | Monthly | 15 of 15  | 45 of 45 | 649 €/mes | At the limit: one more building or sensor gives 409 |
+  | Residencias Collserola | Empresa     | Monthly | 15 of 16  | 45 of 45 | 649 €/mes | One building left for the public API demo; one more sensor gives 409 |
   | Polideportivo Poblenou | Profesional | Yearly  | 6 of 6    | 12 of 15 | 229 €/mes | A CSV import of 3 sensors fits, 4 do not            |
   | Comunidad Mallorca 401 | Básico      | Monthly | 2 of 2    | 4 of 6   | 89 €/mes  | Room for 2 sensors                                  |
   | Aigües Zona Franca     | Básico      | Monthly | 2 of 2    | 2 of 4   | 69 €/mes  | Suspended: kept its contract                        |
@@ -571,6 +571,84 @@ admin gets all of them.
 | `alerts_critical`, `alerts_resolved`             | Of those, how many are CRITICAL and how many are resolved |
 
 The file starts with a UTF-8 BOM so Excel shows accents correctly.
+
+### Public API
+
+AquaGuard exposes a separate API for external integrations. It is not the
+simulator ingestion endpoint and does not use the browser session cookie. The
+consumer sends `X-API-Key` with one of two keys, both configured in `.env`
+outside Git and both restricted to `PUBLIC_API_ORGANIZATION_ID`:
+
+| Key                    | Can                                        | Empty                     |
+|------------------------|--------------------------------------------|---------------------------|
+| `PUBLIC_API_KEY`       | read (`GET`)                               | -                         |
+| `PUBLIC_API_WRITE_KEY` | read and create, replace or delete buildings | writes are off (401/403) |
+
+`make env` generates both with `openssl rand -hex 32`. An existing `.env` needs
+the new line added by hand (`PUBLIC_API_WRITE_KEY=$(openssl rand -hex 32)`).
+
+```text
+GET    /api/public/v1/overview
+GET    /api/public/v1/sites
+GET    /api/public/v1/sites/{site_id}
+POST   /api/public/v1/sites               write key
+PUT    /api/public/v1/sites/{site_id}     write key
+DELETE /api/public/v1/sites/{site_id}     write key
+GET    /api/public/v1/sensors
+GET    /api/public/v1/alerts
+GET    /api/public/v1/analytics/export?from=YYYY-MM-DD&to=YYYY-MM-DD
+```
+
+They reuse the existing services, so the API follows the same rules as the app:
+
+- The organization always comes from the key. The body has no
+  `organization_id` (sending one is a 422), and a building of another
+  organization answers 404, as if it did not exist.
+- `POST` respects the contracted buildings (`409 SITE_LIMIT_REACHED`) and
+  unique names (`409 SITE_NAME_TAKEN`). `PUT` replaces the whole building: an
+  optional field left out goes back to its default. `DELETE` only removes an
+  empty building (`409 SITE_HAS_SENSORS` / `SITE_HAS_DOCUMENTS`).
+- The read key on a write answers `403 PUBLIC_API_READ_ONLY`. A suspended
+  organization answers `403 ACCOUNT_DISABLED` to everything, and an expired
+  trial can read but not write (`403 TRIAL_EXPIRED`, B12).
+
+Nginx applies a separate `PUBLIC_API_RATE_LIMIT` (60 requests per minute, burst
+20) before forwarding requests to FastAPI. The OpenAPI document at `/api/docs`
+publishes the `PublicApiKey` security scheme, examples and every error code.
+
+`make demo` serves it without editing `.env`: the seed gives Residencias
+Collserola a fixed id (`PUBLIC_API_DEMO_ORGANIZATION_ID` in
+`app/core/app_config.py`), which is the default and the `.env.example` value of
+`PUBLIC_API_ORGANIZATION_ID`, and `make env` generates both keys. In production
+the backend refuses that id, like the example keys. A database seeded before
+this change keeps a random id; the seed warns and `make re` starts it over.
+
+Collserola has 15 of its 16 contracted buildings, so the first `POST` answers
+`201` and a second one `409 SITE_LIMIT_REACHED`; deleting the new building
+leaves the demo as it was:
+
+```bash
+set -a; . ./.env; set +a
+API=https://localhost/api/public/v1
+curl -k -H "X-API-Key: $PUBLIC_API_KEY" $API/sites
+curl -k -X POST -H "X-API-Key: $PUBLIC_API_WRITE_KEY" -H "Content-Type: application/json" \
+  -d '{"name":"Edificio API","floors":3}' $API/sites
+curl -k -X PUT -H "X-API-Key: $PUBLIC_API_WRITE_KEY" -H "Content-Type: application/json" \
+  -d '{"name":"Edificio API","floors":5,"building_type":"OFFICE"}' $API/sites/<id>
+curl -k -X DELETE -H "X-API-Key: $PUBLIC_API_WRITE_KEY" $API/sites/<id>
+```
+
+`backend/tests/test_public_api.py` covers both keys, the full
+create/read/replace/delete cycle, tenant isolation, contract limits, suspended
+and expired organizations and the OpenAPI security metadata;
+`test_ingest_key.py` checks that the backend refuses to start in production
+with the example keys, without `PUBLIC_API_ORGANIZATION_ID` or with the demo
+one. `test_seed_demo.py` checks the fixed id and the demo `POST` (201, then 409). The gateway
+rate limit is enforced by Nginx, not by the FastAPI test client, so it was
+checked on the running Compose stack: after about 20 requests in a row the
+gateway answers 429. If the backend container is recreated, restart the
+gateway (`docker compose restart gateway`): Nginx keeps the old address and
+answers 502 until then.
 
 ### Frontend development
 
@@ -814,55 +892,57 @@ Every row is checked on a stack started with `make all`, logged in as the
 users in [Demo data](#demo-data). Backend rules are covered by
 `make test-backend`; the details of each feature are in its issue.
 
-| Area           | Feature                                                                               | Contributors           | Verification                                 |
-|----------------|---------------------------------------------------------------------------------------|------------------------|----------------------------------------------|
-| Infrastructure | Docker Compose stack: six services, named volumes and the `sim` profile (#19)         | Eduardo                | `make all` · `make ps`                       |
-| Infrastructure | Nginx gateway: HTTPS, 80 → 443, SPA, `/api` proxy, security headers, rate limit       | Eduardo                | `curl -I http://localhost` → 301             |
-| Infrastructure | Health checks on every service and end-to-end smoke test (#21)                        | Eduardo                | `make smoke`                                 |
-| Infrastructure | Status page, automatic backups and disaster recovery (#154)                           | Eduardo                | `/status` · `make backup` · `make restore`   |
-| Infrastructure | Sensor simulator: normal, low, high and offline scenarios (#89)                       | Eduardo                | `cd simulator && pytest` · `/status`         |
-| Backend        | Common contract and OpenAPI docs: shared enums, filters, examples (B0, B13)           | Ana, Daruny            | `/api/docs`                                  |
-| Backend        | Auth: register, login, logout and `GET /api/me` with an httpOnly session cookie (#26) | Ana                    | `make test-backend`                          |
-| Backend        | Permissions: admin sees every organization, client only its own (#27)                 | Ana                    | `make test-backend`                          |
-| Backend        | Organizations: list, create, edit, suspend, reactivate and trial (B1)                 | Ana                    | `/admin/clients`                             |
-| Backend        | Expired trial is read-only: client writes answer `403 TRIAL_EXPIRED` (B12)            | Daruny                 | `make test-backend`                          |
-| Backend        | Invitations and user management: invite, revoke, resend and accept (B4, B6)           | Daruny                 | `/registro?invitacion=AQUAGUARD-DEMO-INVITE` |
-| Backend        | Subscription: plan and price from buildings and sensors, contract limits (B14)        | Daruny                 | `make test-backend` · `/api/docs`            |
-| Backend        | Global search, API only for now (B17)                                                 | Daruny                 | `/api/docs` → Search                         |
-| Backend        | Buildings: floors, basements, type, sensor count and status (B2)                      | Ana                    | `/admin/sites`                               |
-| Backend        | Building documents: upload, list, download and delete (B11)                           | Daruny                 | `/app/documents`                             |
-| Backend        | Sensors: create, edit, floor, health and last value; offline after 5 min (B3)         | Ana                    | `/admin/sensors`                             |
-| Backend        | Alerts: low/high pressure and offline rules, acknowledge and resolve (#28, B5)        | Daruny, Ana            | `/admin/alerts`                              |
-| Backend        | Analytics: KPIs, charts, date range and CSV/JSON export (B9, B18, F19)                | Daruny, Ana            | `/admin` → Exportar CSV                      |
-| Backend        | GDPR: export my data, request deletion and confirmation emails (B15, B19)             | Daruny, Florinda       | `/app/account` · <http://localhost:8025>     |
-| Database       | Schema: 8 tables with constraints, indexes and Alembic migrations (#129, #130, #132)  | Daruny                 | `make migration-check`                       |
-| Database       | Alembic targets: migrate, generate and check for drift (#92)                          | Eduardo                | `make migrate` · `make migration-check`      |
-| Database       | Idempotent demo seed: 5 clients, 26 buildings, 65 sensors, contracts, 30 days of alerts (D6, #131) | Daruny                 | `make seed`                                  |
-| Database       | Purge: delete an organization and all its data in one transaction (B16, D9)           | Daruny                 | `/admin/clients/:id` → Acciones              |
-| Database       | Readings: ingest with the simulator key, history and chart series (#24, B7)           | Daruny, Ana            | `make smoke`                                 |
-| Frontend       | Public: landing page, fixed header and legal page with privacy and terms (#195)       | Florinda               | `/` · `/legal`                               |
-| Frontend       | Landing: how an alert works and who can do what, panel states and colours (F28)       | Florinda               | `/` → #alertas · #roles                      |
-| Frontend       | Public: trial sign-up and invitation acceptance, shared password rule (F15-P, F6)     | Florinda               | `/prueba` · `/registro`                      |
-| Frontend       | Auth UI: login, logout, route guards and role-based redirects (#99, #174)             | Lylia                  | `/login` · `/admin` as a client              |
-| Frontend       | Admin dashboard: KPI cards, active alerts and the Barcelona sites map (#156)          | Florinda, Eduardo, Ana | `/admin`                                     |
-| Frontend       | Admin clients: status filters, detail tabs, status actions and new-client wizard (F7) | Florinda, Lylia        | `/admin/clients`                             |
-| Frontend       | Admin client users: list, edit name, remove access, invitations (F23)                 | Daruny                 | `/admin/clients/:id` → Usuarios              |
-| Frontend       | Admin client documents: list, filter, download, preview and delete (#293)             | Florinda               | `/admin/clients/:id` → Documentos            |
-| Frontend       | "Hazte cliente": buildings and sensors, live price, monthly/yearly, fiscal data       | Daruny                 | `/app/subscribe` · `hotel@aquaguard.dev`     |
-| Frontend       | Admin buildings and sensors floor by floor, pressure chart and forms (F4, F5, F10)    | Florinda               | `/admin/sites` · `/admin/sensors`            |
-| Frontend       | Admin alerts: client, state and severity filters, counters and sensor ranking (#153)  | Lylia, Eduardo         | `/admin/alerts`                              |
-| Frontend       | Client home "Mis edificios": alert banner, KPIs, buildings by urgency (F8, F24)       | Daruny, Florinda       | `/app` · `client@aquaguard.dev`              |
-| Frontend       | Client building page: open alerts, floors by alert state, week summary (F25)          | Florinda               | `/app/edificios/:id`                         |
+| Area           | Feature                                                                                                          | Contributors           | Verification                                 |
+|----------------|------------------------------------------------------------------------------------------------------------------|------------------------|----------------------------------------------|
+| Infrastructure | Docker Compose stack: six services, named volumes and the `sim` profile (#19)                                    | Eduardo                | `make all` · `make ps`                       |
+| Infrastructure | Nginx gateway: HTTPS, 80 → 443, SPA, `/api` proxy, security headers, rate limit                                  | Eduardo                | `curl -I http://localhost` → 301             |
+| Infrastructure | Health checks on every service and end-to-end smoke test (#21)                                                   | Eduardo                | `make smoke`                                 |
+| Infrastructure | Status page, automatic backups and disaster recovery (#154)                                                      | Eduardo                | `/status` · `make backup` · `make restore`   |
+| Infrastructure | Sensor simulator: normal, low, high and offline scenarios (#89)                                                  | Eduardo                | `cd simulator && pytest` · `/status`         |
+| Backend        | Common contract and OpenAPI docs: shared enums, filters, examples (B0, B13)                                      | Ana, Daruny            | `/api/docs`                                  |
+| Backend        | Auth: register, login, logout and `GET /api/me` with an httpOnly session cookie (#26)                            | Ana                    | `make test-backend`                          |
+| Backend        | `GET /api/me/session`: the app checks the session on start without a 401 in the browser console                  | Daruny                 | DevTools console on `/` and `/login`         |
+| Backend        | Permissions: admin sees every organization, client only its own (#27)                                            | Ana                    | `make test-backend`                          |
+| Backend        | Organizations: list, create, edit, suspend, reactivate and trial (B1)                                            | Ana                    | `/admin/clients`                             |
+| Backend        | Expired trial is read-only: client writes answer `403 TRIAL_EXPIRED` (B12)                                       | Daruny                 | `make test-backend`                          |
+| Backend        | Invitations and user management: invite, revoke, resend and accept (B4, B6)                                      | Daruny                 | `/registro?invitacion=AQUAGUARD-DEMO-INVITE` |
+| Backend        | Subscription: plan and price from buildings and sensors, contract limits (B14)                                   | Daruny                 | `make test-backend` · `/api/docs`            |
+| Backend        | Global search, API only for now (B17)                                                                            | Daruny                 | `/api/docs` → Search                         |
+| Backend        | Buildings: floors, basements, type, sensor count and status (B2)                                                 | Ana                    | `/admin/sites`                               |
+| Backend        | Building documents: upload, list, download and delete (B11)                                                      | Daruny                 | `/app/documents`                             |
+| Backend        | Sensors: create, edit, floor, health and last value; offline after 5 min (B3)                                    | Ana                    | `/admin/sensors`                             |
+| Backend        | Alerts: low/high pressure and offline rules, acknowledge and resolve (#28, B5)                                   | Daruny, Ana            | `/admin/alerts`                              |
+| Backend        | Analytics: KPIs, charts, date range and CSV/JSON export (B9, B18, F19)                                           | Daruny, Ana            | `/admin` → Exportar CSV                      |
+| Backend        | Public API: read and write keys, organization scope, 9 endpoints (GET/POST/PUT/DELETE), OpenAPI and rate limit   | Daruny, Ana            | `/api/docs` · [Public API](#public-api)      |
+| Backend        | GDPR: export my data, request deletion and confirmation emails (B15, B19)                                        | Daruny, Florinda       | `/app/account` · <http://localhost:8025>     |
+| Database       | Schema: 8 tables with constraints, indexes and Alembic migrations (#129, #130, #132)                             | Daruny                 | `make migration-check`                       |
+| Database       | Alembic targets: migrate, generate and check for drift (#92)                                                     | Eduardo                | `make migrate` · `make migration-check`      |
+| Database       | Idempotent demo seed: 5 clients, 26 buildings, 65 sensors, contracts, 30 days of alerts (D6, #131)               | Daruny                 | `make seed`                                  |
+| Database       | Purge: delete an organization and all its data in one transaction (B16, D9)                                      | Daruny                 | `/admin/clients/:id` → Acciones              |
+| Database       | Readings: ingest with the simulator key, history and chart series (#24, B7)                                      | Daruny, Ana            | `make smoke`                                 |
+| Frontend       | Public: landing page, fixed header and legal page with privacy and terms (#195)                                  | Florinda               | `/` · `/legal`                               |
+| Frontend       | Landing: how an alert works (calls only if critical) and who can do what (F28)                                   | Florinda               | `/` → #alertas · #roles                      |
+| Frontend       | Public: trial sign-up and invitation acceptance, shared password rule (F15-P, F6)                                | Florinda               | `/prueba` · `/registro`                      |
+| Frontend       | Auth UI: login, logout, route guards and role-based redirects (#99, #174)                                        | Lylia                  | `/login` · `/admin` as a client              |
+| Frontend       | Admin dashboard: KPI cards, active alerts and the Barcelona sites map (#156)                                     | Florinda, Eduardo, Ana | `/admin`                                     |
+| Frontend       | Admin clients: status filters, detail tabs, status actions and new-client wizard (F7)                            | Florinda, Lylia        | `/admin/clients`                             |
+| Frontend       | Admin client users: list, edit name, remove access, invitations (F23)                                            | Daruny                 | `/admin/clients/:id` → Usuarios              |
+| Frontend       | Admin client documents: list, filter, download, preview and delete (#293)                                        | Florinda               | `/admin/clients/:id` → Documentos            |
+| Frontend       | "Hazte cliente": buildings and sensors, live price, monthly/yearly, fiscal data                                  | Daruny                 | `/app/subscribe` · `hotel@aquaguard.dev`     |
+| Frontend       | Admin buildings and sensors floor by floor, pressure chart and forms (F4, F5, F10)                               | Florinda               | `/admin/sites` · `/admin/sensors`            |
+| Frontend       | Admin alerts: client, state and severity filters, counters and sensor ranking (#153)                             | Lylia, Eduardo         | `/admin/alerts`                              |
+| Frontend       | Client home "Mis edificios": alert banner, KPIs, buildings by urgency (F8, F24)                                  | Daruny, Florinda       | `/app` · `client@aquaguard.dev`              |
+| Frontend       | Client building page: open alerts, floors by alert state, week summary (F25)                                     | Florinda               | `/app/edificios/:id`                         |
 | Frontend       | Client building "Plantas y sensores": gauge, pressure in words, 24 h / 7 / 30 days chart, alerts by sensor (F26) | Florinda               | `/app/edificios/:id?tab=plantas`             |
-| Frontend       | Client alerts: Pendiente / En curso / Arreglado tabs and "Me encargo" (F9-C, F21)     | Daruny, Florinda       | `/app/alerts` → Me encargo                   |
-| Frontend       | Client documents: list, upload and delete the organization's files                    | Lylia                  | `/app/documents`                             |
-| Frontend       | Account: name, password and privacy card, for admin and client (F13-C)                | Florinda               | `/app/account` · `/admin/account`            |
-| Frontend       | Documents and account: upload modal, building tab, phone cards, Baja solicitada (F27) | Florinda               | `/app/documents` · `/app/account`            |
-| Frontend       | UI components: `DataTable`, `Tabs`, `StatusPill`, `AlertRow`, async states (F3)       | Florinda               | `/admin/alerts`                              |
-| Frontend       | Shared palette and the new design for public views and panels (F18–F20)               | Florinda               | `make lint` · any page                       |
-| Frontend       | Spanish formats, keyboard focus and responsive review down to 375 px (F18)            | Florinda               | DevTools at 375 px                           |
-| Other          | E2E: Playwright tests for login, register, logout, guards and roles (#41)             | Eduardo                | `make test-e2e`                              |
-| Other          | E2E: documents, client search and sensor import, one spec per claimed module          | Daruny                 | `make test-e2e`                              |
+| Frontend       | Client alerts: Pendiente / En curso / Arreglado tabs and "Me encargo" (F9-C, F21)                                | Daruny, Florinda       | `/app/alerts` → Me encargo                   |
+| Frontend       | Client documents: list, upload and delete the organization's files                                               | Lylia                  | `/app/documents`                             |
+| Frontend       | Account: name, password and privacy card, for admin and client (F13-C)                                           | Florinda               | `/app/account` · `/admin/account`            |
+| Frontend       | Documents and account: upload modal, building tab, phone cards, Baja solicitada (F27)                            | Florinda               | `/app/documents` · `/app/account`            |
+| Frontend       | UI components: `DataTable`, `Tabs`, `StatusPill`, `Modal`, async states (F3)                                     | Florinda               | `/admin/alerts`                              |
+| Frontend       | Shared palette and the new design for public views and panels (F18–F20)                                          | Florinda               | `make lint` · any page                       |
+| Frontend       | Spanish formats, keyboard focus and responsive review down to 375 px (F18)                                       | Florinda               | DevTools at 375 px                           |
+| Other          | E2E: Playwright tests for login, register, logout, guards and roles (#41)                                        | Eduardo                | `make test-e2e`                              |
+| Other          | E2E: documents, client search and sensor import, one spec per claimed module                                     | Daruny                 | `make test-e2e`                              |
 
 Every pull request that adds a feature should add or update its row here, with its area,
 contributors, and a reproducible verification method.
@@ -870,10 +950,20 @@ contributors, and a reproducible verification method.
 ## Modules and point tracking
 
 The project must reach at least 14 validated points. The following selection is
-the team's current AquaGuard plan, based on the product architecture document.
-It adds up to 15: the real-time module (WebSockets, 2 points) was dropped from
-the plan, the GDPR minor module (B19) brings the missing point, and the file
-upload module counts the building documents already implemented (B11, F14).
+the team's current AquaGuard plan, based on the product architecture document
+and the modules of the official subject
+([`docs/subject/en.subject_ft_transcendence.pdf`](docs/subject/en.subject_ft_transcendence.pdf)).
+The selection adds up to 22: the real-time module (WebSockets, 2 points) was dropped from
+the plan, the GDPR minor module (B19) brings the missing point, the file
+upload module counts the building documents already implemented (B11, F14),
+the public API ([Public API](#public-api)) adds a major with GET, POST,
+PUT and DELETE endpoints, Firefox and Brave count as the two additional
+browsers ([Supported browsers](#supported-browsers)), and the shared palette,
+type scale, icons and UI components make up the design system minor. Two
+modules of choice cover what is specific to AquaGuard and not in the
+subject's list: the sensor simulator with its alert engine (major) and the
+Barcelona map with the building drawn floor by floor (minor); see
+[Modules of choice](#modules-of-choice).
 
 | Category           | Module                                          | Type  | Points | Status                           | Contributors                          |
 |--------------------|-------------------------------------------------|-------|-------:|----------------------------------|---------------------------------------|
@@ -883,13 +973,18 @@ upload module counts the building documents already implemented (B11, F14).
 | Web                | Advanced search                                 | Minor |      1 | Implemented                      | Ana, Daruny, Florinda, Lylia          |
 | Web                | Notification system                             | Minor |      1 | Partial - alert emails only      | Ana, Daruny, Florinda, Lylia          |
 | Web                | File upload and management system               | Minor |      1 | Implemented                      | Daruny, Lylia                         |
+| Web                | Public API                                      | Major |      2 | Implemented                      | Daruny, Ana                           |
+| Web                | Custom design system                            | Minor |      1 | Implemented                      | Florinda, Daruny                      |
+| Accessibility      | Support for additional browsers                 | Minor |      1 | Implemented                      | Daruny                                |
 | User Management    | Advanced permissions                            | Major |      2 | Implemented                      | Ana, Daruny, Lylia                    |
 | User Management    | Organization system                             | Major |      2 | Implemented                      | Ana, Daruny                           |
 | User Management    | GDPR compliance features                        | Minor |      1 | Implemented                      | Daruny, Florinda                      |
 | Data and Analytics | Advanced analytics dashboard                    | Major |      2 | Implemented                      | Ana, Daruny, Florinda, Lylia          |
 | Data and Analytics | Data export and import                          | Minor |      1 | Implemented                      | Ana, Daruny, Florinda, Lylia          |
-|                    | **Planned total**                               |       | **15** |                                  |                                       |
-|                    | **Implemented so far**                          |       | **14** |                                  |                                       |
+| Modules of choice  | Sensor simulator and alert engine               | Major |      2 | Implemented                      | Ana, Daruny, Eduardo                  |
+| Modules of choice  | Barcelona map and building drawing              | Minor |      1 | Implemented                      | Florinda                              |
+|                    | **Planned total**                               |       | **22** |                                  |                                       |
+|                    | **Implemented so far**                          |       | **21** |                                  |                                       |
 
 ### Module implementation plan
 
@@ -976,6 +1071,47 @@ upload module counts the building documents already implemented (B11, F14).
     (`dry_run`) shows the preview first, and the import as a whole cannot
     go over the contracted sensors (`409 SENSOR_LIMIT_REACHED`). Up to 500
     sensors per file.
+- **Public API:** demonstrated with `curl` or `/api/docs` (see
+  [Public API](#public-api)).
+  - *Secured API key:* `X-API-Key`, with a read key and a separate write
+    key, both in `.env` and scoped to one organization.
+  - *Rate limiting:* Nginx zone `public_api` (`PUBLIC_API_RATE_LIMIT`),
+    `429 TOO_MANY_REQUESTS` past the burst.
+  - *Documentation:* the OpenAPI page lists every endpoint with its key,
+    examples and error codes.
+  - *At least 5 endpoints:* 9, including `GET`, `POST`, `PUT` and `DELETE`
+    on `/api/public/v1/sites`.
+- **Custom design system:** one visual language for the public pages, the
+  admin area and the client area (#247, F3, F18–F20).
+  - *Color palette:* `frontend/src/theme/palette.js` is the single source.
+    Tailwind builds its classes from it (`aqua-50`…`aqua-900` and `success`,
+    `warning`, `danger`, `info` with `light`/`dark` pairs that reach WCAG AA
+    contrast), and the charts and the map import the same values.
+  - *Typography:* the system font stack, declared in
+    `frontend/tailwind.config.js` (nothing to download, native on every OS),
+    and one type scale: page titles `text-2xl`/`text-3xl` bold, section
+    titles `text-lg` bold, body `text-sm`, labels and table details
+    `text-xs`.
+  - *Icons:* `AppIcon` is a shared SVG set (building, droplet, wifi,
+    wifi-off, alert, bar-chart, users, user, file-text) that takes the text
+    color, so one icon works on light and dark backgrounds.
+  - *Reusable components* (`frontend/src/components`), each driven by props
+    and slots, with no API calls of their own: `LoadingState`, `ErrorState`
+    and `EmptyState` (used in 15+ pages), `Modal`, `Tabs`, `DataTable`,
+    `StatusPill`, `KPICard`, `AppIcon`, `AnalyticsChart` (line, bar or pie),
+    `PressureChart`, `FileDropzone`, `UserAvatar` and `InviteLinkCopy`.
+  - *Shared behaviour:* the same keyboard focus ring everywhere
+    (`src/index.css`), the same loading, error and empty states, and the
+    same responsive rules down to 375 px.
+- **Support for additional browsers:** Firefox and Brave, besides the
+  required Chrome (see [Supported browsers](#supported-browsers)).
+  - *Full compatibility and every feature tested:* public pages, admin and
+    client areas, documents, import and export, in each browser, and the
+    whole Playwright suite runs in Firefox as well as Chromium.
+  - *Limitations documented:* WebGL for the map, the native date picker and
+    the Clipboard API.
+  - *Consistent UI/UX:* same palette, layout and responsive behaviour at
+    768 px and 375 px.
 - **Notification system:** *partial, alert emails only.* When nobody takes
   an alert, the client gets an email, and the alert shows the notices sent
   in its timeline (#275). Creating, updating or deleting data does not
@@ -987,6 +1123,106 @@ upload module counts the building documents already implemented (B11, F14).
   and request account deletion with an on-page confirmation (B15, F13-C), and
   both operations send a confirmation email (B19). See
   [Confirmation emails (GDPR)](#confirmation-emails-gdpr).
+
+### Modules of choice
+
+The subject accepts modules that are not in its list if the README explains
+why they were chosen, the technical challenges, the value they add and, for
+a major, why it deserves 2 points. These two are what makes AquaGuard a
+water monitoring product and not a generic dashboard.
+
+#### Sensor simulator and alert engine (major, 2 points)
+
+**Why we chose it.** AquaGuard watches water pressure in buildings, and
+without real sensors there is no product. We built the whole chain that
+turns pressure readings into alerts people act on: a simulator that behaves
+like the field devices, a protected ingestion endpoint, alert rules, a
+background watcher, escalating notices and automatic closing.
+
+**What it does.**
+
+- *Simulator* (`simulator/`, its own container in the `sim` profile): sends a
+  reading per sensor every few seconds for the 65 demo sensors, each with a
+  scenario (`normal`, `low`, `high`, `offline`) set per sensor in `.env`.
+  Values come from a seeded Gaussian, so a run can be repeated. It waits for
+  the backend to be ready, retries failed requests, signs every reading with
+  `X-Ingest-Key` and has its own health check (a heartbeat file).
+- *Ingestion* (`POST /api/readings`): a reading has its own id, so sending
+  it twice stores it once (the simulator can retry safely).
+- *Pressure rules* (`alerts/rules.py`): below the minimum opens
+  `LOW_PRESSURE`, above the maximum `HIGH_PRESSURE`; more than 20 % outside
+  the range is `CRITICAL`, less is `WARNING`. Computed with `Decimal`, so a
+  reading exactly on the limit never opens an alert by a rounding error. One
+  open alert per sensor at most.
+- *Silent sensors* (`alerts/offline.py`): a sensor that sends nothing never
+  triggers a rule, so a background watcher (`alerts/vigilante.py`, every
+  minute, started with the app) opens `SENSOR_OFFLINE` after 5 minutes
+  without readings, only for active sensors that have sent before.
+- *Escalating notices* (`alerts/notices.py`, #275): if nobody presses "Me
+  encargo", the client gets an email (CRITICAL at 5 and 20 minutes, then
+  AquaGuard calls at 45; WARNING at 60). Each notice is saved before it is
+  sent, with a unique key, so a crash can lose one but never send it twice.
+- *Automatic closing* (`alerts/autoclose.py`, #277): after 15 minutes of
+  normal readings the alert closes by itself, and its end time is the first
+  normal reading, so "how long it took" is real.
+
+**Technical challenges.** Detecting the absence of data (a silent sensor
+needs a periodic job, not a request); doing it with no duplicates when
+readings, the watcher and people act on the same alert at once; retries and
+idempotent ingestion; repeatable random data for demos and tests; and
+timing rules (notices, offline, closing) tested without waiting minutes,
+by passing the clock as a parameter.
+
+**Value.** It is the core of the product: alerts appear even when nobody is
+looking at the app, clients are warned in time, and the dashboard,
+analytics, emails and client pages all show data produced by this engine.
+
+**Why a major.** It spans three parts of the stack (a separate service, the
+API and background tasks), has its own data model (`readings`, `alerts`,
+`alert_notifications` with their indexes) and more than 80 tests in
+`backend/tests` and `simulator/tests` (rules, offline, notices, closing,
+ingestion, simulator config and scenarios). It is comparable in size to
+the analytics or organization majors.
+
+**How to see it.** `make demo`, then as `admin@aquaguard.dev` open `/admin`:
+sensor SENS-004 keeps a low pressure and SENS-007 is offline
+(`SIMULATOR_SCENARIOS` in `.env`), so both have an open alert. `make smoke`
+checks that the simulator readings reach the database, and Mailpit
+(<http://localhost:8025>) shows the notices.
+
+#### Barcelona map and building drawing (minor, 1 point)
+
+**Why we chose it.** Every client building is in Barcelona, and the people
+who use AquaGuard think in places and floors, not in lists: "which building
+has a problem, and on which floor".
+
+**What it does.**
+
+- *City map* (`SitesMap.vue`, admin dashboard): MapLibre GL with a free
+  OpenStreetMap base (no API key), the official municipal boundary
+  (Ajuntament de Barcelona, CC-BY) with the outside faded, and the map
+  rotated -45° like tourist maps, sea at the bottom and Collserola at the
+  top. Zoom and pan stay inside the city, and a button brings the whole city
+  back. Each building is a marker coloured by its worst open alert, with a
+  popup built as text (never HTML from the data).
+- *Building drawing* (`BuildingDrawing.vue`, client building page): the
+  building with its roof, floors, street line and basements, each floor with
+  its state in a dot and words (never color alone), worst first. Floors
+  without sensors in a row are merged, so a 15-floor building stays
+  readable; floors with sensors open "Plantas y sensores" with each sensor
+  on its floor.
+
+**Technical challenges.** MapLibre's `fitBounds` only frames north-up
+rectangles, so the rotated city is framed by rotating the boundary
+coordinates by hand and computing the tightest view. The boundary mask is
+built from the GeoJSON rings. The drawing has to fit any building, from a
+ground floor to 15 floors with basements, on a phone at 375 px.
+
+**Value.** The admin sees at a glance where the problems are, and the client
+sees which floor of its building needs someone.
+
+**How to see it.** `/admin` as `admin@aquaguard.dev` (the map), and
+`/app/edificios/:id` as `client@aquaguard.dev` (the drawing).
 
 ### Dependencies and validation evidence
 
@@ -1195,8 +1431,26 @@ label planned work separately from implemented work.
 
 ## Supported browsers
 
-The frontend is checked in the latest stable Chrome and Firefox (the browsers required by the subject)
-(desktop, plus the responsive mode of each browser at 768 px and 375 px).
+The subject requires the latest stable Google Chrome. For the "Support for
+additional browsers" minor module, every feature was also tested by hand in
+the latest stable **Firefox** and **Brave**: desktop, plus the responsive mode
+of each browser at 768 px and 375 px. The UI and the behaviour are the same in
+the three browsers. Brave uses the same engine as Chrome (Chromium), so
+Firefox (Gecko) is the one that covers a different rendering engine.
+
+The Playwright suite (`make test-e2e`) runs every spec in Chromium, then in
+Firefox and then in WebKit (Safari's engine), one browser after the other
+because they share the database. Chromium and Firefox pass the whole suite.
+The upload progress test only runs in Chromium: it slows the network down
+with a Chrome-only tool. WebKit needs a system library that Playwright
+cannot install without root; on Debian/Ubuntu run once
+`sudo npx --prefix e2e playwright install-deps webkit`.
+
+Fixed while testing in Firefox: file downloads (the CSV template, the
+analytics export, "Descargar mis datos" and documents) now add the link to
+the page and free the file a moment later (`frontend/src/utils/download.js`).
+Firefox could cancel them before.
+
 Browser-specific limitations:
 
 - The admin sites map uses MapLibre GL, which needs WebGL. If WebGL is
@@ -1207,7 +1461,7 @@ Browser-specific limitations:
 - "Copiar enlace" uses the Clipboard API, which browsers only allow on HTTPS or
   `localhost`. On plain HTTP it falls back to the older copy command and, if the
   browser blocks it too, the link stays selected so it can be copied by hand.
-- Edge and Safari are not part of the review.
+- Edge is not part of the review: it uses the same engine as Chrome.
 
 ## Known limitations
 
