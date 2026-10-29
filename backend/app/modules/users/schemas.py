@@ -63,6 +63,7 @@ class UserBase(ApiRequest):
     )
 
 
+
 class UserCreate(UserBase):
     """Alta de usuario. La contraseña entra por aquí y no sale nunca."""
 
@@ -208,7 +209,7 @@ class PasswordChange(ApiRequest):
     """
 
     current_password: str = Field(min_length=1, max_length=128)
-    new_password: str = Field(
+    new_password: Password = Field(
         max_length=128,
         description="Misma regla que el registro (B10): al menos 12 caracteres, no común, sin el email.",
         examples=["agua-que-no-se-escapa"],
