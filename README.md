@@ -646,9 +646,7 @@ with the example keys, without `PUBLIC_API_ORGANIZATION_ID` or with the demo
 one. `test_seed_demo.py` checks the fixed id and the demo `POST` (201, then 409). The gateway
 rate limit is enforced by Nginx, not by the FastAPI test client, so it was
 checked on the running Compose stack: after about 20 requests in a row the
-gateway answers 429. If the backend container is recreated, restart the
-gateway (`docker compose restart gateway`): Nginx keeps the old address and
-answers 502 until then.
+gateway answers 429.
 
 ### Frontend development
 
@@ -771,9 +769,11 @@ Run `make migrate`. The backend also applies them every time it starts, so
 `models and migrations are out of sync (drift)` instead, a model changed
 without its migration: create it with `make migration MSG="..."`.
 
-**502 Bad Gateway after the backend was recreated.** nginx looks up the backend
-address only when it starts. `make restore` already reloads it; after any other
-recreation of the backend, run `docker compose restart gateway`.
+**502 Bad Gateway after the backend was recreated.** It should not happen any
+more: the gateway resolves `backend` through Docker's DNS on each request
+(`resolver 127.0.0.11` in `gateway/nginx.conf`, #309), so a backend with a new
+IP is found within 10 seconds. If it still shows up, run
+`docker compose restart gateway` and check `docker compose logs gateway`.
 
 ## Architecture
 
@@ -1350,6 +1350,7 @@ Issues #130 to #134 were reviewed and merged together in #182.
 | #8, #107 | Admin sites map: MapLibre GL + OpenFreeMap, Barcelona boundary, markers by alert, lazy-loaded modal       | #104, #117    | Implemented |
 | #9       | Admin clients and sites views: `ClientsList`, client detail, router-based `Sidebar` with active entry     | #128          | Implemented |
 | #37      | Shared async states `LoadingState`, `ErrorState` (retry + focus restore) and `EmptyState`                 | #125          | Implemented |
+| #309     | Gateway resolves the backend on each request: no 502 when `make all` recreates the backend                | #310          | In review   |
 
 ### Lylia (`lylfergu`)
 
