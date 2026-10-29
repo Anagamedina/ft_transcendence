@@ -203,6 +203,86 @@
       </div>
     </section>
 
+
+  <!-- Pricing -->
+  <section id="precios" class="bg-aqua-50 px-6 py-16 md:px-20">
+    <div class="max-w-6xl mx-auto flex flex-col gap-10">
+      <div class="text-center flex flex-col gap-3">
+        <p class="text-xs font-bold uppercase tracking-widest text-aqua-600">
+          Precios transparentes
+        </p>
+        <h2 class="text-3xl md:text-4xl font-bold text-aqua-900">
+          Un plan para cada edificio
+        </h2>
+        <p class="text-slate-600 max-w-2xl mx-auto">
+          Elige tu plan según el número de edificios. Añade los sensores que
+          necesites y empieza con 7 días de prueba gratis.
+        </p>
+      </div>
+
+      <div class="grid gap-6 md:grid-cols-3 items-stretch">
+        <article
+          v-for="plan in plans"
+          :key="plan.name"
+          class="relative bg-white border rounded-2xl p-7 flex flex-col gap-6 transition hover:-translate-y-1 hover:shadow-lg"
+          :class="plan.featured
+            ? 'border-aqua-500 shadow-md ring-1 ring-aqua-500'
+            : 'border-aqua-100'"
+        >
+          <span
+            v-if="plan.featured"
+            class="absolute -top-3 left-1/2 -translate-x-1/2 bg-aqua-600 text-white text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap"
+          >
+            Más elegido
+          </span>
+
+          <div>
+            <h3 class="text-xl font-bold text-aqua-900">{{ plan.name }}</h3>
+            <p class="text-sm text-slate-600 mt-1">{{ plan.description }}</p>
+          </div>
+
+          <div>
+            <p class="flex items-baseline gap-1">
+              <span class="text-4xl font-bold text-aqua-900">
+                {{ plan.price }} €
+              </span>
+              <span class="text-slate-600 text-sm">/ mes</span>
+            </p>
+            <p class="text-sm text-slate-500 mt-2">
+              {{ plan.range }} edificios
+            </p>
+            <p class="text-sm text-slate-500">
+              + 10 €/sensor/mes · IVA no incluido
+            </p>
+          </div>
+
+          <ul class="flex flex-col gap-3 text-sm text-slate-700">
+            <li v-for="feature in plan.features" :key="feature"
+                class="flex gap-2">
+              <span class="text-aqua-600 font-bold" aria-hidden="true">✓</span>
+              <span>{{ feature }}</span>
+            </li>
+          </ul>
+
+          <RouterLink
+            to="/prueba"
+            class="mt-auto block text-center font-semibold px-5 py-3 rounded-lg transition"
+            :class="plan.featured
+              ? 'bg-aqua-600 text-white hover:bg-aqua-700'
+              : 'border border-aqua-200 text-aqua-800 hover:bg-aqua-50'"
+          >
+            Empezar prueba gratis
+          </RouterLink>
+        </article>
+      </div>
+
+      <p class="text-sm text-slate-600 text-center">
+        Pago mensual sin permanencia o anual por adelantado (equivalente a
+        10 meses). La prueba dura 7 días, sin tarjeta ni compromiso.
+      </p>
+    </div>
+  </section>
+
     <!-- Final call to action -->
     <section
       class="bg-aqua-50 px-6 py-14 md:px-20 text-center flex flex-col items-center gap-4"
@@ -282,6 +362,7 @@ const exampleBuilding = {
   states: { 2: { pending: 1, inProgress: 0 } },
 };
 
+
 // Steps shown in the "How it works" section
 const howItWorks = [
   {
@@ -341,6 +422,50 @@ const permissions = [
   },
   { action: "Subir y descargar documentos", team: "Sí", client: "Sí" },
 ];
+
+// Pricing plans
+const plans = [
+  {
+    name: "Básico",
+    description: "Para edificios pequeños",
+    price: 29,
+    range: "1–5",
+    featured: false,
+    features: [
+      "De 1 a 5 edificios",
+      "Monitorización de presión",
+      "Alertas en tiempo real",
+      "Panel de control y documentos",
+    ],
+  },
+  {
+    name: "Profesional",
+    description: "Para organizaciones en crecimiento",
+    price: 79,
+    range: "6–10",
+    featured: true,
+    features: [
+      "De 6 a 10 edificios",
+      "Monitorización de presión",
+      "Alertas en tiempo real",
+      "Panel de control y documentos",
+    ],
+  },
+  {
+    name: "Empresa",
+    description: "Para grandes organizaciones",
+    price: 199,
+    range: "11–20",
+    featured: false,
+    features: [
+      "De 11 a 20 edificios",
+      "Monitorización de presión",
+      "Alertas en tiempo real",
+      "Panel de control y documentos",
+    ],
+  },
+];
+
 </script>
 
 <style scoped>
