@@ -267,7 +267,7 @@ import { useSitesStore } from "../stores/sites.js";
 import { useOverviewStore } from "../stores/overview.js";
 import { useLabels } from "../composables/useLabels";
 import { apiErrorMessage } from "../utils/apiError.js";
-import { useAutoRefresh } from "../composables/useAutoRefresh";
+import { REFRESH_MS, useAutoRefresh } from "../composables/useAutoRefresh";
 
 const props = defineProps({
   // Show only this building and hide the building filter
@@ -276,7 +276,6 @@ const props = defineProps({
   stateKey: { type: String, default: "tab" },
 });
 
-const REFRESH_MS = 60 * 1000;
 // Backend limit (page_size max 100)
 const PAGE_SIZE = 100;
 

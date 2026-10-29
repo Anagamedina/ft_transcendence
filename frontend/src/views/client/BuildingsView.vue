@@ -4,13 +4,14 @@
     - Banner: pending alerts (red); nothing pending but a sensor still out
       of range or offline (amber, e.g. its alert is "En curso"); or
       "Todo en orden" (green). Link to Alertas when there is something.
-    - KPIs: buildings, and "Sensores funcionando" working / total (same as
-      the building page).
+    - KPIs: buildings, and "Sensores conectados" as "X de Y" (same as the
+      building page). It counts the same sensor list as the cards and the
+      banner, so all of them change at the same refresh (F30).
     - One BuildingCard per building, most worrying first: offline sensor >
       out of range > smallest margin (utils/pressure.js). Each card shows the
       sensor to watch with its pressure in words and a 7-day sparkline.
   A card opens the building page /app/edificios/:id (F25). Old links with
-  ?site=<id> are sent there. Data reloads every minute and when the tab is
+  ?site=<id> are sent there. Data reloads every 30 s and when the tab is
   visible again (useAutoRefresh). The trial banner is in ClientLayout (TrialBanner).
   Detailed alerts are in /app/alerts (F9-C).
 -->
@@ -124,7 +125,7 @@ import { useSitesStore } from "../../stores/sites.js";
 import { useSensorsStore } from "../../stores/sensors.js";
 import { useOverviewStore } from "../../stores/overview.js";
 import readingService from "../../services/reading.service.js";
-import { useAutoRefresh } from "../../composables/useAutoRefresh";
+import { REFRESH_MS, useAutoRefresh } from "../../composables/useAutoRefresh";
 import { useLabels } from "../../composables/useLabels";
 import alertsService from "../../services/alerts.service.js";
 import {
@@ -132,8 +133,6 @@ import {
   pressureState,
   worstSensor,
 } from "../../utils/pressure.js";
-
-const REFRESH_MS = 60 * 1000;
 
 const route = useRoute();
 const router = useRouter();
@@ -144,16 +143,23 @@ const { toneClasses } = useLabels();
 
 // ---------------------------------------------------------------------------
 // KPIs. ClientLayout already loads and refreshes the overview (B9).
+// "Sensores conectados" is counted from sensorsStore, the same list as the
+// cards and the banner: one source, one refresh, no mismatch (F30).
 // ---------------------------------------------------------------------------
 const kpis = computed(() => {
   const o = overviewStore.overview;
+  const all = sensorsStore.sensors;
+  const loaded = sensorsStore.status === "success" || all.length > 0;
+  const connected = all.filter(
+    (sensor) => pressureState(sensor).key !== "offline",
+  ).length;
   return [
     { label: "Edificios", icon: "building", value: o?.sites_total ?? "—" },
     {
-      // Same wording as the building page: working / total
-      label: "Sensores funcionando",
+      // Same wording as the building page and the admin dashboard
+      label: "Sensores conectados",
       icon: "wifi",
-      value: o ? `${o.sensors_online} / ${o.sensors_total}` : "—",
+      value: loaded ? `${connected} de ${all.length}` : "—",
     },
   ];
 });
@@ -359,7 +365,7 @@ function openSite(id) {
 }
 
 // ---------------------------------------------------------------------------
-// Loading and auto refresh (every minute and when the tab is visible again)
+// Loading and auto refresh (every 30 s and when the tab is visible again)
 // ---------------------------------------------------------------------------
 function loadAll() {
   return Promise.all([loadSites(), loadSensors(), loadPending()]);

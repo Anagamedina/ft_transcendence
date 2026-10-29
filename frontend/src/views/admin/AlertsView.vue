@@ -7,7 +7,7 @@
 
   Everything comes from the server (stores/adminAlerts.js): counts never stop
   at 100. Tab, filters and page live in the URL, so a reload or a shared link
-  shows the same thing. Refreshes every 60 s while the tab is visible.
+  shows the same thing. Refreshes every 30 s (REFRESH_MS) while the tab is visible.
 -->
 
 <template>
@@ -123,7 +123,7 @@ import AlertDetailPanel from "../../components/alerts/AlertDetailPanel.vue";
 import { useAdminAlertsStore } from "../../stores/adminAlerts";
 import { useOverviewStore } from "../../stores/overview";
 import { useListQuery } from "../../composables/useListQuery";
-import { useAutoRefresh } from "../../composables/useAutoRefresh";
+import { REFRESH_MS, useAutoRefresh } from "../../composables/useAutoRefresh";
 import { useLabels } from "../../composables/useLabels";
 import { apiErrorMessage } from "../../utils/apiError";
 
@@ -233,7 +233,7 @@ watch(page, () => {
 });
 
 onMounted(refresh);
-useAutoRefresh(refresh, 60000);
+useAutoRefresh(refresh, REFRESH_MS);
 
 // FILTERS
 function setTab(value) {

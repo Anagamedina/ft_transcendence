@@ -4,7 +4,7 @@
   buildings); this page and its tabs are only this building.
     - Header: name, address, floors and sensors.
     - Three indicators, each a link: Sin atender, En curso (to the Alertas
-      tab) and Sensores funcionando (to Plantas y sensores).
+      tab) and Sensores conectados as "X de Y" (to Plantas y sensores).
     - Tabs (?tab=): Vista general (default) · Plantas y sensores (plantas) ·
       Alertas (alertas) · Documentos (documentos, F27).
   Vista general:
@@ -18,7 +18,7 @@
   Alertas: ClientAlertsPanel fixed to this building (state in ?estado=).
   Documentos: DocumentsPanel fixed to this building (upload set to it).
   A building that is not the client's (or does not exist): message and the
-  way back. Data: GET /api/alerts of this building per state, every minute.
+  way back. Data: GET /api/alerts of this building per state, every 30 s.
   No backend changes.
 -->
 
@@ -271,11 +271,9 @@ import { useSitesStore } from "../../stores/sites.js";
 import { useSensorsStore } from "../../stores/sensors.js";
 import { useOverviewStore } from "../../stores/overview.js";
 import { useLabels } from "../../composables/useLabels";
-import { useAutoRefresh } from "../../composables/useAutoRefresh";
+import { REFRESH_MS, useAutoRefresh } from "../../composables/useAutoRefresh";
 import { apiErrorMessage } from "../../utils/apiError.js";
 import { pressureState } from "../../utils/pressure.js";
-
-const REFRESH_MS = 60 * 1000;
 
 const TABS = [
   { key: "general", label: "Vista general" },
@@ -452,7 +450,7 @@ const floorStates = computed(() => {
 const indicators = computed(() => {
   const loaded = alertsLoaded.value;
   const pending = lists.ACTIVE.length;
-  const working = siteSensors.value.filter(
+  const connected = siteSensors.value.filter(
     (sensor) => pressureState(sensor).key !== "offline",
   ).length;
   return [
@@ -471,8 +469,8 @@ const indicators = computed(() => {
       valueClass: "text-slate-900",
     },
     {
-      label: "Sensores funcionando",
-      value: `${working} / ${siteSensors.value.length}`,
+      label: "Sensores conectados",
+      value: `${connected} de ${siteSensors.value.length}`,
       to: { query: { tab: "plantas" } },
       labelClass: "text-slate-700",
       valueClass: "text-slate-900",

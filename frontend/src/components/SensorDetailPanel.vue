@@ -166,7 +166,7 @@ import PressureGauge from "./PressureGauge.vue";
 import LoadingState from "./LoadingState.vue";
 import ErrorState from "./ErrorState.vue";
 import { floorLabel } from "../utils/floors";
-import { pressureState } from "../utils/pressure";
+import { pressureWords } from "../utils/pressure";
 import { useFormat } from "../composables/useFormat";
 
 const props = defineProps({
@@ -192,8 +192,9 @@ const { formatRange, formatRelative, formatDateTime } = useFormat();
 
 const unit = computed(() => props.sensor?.unit || "bar");
 
-// Pressure in client words and its tone (Normal, Algo alta, Demasiado alta…)
-const state = computed(() => pressureState(props.sensor));
+// Pressure in client words and its tone (Normal, Algo alta, Demasiado alta…).
+// pressureWords also explains a red pin with a normal value (F30).
+const state = computed(() => pressureWords(props.sensor));
 const offline = computed(() => state.value.key === "offline");
 
 const offlineText = computed(() =>
