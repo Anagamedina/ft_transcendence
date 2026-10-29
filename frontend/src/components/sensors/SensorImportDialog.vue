@@ -177,6 +177,7 @@ import { computed, ref } from "vue";
 import Modal from "../Modal.vue";
 import sensorsService from "../../services/sensors.service.js";
 import { apiErrorMessage } from "../../utils/apiError";
+import { saveBlob } from "../../utils/download.js";
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -299,12 +300,7 @@ function downloadTemplate() {
   const blob = new Blob(["\ufeff" + TEMPLATE], {
     type: "text/csv;charset=utf-8",
   });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "plantilla-sensores.csv";
-  link.click();
-  URL.revokeObjectURL(url);
+  saveBlob(blob, "plantilla-sensores.csv");
 }
 
 function close() {

@@ -330,6 +330,24 @@ def ensure_account_enabled(user: User) -> None:
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
+def get_optional_user(request: Request, db: DbSession) -> User | None:
+    """
+    Como `get_current_user`, pero sin sesión devuelve `None` en vez de 401.
+
+    Solo para `GET /api/me/session`: al abrir la app sin haber entrado, no
+    tener sesión es lo normal, y un 401 saldría como error en la consola del
+    navegador (el subject no permite errores en la consola). Una cuenta
+    desactivada sigue cortando con 403 `ACCOUNT_DISABLED`.
+    """
+    try:
+        return get_current_user(request, db)
+    except UnauthorizedError:
+        return None
+
+
+OptionalUser = Annotated[User | None, Depends(get_optional_user)]
+
+
 # ---------------------------------------------------------
 # AUTORIZACIÓN — issue #27
 # ---------------------------------------------------------

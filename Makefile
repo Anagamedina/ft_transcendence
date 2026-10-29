@@ -94,7 +94,7 @@ e2e-install: $(E2E_DEPS)
 
 $(E2E_DEPS): e2e/package-lock.json
 	npm --prefix e2e ci --no-audit --no-fund
-	npx --prefix e2e playwright install chromium
+	npx --prefix e2e playwright install chromium firefox webkit
 
 frontend-dev: env certs $(FRONTEND_DEPS)
 	npm --prefix frontend run dev -- --host localhost

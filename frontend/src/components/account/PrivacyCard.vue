@@ -115,6 +115,7 @@ import { ref, computed, nextTick } from "vue";
 import { useAuthStore } from "../../stores/auth";
 import { formatDate } from "../../composables/useFormat";
 import { apiErrorMessage } from "../../utils/apiError";
+import { saveBlob } from "../../utils/download.js";
 
 const authStore = useAuthStore();
 
@@ -139,14 +140,7 @@ async function downloadMyData() {
     const blob = new Blob([JSON.stringify(data, null, 2)], {
       type: "application/json",
     });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `aquaguard-mis-datos_${day}.json`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    saveBlob(blob, `aquaguard-mis-datos_${day}.json`);
   } catch (error) {
     exportError.value = apiErrorMessage(
       error,

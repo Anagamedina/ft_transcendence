@@ -167,6 +167,37 @@ def test_me_devuelve_quien_soy(client, datos):
     assert "terms_version" in respuesta.json()
 
 
+# /api/me/session: lo que usa el frontend al arrancar. Sin sesión responde
+# 200 con user null, para que abrir la app no deje un 401 en la consola.
+def test_session_sin_sesion_responde_200_con_user_nulo(client, datos):
+    respuesta = client.get("/api/me/session")
+
+    assert respuesta.status_code == 200
+    assert respuesta.json() == {"user": None}
+
+
+def test_session_con_una_cookie_que_no_vale_responde_200_con_user_nulo(client, datos):
+    client.cookies.set(SESSION_COOKIE, "no-es-una-sesion")
+
+    respuesta = client.get("/api/me/session")
+
+    assert respuesta.status_code == 200
+    assert respuesta.json() == {"user": None}
+
+
+def test_session_con_sesion_devuelve_lo_mismo_que_me(client, datos):
+    _login(client, "cliente@aquaguard.dev")
+
+    sesion = client.get("/api/me/session")
+
+    assert sesion.status_code == 200
+    assert sesion.json()["user"] == client.get("/api/me").json()
+
+
+def test_me_sigue_dando_401_sin_sesion(client, datos):
+    assert client.get("/api/me").status_code == 401
+
+
 def test_me_permite_actualizar_el_nombre(client, datos):
     _login(client, "cliente@aquaguard.dev")
 
