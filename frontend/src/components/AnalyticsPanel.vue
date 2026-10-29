@@ -11,7 +11,7 @@
 import { ref, computed, onMounted } from "vue";
 import { storeToRefs } from "pinia";
 import { useAnalyticsStore } from "../stores/analytics";
-import { useAutoRefresh } from "../composables/useAutoRefresh";
+import { REFRESH_MS, useAutoRefresh } from "../composables/useAutoRefresh";
 import AnalyticsChart from "./AnalyticsChart.vue";
 import KPICard from "./KPICard.vue";
 import AppIcon from "./AppIcon.vue";
@@ -21,7 +21,6 @@ import ErrorState from "./ErrorState.vue";
 import { useFormat } from "../composables/useFormat";
 import { chartColors } from "../theme/palette";
 
-const REFRESH_MS = 30000;
 const PRESETS = [7, 30, 90];
 
 // Validated palette (light surface): blue = all alerts, red = critical,

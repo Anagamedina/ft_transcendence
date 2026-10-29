@@ -63,7 +63,7 @@ import { useRouter, RouterView } from "vue-router";
 
 import { useAuthStore } from "../stores/auth";
 import { useOverviewStore } from "../stores/overview";
-import { useAutoRefresh } from "../composables/useAutoRefresh";
+import { REFRESH_MS, useAutoRefresh } from "../composables/useAutoRefresh";
 
 import Sidebar from "../components/Sidebar.vue";
 import Footer from "../components/Footer.vue";
@@ -121,7 +121,7 @@ async function refreshOverview() {
   }
 }
 
-useAutoRefresh(refreshOverview, 30000);
+useAutoRefresh(refreshOverview, REFRESH_MS);
 
 onMounted(refreshOverview);
 
