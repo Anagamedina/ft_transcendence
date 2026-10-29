@@ -231,6 +231,54 @@ def test_me_rechaza_contrasena_nueva_debil(client, datos):
     assert respuesta.status_code == 422
     assert respuesta.json()["error"]["code"] == "WEAK_PASSWORD"
 
+@pytest.mark.parametrize(
+    "new_password",
+    [
+        " contraseñaValida123",
+        "contraseñaValida123 ",
+    ],
+)
+def test_me_rechaza_contrasena_nueva_con_espacios_en_los_extremos(
+    client, datos, new_password
+):
+    _login(client, "cliente@aquaguard.dev")
+
+    respuesta = client.post(
+        "/api/me/password",
+        json={
+            "current_password": CONTRASENA,
+            "new_password": new_password,
+        },
+    )
+
+    assert respuesta.status_code == 422
+
+@pytest.mark.parametrize(
+    "new_password",
+    [
+        " contraseñaValida123",
+        "contraseñaValida123 ",
+    ],
+)
+def test_me_conserva_contrasena_actual_si_nueva_tiene_espacios_extremos(
+    client, datos, new_password
+):
+    _login(client, "cliente@aquaguard.dev")
+
+    respuesta = client.post(
+        "/api/me/password",
+        json={
+            "current_password": CONTRASENA,
+            "new_password": new_password,
+        },
+    )
+
+    assert respuesta.status_code == 422
+
+    client.post("/api/auth/logout")
+
+    respuesta_login = _login(client, "cliente@aquaguard.dev", CONTRASENA)
+    assert respuesta_login.status_code == 200
 
 def test_me_sin_sesion_da_401(client, datos):
     respuesta = client.get("/api/me")
