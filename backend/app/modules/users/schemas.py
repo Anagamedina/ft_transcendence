@@ -30,7 +30,7 @@ from app.shared.enums import (
     OrganizationStatus,
     SubscriptionPlan,
 )
-from app.shared.schemas import ApiModel, ApiRequest
+from app.shared.schemas import ApiModel, ApiRequest, Password
 
 
 class UserRole(str, Enum):
@@ -61,6 +61,7 @@ class UserBase(ApiRequest):
         description="Nombre para mostrar.",
         examples=["Ana Medina"],
     )
+
 
 
 class UserCreate(UserBase):
@@ -216,7 +217,7 @@ class PasswordChange(ApiRequest):
     """
 
     current_password: str = Field(min_length=1, max_length=128)
-    new_password: str = Field(
+    new_password: Password = Field(
         max_length=128,
         description="Misma regla que el registro (B10): al menos 12 caracteres, no común, sin el email.",
         examples=["agua-que-no-se-escapa"],

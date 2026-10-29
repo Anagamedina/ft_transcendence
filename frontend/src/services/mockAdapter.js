@@ -48,7 +48,7 @@ const mockUser = [
     role: "admin",
     organization_id: null,
     created_at: "2026-08-01T08:00:00Z",
-    organization_name: "Organisation de démonstration",
+    organization_name: "Organización de demostración",
     is_active: true,
     last_login_at: null,
     password: "123",
@@ -60,7 +60,7 @@ const mockUser = [
     role: "client",
     organization_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     created_at: "2026-08-01T08:00:00Z",
-    organization_name: "Organisation de démonstration",
+    organization_name: "Organización de demostración",
     is_active: true,
     last_login_at: null,
     password: "123",
@@ -175,7 +175,7 @@ function authError() {
   return {
     status: 401,
     code: "UNAUTHORIZED",
-    message: "Authentication required.",
+    message: "Se requiere autenticación.",
     details: null,
   };
 }
@@ -184,7 +184,7 @@ function forbiddenError() {
   return {
     status: 403,
     code: "FORBIDDEN",
-    message: "You do not have access to this resource.",
+    message: "No teneis acceso a este recurso.",
     details: null,
   };
 }
@@ -193,7 +193,7 @@ function validationError(field, message) {
   return {
     status: 422,
     code: "VALIDATION_ERROR",
-    message: "Invalid request.",
+    message: "Solicitud no válida.",
     details: [
       {
         field,
@@ -822,7 +822,6 @@ function invitationStatus(invitation) {
 const mockAdapter = {
   // GET requests
   get(url, config = {}) {
-    console.log("[MOCK GET]", url, config);
 
     // Get the currently authenticated user.
     if (url === "/api/me") {
@@ -1063,7 +1062,7 @@ const mockAdapter = {
         return Promise.reject({
           status: 404,
           code: "SITE_NOT_FOUND",
-          message: "Site not found.",
+          message: "El sitio indicado no existe.",
           details: null,
         });
       }
@@ -1103,7 +1102,7 @@ const mockAdapter = {
         return Promise.reject({
           status: 404,
           code: "SITE_NOT_FOUND",
-          message: "Site not found.",
+          message: "El sitio indicado no existe.",
           details: null,
         });
       }
@@ -1175,7 +1174,7 @@ const mockAdapter = {
         return Promise.reject({
           status: 404,
           code: "SENSOR_NOT_FOUND",
-          message: "Sensor not found.",
+          message: "El sensor no existe.",
           details: null,
         });
       }
@@ -1221,7 +1220,7 @@ const mockAdapter = {
         return Promise.reject({
           status: 404,
           code: "SENSOR_NOT_FOUND",
-          message: "Sensor not found.",
+          message: "El sensor no existe.",
           details: null,
         });
       }
@@ -1310,7 +1309,7 @@ const mockAdapter = {
       );
       if (!site) {
         return Promise.reject(
-          domainError(404, "SITE_NOT_FOUND", "El site no existe."),
+          domainError(404, "SITE_NOT_FOUND", "El sitio indicado no existe."),
         );
       }
       const requestedStart = params.week_start
@@ -1446,7 +1445,7 @@ const mockAdapter = {
         return Promise.reject({
           status: 422,
           code: "INVALID_FORMAT",
-          message: "Format must be csv or json.",
+          message: "Formato debe ser csv o json.",
           details: null,
         });
       }
@@ -1493,19 +1492,13 @@ const mockAdapter = {
     return Promise.reject({
       status: 404,
       code: "UNKNOWN_ENDPOINT",
-      message: "Mock endpoint not found.",
+      message: "El mock endpoint no existe.",
       details: null,
     });
   },
 
   // POST requests
-  post(url, data = {}, config = {}) {
-    if (url.startsWith("/api/auth/")) {
-      console.log("[MOCK POST]", url);
-    } else {
-      console.log("[MOCK POST]", url, data, config);
-    }
-
+  post(url, data = {}) {
     // Deletion request (B15): asking again keeps the first date
     if (url === "/api/me/deletion-request") {
       if (!currentUser) return Promise.reject(authError());
@@ -1742,12 +1735,12 @@ const mockAdapter = {
       // Pydantic checks (generic VALIDATION_ERROR, one detail per field)
       if (!name || name.length > 120) {
         return Promise.reject(
-          validationError("name", "String should have 1-120 characters"),
+          validationError("name", "La cadena debe tener entre 1 y 120 caracteres"),
         );
       }
       if (!MOCK_EMAIL_PATTERN.test(email)) {
         return Promise.reject(
-          validationError("email", "value is not a valid email address"),
+          validationError("email", "El valor no es una dirección de correo electrónico válida"),
         );
       }
       if (
@@ -1757,13 +1750,13 @@ const mockAdapter = {
         return Promise.reject(
           validationError(
             "organization_name",
-            "String should have at most 120 characters",
+           "La cadena debe tener como máximo 120 caracteres",
           ),
         );
       }
       if (typeof data.accept_terms !== "boolean") {
         return Promise.reject(
-          validationError("accept_terms", "Input should be a valid boolean"),
+          validationError("accept_terms", "El valor de entrada debe ser un booleano válido."),
         );
       }
 
@@ -1863,7 +1856,7 @@ const mockAdapter = {
         return Promise.reject({
           status: 401,
           code: "INVALID_CREDENTIALS",
-          message: "Invalid email or password.",
+          message: "Correo electrónico o contraseña incorrectos.",
           details: null,
         });
       }
@@ -1886,7 +1879,7 @@ const mockAdapter = {
 
       return Promise.resolve({
         data: {
-          message: "Session closed.",
+          message: "Sesión cerrada.",
         },
         status: 200,
       });
@@ -2054,12 +2047,12 @@ const mockAdapter = {
       // Pydantic checks (generic VALIDATION_ERROR, one detail per field)
       if (!name || name.length > 120) {
         return Promise.reject(
-          validationError("name", "String should have 1-120 characters"),
+          validationError("name", "La cadena debe tener entre 1 y 120 caracteres"),
         );
       }
       if (typeof data.accept_terms !== "boolean") {
         return Promise.reject(
-          validationError("accept_terms", "Input should be a valid boolean"),
+          validationError("accept_terms", "El valor de entrada debe ser un booleano válido."),
         );
       }
 
@@ -2132,7 +2125,7 @@ const mockAdapter = {
         typeof data.email === "string" ? data.email.trim().toLowerCase() : "";
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         return Promise.reject(
-          validationError("email", "A valid email is required."),
+          validationError("email", "El valor no es una dirección de correo electrónico válida"),
         );
       }
 
@@ -2190,7 +2183,7 @@ const mockAdapter = {
         return Promise.reject({
           status: 404,
           code: "SENSOR_NOT_FOUND",
-          message: "Sensor not found.",
+          message: "El sensor no existe.",
           details: null,
         });
       }
@@ -2208,7 +2201,7 @@ const mockAdapter = {
         return Promise.reject(
           validationError(
             "pressure",
-            "Pressure must be a number between 0 and 25 bar.",
+             "Los límites de presión deben ser números entre 0 y 25.",
           ),
         );
       }
@@ -2223,7 +2216,7 @@ const mockAdapter = {
           Number.isNaN(parsedDate.getTime())
         ) {
           return Promise.reject(
-            validationError("measured_at", "measured_at must be a valid date."),
+            validationError("measured_at", "measured_at no es una fecha valida."),
           );
         }
 
@@ -2256,7 +2249,7 @@ const mockAdapter = {
         return Promise.reject({
           status: 404,
           code: "SITE_NOT_FOUND",
-          message: "El site indicado no existe.",
+          message: "El sitio indicado no existe.",
           details: null,
         });
       }
@@ -2280,7 +2273,7 @@ const mockAdapter = {
         return Promise.reject({
           status: 404,
           code: "SITE_NOT_FOUND",
-          message: "Site not found.",
+          message: "El sitio indicado no existe.",
           details: null,
         });
       }
@@ -2295,7 +2288,7 @@ const mockAdapter = {
 
       if (typeof data.name !== "string" || !data.name.trim()) {
         return Promise.reject(
-          validationError("name", "A sensor name is required."),
+          validationError("name", "Se requiere un nombre de sensor."),
         );
       }
 
@@ -2313,7 +2306,7 @@ const mockAdapter = {
         return Promise.reject(
           validationError(
             "min_pressure",
-            "Pressure limits must be numbers between 0 and 25, with min_pressure lower than max_pressure.",
+            "Los límites de presión deben ser números entre 0 y 25, con min_pressure menor que max_pressure.",
           ),
         );
       }
@@ -2464,18 +2457,18 @@ const mockAdapter = {
 
       if (!file || typeof file.name !== "string") {
         return Promise.reject(
-          validationError("file", "Un fichier est obligatoire."),
+          validationError("file", "Un archivo es obligatorio."),
         );
       }
 
       if (!siteId) {
         return Promise.reject(
-          validationError("site_id", "site_id est obligatoire."),
+          validationError("site_id", "site_id es obligatorio."),
         );
       }
 
       if (!kind) {
-        return Promise.reject(validationError("kind", "kind est obligatoire."));
+        return Promise.reject(validationError("kind", "kind es obligatorio."));
       }
 
       const site = sites.find((item) => item.id === siteId);
@@ -2512,15 +2505,13 @@ const mockAdapter = {
     return Promise.reject({
       status: 404,
       code: "UNKNOWN_ENDPOINT",
-      message: "Mock endpoint not found.",
+      message: "El mock endpoint no existe.",
       details: null,
     });
   },
 
   // PATCH requests
-  patch(url, data = {}, config = {}) {
-    console.log("[MOCK PATCH]", url, data, config);
-
+  patch(url, data = {}) {
     // Users (B6): partial update
     if (url.startsWith("/api/users/")) {
       const denied = adminCheck();
@@ -2588,7 +2579,7 @@ const mockAdapter = {
         return Promise.reject({
           status: 404,
           code: "ALERT_NOT_FOUND",
-          message: "Alert not found.",
+          message: "La alerta no existe.",
           details: null,
         });
       }
@@ -2623,7 +2614,7 @@ const mockAdapter = {
         return Promise.reject({
           status: 404,
           code: "ALERT_NOT_FOUND",
-          message: "Alert not found.",
+          message: "La alerta no existe.",
           details: null,
         });
       }
@@ -2659,7 +2650,7 @@ const mockAdapter = {
         return Promise.reject({
           status: 404,
           code: "SENSOR_NOT_FOUND",
-          message: "Sensor not found.",
+          message: "El sensor no existe.",
           details: null,
         });
       }
@@ -2684,7 +2675,7 @@ const mockAdapter = {
         return Promise.reject(
           validationError(
             "min_pressure",
-            "Pressure limits must be numbers between 0 and 25.",
+            "Los límites de presión deben ser números entre 0 y 25.",
           ),
         );
       }
@@ -2703,7 +2694,7 @@ const mockAdapter = {
         return Promise.reject(
           validationError(
             "min_pressure",
-            "min_pressure must be lower than max_pressure.",
+            "min_pressure debe ser menor que max_pressure.",
           ),
         );
       }
@@ -2713,7 +2704,7 @@ const mockAdapter = {
         (typeof data.name !== "string" || !data.name.trim())
       ) {
         return Promise.reject(
-          validationError("name", "Sensor name cannot be empty."),
+          validationError("name", "El nombre del sensor no puede estar vacío."),
         );
       }
 
@@ -2723,7 +2714,7 @@ const mockAdapter = {
         typeof data.location !== "string"
       ) {
         return Promise.reject(
-          validationError("location", "Location must be a string or null."),
+          validationError("location", "La ubicación debe ser una cadena de texto o nula."),
         );
       }
 
@@ -2819,7 +2810,7 @@ const mockAdapter = {
         return Promise.reject({
           status: 404,
           code: "SITE_NOT_FOUND",
-          message: "El site indicado no existe.",
+          message: "El sitio indicado no existe.",
           details: null,
         });
       }
@@ -2847,15 +2838,13 @@ const mockAdapter = {
     return Promise.reject({
       status: 404,
       code: "UNKNOWN_ENDPOINT",
-      message: "Mock endpoint not found.",
+      message: "El mock endpoint no existe.",
       details: null,
     });
   },
 
   // DELETE requests
   delete(url, config = {}) {
-    console.log("[MOCK DELETE]", url, config);
-
     // Users (B6): delete
     if (url.startsWith("/api/users/")) {
       const denied = adminCheck();
@@ -2973,48 +2962,13 @@ const mockAdapter = {
     return Promise.reject({
       status: 404,
       code: "UNKNOWN_ENDPOINT",
-      message: "Mock endpoint not found.",
+      message: "El mock endpoint no existe.",
       details: null,
     });
   },
 };
 
 export default mockAdapter;
-
-/*
-Here is exactly what the services tell us the MockAdapter must support:
-
-Domaine       Méthode   Endpoint
-Auth          POST      /api/auth/register
-Auth          POST      /api/auth/login
-Auth          POST      /api/auth/logout
-Auth          GET       /api/me
-Sites         GET       /api/sites
-Sites         GET       /api/sites/{id}
-Sites         GET       /api/sites/{id}/sensors
-Sensors       GET       /api/sensors
-Sensors       GET       /api/sensors/{id}
-Sensors       POST      /api/sensors
-Sensors       PATCH     /api/sensors/{id}
-Readings      POST      /api/readings
-Readings      GET       /api/sensors/{id}/readings
-Alerts        GET       /api/alerts
-Alerts        PATCH     /api/alerts/{id}/acknowledge
-Alerts        PATCH     /api/alerts/{id}/resolve
-Analytics     GET       /api/analytics/overview
-Orgs          GET       /api/organizations
-Orgs          GET       /api/organizations/{id}
-Orgs          POST      /api/organizations
-Orgs          PATCH     /api/organizations/{id}
-Orgs          POST      /api/organizations/{id}/suspend | reactivate | extend-trial | activate
-Orgs          DELETE    /api/organizations/{id}
-Invitations   GET       /api/invitations
-Invitations   POST      /api/invitations
-Invitations   GET       /api/invitations/by-code/{code}
-Invitations   POST      /api/invitations/by-code/{code}/accept
-Plans         GET       /api/plans
-Subscription  POST      /api/me/organization/subscribe
-*/
 
 /*
 All endpoints work the same way; GET request essentially does this:

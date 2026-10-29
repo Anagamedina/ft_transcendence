@@ -21,9 +21,15 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
-from typing import Generic, TypeVar
+from typing import Annotated, Generic, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    computed_field,
+)
 
 # ---------------------------------------------------------
 # BASES
@@ -57,6 +63,16 @@ class ApiRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
+def _validate_password_whitespace(value: object) -> object:
+    """Reject passwords with leading or trailing whitespace."""
+    if isinstance(value, str) and value != value.strip():
+        raise ValueError(
+            "La contraseña no puede empezar ni terminar con espacios."
+        )
+    return value
+
+
+Password = Annotated[str, BeforeValidator(_validate_password_whitespace)]
 
 # ---------------------------------------------------------
 # ERRORES

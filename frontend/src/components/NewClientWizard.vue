@@ -391,7 +391,6 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CLIENT_NAME_PATTERN =
   /^[\p{L}\p{M}\p{N} .,'’&()-]+$/u;
 
-// numbers, spaces, + 
 const PHONE_PATTERN = /^\+?[0-9().\s]+$/;
 
 const step = ref(0);

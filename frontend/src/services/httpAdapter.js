@@ -4,22 +4,6 @@ import api from "./api.js";
 
 /*
  * Axios receives the full error object.
- * response contains the HTTP response.
- * response.data contains the JSON returned by the backend.
- * The backend error is nested inside response.data.error.
- *
- * error = {                    // Full Axios error
- *   response: {                 // HTTP response
- *     status: 404,
- *     data: {                   // JSON returned by the backend
- *       error: {                // Backend error object
- *         code: 'SENSOR_NOT_FOUND',
- *         message: 'Sensor not found',
- *         details: null
- *       }
- *     }
- *   }
- * }
  */
 
 // Normalize API errors into a common format
@@ -32,7 +16,7 @@ function normalizeError(error) {
     const backendError = error.response.data?.error; //if data exists, access data.error, otherwise return undefined instead of throwing an error
 
     let code = "UNKNOWN_ERROR";
-    let message = "An error occurred.";
+    let message = "Ocurrió un error.";
     let details = null;
 
     if (backendError) {
@@ -54,7 +38,7 @@ function normalizeError(error) {
     return {
       status: null,
       code: "NETWORK_ERROR",
-      message: "The server is unreachable.",
+      message: "El servidor no responde.",
       details: null,
     };
   }
@@ -63,12 +47,10 @@ function normalizeError(error) {
   return {
     status: null,
     code: "CLIENT_ERROR",
-    message: error.message || "An error occurred.",
+    message: error.message || "Ocurrió un error.",
     details: null,
   };
 }
-
-//*** Here we create the HTTP adapter ***
 
 const httpAdapter = {
   async get(url, config = {}) {

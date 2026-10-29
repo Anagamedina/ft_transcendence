@@ -23,7 +23,7 @@ from pydantic import EmailStr, Field
 
 from app.modules.users.schemas import UserResponse
 from app.shared.passwords import PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH
-from app.shared.schemas import ApiModel, ApiRequest
+from app.shared.schemas import ApiModel, ApiRequest, Password
 
 
 class RegisterRequest(ApiRequest):
@@ -53,7 +53,7 @@ class RegisterRequest(ApiRequest):
         description="Email de la cuenta. Único en todo el sistema.",
         examples=["ana@hotelmar.com"],
     )
-    password: str = Field(
+    password: Password = Field(
         max_length=PASSWORD_MAX_LENGTH,
         description=(
             f"Al menos {PASSWORD_MIN_LENGTH} caracteres, que no sea una "
