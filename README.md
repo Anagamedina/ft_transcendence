@@ -1250,29 +1250,56 @@ minor modules are worth 1 point.
 
 ## Team information
 
-The working areas below follow the current project planning documentation. The
-team must confirm the formal PO, PM/Scrum Master, Technical Lead/Architect, and
-Developer role assignments before submission.
+Every member is also a developer. On top of that, three members hold the
+roles the subject requires:
 
-| Member                | Role(s)                                   | Responsibilities                                                                                                                  |
-|-----------------------|-------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------|
-| Ana (`anamedin`)      | Product Owner, Backend/API Developer      | FastAPI routes, schemas, business rules, and backend tests.                                                                       |
-| Daruny (`dasalaza`)   | Team Lead, Database/Persistence Developer | PostgreSQL, SQLAlchemy, Alembic, domain models, repositories, and simulator integration.                                          |
-| Florinda (`flperez-`) | Frontend Team Lead, Frontend UI Developer | Vue views, layouts, reusable components, responsive design, and accessibility.                                                    |
-| Lylia (`lylfergu`)    | Frontend Integration Developer            | Pinia stores, services, adapters, authentication/navigation flows, and frontend integration tests.                                |
-| Eduardo (`egalindo`)  | DevOps/Infrastructure Developer           | Docker Compose, Nginx/HTTPS, simulator, migrations, backups, health checks, smoke and E2E tests, admin alerts and dashboard KPIs. |
+- **Product Owner (Ana):** defines what AquaGuard must do, writes and
+  prioritizes the issues, and accepts a feature when it meets its goal.
+- **Project Manager and Technical Lead (Daruny):** runs the weekly meeting,
+  keeps the issue board and the deadlines up to date, makes sure the work
+  is split among the team, and leads the technical decisions and the
+  architecture of the application.
+- **Frontend Technical Lead (Florinda):** leads the technical decisions of
+  the frontend (structure of views and components, design system,
+  responsive design and accessibility) and keeps the frontend code
+  consistent across the team.
 
-Required roles are Product Owner, Project Manager/Scrum Master, Technical Lead /
-Architect, and Developers. One member may hold multiple roles.
+| Member                | Role(s)                                                         | Responsibilities                                                                                                                  |
+|-----------------------|-----------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------|
+| Ana (`anamedin`)      | Product Owner, Backend/API Developer                            | FastAPI routes, schemas, business rules, and backend tests.                                                                       |
+| Daruny (`dasalaza`)   | Project Manager, Technical Lead, Database/Persistence Developer | PostgreSQL, SQLAlchemy, Alembic, domain models, repositories, and simulator integration.                                          |
+| Florinda (`flperez-`) | Frontend Technical Lead, Frontend UI Developer                  | Vue views, layouts, reusable components, responsive design, and accessibility.                                                    |
+| Lylia (`lylfergu`)    | Developer (Frontend Integration)                                | Pinia stores, services, adapters, authentication/navigation flows, and frontend integration tests.                                |
+| Eduardo (`egalindo`)  | Developer (DevOps/Infrastructure)                               | Docker Compose, Nginx/HTTPS, simulator, migrations, backups, health checks, smoke and E2E tests, admin alerts and dashboard KPIs. |
 
 ## Project management
 
 - **Task tracking:** GitHub Issues and pull requests.
 - **Work breakdown:** Small, reviewable issues linked to pull requests.
-- **Code review:** At least one team member reviews important changes.
-- **Meetings:** TBD - record the agreed frequency here.
-- **Communication:** TBD - record the agreed channel here.
-- **Branching and commits:** TBD - record the team convention here.
+- **Code review:** Every pull request needs the approval of a team member
+  other than its author before it can be merged (see branching below).
+- **Meetings:** One team meeting every week with all members, to review
+  what was done, split the next issues and agree on decisions that affect
+  more than one part of the stack.
+- **Communication:** The weekly meeting, plus GitHub issues and pull
+  request comments for day-to-day questions and reviews, so every
+  decision stays written next to the code it changes.
+- **Branching and commits:**
+  - `develop` is the working branch: all development is integrated there.
+    `main` only receives the final version of the project for the
+    submission.
+  - Each issue gets its own branch, created from `develop` and named after
+    its author and the issue (for example `feature/edu/246-container-hardening`
+    or `florinda/issue-303-contadores-sensores`).
+  - Work reaches `develop` only through a pull request that links its
+    issue (`Closes #N`) and follows `.github/pull_request_template.md`.
+    Nobody pushes directly to `develop`.
+  - Merging is blocked until a team member other than the author approves
+    the pull request, and until the CI check `readme-check` passes: it
+    fails when code changes without a README update.
+  - Commits are small and describe one change; many carry the author's
+    login or the area as a prefix (for example
+    `[egalindo] add backup-verify ...`).
 
 Important architectural decisions are recorded in [`docs/decisions`](docs/decisions).
 
@@ -1392,7 +1419,7 @@ Issues #130 to #134 were reviewed and merged together in #182.
 | #243     | Startup order: the simulator waits for a healthy backend, `simulator/.dockerignore`                  | #261          | Implemented |
 | #245     | Docker log rotation: `json-file` driver, 10 MB × 3 files per service                                 | #261          | Implemented |
 | #244     | `make backup-verify`: restores a backup into a temporary database and compares every table           | #269          | Implemented |
-| #246     | Container hardening: non-root users, no capabilities, read-only filesystem, memory and CPU limits    | —             | Implemented |
+| #246     | Container hardening: non-root users, no capabilities, read-only filesystem, memory and CPU limits    | #273          | Implemented |
 
 ## Resources
 
@@ -1410,14 +1437,31 @@ Issues #130 to #134 were reviewed and merged together in #182.
 
 ### AI usage
 
-AI tools may be used as an assistant for research, brainstorming, repetitive
-tasks, debugging hypotheses, test ideas, and documentation drafts. Every
-AI-assisted change must be reviewed, understood, tested, and approved by the
-team. The team remains responsible for all submitted code and documentation.
+AI was used in every part of the project to speed up development, always
+under human supervision. It played two roles:
 
-This subsection must be updated with the concrete tools, tasks, and project
-parts where AI was used. Do not claim AI-generated work that was not reviewed by
-the team.
+- **Mentor:** explaining concepts and technologies before using them
+  (FastAPI, SQLAlchemy, Alembic, Vue and Pinia, Docker, Nginx and TLS),
+  comparing approaches, proposing hypotheses when debugging, and reviewing
+  our own code and pull requests.
+- **Executor:** writing code, tests and documentation from the issue each
+  member was working on.
+
+Parts of the project where it was used:
+
+- **Backend:** API routes, schemas, business rules, alert engine and
+  backend tests.
+- **Database:** models, migrations and demo data.
+- **Frontend:** views, components, stores, services and styles.
+- **Infrastructure:** Docker Compose, Dockerfiles, Nginx, Makefile,
+  scripts, simulator, backups and E2E tests.
+- **Documentation:** this README and the task documentation in `docs/`.
+
+Human supervision means that every AI-assisted change went through the same
+process as any other change: the author read and understood it, tested it,
+and opened a pull request that another team member had to approve before
+it could be merged. The team is responsible for all submitted code and
+documentation, and each member can explain the parts they delivered.
 
 ## Development rules for README updates
 
@@ -1496,8 +1540,8 @@ Browser-specific limitations:
 - Backups live in a Docker volume on the same host as the database. They
   survive the loss of the database volume, but not the loss of the host or
   `make fclean`; `docs/disaster-recovery.md` explains how to copy them out.
-- The README placeholders must be completed by the team.
 
 ## License
 
-This project is developed for the 42 curriculum. License information: TBD.
+No license: this is an academic project developed for the 42 curriculum,
+and all rights are reserved by its authors.
