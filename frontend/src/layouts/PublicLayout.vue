@@ -55,14 +55,15 @@ const panelPath = computed(() => (authStore.isAdmin ? "/admin" : "/app"));
 
 const route = useRoute();
 
-// Pages that offer "Ir a mi panel". The router does not check the session on
-// them, so ask for it here (without a session the backend answers 200 with
-// user null, no 401). Only on these pages: on /registro the answer could
-// arrive after a sign-up and clear the user that was just created.
+// Pages that offer "Ir a mi panel" (plus the 404 page, whatever its URL).
+// The router does not check the session on them, so ask for it here
+// (without a session the backend answers 200 with user null, no 401). Only
+// on these pages: on /registro the answer could arrive after a sign-up and
+// clear the user that was just created.
 const SESSION_AWARE_PATHS = ["/", "/legal", "/status"];
 
 onMounted(() => {
-  if (SESSION_AWARE_PATHS.includes(route.path)) {
+  if (SESSION_AWARE_PATHS.includes(route.path) || route.name === "NotFound") {
     authStore.initializeAuth();
   }
 });

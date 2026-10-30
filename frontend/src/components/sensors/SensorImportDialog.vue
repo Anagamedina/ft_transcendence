@@ -71,11 +71,11 @@
         />
       </label>
 
-      <p v-if="error" role="alert" class="text-sm text-danger">{{ error }}</p>
+      <p v-if="error" role="alert" class="text-sm text-danger-dark">{{ error }}</p>
 
       <!-- Errors by line: everything the file has to fix, at once -->
       <div v-if="rowErrors.length" role="alert" class="space-y-2">
-        <p class="text-sm font-semibold text-danger">{{ rowErrorsTitle }}</p>
+        <p class="text-sm font-semibold text-danger-dark">{{ rowErrorsTitle }}</p>
         <div class="max-h-64 overflow-auto rounded-lg border border-danger/40">
           <table class="w-full text-sm">
             <caption class="sr-only">

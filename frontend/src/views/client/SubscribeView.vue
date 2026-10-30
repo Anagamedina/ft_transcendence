@@ -617,7 +617,7 @@ const IBAN_PATTERN = /^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/;
 const CARD_CLASS = "rounded-2xl border border-slate-200 bg-white p-6";
 const TITLE_CLASS = "mb-4 font-bold text-slate-900";
 const LABEL_CLASS = "mb-1 block text-xs font-semibold text-slate-700";
-const ERROR_CLASS = "mt-1 text-sm text-danger";
+const ERROR_CLASS = "mt-1 text-sm text-danger-dark";
 const INPUT_CLASS =
   "w-full rounded-lg border px-4 py-3 focus:outline-none focus:ring-2 focus:ring-aqua-400";
 

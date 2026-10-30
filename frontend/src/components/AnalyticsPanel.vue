@@ -163,7 +163,7 @@ const updatedAt = computed(() =>
 
     <p
       v-if="rangeError"
-      class="mb-4 text-sm font-semibold text-danger"
+      class="mb-4 text-sm font-semibold text-danger-dark"
       role="alert"
     >
       {{ rangeError }}

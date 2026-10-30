@@ -473,7 +473,7 @@ const plans = [
 /* Decorative floating drop for the final call to action (same drop as
    the logo, AppLogo) */
 .floating-drop {
-  filter: drop-shadow(6px 6px 12px rgb(3 105 161 / 0.3));
+  filter: drop-shadow(6px 6px 12px theme('colors.aqua.600 / 30%'));
   animation: float 3s ease-in-out infinite;
 }
 

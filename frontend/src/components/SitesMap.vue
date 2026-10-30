@@ -151,7 +151,7 @@ function buildPopup(site, level) {
   }
   if (ALERT_TEXT[level]) {
     const alert = document.createElement("p");
-    alert.className = `mt-1 text-sm font-semibold ${level === "critical" ? "text-danger" : "text-warning-dark"}`;
+    alert.className = `mt-1 text-sm font-semibold ${level === "critical" ? "text-danger-dark" : "text-warning-dark"}`;
     alert.textContent = ALERT_TEXT[level];
     box.appendChild(alert);
   }
