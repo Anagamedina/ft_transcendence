@@ -241,7 +241,7 @@ The root `Makefile` wraps the Compose commands:
 | Target                     | Effect                                                                                                                                       |
 |----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
 | `make` / `make all`        | Complete local bootstrap: services, migrations, seed on an empty database, backup, simulator, storage validation and smoke test              |
-| `make up`                  | Creates `.env` and certificates if needed, then starts the base Compose services without altering application data                           |
+| `make up`                  | Creates `.env` and certificates if needed, starts the base services and the backup, and waits until they are healthy; never alters data      |
 | `make setup`               | Checks local prerequisites, creates local configuration and certificates, and validates the Compose configuration                            |
 | `make config-check`        | Validates required `.env` values and rejects unsafe production placeholders                                                                  |
 | `make doctor`              | Checks prerequisites, configuration and the health/state of services already running                                                         |
@@ -249,8 +249,8 @@ The root `Makefile` wraps the Compose commands:
 | `make dev`                 | Starts `make dev-infra`, installs locked frontend dependencies and runs Vite HMR at `https://localhost:5173`                                 |
 | `make env`                 | Creates `.env` from `.env.example` with random `SECRET_KEY` and `INGEST_API_KEY`, only when it does not exist                                |
 | `make certs`               | Generates a self-signed TLS certificate in `gateway/certs/` only when it does not exist                                                      |
-| `make build`               | Builds the images without starting them                                                                                                      |
-| `make sim`                 | Validates `.env`, starts the base services, seeds an empty database and then starts the sensor simulator                                     |
+| `make build`               | Builds the images, simulator included, without starting them                                                                                 |
+| `make sim`                 | Validates `.env`, starts the base services, seeds an empty database, then starts the backup and the sensor simulator                         |
 | `make demo`                | Alias of `make all`                                                                                                                          |
 | `make seed`                | Applies pending migrations, then loads the demo data from the working tree (no rebuild needed); safe to run more than once                   |
 | `make seed-avisos`         | Adds one alert in each phase of the client notices (#275), with times from now; run it again to refresh them; needs `make all` first         |
@@ -269,12 +269,12 @@ The root `Makefile` wraps the Compose commands:
 | `make backups`             | Lists the backups kept in the `backups_data` volume                                                                                          |
 | `make restore FILE=...`    | Restores the database from one of those backups; see [`docs/disaster-recovery.md`](docs/disaster-recovery.md)                                |
 | `make backup-verify`       | Makes a backup, restores it into a temporary database and compares every table with the real one; `FILE=...` checks an existing backup       |
-| `make down`                | Stops the containers, simulator included, and keeps the PostgreSQL volume                                                                    |
-| `make logs`                | Follows the logs of every running service                                                                                                    |
+| `make down`                | Stops the containers, simulator included, removes orphans and keeps the PostgreSQL volume                                                    |
+| `make logs`                | Follows the logs of every running service, simulator included                                                                                |
 | `make ps`                  | Shows service status                                                                                                                         |
-| `make clean`               | `down --remove-orphans`, simulator included                                                                                                  |
-| `make fclean`              | `down -v --remove-orphans`, simulator included, which deletes the PostgreSQL volume, the backups and the uploaded documents                  |
-| `make re`                  | `fclean` followed by `up`, a start from scratch                                                                                              |
+| `make clean`               | `down --rmi local --remove-orphans`: also removes the images built by the project; volumes are kept                                          |
+| `make fclean`              | `clean`, then `down -v`: also deletes the PostgreSQL volume, the backups and the uploaded documents                                          |
+| `make re`                  | `fclean` followed by `all`, a start from scratch                                                                                             |
 
 Backend tests that depend on the clock take "now" inside each test (an
 `autouse` fixture), never when the file is loaded: the full suite runs for
