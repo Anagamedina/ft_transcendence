@@ -207,8 +207,8 @@ ps:
 clean:
 	$(COMPOSE) --profile sim down --rmi local --remove-orphans
 
-fclean:
-	$(COMPOSE) --profile sim down -v --rmi local --remove-orphans
+fclean: clean
+	$(COMPOSE) --profile sim down -v
 
 # Sequential on purpose: with `make -j`, prerequisites would run in parallel
 # and fclean could delete volumes while all is starting the stack.
