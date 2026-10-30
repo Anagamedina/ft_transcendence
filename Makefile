@@ -16,14 +16,14 @@ SEED        := $(COMPOSE) run --rm --no-deps \
 	-v $(CURDIR)/backend/seeds:/app/seeds:ro \
 	--entrypoint python backend -m seeds.seed_demo
 
-.PHONY: all setup env config-check doctor check-sim-env certs up dev dev-infra frontend-install e2e-install frontend-dev sim demo seed seed-avisos seed-if-empty migrate migration migration-check storage-check test-backend test-frontend test-e2e lint format compose-check check down build logs ps clean fclean re smoke backup backups restore backup-verify
-
 # Full local bootstrap. It is safe to repeat: demo data is loaded only into
 # an empty database, while all named volumes survive `make down`.
+# Step by step: make each prerequisite, then each line below, in order.
+# `make -n all` prints the commands without running them.
 all: env certs config-check check-sim-env
 	$(COMPOSE) up --build -d --wait --wait-timeout 120 database backend gateway mailpit
 	$(MAKE) seed-if-empty
-	$(COMPOSE) up --build -d --force-recreate --renew-anon-volumes --wait --wait-timeout 120 backup
+	$(COMPOSE) up --build -d --wait --wait-timeout 120 backup
 	$(COMPOSE) --profile sim up --build -d --wait --wait-timeout 120 simulator
 	$(MAKE) storage-check
 	$(MAKE) smoke
@@ -78,7 +78,7 @@ certs:
 	fi
 
 up: env certs config-check
-	$(COMPOSE) up --build -d
+	$(COMPOSE) up --build -d --wait --wait-timeout 120
 	@$(COMPOSE) ps
 
 dev-infra: env certs config-check
@@ -106,6 +106,7 @@ dev: dev-infra
 sim: env certs config-check check-sim-env
 	$(COMPOSE) up --build -d --wait --wait-timeout 120 database backend gateway mailpit
 	$(MAKE) seed-if-empty
+	$(COMPOSE) up --build -d --wait --wait-timeout 120 backup
 	$(COMPOSE) --profile sim up --build -d --wait --wait-timeout 120 simulator
 	@$(COMPOSE) --profile sim ps
 
@@ -191,25 +192,28 @@ backup-verify:
 	@bash scripts/backup_verify.sh "$(FILE)"
 
 down:
-	$(COMPOSE) --profile sim down
+	$(COMPOSE) --profile sim down --remove-orphans
 
 build: env
-	$(COMPOSE) build
+	$(COMPOSE) --profile sim build
 
 logs:
-	$(COMPOSE) logs -f
+	$(COMPOSE) --profile sim logs -f
 
 ps:
 	$(COMPOSE) ps
 
+# clean removes the project images; fclean also removes the volumes.
 clean:
-	$(COMPOSE) --profile sim down --remove-orphans
+	$(COMPOSE) --profile sim down --rmi local --remove-orphans
 
 fclean:
-	$(COMPOSE) --profile sim down -v --remove-orphans
+	$(COMPOSE) --profile sim down -v --rmi local --remove-orphans
 
 # Sequential on purpose: with `make -j`, prerequisites would run in parallel
 # and fclean could delete volumes while all is starting the stack.
 re:
 	$(MAKE) fclean
 	$(MAKE) all
+
+.PHONY: all setup env config-check doctor check-sim-env certs up dev dev-infra frontend-install e2e-install frontend-dev sim demo seed seed-avisos seed-if-empty migrate migration migration-check storage-check test-backend test-frontend test-e2e lint format compose-check check down build logs ps clean fclean re smoke backup backups restore backup-verify
