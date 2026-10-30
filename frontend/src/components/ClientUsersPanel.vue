@@ -10,17 +10,17 @@
 
 <template>
   <section
-    class="rounded-xl border border-gray-200 bg-white p-5"
+    class="rounded-xl border border-slate-200 bg-white p-5"
     aria-labelledby="client-users-title"
   >
     <header class="mb-2">
-      <h2 id="client-users-title" class="font-bold text-gray-900">
+      <h2 id="client-users-title" class="font-bold text-slate-900">
         Usuarios con acceso
-        <span v-if="loaded" class="font-normal text-gray-600"
+        <span v-if="loaded" class="font-normal text-slate-600"
           >({{ users.length }})</span
         >
       </h2>
-      <p class="text-sm text-gray-600">Personas que ya tienen una cuenta.</p>
+      <p class="text-sm text-slate-600">Personas que ya tienen una cuenta.</p>
     </header>
 
     <LoadingState

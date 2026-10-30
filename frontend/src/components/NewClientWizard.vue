@@ -12,25 +12,25 @@
 -->
 
 <template>
-  <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+  <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
     <!-- Success: the client exists, now the admin sends the invitation link -->
     <div v-if="created" class="space-y-4">
       <div class="flex items-center gap-3">
         <span
-          class="flex h-9 w-9 items-center justify-center rounded-full bg-green-100 text-green-700"
+          class="flex h-9 w-9 items-center justify-center rounded-full bg-success-light text-success-dark"
           aria-hidden="true"
           >✓</span
         >
         <h2
           ref="heading"
           tabindex="-1"
-          class="text-xl font-bold text-gray-900 focus:outline-none"
+          class="text-xl font-bold text-slate-900 focus:outline-none"
         >
           {{ created.client.name }} creado
         </h2>
       </div>
       <template v-if="created.invitation">
-        <p class="text-gray-700">
+        <p class="text-slate-700">
           Envía este enlace a {{ created.invitation.name }} ({{
             created.invitation.email
           }}) para que active su cuenta.
@@ -44,12 +44,12 @@
       <p
         v-else
         role="alert"
-        class="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900"
+        class="rounded-lg border border-warning/40 bg-warning-light px-4 py-3 text-warning-dark"
       >
         No se ha podido crear la invitación. Puedes enviarla desde la pestaña
         Usuarios de la ficha del cliente.
       </p>
-      <div class="flex flex-wrap gap-3 border-t border-gray-200 pt-4">
+      <div class="flex flex-wrap gap-3 border-t border-slate-200 pt-4">
         <button
           type="button"
           :class="BUTTON_PRIMARY"
@@ -69,7 +69,7 @@
 
     <form v-else novalidate class="space-y-6" @submit.prevent="next">
       <div class="space-y-4">
-        <h2 class="text-xl font-bold text-gray-900">Nuevo cliente</h2>
+        <h2 class="text-xl font-bold text-slate-900">Nuevo cliente</h2>
 
         <!-- Progress: one bar per step; aria-current marks the current one -->
         <ol aria-label="Pasos del alta" class="grid grid-cols-4 gap-2">
@@ -77,12 +77,12 @@
             v-for="(label, index) in STEPS"
             :key="label"
             class="flex flex-col gap-1.5 text-xs font-semibold sm:text-sm"
-            :class="index <= step ? 'text-aqua-600' : 'text-gray-500'"
+            :class="index <= step ? 'text-aqua-600' : 'text-slate-500'"
             :aria-current="index === step ? 'step' : undefined"
           >
             <span
               class="block h-1.5 rounded-full"
-              :class="index <= step ? 'bg-aqua-600' : 'bg-gray-200'"
+              :class="index <= step ? 'bg-aqua-600' : 'bg-slate-200'"
             ></span>
             <span>
               {{ index + 1 }}. {{ label }}
@@ -97,7 +97,7 @@
       <h3
         ref="heading"
         tabindex="-1"
-        class="text-lg font-semibold text-gray-800 focus:outline-none"
+        class="text-lg font-semibold text-slate-800 focus:outline-none"
       >
         Paso {{ step + 1 }} de {{ STEPS.length }}: {{ STEP_TITLES[step] }}
       </h3>
@@ -107,7 +107,7 @@
         <div class="flex flex-col gap-1 sm:col-span-2">
           <label
             :for="fieldId('name')"
-            class="text-sm font-semibold text-gray-700"
+            class="text-sm font-semibold text-slate-700"
           >
             Nombre del cliente <span aria-hidden="true">*</span>
           </label>
@@ -126,7 +126,7 @@
           <p
             v-if="errors.name"
             :id="fieldId('name-error')"
-            class="text-sm text-red-700"
+            class="text-sm text-danger-dark"
           >
             {{ errors.name }}
           </p>
@@ -134,7 +134,7 @@
         <div class="flex flex-col gap-1">
           <label
             :for="fieldId('contact_email')"
-            class="text-sm font-semibold text-gray-700"
+            class="text-sm font-semibold text-slate-700"
             >Email de contacto *</label
           >
           <input
@@ -153,7 +153,7 @@
           <p
             v-if="errors.contact_email"
             :id="fieldId('contact_email-error')"
-            class="text-sm text-red-700"
+            class="text-sm text-danger-dark"
           >
             {{ errors.contact_email }}
           </p>
@@ -161,7 +161,7 @@
         <div class="flex flex-col gap-1">
           <label
             :for="fieldId('phone')"
-            class="text-sm font-semibold text-gray-700"
+            class="text-sm font-semibold text-slate-700"
             >Teléfono *</label
           >
           <input
@@ -178,13 +178,13 @@
           <p
             v-if="errors.phone"
             :id="fieldId('phone-error')"
-            class="text-sm text-red-700"
+            class="text-sm text-danger-dark"
             role="alert"
           >
             {{ errors.phone }}
           </p>
         </div>
-        <p class="text-sm text-gray-600 sm:col-span-2">
+        <p class="text-sm text-slate-600 sm:col-span-2">
           AquaGuard solo da servicio en Barcelona.
         </p>
       </div>
@@ -194,14 +194,14 @@
 
       <!-- 3. Usuario: receives the invitation link -->
       <div v-else-if="step === 2" class="grid gap-4 sm:grid-cols-2">
-        <p class="text-sm text-gray-600 sm:col-span-2">
+        <p class="text-sm text-slate-600 sm:col-span-2">
           Al crear el cliente obtendrás un enlace de invitación para enviar a
           esta persona.
         </p>
         <div class="flex flex-col gap-1">
           <label
             :for="fieldId('user_name')"
-            class="text-sm font-semibold text-gray-700"
+            class="text-sm font-semibold text-slate-700"
           >
             Nombre <span aria-hidden="true">*</span>
           </label>
@@ -221,7 +221,7 @@
           <p
             v-if="errors.user_name"
             :id="fieldId('user_name-error')"
-            class="text-sm text-red-700"
+            class="text-sm text-danger-dark"
           >
             {{ errors.user_name }}
           </p>
@@ -229,7 +229,7 @@
         <div class="flex flex-col gap-1">
           <label
             :for="fieldId('user_email')"
-            class="text-sm font-semibold text-gray-700"
+            class="text-sm font-semibold text-slate-700"
           >
             Email <span aria-hidden="true">*</span>
           </label>
@@ -249,7 +249,7 @@
           <p
             v-if="errors.user_email"
             :id="fieldId('user_email-error')"
-            class="text-sm text-red-700"
+            class="text-sm text-danger-dark"
           >
             {{ errors.user_email }}
           </p>
@@ -258,13 +258,13 @@
 
       <!-- 4. Facturación: optional, it can be completed later -->
       <div v-else class="grid gap-4 sm:grid-cols-2">
-        <p class="text-sm text-gray-600 sm:col-span-2">
+        <p class="text-sm text-slate-600 sm:col-span-2">
           Opcional: se puede completar más tarde.
         </p>
         <div class="flex flex-col gap-1">
           <label
             :for="fieldId('legal_name')"
-            class="text-sm font-semibold text-gray-700"
+            class="text-sm font-semibold text-slate-700"
             >Razón social</label
           >
           <input
@@ -278,7 +278,7 @@
         <div class="flex flex-col gap-1">
           <label
             :for="fieldId('tax_id')"
-            class="text-sm font-semibold text-gray-700"
+            class="text-sm font-semibold text-slate-700"
             >NIF o CIF</label
           >
           <input
@@ -292,7 +292,7 @@
         <div class="flex flex-col gap-1 sm:col-span-2">
           <label
             :for="fieldId('billing_email')"
-            class="text-sm font-semibold text-gray-700"
+            class="text-sm font-semibold text-slate-700"
             >Email de facturación</label
           >
           <input
@@ -310,7 +310,7 @@
           <p
             v-if="errors.billing_email"
             :id="fieldId('billing_email-error')"
-            class="text-sm text-red-700"
+            class="text-sm text-danger-dark"
           >
             {{ errors.billing_email }}
           </p>
@@ -323,12 +323,12 @@
         ref="generalErrorMessage"
         role="alert"
         tabindex="-1"
-        class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 focus:outline-none"
+        class="rounded-lg border border-danger/40 bg-danger-light px-4 py-3 text-sm text-danger-dark focus:outline-none"
       >
         {{ generalError }}
       </p>
 
-      <div class="flex justify-between gap-3 border-t border-gray-200 pt-4">
+      <div class="flex justify-between gap-3 border-t border-slate-200 pt-4">
         <button
           type="button"
           :class="BUTTON_SECONDARY"
@@ -380,7 +380,7 @@ const STEP_TITLES = [
 const BUTTON_PRIMARY =
   "min-h-10 rounded-lg bg-aqua-600 px-4 text-sm font-semibold text-white hover:bg-aqua-700 disabled:cursor-wait disabled:opacity-60";
 const BUTTON_SECONDARY =
-  "min-h-10 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:border-aqua-600 disabled:opacity-60";
+  "min-h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:border-aqua-600 disabled:opacity-60";
 
 // Same limit as OrganizationCreate.name (B1)
 const NAME_MAX = 120;
@@ -437,7 +437,7 @@ function fieldId(name) {
 function inputClass(field) {
   const base =
     "w-full rounded-lg border bg-white px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-aqua-600";
-  return errors[field] ? `${base} border-red-600` : `${base} border-gray-300`;
+  return errors[field] ? `${base} border-danger` : `${base} border-slate-300`;
 }
 
 function emailError(value, required) {

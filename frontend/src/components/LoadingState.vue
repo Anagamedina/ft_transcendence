@@ -17,7 +17,7 @@
       class="inline-block rounded-full border-4 border-aqua-100 border-t-aqua-600 motion-safe:animate-spin"
       :class="compact ? 'w-6 h-6' : 'w-10 h-10'"
     ></span>
-    <p class="text-sm text-gray-600">{{ message }}</p>
+    <p class="text-sm text-slate-600">{{ message }}</p>
   </div>
 </template>
 

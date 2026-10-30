@@ -29,14 +29,14 @@
               class="rounded-full px-2 py-0.5 text-xs font-bold"
               :class="
                 alert.severity === 'CRITICAL'
-                  ? 'bg-rose-50 text-rose-700'
-                  : 'bg-amber-50 text-amber-800'
+                  ? 'bg-danger-light text-danger-dark'
+                  : 'bg-warning-light text-warning-dark'
               "
               :title="help('AlertSeverity', alert.severity)"
             >
               {{ label("AlertSeverity", alert.severity) }}
             </span>
-            <span class="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-bold text-aqua-700">
+            <span class="rounded-full bg-aqua-100 px-2 py-0.5 text-xs font-bold text-aqua-700">
               {{ label("AlertState", alert.state) }}
             </span>
             <button
@@ -55,7 +55,7 @@
             {{ label("AlertType", alert.type) }}
             <span
               v-if="reading.value"
-              :class="alert.severity === 'CRITICAL' ? 'text-rose-700' : 'text-amber-700'"
+              :class="alert.severity === 'CRITICAL' ? 'text-danger-dark' : 'text-warning-dark'"
             >
               {{ reading.value }}
             </span>
@@ -168,7 +168,7 @@
         </div>
 
         <footer class="border-t border-slate-200 bg-slate-50 px-5 py-4">
-          <p v-if="error" class="mb-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-700" role="alert">
+          <p v-if="error" class="mb-3 rounded-lg bg-danger-light p-3 text-sm text-danger-dark" role="alert">
             {{ error }}
           </p>
 

@@ -11,17 +11,17 @@
 
 <template>
   <section
-    class="rounded-xl border border-gray-200 bg-white p-5"
+    class="rounded-xl border border-slate-200 bg-white p-5"
     aria-labelledby="client-documents-title"
   >
     <header class="mb-4">
-      <h2 id="client-documents-title" class="font-bold text-gray-900">
+      <h2 id="client-documents-title" class="font-bold text-slate-900">
         Documentos
-        <span v-if="loaded" class="font-normal text-gray-600"
+        <span v-if="loaded" class="font-normal text-slate-600"
           >({{ documentsStore.total }})</span
         >
       </h2>
-      <p class="text-sm text-gray-600">
+      <p class="text-sm text-slate-600">
         Planos, informes y facturas de sus edificios.
       </p>
     </header>
@@ -63,7 +63,7 @@
       v-if="feedback"
       role="status"
       class="mt-2 text-sm font-semibold"
-      :class="feedbackIsError ? 'text-red-800' : 'text-green-800'"
+      :class="feedbackIsError ? 'text-danger-dark' : 'text-success-dark'"
     >
       {{ feedback }}
     </p>

@@ -13,7 +13,7 @@
         <!-- Kept on purpose until the texts get a legal review (#195) -->
         <div
           role="note"
-          class="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg p-4 mb-8"
+          class="bg-warning-light border border-warning/40 text-warning-dark text-sm rounded-lg p-4 mb-8"
         >
           AquaGuard es un proyecto académico de 42 Barcelona (ft_transcendence).
           Este texto describe cómo funciona la aplicación, pero es un borrador

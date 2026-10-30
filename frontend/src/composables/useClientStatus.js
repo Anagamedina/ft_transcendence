@@ -10,19 +10,19 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // "Trial ended" is not a backend status: it is TRIAL with trial_ends_at in the past.
 // TRIAL_ENDED is a frontend-only key used to pick its label and colors.
 const STATUS_MAP = {
-  TRIAL: { label: "En prueba", pillClass: "bg-blue-100 text-blue-800" },
+  TRIAL: { label: "En prueba", pillClass: "bg-info-light text-info-dark" },
   TRIAL_ENDED: {
     label: "Prueba terminada",
-    pillClass: "bg-amber-100 text-amber-800",
+    pillClass: "bg-warning-light text-warning-dark",
   },
-  ACTIVE: { label: "Activo", pillClass: "bg-emerald-100 text-emerald-800" },
+  ACTIVE: { label: "Activo", pillClass: "bg-success-light text-success-dark" },
   SUSPENDED: { label: "Suspendido", pillClass: "bg-slate-200 text-slate-700" },
 };
 
 // Fallback so an unexpected status never breaks the table
 const UNKNOWN_STATUS = {
   label: "Desconocido",
-  pillClass: "bg-gray-100 text-gray-700",
+  pillClass: "bg-slate-100 text-slate-700",
 };
 
 // Same date at 00:00, so day differences ignore the hour

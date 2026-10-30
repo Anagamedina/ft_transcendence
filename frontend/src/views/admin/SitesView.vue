@@ -93,7 +93,7 @@
       <form id="site-form" class="space-y-4" novalidate @submit.prevent="save">
         <!-- Only on create: the API needs to know which client owns the building -->
         <div v-if="!editing" class="flex flex-col gap-1">
-          <label for="site-client" class="text-sm font-semibold text-gray-700">
+          <label for="site-client" class="text-sm font-semibold text-slate-700">
             Cliente <span aria-hidden="true">*</span>
           </label>
           <select
@@ -102,7 +102,7 @@
             v-model="clientId"
             required
             class="w-full rounded-lg border bg-white px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-aqua-600"
-            :class="clientError ? 'border-red-600' : 'border-gray-300'"
+            :class="clientError ? 'border-danger' : 'border-slate-300'"
             :aria-invalid="Boolean(clientError)"
             :aria-describedby="clientError ? 'site-client-error' : undefined"
           >
@@ -118,7 +118,7 @@
           <p
             v-if="clientError"
             id="site-client-error"
-            class="text-sm text-red-700"
+            class="text-sm text-danger-dark"
           >
             {{ clientError }}
           </p>
@@ -137,7 +137,7 @@
         <p
           v-if="saveError"
           role="alert"
-          class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800"
+          class="rounded-lg bg-danger-light px-3 py-2 text-sm text-danger-dark"
         >
           {{ saveError }}
         </p>

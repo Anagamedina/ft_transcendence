@@ -101,7 +101,7 @@ const updatedAt = computed(() =>
 
 <template>
   <section
-    class="bg-white border border-gray-200 rounded-xl shadow-md p-5 mb-8"
+    class="bg-white border border-slate-200 rounded-xl shadow-md p-5 mb-8"
     aria-labelledby="analytics-title"
   >
     <!-- Filters: one row above the charts -->
@@ -109,10 +109,10 @@ const updatedAt = computed(() =>
       class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-5"
     >
       <div>
-        <h2 id="analytics-title" class="text-lg font-bold text-gray-800">
+        <h2 id="analytics-title" class="text-lg font-bold text-slate-800">
           Analítica
         </h2>
-        <p class="text-sm text-gray-500" aria-live="polite">
+        <p class="text-sm text-slate-500" aria-live="polite">
           <template v-if="updatedAt"
             >Actualizado a las {{ updatedAt }} · se refresca cada 30 s</template
           >
@@ -126,27 +126,27 @@ const updatedAt = computed(() =>
             v-for="n in PRESETS"
             :key="n"
             type="button"
-            class="px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-aqua-50"
+            class="px-3 py-2 text-sm rounded-lg border border-slate-300 text-slate-700 hover:bg-aqua-50"
             @click="store.setLastDays(n)"
           >
             {{ n }} días
           </button>
         </div>
-        <label class="flex flex-col text-xs font-semibold text-gray-600">
+        <label class="flex flex-col text-xs font-semibold text-slate-600">
           Desde
           <input
             v-model="fromDate"
             type="date"
-            class="mt-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
+            class="mt-1 border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
             @change="onRangeInput"
           />
         </label>
-        <label class="flex flex-col text-xs font-semibold text-gray-600">
+        <label class="flex flex-col text-xs font-semibold text-slate-600">
           Hasta
           <input
             v-model="toDate"
             type="date"
-            class="mt-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
+            class="mt-1 border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
             @change="onRangeInput"
           />
         </label>
@@ -211,7 +211,7 @@ const updatedAt = computed(() =>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <figure class="lg:col-span-2">
-          <figcaption class="text-sm font-semibold text-gray-700 mb-2">
+          <figcaption class="text-sm font-semibold text-slate-700 mb-2">
             Alertas por día
           </figcaption>
           <AnalyticsChart
@@ -222,7 +222,7 @@ const updatedAt = computed(() =>
         </figure>
 
         <figure>
-          <figcaption class="text-sm font-semibold text-gray-700 mb-2">
+          <figcaption class="text-sm font-semibold text-slate-700 mb-2">
             Alertas por gravedad
           </figcaption>
           <AnalyticsChart
@@ -234,7 +234,7 @@ const updatedAt = computed(() =>
 
         <figure class="lg:col-span-3">
           <div class="flex items-center justify-between mb-2">
-            <figcaption class="text-sm font-semibold text-gray-700">
+            <figcaption class="text-sm font-semibold text-slate-700">
               Alertas por {{ barBy === "organization" ? "cliente" : "sensor" }}
             </figcaption>
             <div
@@ -253,7 +253,7 @@ const updatedAt = computed(() =>
                 :class="
                   barBy === opt.key
                     ? 'bg-aqua-600 text-white border-aqua-600'
-                    : 'border-gray-300 text-gray-700'
+                    : 'border-slate-300 text-slate-700'
                 "
                 :aria-pressed="barBy === opt.key"
                 @click="barChoice = opt.key"

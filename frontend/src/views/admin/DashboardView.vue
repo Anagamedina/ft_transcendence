@@ -127,7 +127,7 @@ const criticalSites = computed(
 
 <template>
   <AdminLayout>
-    <h1 class="text-2xl font-bold text-gray-800 mb-6">Panel</h1>
+    <h1 class="text-2xl font-bold text-slate-800 mb-6">Panel</h1>
 
     <ErrorState
       v-if="overviewStore.status === 'error'"
@@ -163,7 +163,7 @@ const criticalSites = computed(
 
     <!-- Map card: building map shown directly on the dashboard -->
     <section
-      class="bg-white border border-gray-200 rounded-xl shadow-md p-5 mb-8"
+      class="bg-white border border-slate-200 rounded-xl shadow-md p-5 mb-8"
     >
       <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
@@ -174,18 +174,18 @@ const criticalSites = computed(
               style="width: 20px; height: 20px; flex: 0 0 20px"
             />
 
-            <h2 class="text-lg font-bold text-gray-800">Mapa de edificios</h2>
+            <h2 class="text-lg font-bold text-slate-800">Mapa de edificios</h2>
           </div>
 
-          <p class="text-sm text-gray-500">
+          <p class="text-sm text-slate-500">
             {{ sitesForMap.length }}
             {{ sitesForMap.length === 1 ? "edificio" : "edificios" }}
 
-            <span v-if="criticalSites" class="ml-2 font-semibold text-red-700">
+            <span v-if="criticalSites" class="ml-2 font-semibold text-danger-dark">
               · {{ criticalSites }} con alerta crítica
             </span>
 
-            <span v-if="warningSites" class="ml-2 font-semibold text-amber-700">
+            <span v-if="warningSites" class="ml-2 font-semibold text-warning-dark">
               · {{ warningSites }} con aviso
             </span>
           </p>

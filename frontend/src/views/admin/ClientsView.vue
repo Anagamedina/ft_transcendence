@@ -242,7 +242,7 @@ async function onCreate(data) {
             :class="
               selectedStatus === option.value
                 ? 'border-aqua-600 bg-aqua-600 text-white'
-                : 'border-gray-300 bg-white text-gray-700 hover:border-aqua-600'
+                : 'border-slate-300 bg-white text-slate-700 hover:border-aqua-600'
             "
             :aria-pressed="selectedStatus === option.value"
             @click="selectedStatus = option.value"

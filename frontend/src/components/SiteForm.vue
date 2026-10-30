@@ -12,7 +12,7 @@
 <template>
   <div class="grid gap-4 sm:grid-cols-2">
     <div class="flex flex-col gap-1 sm:col-span-2">
-      <label :for="fieldId('name')" class="text-sm font-semibold text-gray-700">
+      <label :for="fieldId('name')" class="text-sm font-semibold text-slate-700">
         Nombre del edificio <span aria-hidden="true">*</span>
       </label>
       <input
@@ -30,7 +30,7 @@
       <p
         v-if="errors.name"
         :id="fieldId('name-error')"
-        class="text-sm text-red-700"
+        class="text-sm text-danger-dark"
       >
         {{ errors.name }}
       </p>
@@ -39,7 +39,7 @@
     <div class="flex flex-col gap-1 sm:col-span-2">
       <label
         :for="fieldId('address')"
-        class="text-sm font-semibold text-gray-700"
+        class="text-sm font-semibold text-slate-700"
         >Dirección *</label
       >
       <input
@@ -61,7 +61,7 @@
       <p
         v-if="errors.address"
         :id="fieldId('address-error')"
-        class="text-sm text-red-700"
+        class="text-sm text-danger-dark"
       >
         {{ errors.address }}
       </p>
@@ -70,7 +70,7 @@
     <div class="flex flex-col gap-1">
       <label
         :for="fieldId('floors')"
-        class="text-sm font-semibold text-gray-700"
+        class="text-sm font-semibold text-slate-700"
       >
         Plantas sobre rasante <span aria-hidden="true">*</span>
       </label>
@@ -88,13 +88,13 @@
         :aria-describedby="`${fieldId('floors-hint')}${errors.floors ? ' ' + fieldId('floors-error') : ''}`"
         @input="update('floors', toNumber($event.target.value))"
       />
-      <p :id="fieldId('floors-hint')" class="text-xs text-gray-500">
+      <p :id="fieldId('floors-hint')" class="text-xs text-slate-500">
         Cuenta la planta baja: un bajo sin pisos es 1.
       </p>
       <p
         v-if="errors.floors"
         :id="fieldId('floors-error')"
-        class="text-sm text-red-700"
+        class="text-sm text-danger-dark"
       >
         {{ errors.floors }}
       </p>
@@ -103,7 +103,7 @@
     <div class="flex flex-col gap-1">
       <label
         :for="fieldId('basements')"
-        class="text-sm font-semibold text-gray-700"
+        class="text-sm font-semibold text-slate-700"
       >
         Sótanos <span aria-hidden="true">*</span>
       </label>
@@ -126,14 +126,14 @@
       <p
         v-if="errors.basements"
         :id="fieldId('basements-error')"
-        class="text-sm text-red-700"
+        class="text-sm text-danger-dark"
       >
         {{ errors.basements }}
       </p>
     </div>
 
     <div class="flex flex-col gap-1 sm:col-span-2">
-      <label :for="fieldId('type')" class="text-sm font-semibold text-gray-700"
+      <label :for="fieldId('type')" class="text-sm font-semibold text-slate-700"
         >Tipo de edificio</label
       >
       <select
@@ -285,7 +285,7 @@ function validate() {
 function inputClass(field) {
   const base =
     "w-full rounded-lg border bg-white px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-aqua-600";
-  return errors[field] ? `${base} border-red-600` : `${base} border-gray-300`;
+  return errors[field] ? `${base} border-danger` : `${base} border-slate-300`;
 }
 
 // The parent calls validate() through a template ref

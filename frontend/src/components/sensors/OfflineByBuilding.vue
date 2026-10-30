@@ -27,14 +27,14 @@
           <div class="min-w-[14rem] flex-1">
             <p class="text-[13px] text-slate-600">{{ group.organizationName }}</p>
             <h3 class="text-base font-bold text-slate-900">{{ group.siteName }}</h3>
-            <p v-if="group.sensors.length > 1" class="text-[13px] font-bold text-amber-700">
+            <p v-if="group.sensors.length > 1" class="text-[13px] font-bold text-warning-dark">
               {{ group.sensors.length }} sensores a la vez: puede ser la wifi del edificio
             </p>
           </div>
           <span
             v-if="badge(group)"
             class="rounded-full px-2.5 py-0.5 text-[13px] font-bold"
-            :class="badge(group).tone === 'red' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'"
+            :class="badge(group).tone === 'red' ? 'bg-danger-light text-danger-dark' : 'bg-warning-light text-warning-dark'"
           >
             {{ badge(group).text }}
           </span>
@@ -51,7 +51,7 @@
             <button
               type="button"
               class="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-4 py-3 text-left hover:bg-slate-50 sm:grid-cols-[minmax(0,1fr)_16rem_10rem_1rem] sm:px-5"
-              :class="sensor.id === selectedId ? 'bg-sky-50' : ''"
+              :class="sensor.id === selectedId ? 'bg-aqua-50' : ''"
               @click="$emit('open', sensor)"
             >
               <span>
@@ -64,7 +64,7 @@
               </span>
               <span class="text-right">
                 <span class="block text-xs text-slate-500">sin lecturas</span>
-                <b class="text-[15px]" :class="minutes(sensor) >= 360 ? 'text-rose-700' : 'text-amber-700'">
+                <b class="text-[15px]" :class="minutes(sensor) >= 360 ? 'text-danger-dark' : 'text-warning-dark'">
                   hace {{ formatDuration(minutes(sensor)) }}
                 </b>
               </span>
@@ -77,7 +77,7 @@
 
     <p
       v-else
-      class="rounded-xl border border-emerald-200 bg-emerald-50 p-8 text-center font-semibold text-emerald-800"
+      class="rounded-xl border border-success/40 bg-success-light p-8 text-center font-semibold text-success-dark"
     >
       ✓ Todos los sensores conectados envían lecturas
     </p>

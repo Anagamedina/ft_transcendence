@@ -26,12 +26,12 @@
 
     <span
       v-if="clientName"
-      class="inline-flex h-8 items-center gap-1 rounded-full bg-sky-100 pl-3 pr-1 text-sm font-semibold text-aqua-700"
+      class="inline-flex h-8 items-center gap-1 rounded-full bg-aqua-100 pl-3 pr-1 text-sm font-semibold text-aqua-700"
     >
       {{ clientName }}
       <button
         type="button"
-        class="flex h-6 w-6 items-center justify-center rounded-full hover:bg-sky-200"
+        class="flex h-6 w-6 items-center justify-center rounded-full hover:bg-aqua-200"
         :aria-label="`Quitar el filtro de cliente ${clientName}`"
         @click="$emit('update:organizationId', null)"
       >
@@ -67,8 +67,8 @@ import { onBeforeUnmount, ref, watch } from "vue";
 
 const SEVERITIES = [
   { value: null, label: "Todas" },
-  { value: "CRITICAL", label: "Críticas", dot: "bg-rose-700" },
-  { value: "WARNING", label: "Leves", dot: "bg-amber-600" },
+  { value: "CRITICAL", label: "Críticas", dot: "bg-danger" },
+  { value: "WARNING", label: "Leves", dot: "bg-warning" },
 ];
 
 const props = defineProps({

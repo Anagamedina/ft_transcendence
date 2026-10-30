@@ -16,7 +16,7 @@
 <template>
   <div class="grid gap-4 sm:grid-cols-2">
     <div class="flex flex-col gap-1 sm:col-span-2">
-      <label :for="fieldId('name')" class="text-sm font-semibold text-gray-700">
+      <label :for="fieldId('name')" class="text-sm font-semibold text-slate-700">
         Nombre <span aria-hidden="true">*</span>
       </label>
       <input
@@ -36,7 +36,7 @@
       <p
         v-if="errors.name"
         :id="fieldId('name-error')"
-        class="text-sm text-red-700"
+        class="text-sm text-danger-dark"
       >
         {{ errors.name }}
       </p>
@@ -46,7 +46,7 @@
     <div v-if="mode === 'create'" class="flex flex-col gap-1 sm:col-span-2">
       <label
         :for="fieldId('external_id')"
-        class="text-sm font-semibold text-gray-700"
+        class="text-sm font-semibold text-slate-700"
       >
         Etiqueta del aparato <span aria-hidden="true">*</span>
       </label>
@@ -64,13 +64,13 @@
         :aria-describedby="`${fieldId('external_id-hint')}${errors.external_id ? ' ' + fieldId('external_id-error') : ''}`"
         @input="update('external_id', $event.target.value)"
       />
-      <p :id="fieldId('external_id-hint')" class="text-xs text-gray-500">
+      <p :id="fieldId('external_id-hint')" class="text-xs text-slate-500">
         La que lleva el sensor físico. No se puede repetir en el mismo edificio.
       </p>
       <p
         v-if="errors.external_id"
         :id="fieldId('external_id-error')"
-        class="text-sm text-red-700"
+        class="text-sm text-danger-dark"
       >
         {{ errors.external_id }}
       </p>
@@ -79,7 +79,7 @@
     <div class="flex flex-col gap-1 sm:col-span-2">
       <label
         :for="fieldId('floor')"
-        class="text-sm font-semibold text-gray-700"
+        class="text-sm font-semibold text-slate-700"
       >
         Planta <span aria-hidden="true">*</span>
       </label>
@@ -96,14 +96,14 @@
           {{ floorLabel(floor) }}
         </option>
       </select>
-      <p :id="fieldId('floor-hint')" class="text-xs text-gray-500">
+      <p :id="fieldId('floor-hint')" class="text-xs text-slate-500">
         Solo las plantas del edificio: de {{ formatFloor(lowestFloor) }} a
         {{ formatFloor(highestFloor) }}.
       </p>
       <p
         v-if="errors.floor"
         :id="fieldId('floor-error')"
-        class="text-sm text-red-700"
+        class="text-sm text-danger-dark"
       >
         {{ errors.floor }}
       </p>
@@ -112,7 +112,7 @@
     <div class="flex flex-col gap-1">
       <label
         :for="fieldId('min_pressure')"
-        class="text-sm font-semibold text-gray-700"
+        class="text-sm font-semibold text-slate-700"
       >
         Umbral mínimo (bar) <span aria-hidden="true">*</span>
       </label>
@@ -134,7 +134,7 @@
       <p
         v-if="errors.min_pressure"
         :id="fieldId('min-error')"
-        class="text-sm text-red-700"
+        class="text-sm text-danger-dark"
       >
         {{ errors.min_pressure }}
       </p>
@@ -143,7 +143,7 @@
     <div class="flex flex-col gap-1">
       <label
         :for="fieldId('max_pressure')"
-        class="text-sm font-semibold text-gray-700"
+        class="text-sm font-semibold text-slate-700"
       >
         Umbral máximo (bar) <span aria-hidden="true">*</span>
       </label>
@@ -165,13 +165,13 @@
       <p
         v-if="errors.max_pressure"
         :id="fieldId('max-error')"
-        class="text-sm text-red-700"
+        class="text-sm text-danger-dark"
       >
         {{ errors.max_pressure }}
       </p>
     </div>
 
-    <p :id="fieldId('range-hint')" class="text-xs text-gray-500 sm:col-span-2">
+    <p :id="fieldId('range-hint')" class="text-xs text-slate-500 sm:col-span-2">
       Rango permitido entre {{ PRESSURE_MIN }} y {{ PRESSURE_MAX }} bar.
     </p>
   </div>
@@ -343,7 +343,7 @@ function validate() {
 function inputClass(field) {
   const base =
     "w-full rounded-lg border bg-white px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-aqua-600";
-  return errors[field] ? `${base} border-red-600` : `${base} border-gray-300`;
+  return errors[field] ? `${base} border-danger` : `${base} border-slate-300`;
 }
 
 // The parent calls validate() through a template ref

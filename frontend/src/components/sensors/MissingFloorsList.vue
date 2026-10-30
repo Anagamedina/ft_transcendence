@@ -19,7 +19,7 @@
           <p class="text-xs text-slate-500">{{ row.site.name }}</p>
         </div>
         <div class="min-w-[12rem] flex-1">
-          <p class="font-semibold text-amber-700">
+          <p class="font-semibold text-warning-dark">
             {{ row.missing.length }} {{ row.missing.length === 1 ? "planta" : "plantas" }} sin sensor
           </p>
           <p class="text-xs text-slate-500">{{ row.missing.map(floorLabel).join(", ") }}</p>

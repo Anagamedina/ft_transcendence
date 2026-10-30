@@ -134,7 +134,7 @@
               >
                 ver en Alertas
               </router-link>
-              <span v-if="alertCount >= TOO_MANY_ALERTS" class="block text-xs font-semibold text-amber-700">
+              <span v-if="alertCount >= TOO_MANY_ALERTS" class="block text-xs font-semibold text-warning-dark">
                 Avisa demasiado: revisa los umbrales
               </span>
             </dd>
@@ -150,7 +150,7 @@
             <ul class="divide-y divide-slate-100 rounded-lg border border-slate-100">
               <li v-for="alert in recent" :key="alert.id" class="flex flex-wrap justify-between gap-x-3 gap-y-0.5 px-3 py-2">
                 <span>
-                  <b :class="alert.severity === 'CRITICAL' ? 'text-rose-700' : 'text-amber-700'">{{ label("AlertType", alert.type) }}</b>
+                  <b :class="alert.severity === 'CRITICAL' ? 'text-danger-dark' : 'text-warning-dark'">{{ label("AlertType", alert.type) }}</b>
                   <template v-if="alertReading(alert).value"> · {{ alertReading(alert).value }}</template>
                 </span>
                 <span class="text-slate-500">{{ formatDate(alert.created_at) }} · {{ alertEnd(alert) }}</span>
@@ -185,7 +185,7 @@
             :mode="mode"
             :taken-labels="takenLabels"
           />
-          <p v-if="error" role="alert" class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{{ error }}</p>
+          <p v-if="error" role="alert" class="rounded-lg bg-danger-light px-3 py-2 text-sm text-danger-dark">{{ error }}</p>
         </form>
 
         <footer class="border-t border-slate-200 bg-slate-50 px-5 py-4">
@@ -270,8 +270,8 @@ const headline = computed(() => {
     return {
       text: high ? "Presión alta" : "Presión baja",
       sub: `${high ? "máximo" : "mínimo"} ${formatPressure(high ? sensor.max_pressure : sensor.min_pressure, sensor.unit)} · el aparato funciona`,
-      box: red ? "bg-rose-50" : "bg-amber-50",
-      title: red ? "text-rose-800" : "text-amber-800",
+      box: red ? "bg-danger-light" : "bg-warning-light",
+      title: red ? "text-danger-dark" : "text-warning-dark",
     };
   }
   return {
@@ -303,8 +303,8 @@ function alertEnd(alert) {
   return alert.resolved_by_name ? "cerrada a mano" : "se cerró sola";
 }
 const valueClass = computed(() => {
-  if (props.sensor?.health === "CRITICAL") return "text-rose-700";
-  if (props.sensor?.health === "WARNING") return "text-amber-700";
+  if (props.sensor?.health === "CRITICAL") return "text-danger-dark";
+  if (props.sensor?.health === "WARNING") return "text-warning-dark";
   return "text-slate-900";
 });
 

@@ -8,10 +8,10 @@
 -->
 
 <template>
-  <section class="bg-white border border-gray-200 rounded-xl shadow-md p-5">
+  <section class="bg-white border border-slate-200 rounded-xl shadow-md p-5">
     <div class="flex items-center gap-2 mb-4">
       <span class="w-5 h-5 text-aqua-600"><AppIcon name="alert" /></span>
-      <h2 class="text-lg font-bold text-gray-800">Alertas activas</h2>
+      <h2 class="text-lg font-bold text-slate-800">Alertas activas</h2>
     </div>
 
     <LoadingState
@@ -36,18 +36,18 @@
       compact
     />
 
-    <ul v-else class="divide-y divide-gray-100">
+    <ul v-else class="divide-y divide-slate-100">
       <li
         v-for="alert in alerts"
         :key="alert.id"
         class="py-3 flex items-start justify-between gap-3"
       >
         <div class="min-w-0">
-          <p class="font-semibold text-gray-800">
+          <p class="font-semibold text-slate-800">
             {{ label("AlertType", alert.type) }}
           </p>
-          <p class="text-sm text-gray-500">{{ alert.message }}</p>
-          <p class="text-xs text-gray-500 mt-1">
+          <p class="text-sm text-slate-500">{{ alert.message }}</p>
+          <p class="text-xs text-slate-500 mt-1">
             {{ formatDateTime(alert.created_at) }}
           </p>
         </div>

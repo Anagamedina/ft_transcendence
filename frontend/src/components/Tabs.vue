@@ -16,7 +16,7 @@
       <div
         role="tablist"
         :aria-label="label"
-        class="flex min-w-max gap-1 border-b-2 border-gray-200"
+        class="flex min-w-max gap-1 border-b-2 border-slate-200"
       >
         <button
           v-for="(tab, index) in tabs"
@@ -32,7 +32,7 @@
           :class="
             modelValue === tab.key
               ? 'border-aqua-600 font-bold text-aqua-600'
-              : 'border-transparent text-gray-600 hover:text-aqua-600'
+              : 'border-transparent text-slate-600 hover:text-aqua-600'
           "
           @click="select(index)"
           @keydown="onKeydown($event, index)"

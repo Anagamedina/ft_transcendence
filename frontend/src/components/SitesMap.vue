@@ -12,7 +12,7 @@
 <template>
   <div>
     <!-- Legend -->
-    <ul class="flex flex-wrap justify-end gap-4 mb-3 text-xs text-gray-500">
+    <ul class="flex flex-wrap justify-end gap-4 mb-3 text-xs text-slate-500">
       <li class="flex items-center gap-1.5">
         <span
           class="w-3 h-3 rounded-full bg-aqua-400 border border-aqua-600"
@@ -21,13 +21,13 @@
       </li>
       <li class="flex items-center gap-1.5">
         <span
-          class="w-3 h-3 rounded-full bg-warning border border-amber-600"
+          class="w-3 h-3 rounded-full bg-warning border border-warning-dark"
         ></span>
         {{ label("AlertSeverity", "WARNING") }}
       </li>
       <li class="flex items-center gap-1.5">
         <span
-          class="w-3 h-3 rounded-full bg-danger border border-red-700"
+          class="w-3 h-3 rounded-full bg-danger border border-danger"
         ></span>
         {{ label("AlertSeverity", "CRITICAL") }}
       </li>
@@ -45,7 +45,7 @@
       <button
         v-if="zoomedIn"
         type="button"
-        class="absolute top-3 left-3 z-10 bg-white text-aqua-600 text-sm font-semibold px-3 py-1.5 rounded-lg shadow-md border border-gray-200 hover:bg-aqua-50 transition"
+        class="absolute top-3 left-3 z-10 bg-white text-aqua-600 text-sm font-semibold px-3 py-1.5 rounded-lg shadow-md border border-slate-200 hover:bg-aqua-50 transition"
         @click="fitCity(true)"
       >
         Ver toda la ciudad
@@ -53,7 +53,7 @@
 
       <p
         v-if="validSites.length === 0"
-        class="absolute inset-0 z-10 flex items-center justify-center bg-white/70 text-sm text-gray-500"
+        class="absolute inset-0 z-10 flex items-center justify-center bg-white/70 text-sm text-slate-500"
       >
         No hay edificios con ubicación para mostrar.
       </p>
@@ -87,8 +87,8 @@ const PADDING = 16;
 // Marker look per alert level (Tailwind classes from the AquaGuard palette)
 const MARKER_CLASSES = {
   none: "bg-aqua-400 border-aqua-600",
-  warning: "bg-warning border-amber-600",
-  critical: "bg-danger border-red-700 animate-pulse",
+  warning: "bg-warning border-warning-dark",
+  critical: "bg-danger border-danger animate-pulse",
 };
 const ALERT_TEXT = {
   warning: "Alerta leve abierta",
@@ -140,18 +140,18 @@ const validSites = computed(() =>
 function buildPopup(site, level) {
   const box = document.createElement("div");
   const name = document.createElement("p");
-  name.className = "font-semibold text-gray-800";
+  name.className = "font-semibold text-slate-800";
   name.textContent = site.name;
   box.appendChild(name);
   if (site.address) {
     const address = document.createElement("p");
-    address.className = "text-sm text-gray-500";
+    address.className = "text-sm text-slate-500";
     address.textContent = site.address;
     box.appendChild(address);
   }
   if (ALERT_TEXT[level]) {
     const alert = document.createElement("p");
-    alert.className = `mt-1 text-sm font-semibold ${level === "critical" ? "text-danger" : "text-amber-600"}`;
+    alert.className = `mt-1 text-sm font-semibold ${level === "critical" ? "text-danger" : "text-warning-dark"}`;
     alert.textContent = ALERT_TEXT[level];
     box.appendChild(alert);
   }

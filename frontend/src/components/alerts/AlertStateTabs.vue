@@ -38,7 +38,7 @@
           class="min-w-[1.25rem] rounded-full px-1.5 text-center text-xs sm:min-w-[1.4rem] sm:px-2 sm:text-[13px]"
           :class="
             tab.state === 'ACTIVE' && tab.count > 0
-              ? 'bg-rose-700 text-white'
+              ? 'bg-danger-dark text-white'
               : 'bg-slate-200 text-slate-700'
           "
         >

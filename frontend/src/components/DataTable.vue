@@ -305,6 +305,6 @@ function pageButtonClass(isCurrent) {
     "min-h-9 min-w-9 rounded-lg border px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50";
   return isCurrent
     ? `${base} border-aqua-600 bg-aqua-600 text-white`
-    : `${base} border-gray-300 bg-white text-gray-700 hover:border-aqua-600`;
+    : `${base} border-slate-300 bg-white text-slate-700 hover:border-aqua-600`;
 }
 </script>

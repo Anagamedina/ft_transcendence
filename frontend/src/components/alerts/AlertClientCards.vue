@@ -48,7 +48,7 @@
         <span class="flex items-baseline gap-2 whitespace-nowrap">
           <span
             class="text-[1.65rem] font-bold leading-none"
-            :class="client.critical_alerts ? 'text-rose-700' : 'text-amber-700'"
+            :class="client.critical_alerts ? 'text-danger-dark' : 'text-warning-dark'"
           >
             {{ client.open_alerts }}
           </span>
@@ -57,11 +57,11 @@
           </span>
         </span>
         <span class="text-sm font-semibold">
-          <span v-if="client.critical_alerts" class="text-rose-700">
+          <span v-if="client.critical_alerts" class="text-danger-dark">
             {{ plural(client.critical_alerts, "crítica", "críticas") }}
           </span>
           <template v-if="client.critical_alerts && client.open_alerts - client.critical_alerts"> · </template>
-          <span v-if="client.open_alerts - client.critical_alerts" class="text-amber-700">
+          <span v-if="client.open_alerts - client.critical_alerts" class="text-warning-dark">
             {{ plural(client.open_alerts - client.critical_alerts, "leve", "leves") }}
           </span>
         </span>

@@ -12,7 +12,7 @@
 <template>
   <nav aria-label="Clientes" class="flex flex-col gap-1 py-3 pl-3 lg:max-h-[48rem] lg:overflow-y-auto">
     <template v-if="needAttention.length">
-      <h2 class="mb-0.5 ml-1 mr-3 mt-1 text-xs font-extrabold uppercase tracking-wide text-amber-800">
+      <h2 class="mb-0.5 ml-1 mr-3 mt-1 text-xs font-extrabold uppercase tracking-wide text-warning-dark">
         Necesitan atención · {{ needAttention.length }}
       </h2>
       <ul class="flex flex-col gap-0.5">
@@ -26,7 +26,7 @@
           >
             <span
               class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-              :class="issue(client).kind === 'pressure' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600'"
+              :class="issue(client).kind === 'pressure' ? 'bg-warning-light text-warning-dark' : 'bg-slate-200 text-slate-600'"
               aria-hidden="true"
             >
               <svg v-if="issue(client).kind === 'pressure'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
