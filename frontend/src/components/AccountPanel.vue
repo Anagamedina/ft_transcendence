@@ -13,7 +13,8 @@
         <h2 id="profile-title" class="mb-4 text-lg font-bold text-slate-800">
           Datos personales
         </h2>
-        <form class="space-y-4" @submit.prevent="saveProfile">
+        <!-- novalidate: our own Spanish messages, the same in every form -->
+        <form novalidate class="space-y-4" @submit.prevent="saveProfile">
           <div>
             <label
               for="account-name"
@@ -22,16 +23,24 @@
             >
             <input
               id="account-name"
+              :ref="profile.setRef('name')"
               v-model="name"
               required
               maxlength="120"
               autocomplete="name"
               :disabled="trialExpired"
-              class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-50 disabled:text-slate-600"
-              @input="
-                profileSaved = false;
-                profileError = '';
+              :class="
+                profile.inputClass(
+                  'name',
+                  'mt-1 disabled:bg-slate-50 disabled:text-slate-600',
+                )
               "
+              v-bind="profile.fieldAttrs('name')"
+              @input="profileSaved = false"
+            />
+            <FieldError
+              :id="profile.errorId('name')"
+              :message="profile.errors.name"
             />
           </div>
           <div>
@@ -56,9 +65,7 @@
             <!-- The backend sets last_login_at on every login -->
             Último inicio de sesión: {{ formatDateTime(authStore.lastLoginAt) }}
           </p>
-          <p v-if="profileError" class="text-sm text-danger-dark" role="alert">
-            {{ profileError }}
-          </p>
+          <FormError :message="profileError" />
           <p v-if="profileSaved" class="text-sm text-success-dark" role="status">
             Datos actualizados.
           </p>
@@ -84,7 +91,7 @@
         <h2 id="password-title" class="mb-4 text-lg font-bold text-slate-800">
           Cambiar contraseña
         </h2>
-        <form class="space-y-4" @submit.prevent="savePassword">
+        <form novalidate class="space-y-4" @submit.prevent="savePassword">
           <div v-for="field in passwordFields" :key="field.key">
             <label
               :for="`account-${field.key}`"
@@ -94,10 +101,10 @@
             <div class="relative mt-1">
               <input
                 :id="`account-${field.key}`"
+                :ref="passwordErrors.setRef(field.key)"
                 v-model="password[field.key]"
                 :type="visible[field.key] ? 'text' : 'password'"
                 required
-                :maxlength="PASSWORD_MAX_LENGTH"
                 :disabled="trialExpired"
                 :minlength="
                   field.key === 'current_password'
@@ -109,16 +116,16 @@
                     ? 'current-password'
                     : 'new-password'
                 "
-                :aria-describedby="
-                  field.key === 'new_password'
-                    ? 'account-password-hint'
-                    : undefined
+                :class="
+                  passwordErrors.inputClass(field.key, 'pr-20 disabled:bg-slate-50')
                 "
-                class="w-full rounded-lg border border-slate-300 px-3 py-2 pr-20 disabled:bg-slate-50"
-                @input="
-                  passwordSaved = false;
-                  passwordError = '';
+                v-bind="
+                  passwordErrors.fieldAttrs(
+                    field.key,
+                    field.key === 'new_password' ? 'account-password-hint' : null,
+                  )
                 "
+                @input="passwordSaved = false"
               />
               <!-- Same show / hide button as the sign-up form (/prueba) -->
               <button
@@ -149,10 +156,12 @@
                 ({{ password.new_password.length }}/{{ PASSWORD_MIN_LENGTH }})
               </span>
             </p>
+            <FieldError
+              :id="passwordErrors.errorId(field.key)"
+              :message="passwordErrors.errors[field.key]"
+            />
           </div>
-          <p v-if="passwordError" class="text-sm text-danger-dark" role="alert">
-            {{ passwordError }}
-          </p>
+          <FormError :message="passwordError" />
           <p
             v-if="passwordSaved"
             role="status"
@@ -180,18 +189,22 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { useAuthStore } from "../stores/auth";
 import { formatDateTime } from "../composables/useFormat";
 import { useClientStatus } from "../composables/useClientStatus";
 // Same rule as the sign-up form (/prueba) and the backend (B10)
 import {
-  PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
   loginPasswordProblem,
   passwordProblem,
 } from "../utils/passwords";
 import { apiErrorMessage } from "../utils/apiError";
+import FieldError from "./FieldError.vue";
+import FormError from "./FormError.vue";
+import { useFieldErrors } from "../composables/useFieldErrors.js";
+// Same name rule as /prueba and the invitation (utils/validation.js)
+import { cleanText, personNameProblem } from "../utils/validation.js";
 
 const authStore = useAuthStore();
 // Expired trial: the backend answers 403 TRIAL_EXPIRED to both forms (B12), so they
@@ -221,6 +234,18 @@ const visible = ref({
   new_password: false,
   confirmation: false,
 });
+// One error state per form (useFieldErrors): profile and password
+const profile = reactive(useFieldErrors(["name"]));
+profile.clearOnEdit({ name: () => name.value });
+const passwordErrors = reactive(
+  useFieldErrors(["current_password", "new_password", "confirmation"]),
+);
+passwordErrors.clearOnEdit({
+  current_password: () => password.value.current_password,
+  new_password: () => password.value.new_password,
+  confirmation: () => password.value.confirmation,
+});
+
 const passwordFields = [
   { key: "current_password", label: "Contraseña actual" },
   { key: "new_password", label: "Contraseña nueva" },
@@ -237,17 +262,19 @@ watch(
 async function saveProfile() {
   profileError.value = "";
   profileSaved.value = false;
-  // Only spaces passes `required`; the backend trims and would answer a generic 422
-  const trimmed = name.value.trim();
-  if (!trimmed) {
-    profileError.value = "Escribe tu nombre.";
+  if (!profile.check({ name: () => personNameProblem(name.value) })) {
+    profile.focusFirstError();
     return;
   }
   profileLoading.value = true;
   try {
-    await authStore.updateMe({ name: trimmed });
+    await authStore.updateMe({ name: cleanText(name.value) });
     profileSaved.value = true;
   } catch (error) {
+    if (profile.applyApiError(error, { codes: { INVALID_NAME: "name" } })) {
+      profile.focusFirstError();
+      return;
+    }
     profileError.value = apiErrorMessage(
       error,
       "No se han podido guardar los datos.",
@@ -260,15 +287,17 @@ async function saveProfile() {
 async function savePassword() {
   passwordError.value = "";
   passwordSaved.value = false;
-  const problem =
-    loginPasswordProblem(password.value.current_password) ??
-    passwordProblem(password.value.new_password, authStore.user?.email ?? "");
-  if (problem) {
-    passwordError.value = problem;
-    return;
-  }
-  if (password.value.new_password !== password.value.confirmation) {
-    passwordError.value = "Las contraseñas nuevas no coinciden.";
+  const valid = passwordErrors.check({
+    current_password: () => loginPasswordProblem(password.value.current_password),
+    new_password: () =>
+      passwordProblem(password.value.new_password, authStore.user?.email ?? ""),
+    confirmation: () =>
+      password.value.confirmation === password.value.new_password
+        ? null
+        : "Las contraseñas nuevas no coinciden.",
+  });
+  if (!valid) {
+    passwordErrors.focusFirstError();
     return;
   }
   passwordLoading.value = true;
@@ -289,12 +318,23 @@ async function savePassword() {
     };
     passwordSaved.value = true;
   } catch (error) {
-    passwordError.value =
-      error.code === "WRONG_PASSWORD"
-        ? "La contraseña actual no es correcta."
-        : error.code === "WEAK_PASSWORD"
-          ? error.message
-          : apiErrorMessage(error, "No se ha podido cambiar la contraseña.");
+    const isField = passwordErrors.applyApiError(error, {
+      codes: {
+        WRONG_PASSWORD: {
+          field: "current_password",
+          message: "La contraseña actual no es correcta.",
+        },
+        WEAK_PASSWORD: "new_password",
+      },
+    });
+    if (isField) {
+      passwordErrors.focusFirstError();
+      return;
+    }
+    passwordError.value = apiErrorMessage(
+      error,
+      "No se ha podido cambiar la contraseña.",
+    );
   } finally {
     passwordLoading.value = false;
   }

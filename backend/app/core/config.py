@@ -9,23 +9,23 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 ENV_FILE = PROJECT_ROOT / ".env"
 
 """
-Configuración central del backend
+Central backend settings
 
-Este archivo se encarga de:
-- Read environment variables.
-- Validate types.
-- Proporcionar la configuración al resto del backend.
-- Build the url of connection to postgresql.
+This file:
+- Reads environment variables.
+- Validates types.
+- Provides the settings to the rest of the backend.
+- Builds the PostgreSQL connection URL.
 
-IMPORTANTE:
-Aquí NO creamos todavía:
-- Engine de SQLAlchemy.
+IMPORTANT:
+This file does NOT create:
+- The SQLAlchemy engine.
 - Sessions.
-- Modelos.
-- Tablas.
-- Conexiones directas a PostgreSQL.
+- Models.
+- Tables.
+- Direct connections to PostgreSQL.
 
-Eso irá posteriormente en database.py.
+Those live in database.py.
 """
 
 # ---------------------------------------------------------
@@ -36,29 +36,29 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str
     POSTGRES_DB: str
 
-#Host where stores PostgreSQL.
+# Host where PostgreSQL runs.
 #
 # In docker compose:
 # POSTGRES_HOST=database
 #
-# "database" será el nombre del servicio de PostgreSQL
-# definido en compose.yaml.
+# "database" is the name of the PostgreSQL service
+# defined in compose.yaml.
     POSTGRES_HOST: str
 
-# Puerto interno estándar de PostgreSQL.
+# Standard internal PostgreSQL port.
     POSTGRES_PORT: int
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,
         env_file_encoding="utf-8",
-        # El .env es compartido y trae también variables de la aplicación
-        # (SECRET_KEY, CORS_ORIGINS) y del simulador. Sin "ignore",
-        # pydantic-settings las trataría como campos desconocidos y esta
-        # clase no dejaría arrancar el backend.
-        # Las de aplicación las lee app/core/app_config.py.
+        # The .env is shared and also holds application variables
+        # (SECRET_KEY, CORS_ORIGINS) and simulator ones. Without "ignore",
+        # pydantic-settings would treat them as unknown fields and this
+        # class would stop the backend from starting.
+        # The application ones are read by app/core/app_config.py.
         extra="ignore",
     )
 
-    # Quote credentials so special chars not break the URL
+    # Quote credentials so special characters do not break the URL
     @property
     def DATABASE_URL(self) -> str:
         return (

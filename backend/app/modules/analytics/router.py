@@ -1,20 +1,20 @@
 # ROUTER — analytics
-# Capa HTTP fina: valida schemas → llama service → responde.
+# Thin HTTP layer: validates schemas → calls the service → answers.
 """
-Endpoints de analítica (`/api/analytics/...`).
+Analytics endpoints (`/api/analytics/...`).
 
-Registrado desde la issue #22. Las rutas B9 agregan KPIs y rankings; B18
-mantiene la exportación con rango de fechas:
+Registered since issue #22. The B9 routes aggregate KPIs and rankings; B18
+keeps the export with a date range:
 
     GET /api/analytics/overview              → B9 (#144, Ana)
     GET /api/analytics/alerts/weekly         → B9 (#144, Ana)
     GET /api/analytics/alerts/top-sensors    → B9 (#144, Ana)
-    rango de fechas y exportación CSV        → B18 (#134, Daruny)
+    date range and CSV export               → B18 (#134, Daruny)
 
-Se usa `overview`, como dice el documento (apartado 9.2), y no `kpis`,
-como dibuja el diagrama de arquitectura.
-`overview` usa los últimos 30 días para la mediana; `weekly` usa una semana
-ISO explícita y `top-sensors` recibe `days`.
+It is called `overview`, as the document says (section 9.2), and not
+`kpis`, as the architecture diagram draws.
+`overview` uses the last 30 days for the median; `weekly` uses an explicit
+ISO week and `top-sensors` gets `days`.
 """
 
 from __future__ import annotations
@@ -44,12 +44,12 @@ router = APIRouter(prefix="/analytics", tags=["Analytics"])
 AnalyticsSvc = Annotated[AnalyticsService, Depends(get_analytics_service)]
 
 
-@router.get("/overview", response_model=OverviewResponse, summary="KPIs del panel")
+@router.get("/overview", response_model=OverviewResponse, summary="Panel KPIs")
 def overview(service: AnalyticsSvc, user: CurrentUser, scope: OrgScope) -> OverviewResponse:
     return OverviewResponse.model_validate(service.overview(scope, user.role == "admin"))
 
 
-@router.get("/alerts/weekly", response_model=WeeklyAlertsResponse, summary="Alertas por semana")
+@router.get("/alerts/weekly", response_model=WeeklyAlertsResponse, summary="Alerts per week")
 def weekly_alerts(
     service: AnalyticsSvc,
     scope: OrgScope,
@@ -59,7 +59,7 @@ def weekly_alerts(
     return WeeklyAlertsResponse.model_validate(service.weekly_alerts(site_id, week_start, scope))
 
 
-@router.get("/alerts/top-sensors", response_model=TopSensorsResponse, summary="Sensores con más alertas")
+@router.get("/alerts/top-sensors", response_model=TopSensorsResponse, summary="Sensors with the most alerts")
 def top_sensors(
     service: AnalyticsSvc,
     scope: OrgScope,
@@ -70,17 +70,17 @@ def top_sensors(
 
 @router.get(
     "/export",
-    summary="Exportar la analítica del periodo",
+    summary="Export the analytics of the period",
     description=(
-        "CSV con una fila por sensor y día: lecturas agregadas (número, "
-        "mínimo, media y máximo) y alertas creadas ese día. Solo los datos "
-        "de tu organización; un admin exporta todas.\n\n"
-        "Periodo: `from` incluido, `to` excluido; por defecto, los últimos "
-        "30 días. Máximo 366 días.\n\n"
-        f"Columnas: `{'`, `'.join(EXPORT_COLUMNS)}`.\n\n"
-        "Con `format=json` devuelve las mismas filas como lista JSON "
-        "(presiones como número o `null`), sin descarga: es lo que usa el "
-        "panel de analítica para los gráficos."
+        "CSV with one row per sensor and day: aggregated readings (count, "
+        "minimum, average and maximum) and alerts created that day. Only "
+        "the data of your organization; an admin exports all of them.\n\n"
+        "Period: `from` included, `to` excluded; by default, the last 30 "
+        "days. At most 366 days.\n\n"
+        f"Columns: `{'`, `'.join(EXPORT_COLUMNS)}`.\n\n"
+        "With `format=json` it returns the same rows as a JSON list "
+        "(pressures as a number or `null`), without a download: it is what "
+        "the analytics panel uses for the charts."
     ),
     response_class=Response,
     responses={
@@ -91,16 +91,16 @@ def top_sensors(
                     "schema": {"type": "array", "items": DailyRow.model_json_schema()}
                 },
             },
-            "description": "El archivo CSV, o las filas en JSON con `format=json`.",
+            "description": "The CSV file, or the rows in JSON with `format=json`.",
         },
-        **error_response(status.HTTP_401_UNAUTHORIZED, "No hay sesión (`UNAUTHORIZED`)."),
+        **error_response(status.HTTP_401_UNAUTHORIZED, "No session (`UNAUTHORIZED`)."),
         **error_response(
             status.HTTP_403_FORBIDDEN,
-            "Cuenta de cliente sin organización (`FORBIDDEN`).",
+            "Client account without an organization (`FORBIDDEN`).",
         ),
         **error_response(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            "Fechas o formato no válidos (`INVALID_DATE_RANGE`, `VALIDATION_ERROR`).",
+            "Invalid dates or format (`INVALID_DATE_RANGE`, `VALIDATION_ERROR`).",
         ),
     },
 )
@@ -110,7 +110,7 @@ def export(
     rango: DateRange,
     formato: Annotated[
         ExportFormat,
-        Query(alias="format", description="`csv` (descarga) o `json` (para el panel)."),
+        Query(alias="format", description="`csv` (download) or `json` (for the panel)."),
     ] = ExportFormat.CSV,
 ) -> Response:
     if formato is ExportFormat.JSON:

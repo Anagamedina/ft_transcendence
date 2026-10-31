@@ -1,15 +1,16 @@
 # SCHEMAS — subscriptions
-# Pydantic request/response (contrato OpenAPI). No devolver model ORM crudo.
+# Pydantic request/response (OpenAPI contract). Never return a raw ORM model.
 """
-Contrato de la suscripción (B14, issue #150).
+Subscription contract (B14, issue #150).
 
     GET  /api/plans                      → list[PlanResponse]
     POST /api/me/organization/subscribe  → SubscriptionRequest → SubscriptionResponse
 
-El NIF, el código postal y el IBAN no se validan en el schema sino en el
-service, para responder con su código propio (`INVALID_TAX_ID`,
-`INVALID_POSTAL_CODE`, `INVALID_IBAN`) en lugar del genérico
-`VALIDATION_ERROR`, como el `INVALID_NAME` de la B1.
+The tax id, the postal code, the phone and the IBAN are validated in the
+service (`app/shared/fields.py`), not in the schema, to answer with their
+own code (`INVALID_TAX_ID`, `INVALID_POSTAL_CODE`, `INVALID_PHONE`,
+`INVALID_IBAN`) instead of the generic `VALIDATION_ERROR`, like the B1
+`INVALID_NAME`.
 """
 
 from __future__ import annotations
@@ -23,101 +24,108 @@ from app.modules.subscriptions.plans import MAX_SITES
 from app.shared.enums import BillingPeriod, OrganizationStatus, SubscriptionPlan
 from app.shared.schemas import ApiModel, ApiRequest
 
-# Topes del formulario. Edificios: el máximo del plan Empresa; más que eso
-# es un presupuesto a medida.
+# Form caps. Buildings: the Empresa plan maximum; more than that is a
+# custom quote.
 MAX_CONTRACT_SITES = MAX_SITES
 MAX_CONTRACT_SENSORS = 1000
 
 
 class PlanResponse(ApiModel):
-    """Un plan del catálogo. `None` en los límites es «sin límite»."""
+    """A plan of the catalog. `None` in the limits means "no limit"."""
 
     id: SubscriptionPlan
     name: str = Field(examples=["Profesional"])
     description: str
     monthly_price_eur: int = Field(
-        description="Base del plan al mes en euros, IVA no incluido. Cada sensor se suma aparte."
+        description="Monthly plan base in euros, VAT not included. Each sensor is added on top."
     )
-    sensor_price_eur: int = Field(description="Precio de cada sensor al mes, en euros.")
-    yearly_months: int = Field(description="Meses que se pagan con el pago anual.")
+    sensor_price_eur: int = Field(description="Monthly price of each sensor, in euros.")
+    yearly_months: int = Field(description="Months paid with the yearly payment.")
     max_sites: int | None = Field(
-        description="Hasta cuántos edificios cubre el plan. Decide qué plan toca."
+        description="Up to how many buildings the plan covers. It decides which plan applies."
     )
     max_sensors: int | None = Field(
-        description="Hoy `null` en todos: los sensores no cambian el plan, se pagan aparte."
+        description="`null` in all of them today: sensors do not change the plan, they are paid separately."
     )
     features: list[str]
 
 
 class SubscriptionRequest(ApiRequest):
     """
-    Lo que contrata, datos fiscales y contacto del cliente que deja la prueba.
+    What it contracts, tax data and contact of the client leaving the trial.
 
-    No lleva el plan: sale de `sites` y `sensors`, y el precio también
-    (ver `plans.py`). Los datos fiscales y la cuenta son obligatorios porque
-    sin ellos no se puede facturar ni cobrar. El contacto es opcional: si no
-    llega, se queda el que hay.
+    It has no plan: it comes from `sites` and `sensors`, and so does the
+    price (see `plans.py`). The tax data and the account are mandatory
+    because without them it cannot be invoiced or charged. The contact is
+    optional: if it does not come, the current one stays.
     """
 
     sites: int = Field(
         ge=1, le=MAX_CONTRACT_SITES,
-        description="Edificios que contrata. No menos de los que ya tiene.",
+        description="Buildings it contracts. Not fewer than it already has.",
         examples=[2],
     )
     sensors: int = Field(
         ge=1, le=MAX_CONTRACT_SENSORS,
         description=(
-            "Sensores que contrata. Al menos uno por edificio y no menos de los "
-            "que ya tiene."
+            "Sensors it contracts. At least one per building and not fewer "
+            "than it already has."
         ),
         examples=[12],
     )
     billing_period: BillingPeriod = Field(
-        description="`MONTHLY` (cada mes) o `YEARLY` (diez meses por adelantado)."
+        description="`MONTHLY` (every month) or `YEARLY` (ten months in advance)."
     )
     legal_name: str = Field(
-        min_length=1, max_length=200, description="Razón social.",
+        min_length=1, max_length=200, description="Legal company name.",
         examples=["Hoteles Diagonal S.L."],
     )
     tax_id: str = Field(
         min_length=1, max_length=30,
-        description="NIF, NIE o CIF. Se guarda en mayúsculas y sin espacios ni guiones.",
+        description="NIF, NIE or CIF. Stored in uppercase without spaces or hyphens.",
         examples=["B12345678"],
     )
     billing_address: str = Field(
-        min_length=1, max_length=200, description="Dirección fiscal, sin el código postal.",
+        min_length=1, max_length=200, description="Billing address, without the postal code.",
         examples=["Avinguda Diagonal 100"],
     )
     postal_code: str = Field(
-        min_length=1, max_length=10, description="Código postal: cinco cifras.",
+        min_length=1, max_length=10, description="Postal code: five digits.",
         examples=["08019"],
     )
     city: str = Field(
-        min_length=1, max_length=120, description="Ciudad y provincia.",
+        min_length=1, max_length=120, description="City and province.",
         examples=["Barcelona"],
     )
-    billing_email: EmailStr = Field(description="Email al que se envían las facturas.")
+    billing_email: EmailStr = Field(description="Email the invoices are sent to.")
     contact_email: EmailStr | None = Field(default=None)
-    phone: str | None = Field(default=None, max_length=30, examples=["+34 600 000 000"])
+    phone: str = Field(
+        max_length=30,
+        description=(
+            "Spanish phone, mandatory. Stored as `+34 612 345 678`; if it is "
+            "not valid, 422 `INVALID_PHONE`."
+        ),
+        examples=["612 345 678"],
+    )
     iban: str = Field(
         min_length=1,
         max_length=42,
         description=(
-            "Cuenta para domiciliar. Se comprueba y **solo se guarda "
-            "enmascarada**: la API nunca la devuelve ni la almacena entera."
+            "Account for the direct debit. It is checked and **stored masked "
+            "only**: the API never returns it nor stores it whole."
         ),
         examples=["ES91 2100 0418 4502 0005 1332"],
     )
     accept_terms: bool = Field(
-        description="Tiene que ser `true`: acepta las condiciones de contratación."
+        description="Must be `true`: accepts the contract conditions."
     )
     accept_sepa: bool = Field(
-        description="Tiene que ser `true`: autoriza la domiciliación SEPA del IBAN."
+        description="Must be `true`: authorizes the SEPA direct debit of the IBAN."
     )
 
 
 class SubscriptionResponse(ApiModel):
-    """La organización ya como cliente, con lo que se ha guardado."""
+    """The organization already as a client, with what was stored."""
 
     organization_id: UUID
     organization_name: str
@@ -128,14 +136,14 @@ class SubscriptionResponse(ApiModel):
     contracted_sites: int = Field(examples=[2])
     contracted_sensors: int = Field(examples=[12])
     monthly_price_eur: int = Field(
-        description="Precio al mes: base del plan más cada sensor, IVA no incluido.",
+        description="Monthly price: plan base plus each sensor, VAT not included.",
         examples=[149],
     )
     billed_price_eur: int = Field(
-        description="Lo que se cobra cada vez: el mes, o diez meses si es anual.",
+        description="What is charged each time: the month, or ten months if yearly.",
         examples=[149],
     )
-    subscribed_at: datetime = Field(description="Momento de la suscripción, en UTC.")
+    subscribed_at: datetime = Field(description="Time of the subscription, in UTC.")
     legal_name: str
     tax_id: str
     billing_address: str
@@ -146,5 +154,5 @@ class SubscriptionResponse(ApiModel):
     phone: str | None = None
     iban_masked: str = Field(examples=["ES** **** **** **** **** 1332"])
     sepa_accepted_at: datetime = Field(
-        description="Cuándo autorizó la domiciliación, en UTC."
+        description="When the direct debit was authorized, in UTC."
     )

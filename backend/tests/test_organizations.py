@@ -224,6 +224,8 @@ def con_mar(engine, datos):
 
 
 MAR, LUNA, SOL = "Agencia Mar", "Colegio Luna", "Hotel Sol"
+# Teléfono válido para las altas: el alta lo exige (shared/fields.py).
+TELEFONO = "612 345 678"
 
 
 @pytest.mark.parametrize(
@@ -324,10 +326,10 @@ def test_ver_una_que_no_existe_da_404(admin, datos):
 # ALTA (incluye los criterios de la #121)
 # ---------------------------------------------------------
 def test_alta_y_aparece_en_la_lista(admin, datos):
-    respuesta = admin.post("/api/organizations", json={"name": "Residencia Mar"})
+    respuesta = admin.post("/api/organizations", json={"name": "Residencia Mar", "phone": TELEFONO})
 
     assert respuesta.status_code == 201
-    assert respuesta.json()["status"] == "ACTIVE"
+    assert respuesta.json()["status"] == "TRIAL"
     nombres = [o["name"] for o in admin.get("/api/organizations").json()["items"]]
     assert "Residencia Mar" in nombres
 
@@ -337,6 +339,7 @@ def test_alta_con_primer_edificio(admin, engine, datos):
         "/api/organizations",
         json={
             "name": "Residencia Mar",
+            "phone": TELEFONO,
             "city": "Sitges",
             "contact_email": "info@mar.dev",
             "first_site": {"name": "Edificio A", "latitude": 41.23, "longitude": 1.8},
@@ -355,7 +358,11 @@ def test_alta_con_primer_edificio(admin, engine, datos):
 def test_si_el_primer_edificio_falla_no_queda_la_organizacion(admin, engine, datos):
     respuesta = admin.post(
         "/api/organizations",
-        json={"name": "Residencia Mar", "first_site": {"name": "A", "latitude": 200}},
+        json={
+            "name": "Residencia Mar",
+            "phone": TELEFONO,
+            "first_site": {"name": "A", "latitude": 200},
+        },
     )
 
     assert respuesta.status_code == 422
@@ -367,31 +374,90 @@ def test_si_el_primer_edificio_falla_no_queda_la_organizacion(admin, engine, dat
 
 @pytest.mark.parametrize("nombre", ["Hotel Sol", "hotel sol", "  HOTEL SOL  "])
 def test_nombre_repetido_sin_distinguir_mayusculas_da_409(admin, datos, nombre):
-    respuesta = admin.post("/api/organizations", json={"name": nombre})
+    respuesta = admin.post("/api/organizations", json={"name": nombre, "phone": TELEFONO})
     assert respuesta.status_code == 409
     assert _codigo(respuesta) == "ORGANIZATION_NAME_TAKEN"
 
 
-@pytest.mark.parametrize("nombre", ["", "   "])
-def test_nombre_vacio_da_422_invalid_name(admin, datos, nombre):
-    respuesta = admin.post("/api/organizations", json={"name": nombre})
+@pytest.mark.parametrize("nombre", ["", "   ", "Hotel Mar!", "Hotel #1", "A/B"])
+def test_nombre_vacio_o_con_signos_no_permitidos_da_422_invalid_name(admin, datos, nombre):
+    respuesta = admin.post("/api/organizations", json={"name": nombre, "phone": TELEFONO})
     assert respuesta.status_code == 422
     assert _codigo(respuesta) == "INVALID_NAME"
 
 
 def test_un_nombre_de_120_caracteres_se_guarda(admin, datos):
-    respuesta = admin.post("/api/organizations", json={"name": "x" * 120})
+    respuesta = admin.post("/api/organizations", json={"name": "x" * 120, "phone": TELEFONO})
     assert respuesta.status_code == 201
 
 
+def test_el_alta_normaliza_los_datos_de_contacto(admin, datos):
+    respuesta = admin.post(
+        "/api/organizations",
+        json={
+            "name": "  Residencia   Mar,  S.L. ",
+            "phone": "0034 93-123-45-67",
+            "contact_email": "Info@Mar.DEV",
+            "tax_id": "b-1234 5678",
+            "legal_name": " Residencia  Mar S.L. ",
+        },
+    )
+
+    cuerpo = respuesta.json()
+    assert respuesta.status_code == 201
+    assert cuerpo["name"] == "Residencia Mar, S.L."
+    assert cuerpo["phone"] == "+34 931 234 567"
+    assert cuerpo["contact_email"] == "info@mar.dev"
+    assert cuerpo["tax_id"] == "B12345678"
+    assert cuerpo["legal_name"] == "Residencia Mar S.L."
+
+
+def test_el_alta_sin_telefono_da_422(admin, datos):
+    respuesta = admin.post("/api/organizations", json={"name": "Residencia Mar"})
+    assert respuesta.status_code == 422
+
+
+@pytest.mark.parametrize("telefono", ["", "12345", "+33 612 345 678"])
+def test_un_telefono_que_no_es_espanol_da_422(admin, datos, telefono):
+    respuesta = admin.post(
+        "/api/organizations", json={"name": "Residencia Mar", "phone": telefono}
+    )
+    assert respuesta.status_code == 422
+    assert _codigo(respuesta) == "INVALID_PHONE"
+
+
+@pytest.mark.parametrize(
+    ("cambios", "codigo"),
+    [({"phone": None}, "INVALID_PHONE"), ({"phone": "600"}, "INVALID_PHONE"),
+     ({"tax_id": "1"}, "INVALID_TAX_ID")],
+)
+def test_editar_aplica_las_mismas_reglas(admin, datos, cambios, codigo):
+    respuesta = admin.patch(f"/api/organizations/{datos['sol'].id}", json=cambios)
+    assert respuesta.status_code == 422
+    assert _codigo(respuesta) == codigo
+
+
+def test_el_alta_nace_en_prueba_de_trial_days(admin, datos):
+    antes = datetime.now(timezone.utc)
+    cuerpo = admin.post(
+        "/api/organizations", json={"name": "Residencia Mar", "phone": TELEFONO}
+    ).json()
+
+    fin = datetime.fromisoformat(cuerpo["trial_ends_at"])
+    assert cuerpo["status"] == "TRIAL"
+    assert antes + timedelta(days=app_settings.TRIAL_DAYS) <= fin
+    assert fin <= datetime.now(timezone.utc) + timedelta(days=app_settings.TRIAL_DAYS)
+
+
 def test_un_nombre_de_121_caracteres_da_422(admin, datos):
-    respuesta = admin.post("/api/organizations", json={"name": "x" * 121})
+    respuesta = admin.post("/api/organizations", json={"name": "x" * 121, "phone": TELEFONO})
     assert respuesta.status_code == 422
 
 
 def test_email_de_contacto_mal_escrito_da_422(admin, datos):
     respuesta = admin.post(
-        "/api/organizations", json={"name": "Nueva", "contact_email": "no-es-un-email"}
+        "/api/organizations",
+        json={"name": "Nueva", "phone": TELEFONO, "contact_email": "no-es-un-email"},
     )
     assert respuesta.status_code == 422
 
@@ -407,7 +473,7 @@ def test_un_cliente_dado_de_alta_en_la_nueva_organizacion_no_ve_nada_ajeno(
     una organización que ya existe llegarán por invitación (B4); mientras,
     se crea directamente en la base.
     """
-    org = admin.post("/api/organizations", json={"name": "Residencia Mar"}).json()
+    org = admin.post("/api/organizations", json={"name": "Residencia Mar", "phone": TELEFONO}).json()
     with Session(engine) as session:
         session.add(
             User(

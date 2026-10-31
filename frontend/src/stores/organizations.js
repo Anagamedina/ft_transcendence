@@ -5,6 +5,7 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import organizationsService from "../services/organizations.service.js";
 import invitationsService from "../services/invitations.service.js";
+import { cleanText } from "../utils/validation.js";
 
 // Status values of OrganizationResponse, used for the counters of the filter buttons
 const STATUSES = ["TRIAL", "ACTIVE", "SUSPENDED"];
@@ -147,12 +148,12 @@ export const useOrganizationsStore = defineStore("organizations", () => {
   // The first building is created in the same operation (first_site): both or none.
   async function createOrganization({ client, site }) {
     const payload = {
-      name: client.name.trim(),
+      name: cleanText(client.name),
       // AquaGuard only works in Barcelona
       city: "Barcelona",
       contact_email: emptyToNull(client.contact_email),
       phone: emptyToNull(client.phone),
-      legal_name: emptyToNull(client.legal_name),
+      legal_name: emptyToNull(cleanText(client.legal_name)),
       tax_id: emptyToNull(client.tax_id),
       billing_email: emptyToNull(client.billing_email),
     };

@@ -7,6 +7,7 @@
   Usage:
     <SiteForm ref="siteForm" v-model="site" />
     if (siteForm.value.validate()) { ... }
+    catch (err) { if (!siteForm.value.showApiError(err)) generalError = ... }
 -->
 
 <template>
@@ -17,54 +18,38 @@
       </label>
       <input
         :id="fieldId('name')"
-        :ref="(el) => (inputs.name = el)"
+        :ref="setRef('name')"
         type="text"
-        maxlength="120"
+        :maxlength="NAME_MAX"
         autocomplete="off"
         :value="site.name"
         :class="inputClass('name')"
-        :aria-invalid="Boolean(errors.name)"
-        :aria-describedby="errors.name ? fieldId('name-error') : undefined"
+        v-bind="fieldAttrs('name')"
         @input="update('name', $event.target.value)"
       />
-      <p
-        v-if="errors.name"
-        :id="fieldId('name-error')"
-        class="text-sm text-danger-dark"
-      >
-        {{ errors.name }}
-      </p>
+      <FieldError :id="errorId('name')" :message="errors.name" />
     </div>
 
     <div class="flex flex-col gap-1 sm:col-span-2">
       <label
         :for="fieldId('address')"
         class="text-sm font-semibold text-slate-700"
-        >Dirección *</label
+        >Dirección <span aria-hidden="true">*</span></label
       >
       <input
         :id="fieldId('address')"
-        :ref="(el) => (inputs.address = el)"
+        :ref="setRef('address')"
         type="text"
         required
-        maxlength="255"
+        :maxlength="ADDRESS_MAX"
         autocomplete="street-address"
         placeholder="Carrer de Mallorca, 401"
         :value="site.address"
         :class="inputClass('address')"
-        :aria-invalid="Boolean(errors.address)"
-        :aria-describedby="
-          errors.address ? fieldId('address-error') : undefined
-        "
+        v-bind="fieldAttrs('address')"
         @input="update('address', $event.target.value)"
       />
-      <p
-        v-if="errors.address"
-        :id="fieldId('address-error')"
-        class="text-sm text-danger-dark"
-      >
-        {{ errors.address }}
-      </p>
+      <FieldError :id="errorId('address')" :message="errors.address" />
     </div>
 
     <div class="flex flex-col gap-1">
@@ -76,7 +61,7 @@
       </label>
       <input
         :id="fieldId('floors')"
-        :ref="(el) => (inputs.floors = el)"
+        :ref="setRef('floors')"
         type="number"
         inputmode="numeric"
         required
@@ -84,20 +69,13 @@
         :max="FLOORS_MAX"
         :value="site.floors"
         :class="inputClass('floors')"
-        :aria-invalid="Boolean(errors.floors)"
-        :aria-describedby="`${fieldId('floors-hint')}${errors.floors ? ' ' + fieldId('floors-error') : ''}`"
+        v-bind="fieldAttrs('floors', fieldId('floors-hint'))"
         @input="update('floors', toNumber($event.target.value))"
       />
       <p :id="fieldId('floors-hint')" class="text-xs text-slate-500">
         Cuenta la planta baja: un bajo sin pisos es 1.
       </p>
-      <p
-        v-if="errors.floors"
-        :id="fieldId('floors-error')"
-        class="text-sm text-danger-dark"
-      >
-        {{ errors.floors }}
-      </p>
+      <FieldError :id="errorId('floors')" :message="errors.floors" />
     </div>
 
     <div class="flex flex-col gap-1">
@@ -109,7 +87,7 @@
       </label>
       <input
         :id="fieldId('basements')"
-        :ref="(el) => (inputs.basements = el)"
+        :ref="setRef('basements')"
         type="number"
         inputmode="numeric"
         required
@@ -117,19 +95,10 @@
         :max="BASEMENTS_MAX"
         :value="site.basements"
         :class="inputClass('basements')"
-        :aria-invalid="Boolean(errors.basements)"
-        :aria-describedby="
-          errors.basements ? fieldId('basements-error') : undefined
-        "
+        v-bind="fieldAttrs('basements')"
         @input="update('basements', toNumber($event.target.value))"
       />
-      <p
-        v-if="errors.basements"
-        :id="fieldId('basements-error')"
-        class="text-sm text-danger-dark"
-      >
-        {{ errors.basements }}
-      </p>
+      <FieldError :id="errorId('basements')" :message="errors.basements" />
     </div>
 
     <div class="flex flex-col gap-1 sm:col-span-2">
@@ -180,7 +149,15 @@ export function emptySite() {
 </script>
 
 <script setup>
-import { reactive, nextTick, useId } from "vue";
+import { useId } from "vue";
+import FieldError from "./FieldError.vue";
+import { useFieldErrors } from "../composables/useFieldErrors.js";
+import {
+  cleanText,
+  integerProblem,
+  textProblem,
+  toNumber,
+} from "../utils/validation.js";
 
 // Same limits as SiteBase in the API (B2)
 const NAME_MAX = 120;
@@ -200,8 +177,7 @@ const props = defineProps({
 // Same text whatever the case or the spaces around it
 function sameName(a, b) {
   return (
-    String(a).trim().toLocaleLowerCase("es") ===
-    String(b).trim().toLocaleLowerCase("es")
+    cleanText(a).toLocaleLowerCase("es") === cleanText(b).toLocaleLowerCase("es")
   );
 }
 
@@ -211,83 +187,84 @@ function fieldId(name) {
   return `site-${uid}-${name}`;
 }
 
-// Inputs by field, to move the focus to the first field with an error
-const inputs = {};
-
-// Error message by field; empty when the field is valid
-const errors = reactive({});
+// Fields in screen order: the first one with an error gets the focus
+const {
+  errors,
+  errorId,
+  setRef,
+  inputClass,
+  fieldAttrs,
+  check,
+  focusFirstError,
+  clearOnEdit,
+  applyApiError,
+} = useFieldErrors(["name", "address", "floors", "basements", "building_type"]);
+clearOnEdit({
+  name: () => site.value.name,
+  address: () => site.value.address,
+  floors: () => site.value.floors,
+  basements: () => site.value.basements,
+});
 
 // Replaces the whole object instead of mutating the parent's one (one-way data flow)
 function update(field, value) {
   site.value = { ...site.value, [field]: value };
-  // The error disappears as soon as the user fixes the field
-  if (errors[field]) errors[field] = validators[field]?.(value) ?? "";
 }
 
-// Empty input stays '' so validation can say "required" instead of reading 0
-function toNumber(text) {
-  return text === "" ? "" : Number(text);
-}
-
-function isIntegerBetween(value, min, max) {
-  return Number.isInteger(value) && value >= min && value <= max;
-}
-
-// One rule per field. Each returns the error message, or '' when the value is valid
-const validators = {
-  name(value) {
-    if (value.trim() === "") return "Escribe el nombre del edificio.";
-    if (value.length > NAME_MAX) return `Máximo ${NAME_MAX} caracteres.`;
-    if (props.takenNames.some((name) => sameName(name, value)))
-      return "Este cliente ya tiene un edificio con ese nombre.";
-    return "";
+// One rule per field: the message, or null when the value is valid
+const rules = {
+  name: () => {
+    const problem = textProblem(site.value.name, {
+      max: NAME_MAX,
+      message: `Escribe el nombre del edificio (máximo ${NAME_MAX} caracteres).`,
+    });
+    if (problem) return problem;
+    return props.takenNames.some((name) => sameName(name, site.value.name))
+      ? "Este cliente ya tiene un edificio con ese nombre."
+      : null;
   },
-  address(value) {
-    const address = String(value ?? "").trim();
-
-    if (address === "") {
-      return "La dirección es obligatoria.";
-    }
-
-    if (address.length > ADDRESS_MAX) {
-      return `Máximo ${ADDRESS_MAX} caracteres.`;
-    }
-
-    return "";
-  },
-  floors(value) {
-    return isIntegerBetween(value, 1, FLOORS_MAX)
-      ? ""
-      : `Escribe un número entero entre 1 y ${FLOORS_MAX}.`;
-  },
-  basements(value) {
-    return isIntegerBetween(value, 0, BASEMENTS_MAX)
-      ? ""
-      : `Escribe un número entero entre 0 y ${BASEMENTS_MAX}.`;
-  },
+  address: () =>
+    textProblem(site.value.address, {
+      max: ADDRESS_MAX,
+      message: `Escribe la dirección (máximo ${ADDRESS_MAX} caracteres).`,
+    }),
+  floors: () => integerProblem(site.value.floors, 1, FLOORS_MAX),
+  basements: () => integerProblem(site.value.basements, 0, BASEMENTS_MAX),
 };
 
 // Checks every field, shows the messages and focuses the first wrong field.
 // Returns true when the site can be sent to the API.
 function validate() {
-  for (const field of Object.keys(validators)) {
-    errors[field] = validators[field](site.value[field] ?? "");
-  }
-  const firstWrong = Object.keys(validators).find((field) => errors[field]);
-  if (firstWrong) {
-    // Wait until the error messages are rendered, then move the focus there
-    nextTick(() => inputs[firstWrong]?.focus());
-    return false;
-  }
+  if (check(rules)) return true;
+  focusFirstError();
+  return false;
+}
+
+// API errors of one field; the backend message says what is wrong
+const API_ERRORS = {
+  codes: {
+    SITE_NAME_TAKEN: "name",
+    INVALID_NAME: "name",
+    INVALID_FLOORS: "floors",
+    INVALID_BUILDING_TYPE: "building_type",
+  },
+  aliases: { "first_site.name": "name", "first_site.address": "address" },
+  messages: {
+    name: `Escribe el nombre del edificio (máximo ${NAME_MAX} caracteres).`,
+    address: `Escribe la dirección (máximo ${ADDRESS_MAX} caracteres).`,
+    floors: `Escribe un número entero entre 1 y ${FLOORS_MAX}.`,
+    basements: `Escribe un número entero entre 0 y ${BASEMENTS_MAX}.`,
+  },
+};
+
+// Puts an API error under its field. Returns false when it is not of a
+// field, so the parent shows it as a general error (<FormError>)
+function showApiError(error) {
+  if (!applyApiError(error, API_ERRORS)) return false;
+  focusFirstError();
   return true;
 }
 
-function inputClass(field) {
-  const base =
-    "w-full rounded-lg border bg-white px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-aqua-600";
-  return errors[field] ? `${base} border-danger` : `${base} border-slate-300`;
-}
-
-// The parent calls validate() through a template ref
-defineExpose({ validate });
+// The parent calls validate() and showApiError() through a template ref
+defineExpose({ validate, showApiError });
 </script>

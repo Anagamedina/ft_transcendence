@@ -1,22 +1,21 @@
 # IMPORTER — sensors
-# Lee y valida el CSV de la importación. No toca la base de datos.
+# Reads and validates the import CSV. Does not touch the database.
 """
-Importación de sensores desde un CSV (módulo «Data export and import»).
+Sensor import from a CSV ("Data export and import" module).
 
-Un instalador da de alta todos los sensores de un edificio de una vez. Este
-archivo solo convierte el CSV en filas validadas; lo que necesita la base
-(el edificio, las etiquetas ya usadas y el límite del contrato) lo
-comprueba `SensorService.import_csv`.
+An installer creates every sensor of a building in one go. This file only
+turns the CSV into validated rows; what needs the database (the building,
+the labels already used and the contract limit) is checked by
+`SensorService.import_csv`.
 
-**Todo o nada.** Si una fila tiene un error no se importa ninguna, y la
-respuesta dice cuáles fallan y por qué, con el número de línea del archivo
-(la cabecera es la 1). Así el instalador corrige el archivo y lo vuelve a
-subir entero, sin tener que averiguar qué entró y qué no.
+**All or nothing.** If one row has an error none is imported, and the
+response says which ones fail and why, with the file line number (the
+header is line 1). So the installer fixes the file and uploads it again
+whole, without having to figure out what got in and what did not.
 
-**El formato que guarda Excel en español.** Separador `;` o `,`, UTF-8 (con
-o sin BOM) o Windows-1252, y decimales con coma o con punto (`1,5` o
-`1.5`). Las columnas pueden ir en cualquier orden y sin distinguir
-mayúsculas.
+**The format Excel saves in Spanish.** `;` or `,` separator, UTF-8 (with
+or without BOM) or Windows-1252, and decimals with a comma or a point
+(`1,5` or `1.5`). Columns can come in any order and ignoring case.
 """
 
 from __future__ import annotations
@@ -31,24 +30,24 @@ from app.core.app_config import app_settings
 from app.core.exceptions import DomainValidationError, PayloadTooLargeError
 from app.modules.sensors.schemas import PRESSURE_MAX_BAR, PRESSURE_MIN_BAR
 
-# Un edificio grande tiene unos cientos de sensores: más filas que esto es
-# un archivo equivocado, y validarlo todo en una petición no tiene sentido.
+# A big building has a few hundred sensors: more rows than this is the
+# wrong file, and validating it all in one request makes no sense.
 MAX_IMPORT_ROWS = 500
 
 REQUIRED_COLUMNS = ("external_id", "name", "min_pressure", "max_pressure")
 OPTIONAL_COLUMNS = ("location", "floor")
 
-# Los mismos largos que las columnas de `sensors` y que `SensorCreate`.
+# The same lengths as the `sensors` columns and `SensorCreate`.
 _MAX_LENGTH = {"external_id": 100, "name": 120, "location": 120}
 
-# Fuera de tabuladores y saltos de línea, un texto no lleva caracteres de
-# control: si los hay, es un binario renombrado a .csv.
+# Apart from tabs and line breaks, a text has no control characters: if
+# there are some, it is a binary renamed to .csv.
 _CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
 
 @dataclass(frozen=True)
 class SensorRow:
-    """Una fila ya validada, con el número de línea del archivo."""
+    """An already validated row, with the file line number."""
 
     line: int
     external_id: str
@@ -61,15 +60,16 @@ class SensorRow:
 
 def parse_sensors_csv(source: BinaryIO) -> tuple[list[SensorRow], list[dict]]:
     """
-    Las filas válidas y los errores de las demás, uno por fila y campo.
+    The valid rows and the errors of the others, one per row and field.
 
-    Los errores de filas no se lanzan aquí: el service les suma los que
-    dependen de la base (etiqueta ya usada, planta que no existe) y lanza
-    todos juntos con `invalid_rows`, para que se corrijan de una vez.
+    Row errors are not raised here: the service adds those that depend on
+    the database (label already used, floor that does not exist) and
+    raises them all together with `invalid_rows`, so they are fixed in one
+    go.
 
-    Lanza los errores del archivo entero: 413 `FILE_TOO_LARGE` y 422
+    It raises the errors of the whole file: 413 `FILE_TOO_LARGE` and 422
     `EMPTY_FILE`, `UNSUPPORTED_FILE_TYPE`, `IMPORT_MISSING_COLUMNS`,
-    `IMPORT_NO_ROWS` e `IMPORT_TOO_MANY_ROWS`.
+    `IMPORT_NO_ROWS` and `IMPORT_TOO_MANY_ROWS`.
     """
     texto = _decode(source.read(app_settings.MAX_UPLOAD_MB * 1024 * 1024 + 1))
     lector = csv.DictReader(io.StringIO(texto, newline=""), delimiter=_delimiter(texto))
@@ -89,11 +89,11 @@ def parse_sensors_csv(source: BinaryIO) -> tuple[list[SensorRow], list[dict]]:
     vistos: dict[str, int] = {}
     leidas = 0
     for valores in lector:
-        # line_num cuenta líneas físicas: con un salto dentro de comillas,
-        # sigue apuntando a donde acaba la fila, que es donde la busca Excel.
+        # line_num counts physical lines: with a line break inside quotes,
+        # it still points to where the row ends, which is where Excel looks.
         linea = lector.line_num
         if not any((v or "").strip() for v in valores.values() if isinstance(v, str)):
-            continue  # línea en blanco, típica al final del archivo
+            continue  # blank line, typical at the end of the file
         leidas += 1
         if leidas > MAX_IMPORT_ROWS:
             raise DomainValidationError(
@@ -124,7 +124,7 @@ def parse_sensors_csv(source: BinaryIO) -> tuple[list[SensorRow], list[dict]]:
 
 
 def invalid_rows(errores: list[dict]) -> DomainValidationError:
-    """El 422 de filas con errores; también lo usa el service para los de la base."""
+    """The 422 for rows with errors; the service also uses it for the database ones."""
     lineas = len({e["row"] for e in errores})
     return DomainValidationError(
         f"{lineas} {'fila tiene' if lineas == 1 else 'filas tienen'} errores. "
@@ -161,13 +161,13 @@ def _decode(datos: bytes) -> str:
 
 
 def _delimiter(texto: str) -> str:
-    """`;` si la cabecera lo usa (Excel en español), si no `,`."""
+    """`;` if the header uses it (Excel in Spanish), otherwise `,`."""
     cabecera = texto.split("\n", 1)[0]
     return ";" if cabecera.count(";") > cabecera.count(",") else ","
 
 
 def _row(linea: int, valores: dict) -> tuple[SensorRow | None, list[dict]]:
-    """Una fila validada campo a campo, o sus errores (todos, no solo el primero)."""
+    """A row validated field by field, or its errors (all of them, not just the first)."""
     errores: list[dict] = []
 
     def texto(campo: str, obligatorio: bool) -> str | None:

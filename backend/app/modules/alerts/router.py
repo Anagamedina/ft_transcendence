@@ -1,29 +1,30 @@
 # ROUTER — alerts
-# Capa HTTP fina: valida schemas → llama service → responde.
-# AlertService: reglas, acknowledge, resolve (transacciones).
+# Thin HTTP layer: validates schemas → calls the service → answers.
+# AlertService: rules, acknowledge, resolve (transactions).
 """
-Endpoints de alertas (`/api/alerts/...`).
+Alert endpoints (`/api/alerts/...`).
 
-Implementados en la issue #28 (PR #78); filtros comunes de la B0 (#138):
+Implemented in issue #28 (PR #78); common filters of B0 (#138):
 
     GET   /api/alerts
     PATCH /api/alerts/{id}/acknowledge
     PATCH /api/alerts/{id}/resolve
 
-Dos decisiones de diseño:
+Two design decisions:
 
-**PATCH y no POST.** Es lo que fija el apartado 9.1 del documento. (El
-diagrama de arquitectura dibuja `POST .../resolve` y omite
-`acknowledge`; manda el documento, que es el acuerdo del equipo.) PATCH
-porque no se sustituye la alerta entera, solo una parte de su estado.
+**PATCH and not POST.** It is what section 9.1 of the document sets. (The
+architecture diagram draws `POST .../resolve` and leaves out
+`acknowledge`; the document, the team agreement, wins.) PATCH because the
+whole alert is not replaced, only part of its state.
 
-**Dos rutas y no un `PATCH /api/alerts/{id}` con un campo `status`.**
-Reconocer y resolver no son dos formas de escribir lo mismo: son acciones
-distintas, con efectos y permisos distintos, y separarlas permite
-autorizarlas por separado.
+**Two routes and not one `PATCH /api/alerts/{id}` with a `status`
+field.** Acknowledging and resolving are not two ways of writing the same
+thing: they are different actions, with different effects and
+permissions, and splitting them lets them be authorized separately (only
+an admin resolves).
 
-No habrá `POST /api/alerts`: las alertas las crea el backend al procesar
-lecturas, nunca el cliente (apartado 1.3).
+There will be no `POST /api/alerts`: the backend creates alerts when it
+processes readings, never the client (section 1.3).
 """
 
 from __future__ import annotations
@@ -55,25 +56,25 @@ AlertSvc = Annotated[AlertService, Depends(get_alert_service)]
 
 _NO_AUTORIZADO = {
     **error_response(
-        status.HTTP_401_UNAUTHORIZED, "No hay sesión (`UNAUTHORIZED`)."
+        status.HTTP_401_UNAUTHORIZED, "No session (`UNAUTHORIZED`)."
     ),
     **error_response(
         status.HTTP_403_FORBIDDEN,
-        "Cuenta de cliente sin organización (`FORBIDDEN`).",
+        "Client account without an organization (`FORBIDDEN`).",
     ),
 }
 _NO_ENCONTRADA = error_response(
     status.HTTP_404_NOT_FOUND,
-    "La alerta no existe, o no es de tu organización (`ALERT_NOT_FOUND`).",
+    "The alert does not exist, or is not from your organization (`ALERT_NOT_FOUND`).",
 )
-# Escrituras de cliente: con la prueba vencida, solo lectura (B12).
+# Client writes: with the trial over, read-only (B12).
 _SOLO_LECTURA_SI_CADUCA = [Depends(require_trial_not_expired)]
 _NO_PUEDE_ESCRIBIR = {
     **_NO_AUTORIZADO,
     **error_response(
         status.HTTP_403_FORBIDDEN,
-        "Cuenta de cliente sin organización (`FORBIDDEN`), o la prueba ha "
-        "vencido y la cuenta es de solo lectura (`TRIAL_EXPIRED`).",
+        "Client account without an organization (`FORBIDDEN`), or the trial "
+        "is over and the account is read-only (`TRIAL_EXPIRED`).",
     ),
 }
 
@@ -81,28 +82,29 @@ _NO_PUEDE_ESCRIBIR = {
 @router.get(
     "",
     response_model=Page[AlertResponse],
-    summary="Listar alertas",
+    summary="List alerts",
     description=(
-        "Alertas de tu organización, paginadas. Un admin ve las de todas "
-        "las organizaciones.\n\n"
-        "Los dos filtros son los que usa el panel: `status` para ver solo "
-        "las activas, que es la vista por defecto de quien atiende, y "
-        "`sensor_id` para entrar desde el detalle de un sensor.\n\n"
-        "Filtros comunes: `q` busca en el mensaje, el nombre y el código del sensor, el edificio y el cliente; "
-        "`organization_id` y `site_id` dejan solo las de un cliente o un "
-        "edificio. Todos los filtros se combinan con AND. `severity` filtra "
-        "gravedad y `state` el estado derivado (ACTIVE sin reconocimiento, "
-        "ACKNOWLEDGED activa reconocida, RESOLVED cerrada). `status=ACTIVE` "
-        "incluye también las reconocidas. Combinaciones incompatibles dan "
-        "lista vacía. `created_from` incluido y `created_to` excluido limitan "
-        "la fecha de creación; sin fechas se muestra todo el histórico. "
-        "Fechas sin zona se interpretan como UTC."
+        "Alerts of your organization, paginated. An admin sees those of "
+        "every organization.\n\n"
+        "`status` shows only the active ones, the default view of whoever "
+        "handles them, and `sensor_id` is used to come in from a sensor "
+        "detail.\n\n"
+        "Common filters: `q` searches the message, the sensor name and code, the building and the client; "
+        "`organization_id` and `site_id` keep only those of one client or "
+        "one building. All filters are combined with AND. `severity` "
+        "filters the severity and `state` the derived state (ACTIVE "
+        "unacknowledged, ACKNOWLEDGED active and acknowledged, RESOLVED "
+        "closed). `status=ACTIVE` also includes the acknowledged ones. "
+        "Incompatible combinations give an empty list. `created_from` "
+        "included and `created_to` excluded limit the creation date; "
+        "without dates the whole history is shown. Dates without a zone "
+        "are read as UTC."
     ),
     responses={
         **_NO_AUTORIZADO,
         **error_response(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            "Filtros inválidos (`VALIDATION_ERROR`) o created_from >= "
+            "Invalid filters (`VALIDATION_ERROR`) or created_from >= "
             "created_to (`INVALID_DATE_RANGE`).",
         ),
     },
@@ -114,24 +116,25 @@ def list_alerts(
     q: Search,
     status_filtro: Annotated[
         AlertStatus | None,
-        Query(alias="status", description="Deja solo las alertas en ese estado."),
+        Query(alias="status", description="Keeps only the alerts in that status."),
     ] = None,
     sensor_id: SensorIdFilter = None,
     organization_id: OrganizationIdFilter = None,
     site_id: SiteIdFilter = None,
-    severity: Annotated[AlertSeverity | None, Query(description="Gravedad de la alerta.")] = None,
-    state: Annotated[AlertState | None, Query(description="Estado derivado para las pantallas.")] = None,
+    severity: Annotated[AlertSeverity | None, Query(description="Alert severity.")] = None,
+    state: Annotated[AlertState | None, Query(description="Derived state for the screens.")] = None,
     created_from: Annotated[
         datetime | None,
-        Query(description="Creada desde (ISO 8601, incluido). Sin zona: UTC."),
+        Query(description="Created from (ISO 8601, included). Without a zone: UTC."),
     ] = None,
     created_to: Annotated[
         datetime | None,
-        Query(description="Creada hasta (ISO 8601, excluido). Sin zona: UTC."),
+        Query(description="Created until (ISO 8601, excluded). Without a zone: UTC."),
     ] = None,
 ) -> Page[AlertResponse]:
-    # La organización sale de la sesión (`OrgScope`), nunca de la query: si
-    # viniera de fuera, cualquiera pediría las alertas de otro cliente.
+    # The organization comes from the session (`OrgScope`), never from the
+    # query: if it came from outside, anyone could ask for another client's
+    # alerts.
     return service.list(
         organization_id=scope,
         offset=pagination.offset,
@@ -151,13 +154,14 @@ def list_alerts(
 @router.patch(
     "/{alert_id}/acknowledge",
     response_model=AlertResponse,
-    summary="Marcar una alerta como vista",
+    summary="Mark an alert as seen",
     description=(
-        "Deja constancia de que alguien está al tanto de la alerta.\n\n"
-        "**No la cierra:** la alerta sigue activa. Y es idempotente — si "
-        "dos operadores pulsan a la vez, la segunda llamada no falla ni "
-        "pisa la hora ni el usuario de la primera. Se registra el usuario "
-        "de la sesión. Puede reconocerse una alerta resuelta: sigue RESOLVED."
+        "Records that someone is aware of the alert.\n\n"
+        "**It does not close it:** the alert stays active. And it is "
+        "idempotent — if two operators press at the same time, the second "
+        "call neither fails nor overwrites the time or the user of the "
+        "first. The session user is recorded. A resolved alert can be "
+        "acknowledged: it stays RESOLVED."
     ),
     dependencies=_SOLO_LECTURA_SI_CADUCA,
     responses={**_NO_PUEDE_ESCRIBIR, **_NO_ENCONTRADA},
@@ -171,26 +175,27 @@ def acknowledge_alert(
 @router.patch(
     "/{alert_id}/resolve",
     response_model=AlertResponse,
-    summary="Cerrar una alerta (solo AquaGuard)",
+    summary="Close an alert (AquaGuard only)",
     description=(
-        "Da la alerta por atendida. **Solo un admin**: el cliente dice «Me "
-        "encargo» (`acknowledge`), pero quien confirma que el agua vuelve a "
-        "estar bien es AquaGuard. Un cliente recibe 403.\n\n"
-        "Resolver una ya resuelta responde **409**, no un éxito "
-        "silencioso: volvería a escribir la fecha de cierre y se perdería "
-        "cuándo se atendió de verdad. Se registra el usuario de la sesión; "
-        "no exige reconocimiento previo ni modifica el existente."
+        "Marks the alert as handled. **Admin only**: the client says \"Me "
+        "encargo\" (`acknowledge`), but AquaGuard confirms the water is "
+        "fine again. A client gets 403. Alerts also close on their own "
+        "after 15 minutes of normal readings (#277).\n\n"
+        "Resolving one already resolved answers **409**, not a silent "
+        "success: it would overwrite the closing date and lose when it was "
+        "really handled. The session user is recorded; no previous "
+        "acknowledgement is required and the existing one is not changed."
     ),
     dependencies=[Depends(require_role("admin"))],
     responses={
         **error_response(
             status.HTTP_403_FORBIDDEN,
-            "La sesión no es de un admin (`FORBIDDEN`): el cliente no cierra alertas.",
+            "The session is not an admin one (`FORBIDDEN`): the client does not close alerts.",
         ),
         **_NO_ENCONTRADA,
         **error_response(
             status.HTTP_409_CONFLICT,
-            "La alerta ya estaba resuelta (`ALERT_ALREADY_RESOLVED`).",
+            "The alert was already resolved (`ALERT_ALREADY_RESOLVED`).",
         ),
     },
 )

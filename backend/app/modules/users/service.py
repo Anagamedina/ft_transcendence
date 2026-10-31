@@ -1,17 +1,17 @@
 # SERVICE — users
-# Reglas de negocio y orquestación. No hablar HTTP aquí.
+# Business rules and orchestration. No HTTP here.
 """
-Lógica de usuarios.
+User logic.
 
-- Mi cuenta: `GET /api/me` (issue #26), `PATCH /api/me` y el cambio de
-  contraseña (B8, #144).
-- Gestión de usuarios del admin (B6, #141): listar, ver, editar,
-  activar, desactivar y quitar el acceso.
-- Privacidad (B15, #149): exportar mis datos y pedir la baja.
+- My account: `GET /api/me` (issue #26), `PATCH /api/me` and the
+  password change (B8, #144).
+- Admin user management (B6, #141): list, view, edit, activate,
+  deactivate and remove access.
+- Privacy (B15, #149): export my data and request deletion.
 
-Lo que un admin no puede hacerse a sí mismo (B6): desactivarse, quitarse
-el rol de admin ni borrarse. Así nadie se queda fuera por accidente, y
-siempre queda al menos un admin que pueda deshacer lo que hagan los demás.
+What an admin cannot do to themselves (B6): deactivate, drop the admin
+role or delete themselves. So nobody gets locked out by accident, and
+there is always at least one admin left who can undo what the others do.
 """
 
 from __future__ import annotations
@@ -47,6 +47,7 @@ from app.modules.users.schemas import (
     UserUpdate,
 )
 from app.shared.dependencies import DbSession
+from app.shared.fields import person_name
 from app.shared.passwords import check_password
 from app.shared.schemas import Page
 
@@ -64,24 +65,24 @@ class UserService:
 
     def get_me(self, usuario: "User") -> MeResponse:
         """
-        Perfil del usuario de la sesión actual.
+        Profile of the current session user.
 
-        Lo usa el frontend al arrancar para saber si hay sesión abierta y
-        con qué rol, que es lo que determina a qué área navega y qué
-        guards se aplican (issue #36, Lylia).
+        The frontend uses it on start to know whether a session is open and
+        with which role, which decides the area it navigates to and the
+        guards that apply (issue #36, Lylia).
 
-        Con la sesión en una cookie httpOnly, el frontend no puede leer el
-        usuario por su cuenta: esta llamada es la única forma que tiene de
-        averiguar quién es.
+        With the session in an httpOnly cookie, the frontend cannot read
+        the user by itself: this call is the only way it has to find out
+        who it is.
 
-        Es un método fino a propósito: el usuario ya viene resuelto por
-        `get_current_user`, que lo ha leído de la base al validar la
-        cookie. Repetir aquí la consulta sería una segunda ida a la base
-        para traer exactamente la misma fila.
+        It is a thin method on purpose: the user already comes resolved by
+        `get_current_user`, which read it from the database when
+        validating the cookie. Repeating the query here would be a second
+        trip to the database for exactly the same row.
 
-        Sigue existiendo como método, en vez de que el router construya la
-        respuesta, porque es donde entraría lo que vaya creciendo alrededor
-        del perfil: preferencias, último acceso, permisos calculados.
+        It still exists as a method, instead of the router building the
+        response, because it is where whatever grows around the profile
+        would go: preferences, last access, computed permissions.
         """
         organization = None
         if usuario.organization is not None:
@@ -97,13 +98,8 @@ class UserService:
         )
 
     def update_me(self, usuario: "User", payload: MeUpdate) -> MeResponse:
-        """Actualiza únicamente los datos editables de la propia cuenta."""
-        usuario.name = payload.name.strip()
-        if not usuario.name:
-            raise DomainValidationError(
-                "El nombre no puede estar vacío.",
-                code="INVALID_NAME",
-            )
+        """Updates only the editable data of your own account."""
+        usuario.name = person_name(payload.name)
 
         with transaction(self.db):
             self.db.add(usuario)
@@ -113,7 +109,7 @@ class UserService:
     def change_password(
         self, usuario: "User", payload: PasswordChange
     ) -> MessageResponse:
-        """Comprueba y reemplaza la contraseña sin invalidar la sesión actual."""
+        """Checks and replaces the password without invalidating the current session."""
         if not verify_password(payload.current_password, usuario.password_hash):
             raise DomainValidationError(
                 "La contraseña actual no es correcta.",
@@ -130,7 +126,7 @@ class UserService:
         return MessageResponse(message="Contraseña actualizada.")
 
     # ---------------------------------------------------------
-    # GESTIÓN DE USUARIOS (admin) — B6, issue #141
+    # USER MANAGEMENT (admin) — B6, issue #141
     # ---------------------------------------------------------
     def list_users(
         self,
@@ -161,24 +157,20 @@ class UserService:
         self, admin: User, user_id: UUID, payload: UserUpdate
     ) -> UserAdminResponse:
         """
-        Nombre, rol y organización. El email no se edita: no está en
-        `UserUpdate`, y `extra="forbid"` lo rechaza con un 422.
+        Name, role and organization. The email is not editable: it is not
+        in `UserUpdate`, and `extra="forbid"` rejects it with a 422.
 
-        Se valida el resultado final, no cada campo suelto: un `client`
-        sin organización no puede quedar así (lo impide también el CHECK
-        `ck_users_client_has_organization`), pero sí se puede pasar a
-        `admin` y quitarle la organización en la misma petición.
+        The final result is validated, not each field on its own: a
+        `client` cannot be left without an organization (the CHECK
+        `ck_users_client_has_organization` prevents it too), but it can be
+        turned into an `admin` and lose the organization in the same
+        request.
         """
         usuario = self._existente(user_id)
         cambios = payload.model_dump(exclude_unset=True)
 
         if "name" in cambios:
-            nombre = (cambios["name"] or "").strip()
-            if not nombre:
-                raise DomainValidationError(
-                    "El nombre no puede estar vacío.", code="INVALID_NAME"
-                )
-            cambios["name"] = nombre
+            cambios["name"] = person_name(cambios["name"])
 
         if "role" in cambios:
             if cambios["role"] is None:
@@ -211,7 +203,7 @@ class UserService:
             for campo, valor in cambios.items():
                 setattr(usuario, campo, valor)
             self.db.flush()
-        # Si cambió la organización, la relación cargada sería la vieja.
+        # If the organization changed, the loaded relationship would be the old one.
         self.db.refresh(usuario)
         return _to_admin_response(usuario)
 
@@ -219,10 +211,10 @@ class UserService:
         self, admin: User, user_id: UUID, active: bool
     ) -> UserAdminResponse:
         """
-        Activar o desactivar. Un usuario desactivado no puede entrar, y una
-        sesión que ya tuviera abierta deja de valer en la siguiente
-        petición (`ensure_account_enabled`). Repetir la acción no es un
-        error: el usuario ya está como se pedía.
+        Activate or deactivate. A deactivated user cannot log in, and a
+        session it already had open stops working on the next request
+        (`ensure_account_enabled`). Repeating the action is not an error:
+        the user is already as requested.
         """
         usuario = self._existente(user_id)
         if not active and usuario.id == admin.id:
@@ -236,9 +228,10 @@ class UserService:
 
     def delete_user(self, admin: User, user_id: UUID) -> None:
         """
-        Quita el acceso borrando el usuario. Lo que hizo no se pierde: las
-        alertas que reconoció, los documentos que subió y las invitaciones
-        que envió se quedan, sin autor (`ondelete="SET NULL"`).
+        Removes access by deleting the user. What they did is not lost: the
+        alerts they acknowledged, the documents they uploaded and the
+        invitations they sent stay, without an author
+        (`ondelete="SET NULL"`).
         """
         usuario = self._existente(user_id)
         if usuario.id == admin.id:
@@ -256,18 +249,18 @@ class UserService:
         return usuario
 
     # ---------------------------------------------------------
-    # B15 — EXPORTAR MIS DATOS Y PEDIR LA BAJA (#149)
+    # B15 — EXPORT MY DATA AND REQUEST DELETION (#149)
     # ---------------------------------------------------------
     def export_me(
         self, usuario: "User", ahora: datetime | None = None
     ) -> MyDataExport:
         """
-        La cuenta, su organización y sus edificios, en un JSON.
+        The account, its organization and its buildings, in a JSON.
 
-        **Los edificios se buscan por la organización del usuario, nunca
-        «todos» con un `None`.** Un admin sin organización recibe una
-        lista vacía: exporta sus datos, no los de todos los clientes (el
-        mismo cuidado que explica `get_org_scope`).
+        **The buildings are looked up by the user's organization, never
+        "all" with a `None`.** An admin without an organization gets an
+        empty list: they export their own data, not every client's (the
+        same care `get_org_scope` explains).
         """
         sitios: list[Site] = []
         if usuario.organization_id is not None:
@@ -295,11 +288,12 @@ class UserService:
         self, usuario: "User", ahora: datetime | None = None
     ) -> DeletionRequestResponse:
         """
-        Registra que el usuario quiere darse de baja. No borra nada: lo
-        tramita un admin a mano (B16 borra la organización entera).
+        Records that the user wants to leave. Nothing is deleted: an admin
+        handles it by hand (B16 deletes the whole organization).
 
-        Es idempotente, como reconocer una alerta: pedirla otra vez no
-        pisa la fecha de la primera, que es la que cuenta.
+        It is idempotent, like acknowledging an alert: asking again does
+        not overwrite the date of the first request, which is the one that
+        counts.
         """
         if usuario.deletion_requested_at is None:
             with transaction(self.db):
@@ -320,5 +314,5 @@ def _to_admin_response(usuario: User) -> UserAdminResponse:
 
 
 def get_user_service(db: DbSession) -> UserService:
-    """Proveedor del service para `Depends`."""
+    """Service provider for `Depends`."""
     return UserService(db)

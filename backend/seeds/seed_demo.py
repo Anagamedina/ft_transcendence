@@ -480,10 +480,10 @@ USERS = [
      "organization": "Comunidad Mallorca 401", "password": "dev-client-only", "last_login_hours": 72},
     {"email": "poblenou@aquaguard.dev", "name": "Jordi Vidal", "role": "client",
      "organization": "Polideportivo Poblenou", "password": "dev-client-only", "last_login_hours": 5},
-    # Suspended client: the account exists but is disabled.
+    # Client of the suspended organization: the user is active, the suspension
+    # alone blocks the login, so "Reactivar" in Clientes lets it in again.
     {"email": "zonafranca@aquaguard.dev", "name": "Rocío Navarro", "role": "client",
-     "organization": "Aigües Zona Franca", "password": "dev-client-only", "last_login_hours": 24 * 25,
-     "is_active": False},
+     "organization": "Aigües Zona Franca", "password": "dev-client-only", "last_login_hours": 24 * 25},
 ]
 
 INVITATION = {

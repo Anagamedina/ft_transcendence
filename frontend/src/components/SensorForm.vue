@@ -21,7 +21,7 @@
       </label>
       <input
         :id="fieldId('name')"
-        :ref="(el) => (inputs.name = el)"
+        :ref="setRef('name')"
         type="text"
         required
         :maxlength="NAME_MAX"
@@ -29,17 +29,10 @@
         placeholder="Cocina"
         :value="sensor.name"
         :class="inputClass('name')"
-        :aria-invalid="Boolean(errors.name)"
-        :aria-describedby="errors.name ? fieldId('name-error') : undefined"
+        v-bind="fieldAttrs('name')"
         @input="update('name', $event.target.value)"
       />
-      <p
-        v-if="errors.name"
-        :id="fieldId('name-error')"
-        class="text-sm text-danger-dark"
-      >
-        {{ errors.name }}
-      </p>
+      <FieldError :id="errorId('name')" :message="errors.name" />
     </div>
 
     <!-- The device label is set once: SensorUpdate cannot change it -->
@@ -52,7 +45,7 @@
       </label>
       <input
         :id="fieldId('external_id')"
-        :ref="(el) => (inputs.external_id = el)"
+        :ref="setRef('external_id')"
         type="text"
         required
         :maxlength="EXTERNAL_ID_MAX"
@@ -60,20 +53,13 @@
         placeholder="SENS-001"
         :value="sensor.external_id"
         :class="inputClass('external_id')"
-        :aria-invalid="Boolean(errors.external_id)"
-        :aria-describedby="`${fieldId('external_id-hint')}${errors.external_id ? ' ' + fieldId('external_id-error') : ''}`"
+        v-bind="fieldAttrs('external_id', fieldId('external_id-hint'))"
         @input="update('external_id', $event.target.value)"
       />
       <p :id="fieldId('external_id-hint')" class="text-xs text-slate-500">
         La que lleva el sensor físico. No se puede repetir en el mismo edificio.
       </p>
-      <p
-        v-if="errors.external_id"
-        :id="fieldId('external_id-error')"
-        class="text-sm text-danger-dark"
-      >
-        {{ errors.external_id }}
-      </p>
+      <FieldError :id="errorId('external_id')" :message="errors.external_id" />
     </div>
 
     <div class="flex flex-col gap-1 sm:col-span-2">
@@ -85,11 +71,10 @@
       </label>
       <select
         :id="fieldId('floor')"
-        :ref="(el) => (inputs.floor = el)"
+        :ref="setRef('floor')"
         :value="sensor.floor"
         :class="inputClass('floor')"
-        :aria-invalid="Boolean(errors.floor)"
-        :aria-describedby="`${fieldId('floor-hint')}${errors.floor ? ' ' + fieldId('floor-error') : ''}`"
+        v-bind="fieldAttrs('floor', fieldId('floor-hint'))"
         @change="update('floor', Number($event.target.value))"
       >
         <option v-for="floor in floorOptions" :key="floor" :value="floor">
@@ -100,13 +85,7 @@
         Solo las plantas del edificio: de {{ formatFloor(lowestFloor) }} a
         {{ formatFloor(highestFloor) }}.
       </p>
-      <p
-        v-if="errors.floor"
-        :id="fieldId('floor-error')"
-        class="text-sm text-danger-dark"
-      >
-        {{ errors.floor }}
-      </p>
+      <FieldError :id="errorId('floor')" :message="errors.floor" />
     </div>
 
     <div class="flex flex-col gap-1">
@@ -118,7 +97,7 @@
       </label>
       <input
         :id="fieldId('min_pressure')"
-        :ref="(el) => (inputs.min_pressure = el)"
+        :ref="setRef('min_pressure')"
         type="number"
         inputmode="decimal"
         required
@@ -127,17 +106,10 @@
         :max="PRESSURE_MAX"
         :value="sensor.min_pressure"
         :class="inputClass('min_pressure')"
-        :aria-invalid="Boolean(errors.min_pressure)"
-        :aria-describedby="`${fieldId('range-hint')}${errors.min_pressure ? ' ' + fieldId('min-error') : ''}`"
+        v-bind="fieldAttrs('min_pressure', fieldId('range-hint'))"
         @input="update('min_pressure', toNumber($event.target.value))"
       />
-      <p
-        v-if="errors.min_pressure"
-        :id="fieldId('min-error')"
-        class="text-sm text-danger-dark"
-      >
-        {{ errors.min_pressure }}
-      </p>
+      <FieldError :id="errorId('min_pressure')" :message="errors.min_pressure" />
     </div>
 
     <div class="flex flex-col gap-1">
@@ -149,7 +121,7 @@
       </label>
       <input
         :id="fieldId('max_pressure')"
-        :ref="(el) => (inputs.max_pressure = el)"
+        :ref="setRef('max_pressure')"
         type="number"
         inputmode="decimal"
         required
@@ -158,17 +130,10 @@
         :max="PRESSURE_MAX"
         :value="sensor.max_pressure"
         :class="inputClass('max_pressure')"
-        :aria-invalid="Boolean(errors.max_pressure)"
-        :aria-describedby="`${fieldId('range-hint')}${errors.max_pressure ? ' ' + fieldId('max-error') : ''}`"
+        v-bind="fieldAttrs('max_pressure', fieldId('range-hint'))"
         @input="update('max_pressure', toNumber($event.target.value))"
       />
-      <p
-        v-if="errors.max_pressure"
-        :id="fieldId('max-error')"
-        class="text-sm text-danger-dark"
-      >
-        {{ errors.max_pressure }}
-      </p>
+      <FieldError :id="errorId('max_pressure')" :message="errors.max_pressure" />
     </div>
 
     <p :id="fieldId('range-hint')" class="text-xs text-slate-500 sm:col-span-2">
@@ -191,8 +156,16 @@ export function emptySensor() {
 </script>
 
 <script setup>
-import { computed, nextTick, reactive, useId } from "vue";
+import { computed, useId } from "vue";
+import FieldError from "./FieldError.vue";
+import { useFieldErrors } from "../composables/useFieldErrors.js";
 import { floorLabel, floorRange } from "../utils/floors";
+import {
+  cleanText,
+  numberProblem,
+  textProblem,
+  toNumber,
+} from "../utils/validation.js";
 
 // Same limits as SensorBase / SensorCreate in the API (B3)
 const NAME_MAX = 120;
@@ -221,8 +194,7 @@ const props = defineProps({
 // Same text whatever the case or the spaces around it
 function sameLabel(a, b) {
   return (
-    String(a).trim().toLocaleLowerCase("es") ===
-    String(b).trim().toLocaleLowerCase("es")
+    cleanText(a).toLocaleLowerCase("es") === cleanText(b).toLocaleLowerCase("es")
   );
 }
 
@@ -244,108 +216,117 @@ function formatFloor(floor) {
   return floor < 0 ? `−${-floor}` : String(floor);
 }
 
-// Inputs by field, to move the focus to the first field with an error
-const inputs = {};
-
-// Error message by field; empty when the field is valid
-const errors = reactive({});
+// Fields in screen order: the first one with an error gets the focus.
+// external_id only exists on create; check() only looks at the rules it gets
+const {
+  errors,
+  errorId,
+  setRef,
+  inputClass,
+  fieldAttrs,
+  check,
+  focusFirstError,
+  clearOnEdit,
+  applyApiError,
+} = useFieldErrors([
+  "name",
+  "external_id",
+  "floor",
+  "min_pressure",
+  "max_pressure",
+]);
+// The two thresholds depend on each other: editing one clears both errors
+const thresholds = () => [sensor.value.min_pressure, sensor.value.max_pressure];
+clearOnEdit({
+  name: () => sensor.value.name,
+  external_id: () => sensor.value.external_id,
+  floor: () => sensor.value.floor,
+  min_pressure: thresholds,
+  max_pressure: thresholds,
+});
 
 // Replaces the whole object instead of mutating the parent's one (one-way data flow)
 function update(field, value) {
   sensor.value = { ...sensor.value, [field]: value };
-  // An error disappears as soon as the user fixes the field. The two thresholds
-  // depend on each other, so changing one also rechecks the other.
-  const related =
-    field === "min_pressure" || field === "max_pressure"
-      ? ["min_pressure", "max_pressure"]
-      : [field];
-  for (const name of related) {
-    if (errors[name]) errors[name] = validators[name](sensor.value[name] ?? "");
-  }
-}
-
-// Empty input stays '' so validation can say "required" instead of reading 0
-function toNumber(text) {
-  return text === "" ? "" : Number(text);
-}
-
-function isNumberBetween(value, min, max) {
-  return (
-    typeof value === "number" &&
-    Number.isFinite(value) &&
-    value >= min &&
-    value <= max
-  );
 }
 
 const rangeMessage = `Escribe un valor entre ${PRESSURE_MIN} y ${PRESSURE_MAX} bar.`;
 
-// Fields this form checks. external_id only exists on create
-const fields = computed(() =>
-  props.mode === "create"
-    ? ["name", "external_id", "floor", "min_pressure", "max_pressure"]
-    : ["name", "floor", "min_pressure", "max_pressure"],
-);
+function pressureProblem(value) {
+  return numberProblem(value, PRESSURE_MIN, PRESSURE_MAX) && rangeMessage;
+}
 
-// One rule per field. Each returns the error message, or '' when the value is valid
-const validators = {
-  name(value) {
-    if (String(value).trim() === "") return "Escribe el nombre del sensor.";
-    if (value.length > NAME_MAX) return `Máximo ${NAME_MAX} caracteres.`;
-    return "";
-  },
-  external_id(value) {
-    if (String(value).trim() === "") return "Escribe la etiqueta del aparato.";
-    if (value.length > EXTERNAL_ID_MAX)
-      return `Máximo ${EXTERNAL_ID_MAX} caracteres.`;
-    const taken = props.takenLabels.find((label) => sameLabel(label, value));
-    if (taken)
-      return `Ya hay un sensor con la etiqueta ${taken} en este edificio.`;
-    return "";
-  },
-  floor(value) {
-    return floorOptions.value.includes(value)
-      ? ""
-      : "Elige una planta de este edificio.";
-  },
-  min_pressure(value) {
-    return isNumberBetween(value, PRESSURE_MIN, PRESSURE_MAX)
-      ? ""
-      : rangeMessage;
-  },
+// One rule per field: the message, or null when the value is valid
+const rules = computed(() => ({
+  name: () =>
+    textProblem(sensor.value.name, {
+      max: NAME_MAX,
+      message: `Escribe el nombre del sensor (máximo ${NAME_MAX} caracteres).`,
+    }),
+  ...(props.mode === "create" && {
+    external_id: () => {
+      const problem = textProblem(sensor.value.external_id, {
+        max: EXTERNAL_ID_MAX,
+        message: `Escribe la etiqueta del aparato (máximo ${EXTERNAL_ID_MAX} caracteres).`,
+      });
+      if (problem) return problem;
+      const taken = props.takenLabels.find((label) =>
+        sameLabel(label, sensor.value.external_id),
+      );
+      return taken
+        ? `Ya hay un sensor con la etiqueta ${taken} en este edificio.`
+        : null;
+    },
+  }),
+  floor: () =>
+    floorOptions.value.includes(sensor.value.floor)
+      ? null
+      : "Elige una planta de este edificio.",
+  min_pressure: () => pressureProblem(sensor.value.min_pressure),
   // Cross-field rule (same as the model_validator of B3): the message goes
   // on the maximum, as in the mockup
-  max_pressure(value) {
-    if (!isNumberBetween(value, PRESSURE_MIN, PRESSURE_MAX))
-      return rangeMessage;
+  max_pressure: () => {
+    const problem = pressureProblem(sensor.value.max_pressure);
+    if (problem) return problem;
     const min = sensor.value.min_pressure;
-    if (isNumberBetween(min, PRESSURE_MIN, PRESSURE_MAX) && value <= min) {
-      return "El máximo debe ser mayor que el mínimo.";
-    }
-    return "";
+    return !pressureProblem(min) && sensor.value.max_pressure <= min
+      ? "El máximo debe ser mayor que el mínimo."
+      : null;
   },
-};
+}));
 
 // Checks every field, shows the messages and focuses the first wrong field.
 // Returns true when the sensor can be sent to the API.
 function validate() {
-  for (const field of fields.value) {
-    errors[field] = validators[field](sensor.value[field] ?? "");
-  }
-  const firstWrong = fields.value.find((field) => errors[field]);
-  if (firstWrong) {
-    nextTick(() => inputs[firstWrong]?.focus());
-    return false;
-  }
+  if (check(rules.value)) return true;
+  focusFirstError();
+  return false;
+}
+
+// API errors of one field; the backend message says what is wrong
+const API_ERRORS = {
+  codes: {
+    SENSOR_EXTERNAL_ID_TAKEN: "external_id",
+    INVALID_NAME: "name",
+    INVALID_THRESHOLDS: "max_pressure",
+  },
+  messages: {
+    name: `Escribe el nombre del sensor (máximo ${NAME_MAX} caracteres).`,
+    external_id: `Escribe la etiqueta del aparato (máximo ${EXTERNAL_ID_MAX} caracteres).`,
+    floor: "Elige una planta de este edificio.",
+    min_pressure: rangeMessage,
+    max_pressure: rangeMessage,
+  },
+};
+
+// Puts an API error under its field. Returns false when it is not of a
+// field, so the parent shows it as a general error (<FormError>)
+function showApiError(error) {
+  if (!applyApiError(error, API_ERRORS)) return false;
+  focusFirstError();
   return true;
 }
 
-function inputClass(field) {
-  const base =
-    "w-full rounded-lg border bg-white px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-aqua-600";
-  return errors[field] ? `${base} border-danger` : `${base} border-slate-300`;
-}
-
-// The parent calls validate() through a template ref
-defineExpose({ validate });
+// The parent calls validate() and showApiError() through a template ref
+defineExpose({ validate, showApiError });
 </script>

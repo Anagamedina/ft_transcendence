@@ -1,46 +1,44 @@
-# APP CONFIG — configuración de la aplicación FastAPI (issues #22 y #26).
+# APP CONFIG — settings of the FastAPI application (issues #22 and #26).
 """
-Configuración de aplicación.
+Application settings.
 
 --------------------------------------------------------------------
-POR QUÉ ESTE ARCHIVO EXISTE SEPARADO DE `config.py`
+WHY THIS FILE IS SEPARATE FROM `config.py`
 --------------------------------------------------------------------
-El `.env` del proyecto tiene variables de dos dueños distintos:
+The project `.env` holds variables with two different owners:
 
     POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB,
-    POSTGRES_HOST, POSTGRES_PORT          → persistencia   (Daruny, #11)
-    SIMULATOR_API_URL, SIMULATOR_SEED     → simulador      (Daruny, #16)
+    POSTGRES_HOST, POSTGRES_PORT          → persistence      (Daruny, #11)
+    SIMULATOR_API_URL, SIMULATOR_SEED     → simulator        (Daruny, #16)
 
-    SECRET_KEY, COOKIE_SECURE             → cookie de sesión (Ana, #26)
-    INGEST_API_KEY                        → clave del simulador (Ana, #106)
-    CORS_ORIGINS                          → CORS de FastAPI  (Ana, #22)
-    BACKUPS_DIR, BACKUP_INTERVAL_HOURS    → página de estado (Eduardo, #154)
-    SMTP_*                                → emails de confirmación (Daruny, B19)
+    SECRET_KEY, COOKIE_SECURE             → session cookie   (Ana, #26)
+    INGEST_API_KEY                        → simulator key    (Ana, #106)
+    CORS_ORIGINS                          → FastAPI CORS     (Ana, #22)
+    BACKUPS_DIR, BACKUP_INTERVAL_HOURS    → status page      (Eduardo, #154)
+    SMTP_*                                → confirmation emails (Daruny, B19)
 
-`core/config.py` es de Daruny y lee las suyas. Este archivo lee las de
-aplicación. Cada clase toma del mismo `.env` únicamente lo que le
-corresponde e ignora el resto.
+`core/config.py` belongs to Daruny and reads its own. This file reads the
+application ones. Each class takes from the same `.env` only what belongs
+to it and ignores the rest.
 
-La alternativa era meter todo en una sola clase `Settings`. Se descartó
-por un motivo práctico: durante seis semanas ese archivo lo estarían
-editando dos personas en ramas distintas, y cada variable nueva sería un
-conflicto de merge potencial. Con un archivo por dueño, cada una toca
-solo el suyo.
+The alternative was a single `Settings` class. It was discarded for a
+practical reason: for six weeks two people would be editing that file on
+different branches, and every new variable would be a potential merge
+conflict. With one file per owner, each person only touches their own.
 
 --------------------------------------------------------------------
-NOTA SOBRE `extra="ignore"`
+NOTE ON `extra="ignore"`
 --------------------------------------------------------------------
-Hace falta en **las dos** clases, no solo en esta.
+It is needed in **both** classes, not only in this one.
 
-pydantic-settings trae `extra="forbid"` por defecto: rechaza cualquier
-variable del fichero `.env` que la clase no declare. Como las dos clases
-leen el mismo fichero completo, cada una ve también las variables de la
-otra y las rechazaría.
+pydantic-settings uses `extra="forbid"` by default: it rejects any variable
+in the `.env` file that the class does not declare. Both classes read the
+whole file, so each one also sees the other's variables and would reject
+them.
 
-Curiosidad que explica por qué el fallo pasa desapercibido: cuando las
-variables llegan por **entorno** (como en Docker Compose) no falla; solo
-falla cuando llegan de un **fichero**. Por eso arranca en Docker y muere
-en local.
+Why the failure goes unnoticed: when the variables come from the
+**environment** (as in Docker Compose) it does not fail; it only fails
+when they come from a **file**. So it starts in Docker and dies locally.
 """
 
 from __future__ import annotations
@@ -50,142 +48,140 @@ from uuid import UUID
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Residencias Collserola en la demo (`seeds/seed_demo.py`). Es el valor por
-# defecto de PUBLIC_API_ORGANIZATION_ID, para que `make demo` sirva la API pública
-# sin editar el .env; en producción no se acepta, igual que las claves de ejemplo.
+# Residencias Collserola in the demo (`seeds/seed_demo.py`). It is the
+# default PUBLIC_API_ORGANIZATION_ID, so `make demo` serves the public API
+# without editing .env; in production it is rejected, like the example keys.
 PUBLIC_API_DEMO_ORGANIZATION_ID = UUID("00000000-0000-4000-9000-000000000001")
 
-# El .env vive en la raíz del repositorio, no dentro de backend/.
-# Se resuelve desde este archivo para que uvicorn funcione igual
-# se lance desde donde se lance. Misma convención que core/config.py
-# y que scripts/create_env.
+# The .env lives at the repository root, not inside backend/.
+# It is resolved from this file so uvicorn works the same wherever it is
+# started from. Same convention as core/config.py and scripts/create_env.
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 ENV_FILE = PROJECT_ROOT / ".env"
 
 # ---------------------------------------------------------
-# IDENTIDAD DE LA API
+# API IDENTITY
 # ---------------------------------------------------------
-# Constantes y no campos de configuración: no cambian entre local y
-# producción, así que no tiene sentido leerlas del entorno.
+# Constants, not settings: they do not change between local and
+# production, so there is no point in reading them from the environment.
 #
-# APP_VERSION sí importa hacia fuera: se publica en OpenAPI y en
-# /api/health, y es como el frontend sabe contra qué versión del contrato
-# está trabajando. Hay que subirla cuando el contrato cambie de forma
-# incompatible.
+# APP_VERSION matters outside: it is published in OpenAPI and in
+# /api/health, and it tells the frontend which version of the contract it
+# is working against. Bump it when the contract changes in an incompatible
+# way.
 APP_NAME = "AquaGuard API"
 APP_VERSION = "0.1.0"
 
 
 class AppSettings(BaseSettings):
-    """Variables de entorno que consume la aplicación FastAPI."""
+    """Environment variables used by the FastAPI application."""
 
     # "development" | "production".
     ENV: str = "development"
 
-    # Clave con la que se firma la cookie de sesión (ADR 0001, issue #26).
+    # Key that signs the session cookie (ADR 0001, issue #26).
     #
-    # Lleva un valor por defecto para que el proyecto arranque recién
-    # clonado, pero ese valor NO debe salir de desarrollo: quien lo
-    # conozca puede fabricarse una cookie de sesión válida para cualquier
-    # usuario. De ahí la comprobación de más abajo.
+    # It has a default so a fresh clone starts, but that value must NOT
+    # leave development: anyone who knows it can forge a valid session
+    # cookie for any user. Hence the check further down.
     SECRET_KEY: str = "dev-only-change-me"
 
-    # Secure=True hace que el navegador solo envíe la cookie por HTTPS.
-    # En local se sirve por http, así que en desarrollo va a False y en
-    # producción se activa desde el .env.
+    # Secure=True makes the browser send the cookie only over HTTPS.
+    # Locally it is served over http, so it is False in development and
+    # enabled from .env in production.
     COOKIE_SECURE: bool = False
 
-    # Clave compartida con el simulador (issue #106). La manda en la cabecera
-    # `X-Ingest-Key` de cada `POST /api/readings`, y es lo único que
-    # distingue una lectura del simulador de una que manda cualquiera.
+    # Key shared with the simulator (issue #106). It sends it in the
+    # `X-Ingest-Key` header of every `POST /api/readings`, and it is the
+    # only thing that tells a simulator reading from one sent by anyone.
     #
-    # Mismo trato que SECRET_KEY: un valor de desarrollo para que el
-    # proyecto arranque sin tocar el .env, y la salvaguarda de abajo para
-    # que ese valor no llegue a producción. El simulador lee la misma
-    # variable del mismo .env (compose.yaml), así que en desarrollo los dos
-    # coinciden sin configurar nada.
+    # Same treatment as SECRET_KEY: a development value so the project
+    # starts without touching .env, and the safeguard below so that value
+    # never reaches production. The simulator reads the same variable from
+    # the same .env (compose.yaml), so in development both match with no
+    # setup.
     INGEST_API_KEY: str = "dev-only-ingest-key"
 
-    # API pública (subject, major de Web), separada de INGEST_API_KEY.
-    # PUBLIC_API_KEY solo lee; PUBLIC_API_WRITE_KEY además crea, reemplaza y
-    # borra edificios. Vacía, la escritura queda apagada: un .env antiguo sin
-    # ella deja la API en solo lectura. Las dos quedan limitadas a
+    # Public API (subject, Web major), separate from INGEST_API_KEY.
+    # PUBLIC_API_KEY only reads; PUBLIC_API_WRITE_KEY also creates, replaces
+    # and deletes buildings. When empty, writing is off: an old .env without
+    # it leaves the API read-only. Both are limited to
     # PUBLIC_API_ORGANIZATION_ID.
     PUBLIC_API_KEY: str = "dev-only-public-api-key"
     PUBLIC_API_WRITE_KEY: str = ""
     PUBLIC_API_ORGANIZATION_ID: UUID | None = PUBLIC_API_DEMO_ORGANIZATION_ID
 
-    # Días de prueba de una organización TRIAL: los que da el registro
-    # público (B10) y los que suma «ampliar prueba» (B1). Lo pide la I0 en
-    # el .env; el valor por defecto es el del producto.
+    # Trial days of a TRIAL organization: those given by the public sign-up
+    # (B10) and those added by "extend trial" (B1). I0 asks for it in .env;
+    # the default is the product value.
     TRIAL_DAYS: int = 7
 
-    # Versión de los términos de uso que acepta quien se registra (B10).
-    # Se guarda con cada usuario, para saber qué texto aceptó. Cuando
-    # cambien los términos de `/legal` (`LegalView.vue`, ancla `#terminos`),
-    # se sube aquí. El seed de la demo usa el mismo valor.
+    # Version of the terms of use accepted on sign-up (B10). It is stored
+    # with each user, to know which text they accepted. When the terms on
+    # `/legal` change (`LegalView.vue`, anchor `#terminos`), bump it here.
+    # The demo seed uses the same value.
     TERMS_VERSION: str = "2026-10"
 
-    # Invitaciones (B4, #141). Lo pide la I0 en el .env, y Compose ya los
-    # pasa al backend. `PUBLIC_BASE_URL` es la base del enlace que recibe
-    # el invitado; `INVITATION_TTL_DAYS`, los días que vale ese enlace.
+    # Invitations (B4, #141). I0 asks for them in .env, and Compose already
+    # passes them to the backend. `PUBLIC_BASE_URL` is the base of the link
+    # the invitee receives; `INVITATION_TTL_DAYS`, the days the link is valid.
     PUBLIC_BASE_URL: str = "https://localhost"
     INVITATION_TTL_DAYS: int = 7
 
-    # Orígenes que el navegador tiene permitido usar para llamar a la API,
-    # separados por comas. Vite sirve el frontend en el puerto 5173.
+    # Origins the browser may use to call the API, comma separated. Vite
+    # serves the frontend on port 5173.
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
 
-    # Backups automáticos (issue #154). El servicio `backup` de Compose los
-    # deja en un volumen que el backend monta en solo lectura: `/api/status`
-    # mira ahí la fecha y el tamaño del último.
+    # Automatic backups (issue #154). The Compose `backup` service writes
+    # them to a volume the backend mounts read-only: `/api/status` reads the
+    # date and size of the latest one there.
     BACKUPS_DIR: str = "/backups"
     BACKUP_INTERVAL_HOURS: int = 24
 
-    # Carpeta de los archivos de documentos (B11): `storage_key` es la ruta
-    # relativa a ella. Compose la monta en el volumen `documents_data`.
+    # Folder of the document files (B11): `storage_key` is the path relative
+    # to it. Compose mounts it on the `documents_data` volume.
     DOCUMENTS_DIR: str = "/data/documents"
 
-    # Tamaño máximo de un documento, en MB (B11). El gateway usa el mismo
-    # valor (+1 MB por la cabecera multipart) en `client_max_body_size`.
+    # Maximum size of a document, in MB (B11). The gateway uses the same
+    # value (+1 MB for the multipart overhead) in `client_max_body_size`.
     MAX_UPLOAD_MB: int = 10
 
-    # Emails de confirmación del módulo GDPR (B19): al descargar los datos y
-    # al pedir la baja. SMTP estándar con `smtplib`.
+    # Confirmation emails of the GDPR module (B19): on data download and on
+    # a deletion request. Standard SMTP with `smtplib`.
     #
-    # En Docker, Compose apunta a Mailpit (`mailpit:1025`), que captura los
-    # correos y los enseña en http://localhost:8025. Para buzones reales
-    # basta con cambiar estas variables en el .env.
+    # In Docker, Compose points to Mailpit (`mailpit:1025`), which catches
+    # the emails and shows them at http://localhost:8025. For real
+    # mailboxes, change these variables in .env.
     #
-    # Con SMTP_HOST vacío (el valor por defecto: tests, uvicorn en local)
-    # no se envía nada; solo se anota en el log.
+    # With SMTP_HOST empty (the default: tests, local uvicorn) nothing is
+    # sent; it is only logged.
     SMTP_HOST: str = ""
     SMTP_PORT: int = 1025
-    # Sin usuario no se hace login: Mailpit no lo pide.
+    # Without a user there is no login: Mailpit does not ask for one.
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
-    # Solo la dirección, sin nombre: `validate_env.sh` hace `source` del .env
-    # y un `<` sin comillas sería una redirección de la shell. El nombre
-    # «AquaGuard» se añade al montar el email.
+    # Address only, no name: `validate_env.sh` sources .env and an unquoted
+    # `<` would be a shell redirection. The "AquaGuard" name is added when
+    # the email is built.
     SMTP_FROM: str = "no-reply@aquaguard.dev"
-    # STARTTLS para servidores reales (puerto 587). Mailpit no lo usa.
+    # STARTTLS for real servers (port 587). Mailpit does not use it.
     SMTP_STARTTLS: bool = False
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,
         env_file_encoding="utf-8",
-        # Ver la nota de la cabecera: sin esto, las variables POSTGRES_* y
-        # SIMULATOR_* del mismo .env harían fallar esta clase.
+        # See the header note: without this, the POSTGRES_* and SIMULATOR_*
+        # variables of the same .env would make this class fail.
         extra="ignore",
     )
 
     @property
     def cors_origins_list(self) -> list[str]:
         """
-        `CORS_ORIGINS` partido en la lista que espera `CORSMiddleware`.
+        `CORS_ORIGINS` split into the list `CORSMiddleware` expects.
 
-        Se guarda como cadena porque las variables de entorno siempre son
-        texto. Se descartan los huecos por si hay comas de más.
+        It is stored as a string because environment variables are always
+        text. Empty items are dropped in case of extra commas.
         """
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
 
@@ -195,50 +191,51 @@ class AppSettings(BaseSettings):
 
     @property
     def has_default_secret(self) -> bool:
-        """True si sigue puesta la clave de desarrollo."""
+        """True if the development key is still set."""
         return self.SECRET_KEY == "dev-only-change-me"
 
     @property
     def has_default_ingest_key(self) -> bool:
-        """True si la clave del simulador sigue con el valor de desarrollo."""
+        """True if the simulator key still has the development value."""
         return self.INGEST_API_KEY == "dev-only-ingest-key"
 
     @property
     def has_default_public_api_key(self) -> bool:
-        """True si la API pública sigue con la clave publicada de desarrollo."""
+        """True if the public API still uses the published development key."""
         return self.PUBLIC_API_KEY == "dev-only-public-api-key"
 
     @property
     def has_default_public_api_write_key(self) -> bool:
-        """True si la escritura de la API pública usa la clave de ejemplo."""
+        """True if public API writes use the example key."""
         return self.PUBLIC_API_WRITE_KEY == "dev-only-public-api-write-key"
 
 
 app_settings = AppSettings()
 
-# Salvaguarda: en producción, arrancar con la clave por defecto significa
-# que cualquiera que haya visto este repositorio puede firmar sesiones
-# válidas. Es preferible no arrancar a arrancar con la puerta abierta.
+# Safeguard: in production, starting with the default key means anyone who
+# has seen this repository can sign valid sessions. Better not to start
+# than to start with the door open.
 #
-# Solo salta con ENV=production, así que no molesta en desarrollo.
+# It only fires with ENV=production, so it does not get in the way in
+# development.
 if app_settings.is_production and app_settings.has_default_secret:
     raise RuntimeError(
         "SECRET_KEY sigue con el valor por defecto y ENV=production. "
         "Define SECRET_KEY en el .env antes de desplegar."
     )
 
-# Lo mismo con la clave del simulador (issue #106): con el valor por
-# defecto, cualquiera que haya visto el repositorio podría mandar lecturas,
-# y cada lectura fuera de rango abre una alerta.
+# Same with the simulator key (issue #106): with the default value, anyone
+# who has seen the repository could send readings, and every out-of-range
+# reading opens an alert.
 if app_settings.is_production and app_settings.has_default_ingest_key:
     raise RuntimeError(
         "INGEST_API_KEY sigue con el valor por defecto y ENV=production. "
         "Define INGEST_API_KEY en el .env antes de desplegar."
     )
 
-# La API pública permite consultar datos desde fuera de la SPA. Nunca debe
-# arrancar en producción con una clave conocida ni sin una organización
-# explícita a la que limitar las respuestas.
+# The public API allows reading data from outside the SPA. It must never
+# start in production with a known key or without an explicit organization
+# to limit the answers to.
 if app_settings.is_production and app_settings.has_default_public_api_key:
     raise RuntimeError(
         "PUBLIC_API_KEY sigue con el valor por defecto y ENV=production. "

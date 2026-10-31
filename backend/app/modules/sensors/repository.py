@@ -22,9 +22,9 @@ from app.shared.utils import matches_text
 @dataclass(frozen=True)
 class SensorLive:
     """
-    Lo que se sabe de un sensor por sus lecturas y alertas (B3): la base de
-    `status`, `last_seen_at`, `last_value` y `health` en `SensorResponse`.
-    Sin lecturas ni alertas, todo vacío.
+    What is known about a sensor from its readings and alerts (B3): the
+    basis of `status`, `last_seen_at`, `last_value` and `health` in
+    `SensorResponse`. Without readings or alerts, everything empty.
     """
 
     last_seen_at: datetime | None = None
@@ -34,9 +34,9 @@ class SensorLive:
 
 def _filtro_salud(salud: SensorHealth, ahora: datetime):
     """
-    `?health=` en SQL (B3). Es la regla de `calcular_salud`
-    (`sensors/status.py`) escrita como condición, para que el filtro se
-    aplique antes de paginar y `total` cuente solo los que cumplen.
+    `?health=` in SQL (B3). It is the `calcular_salud` rule
+    (`sensors/status.py`) written as a condition, so the filter applies
+    before paginating and `total` only counts the matching ones.
     """
     ultima = (
         select(func.max(Reading.created_at))
@@ -66,12 +66,12 @@ def _filtro_salud(salud: SensorHealth, ahora: datetime):
 
 def _con_jerarquia():
     """
-    Site y organización de cada sensor, para los campos de lectura de
-    `SensorResponse` (B0). Una consulta por nivel para toda la página.
+    Site and organization of each sensor, for the read-only fields of
+    `SensorResponse` (B0). One query per level for the whole page.
 
-    Es una función y no una constante: construir la opción configura los
-    mappers, y al importar este módulo aún no están registrados todos los
-    modelos (`Reading`).
+    It is a function and not a constant: building the option configures
+    the mappers, and when this module is imported not every model is
+    registered yet (`Reading`).
     """
     return selectinload(Sensor.site).selectinload(Site.organization)
 
@@ -92,20 +92,20 @@ class SensorRepository:
         ahora: datetime | None = None,
     ) -> tuple[list[Sensor], int]:
         """
-        `health` (B3) necesita `ahora`, el mismo instante con el que el
-        service calcula la salud de la respuesta.
+        `health` (B3) needs `ahora` ("now"), the same instant the service
+        uses to compute the health of the response.
         """
         if offset < 0 or limit <= 0:
             raise ValueError("Invalid pagination")
         if health is not None and ahora is None:
             raise ValueError("health necesita ahora")
 
-        # #27 (Ana): organization_id=None significa TODAS las organizaciones
-        # (admin). Lo decide `get_org_scope` en shared/dependencies.py.
+        # #27 (Ana): organization_id=None means ALL organizations (admin).
+        # `get_org_scope` in shared/dependencies.py decides it.
         query = select(Sensor).join(Site)
         if organization_id is not None:
             query = query.where(Site.organization_id == organization_id)
-        # B0 (Ana): filtros comunes. Se suman al alcance, no lo sustituyen.
+        # B0 (Ana): common filters. They add to the scope, they do not replace it.
         if organization_filter is not None:
             query = query.where(Site.organization_id == organization_filter)
         if site_id is not None:
@@ -123,8 +123,8 @@ class SensorRepository:
 
         items = list(
             self.db.scalars(
-                # #25 (Ana): por nombre, como los sites; el id desempata para
-                # que la paginación no repita ni salte sensores.
+                # #25 (Ana): by name, like sites; the id breaks ties so
+                # pagination never repeats or skips sensors.
                 query.options(_con_jerarquia())
                 .order_by(Sensor.name, Sensor.id).offset(offset).limit(limit)
             ).all()
@@ -137,32 +137,32 @@ class SensorRepository:
         sensor_id: UUID,
         organization_id: UUID | None,
     ) -> Sensor | None:
-        # #27 (Ana): organization_id=None significa TODAS las organizaciones
-        # (admin). Lo decide `get_org_scope` en shared/dependencies.py.
+        # #27 (Ana): organization_id=None means ALL organizations (admin).
+        # `get_org_scope` in shared/dependencies.py decides it.
         query = select(Sensor).join(Site).where(Sensor.id == sensor_id)
         if organization_id is not None:
             query = query.where(Site.organization_id == organization_id)
         return self.db.scalar(query.options(_con_jerarquia()))
 
-    # Añadidos por Ana para la B3 (#139).
+    # Added by Ana for B3 (#139).
     def live(self, sensor_ids: list[UUID]) -> dict[UUID, SensorLive]:
         """
-        Última lectura y alertas abiertas de varios sensores: dos consultas
-        para toda la página, no dos por sensor.
+        Last reading and open alerts of several sensors: two queries for
+        the whole page, not two per sensor.
 
-        La última lectura es la última que **llegó** (`created_at`), la
-        misma que da `last_seen_at`; así `last_value` y `last_seen_at`
-        hablan siempre de la misma lectura. Las alertas abiertas son las
-        `ACTIVE`, reconocidas o no.
+        The last reading is the last one that **arrived** (`created_at`),
+        the same one behind `last_seen_at`; so `last_value` and
+        `last_seen_at` always talk about the same reading. Open alerts are
+        the `ACTIVE` ones, acknowledged or not.
         """
         if not sensor_ids:
             return {}
 
-        # D5: por cada sensor de la página, el id de su última lectura con
-        # ORDER BY ... LIMIT 1, que PostgreSQL resuelve leyendo solo la
-        # última entrada de ix_readings_sensor_created_at; luego la lectura
-        # por su clave. El row_number() de antes numeraba todas las lecturas
-        # de cada sensor antes de quedarse con la primera.
+        # D5: for each sensor of the page, the id of its last reading with
+        # ORDER BY ... LIMIT 1, which PostgreSQL resolves by reading only
+        # the last entry of ix_readings_sensor_created_at; then the reading
+        # by its key. The former row_number() numbered every reading of
+        # each sensor before keeping the first.
         ultima = (
             select(Reading.id)
             .where(Reading.sensor_id == Sensor.id)
@@ -202,13 +202,13 @@ class SensorRepository:
 
     def get_for_update(self, sensor_id: UUID) -> Sensor | None:
         """
-        El sensor con su fila bloqueada hasta el final de la transacción
-        (B3). Para editarlo: dos PATCH a la vez van uno detrás de otro, y el
-        segundo compara sus umbrales con los que dejó el primero.
+        The sensor with its row locked until the end of the transaction
+        (B3). To edit it: two PATCH at once go one after the other, and the
+        second compares its thresholds with those the first left.
 
-        Solo bloquea el sensor: `selectinload` trae el site y la
-        organización en consultas aparte, sin bloqueo. El site lo bloquea
-        aparte quien vaya a cambiar la planta.
+        It only locks the sensor: `selectinload` brings the site and the
+        organization in separate queries, without a lock. Whoever changes
+        the floor locks the site separately.
         """
         return self.db.scalar(
             select(Sensor)
@@ -218,13 +218,13 @@ class SensorRepository:
             .execution_options(populate_existing=True)
         )
 
-    # Añadidos por Ana para la #29 (partes B y C).
+    # Added by Ana for #29 (parts B and C).
     def list_by_site(
         self, site_id: UUID, offset: int = 0, limit: int = 100
     ) -> tuple[list[Sensor], int]:
         """
-        Sensores de un site, por nombre. No filtra por organización: quien
-        llama ya ha comprobado que el site es visible para el usuario.
+        Sensors of a site, by name. It does not filter by organization: the
+        caller has already checked that the site is visible to the user.
         """
         if offset < 0 or limit <= 0:
             raise ValueError("Invalid pagination")
@@ -239,7 +239,7 @@ class SensorRepository:
         return items, int(total or 0)
 
     def count_by_organization(self, organization_id: UUID) -> int:
-        """Sensores de todos los edificios de una organización (límite B14)."""
+        """Sensors of every building of an organization (B14 limit)."""
         return self.db.scalar(
             select(func.count())
             .select_from(Sensor)
@@ -248,7 +248,7 @@ class SensorRepository:
         )
 
     def external_id_taken(self, site_id: UUID, external_id: str) -> bool:
-        """True si ya hay un sensor con esa etiqueta en ese site."""
+        """True if that site already has a sensor with that label."""
         return (
             self.db.scalar(
                 select(Sensor.id).where(
@@ -260,8 +260,8 @@ class SensorRepository:
 
     def external_ids_in_site(self, site_id: UUID) -> set[str]:
         """
-        Las etiquetas ya usadas en ese site. Una consulta para todo el
-        archivo de la importación, no una por fila.
+        The labels already used in that site. One query for the whole
+        import file, not one per row.
         """
         return set(
             self.db.scalars(select(Sensor.external_id).where(Sensor.site_id == site_id))
@@ -281,15 +281,16 @@ class SensorRepository:
 
     def get(self, sensor_id: UUID) -> Sensor | None:
         """
-        Busca un sensor solo por su id, SIN filtrar por organización.
+        Looks a sensor up by its id alone, WITHOUT filtering by
+        organization.
 
-        Es la excepción de este módulo y conviene saber por qué existe. La
-        usa `POST /api/readings` (issue #24): quien llama ahí es el
-        simulador, que no tiene sesión y por tanto no puede aportar una
-        organización. La organización se deduce después *del sensor
-        encontrado*, no de quien envía.
+        It is the exception of this module and worth knowing why it exists.
+        `POST /api/readings` (issue #24) uses it: the caller there is the
+        simulator, which has no session and so cannot give an
+        organization. The organization is derived afterwards *from the
+        sensor found*, not from the sender.
 
-        No sustituye a `get_by_id`: para todo lo que pida un usuario con
-        sesión se sigue usando aquel, que sí aísla por organización.
+        It does not replace `get_by_id`: everything a user with a session
+        asks for still uses that one, which does isolate by organization.
         """
         return self.db.scalar(select(Sensor).where(Sensor.id == sensor_id))

@@ -1,2 +1,2 @@
 # REPOSITORY — auth
-# Acceso a datos (SQLAlchemy queries). Filtrar siempre por organización.
+# Data access (SQLAlchemy queries). Always filter by organization.

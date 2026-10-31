@@ -59,8 +59,8 @@ class ReadingRepository:
         if offset < 0 or limit <= 0:
             raise ValueError("Invalid pagination")
 
-        # #27 (Ana): organization_id=None significa TODAS las organizaciones
-        # (admin). Lo decide `get_org_scope` en shared/dependencies.py.
+        # #27 (Ana): organization_id=None means ALL organizations (admin).
+        # `get_org_scope` in shared/dependencies.py decides it.
         query = (
             select(Reading)
             .join(Sensor, Reading.sensor_id == Sensor.id)
@@ -69,7 +69,7 @@ class ReadingRepository:
         )
         if organization_id is not None:
             query = query.where(Site.organization_id == organization_id)
-        # B7: rango semiabierto [start, end) sobre la fecha de medida.
+        # B7: half-open range [start, end) on the measurement date.
         if start is not None:
             query = query.where(Reading.recorded_at >= start)
         if end is not None:
@@ -99,19 +99,19 @@ class ReadingRepository:
         bucket: timedelta,
     ) -> list[tuple[datetime, Decimal, Decimal, Decimal]]:
         """
-        B7: lecturas de un sensor en [start, end) agrupadas en tramos de
-        `bucket`, con la media, el mínimo y el máximo de cada uno. Solo
-        salen los tramos con lecturas, del más antiguo al más reciente.
+        B7: readings of a sensor in [start, end) grouped in `bucket` slots,
+        with the average, minimum and maximum of each. Only slots with
+        readings come out, oldest first.
 
-        Los tramos se alinean a `SERIES_ORIGIN` (UTC), así que dos peticiones
-        seguidas agrupan igual. No filtra por organización: el service
-        comprueba antes que el sensor sea de quien pregunta.
+        Slots are aligned to `SERIES_ORIGIN` (UTC), so two consecutive
+        requests group the same way. It does not filter by organization:
+        the service first checks that the sensor belongs to the caller.
         """
         segundos = int(bucket.total_seconds())
         if self.db.get_bind().dialect.name == "postgresql":
             tramo = func.date_bin(bucket, Reading.recorded_at, SERIES_ORIGIN)
         else:
-            # sqlite (tests) no tiene date_bin: número de tramo desde el origen.
+            # sqlite (tests) has no date_bin: slot number since the origin.
             tramo = (
                 cast(func.strftime("%s", Reading.recorded_at), Integer)
                 - int(SERIES_ORIGIN.timestamp())
@@ -138,12 +138,12 @@ class ReadingRepository:
         ]
 
 
-# Origen de los tramos de la serie: date_bin cuenta los tramos desde aquí.
+# Origin of the series slots: date_bin counts the slots from here.
 SERIES_ORIGIN = datetime(2000, 1, 1, tzinfo=timezone.utc)
 
 
 def _inicio_del_tramo(tramo: datetime | int, segundos: int) -> datetime:
-    """El inicio del tramo en UTC: date_bin lo da hecho; sqlite, su número."""
+    """Start of the slot in UTC: date_bin gives it directly; sqlite, its number."""
     if isinstance(tramo, datetime):
         return tramo if tramo.tzinfo else tramo.replace(tzinfo=timezone.utc)
     return SERIES_ORIGIN + timedelta(seconds=int(tramo) * segundos)

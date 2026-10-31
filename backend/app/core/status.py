@@ -1,18 +1,18 @@
-# STATUS — estado de cada componente para la página pública /status.
+# STATUS — state of each component for the public /status page.
 """
-Página de estado (issue #154).
+Status page (issue #154).
 
-`GET /api/status` es público y resume en una sola respuesta cómo está cada
-pieza del sistema:
+`GET /api/status` is public and sums up in one answer how each part of
+the system is doing:
 
-- `backend`   — si esta respuesta llega, está operativo.
-- `database`  — un `SELECT 1`, igual que `/api/health/db`.
-- `simulator` — cuándo se recibió la última lectura.
-- `backup`    — fecha y tamaño del último backup del volumen.
+- `backend`   — if this answer arrives, it is operational.
+- `database`  — a `SELECT 1`, like `/api/health/db`.
+- `simulator` — when the last reading was received.
+- `backup`    — date and size of the latest backup in the volume.
 
-Responde siempre 200, también con la base caída: lo que falla se cuenta en
-el cuerpo. No devuelve nada sensible: ni hosts, ni nombres de fichero, ni
-el texto de los errores.
+It always answers 200, also with the database down: what fails is told in
+the body. It returns nothing sensitive: no hosts, no file names, no error
+text.
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["health"])
 
-# Mismo margen que usa el backend para dar un sensor por OFFLINE.
+# Same margin the backend uses to mark a sensor OFFLINE.
 SIMULATOR_MAX_SILENCE = timedelta(minutes=5)
 
 
@@ -47,20 +47,20 @@ class ComponentState(str, Enum):
 
 
 class ComponentStatus(ApiModel):
-    name: str = Field(description="backend, database, simulator o backup.")
+    name: str = Field(description="backend, database, simulator or backup.")
     status: ComponentState
     last_event_at: datetime | None = Field(
         default=None,
-        description="Última lectura recibida (simulator) o último backup (backup).",
+        description="Last reading received (simulator) or last backup (backup).",
     )
     size_bytes: int | None = Field(
-        default=None, description="Tamaño del último backup. Solo en backup."
+        default=None, description="Size of the last backup. Only for backup."
     )
 
 
 class StatusResponse(ApiModel):
-    status: ComponentState = Field(description="Estado global del sistema.")
-    checked_at: datetime = Field(description="Momento UTC de la comprobación.")
+    status: ComponentState = Field(description="Overall system status.")
+    checked_at: datetime = Field(description="UTC time of the check.")
     components: list[ComponentStatus]
 
 
@@ -94,8 +94,8 @@ def backup_status(now: datetime) -> ComponentStatus:
         return ComponentStatus(name="backup", status=ComponentState.DOWN)
     newest = files[-1].stat()
     last = datetime.fromtimestamp(newest.st_mtime, tz=timezone.utc)
-    # Un backup atrasado más de dos intervalos significa que el servicio
-    # lleva al menos un ciclo entero sin conseguir hacer el suyo.
+    # A backup more than two intervals old means the service has gone at
+    # least one whole cycle without managing to make its own.
     state = ComponentState.DEGRADED
     if now - last <= timedelta(hours=2 * app_settings.BACKUP_INTERVAL_HOURS):
         state = ComponentState.OPERATIONAL
@@ -116,10 +116,10 @@ def overall_status(components: list[ComponentStatus]) -> ComponentState:
 @router.get(
     "/status",
     response_model=StatusResponse,
-    summary="Estado de backend, base de datos, simulador y backups",
+    summary="Status of backend, database, simulator and backups",
     description=(
-        "Público y sin datos sensibles. Lo consume la página `/status` del "
-        "frontend. Responde 200 aunque algún componente esté caído."
+        "Public and without sensitive data. Used by the frontend `/status` "
+        "page. Answers 200 even if a component is down."
     ),
 )
 def get_status(db: DbSession) -> StatusResponse:

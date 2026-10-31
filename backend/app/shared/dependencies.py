@@ -1,33 +1,32 @@
-# DEPENDENCIES — Depends de FastAPI: get_db, get_current_user, require_role/org.
-# Inyectar usuario autenticado y organization_id en cada router protegido.
+# DEPENDENCIES — FastAPI Depends: get_db, get_current_user, require_role/org.
+# Inject the authenticated user and organization_id into each protected router.
 """
-Dependencias comunes (issue #22).
+Shared dependencies (issue #22).
 
-Una "dependency" en FastAPI es una función que se ejecuta ANTES del
-endpoint y cuyo valor de retorno se inyecta como argumento. Sirve para
-todo lo que un endpoint necesita pero no debería construir él mismo: la
-sesión de base de datos, el usuario autenticado, los parámetros de
-paginación.
+A FastAPI "dependency" is a function that runs BEFORE the endpoint and
+whose return value is injected as an argument. It covers everything an
+endpoint needs but should not build itself: the database session, the
+authenticated user, the pagination parameters.
 
-Dos motivos por los que esto importa más de lo que parece:
+Two reasons why this matters more than it seems:
 
-1. **Se sustituyen en los tests.** `app.dependency_overrides[get_db] = ...`
-   cambia la sesión real por una de prueba sin tocar el código del router.
-2. **Se resuelven por request.** Cada petición obtiene su propia sesión y
-   la cierra al terminar. Una sesión global compartida daría datos
-   obsoletos y errores intermitentes bajo carga.
+1. **They are replaced in tests.** `app.dependency_overrides[get_db] = ...`
+   swaps the real session for a test one without touching the router.
+2. **They are resolved per request.** Each request gets its own session
+   and closes it at the end. A shared global session would give stale data
+   and intermittent errors under load.
 
-Lo que hay implementado y lo que no:
+What is implemented:
 
-- `get_db`             → implementado (reexportado de `core.database`, de Daruny).
-- `PaginationParams`   → implementado.
--  Filtros comunes      → `Search` (`?q=`) y `*IdFilter`, issue #138 (B0).
-- `DateRangeParams`    → implementado en la issue #134 (B18).
-- `get_current_user`   → implementado en la issue #26.
-- `require_role`       → implementado en la issue #27.
-- `get_org_scope`      → implementado en la issue #27.
-- `require_ingest_key` → implementado en la issue #106.
-- `require_trial_not_expired` → implementado en la issue #146 (B12).
+- `get_db`             → implemented (re-exported from `core.database`, by Daruny).
+- `PaginationParams`   → implemented.
+-  Common filters       → `Search` (`?q=`) and `*IdFilter`, issue #138 (B0).
+- `DateRangeParams`    → implemented in issue #134 (B18).
+- `get_current_user`   → implemented in issue #26.
+- `require_role`       → implemented in issue #27.
+- `get_org_scope`      → implemented in issue #27.
+- `require_ingest_key` → implemented in issue #106.
+- `require_trial_not_expired` → implemented in issue #146 (B12).
 """
 
 from __future__ import annotations
@@ -77,40 +76,40 @@ __all__ = [
 
 
 # ---------------------------------------------------------
-# BASE DE DATOS
+# DATABASE
 # ---------------------------------------------------------
-# `get_db` viene de core/database.py (issue #11, Daruny). Se reexporta
-# desde aquí para que los routers tengan un único sitio del que importar
-# dependencias y no dependan directamente de la capa de infraestructura.
+# `get_db` comes from core/database.py (issue #11, Daruny). It is
+# re-exported from here so routers have a single place to import
+# dependencies from and do not depend directly on the infrastructure layer.
 DbSession = Annotated[Session, Depends(get_db)]
 
 
 # ---------------------------------------------------------
-# PAGINACIÓN
+# PAGINATION
 # ---------------------------------------------------------
 class PaginationParams:
     """
-    Parámetros de paginación compartidos por todos los listados.
+    Pagination parameters shared by every list.
 
-    Es una clase y no una función porque FastAPI lee la firma de `__init__`
-    para documentar los query params en OpenAPI, y agrupar así evita
-    repetir `page` y `page_size` en cada endpoint.
+    It is a class and not a function because FastAPI reads the `__init__`
+    signature to document the query params in OpenAPI, and grouping them
+    avoids repeating `page` and `page_size` on each endpoint.
 
         @router.get("/")
         def listar(pagination: Pagination): ...
 
-    `page_size` tiene tope 100 a propósito: sin límite superior, un
-    `?page_size=1000000` deja al servidor cargando la tabla entera.
+    `page_size` is capped at 100 on purpose: without an upper limit, a
+    `?page_size=1000000` leaves the server loading the whole table.
     """
 
     def __init__(
         self,
         page: Annotated[
-            int, Query(ge=1, description="Página, empezando en 1.")
+            int, Query(ge=1, description="Page, starting at 1.")
         ] = 1,
         page_size: Annotated[
             int,
-            Query(ge=1, le=100, description="Elementos por página (máximo 100)."),
+            Query(ge=1, le=100, description="Items per page (100 at most)."),
         ] = 20,
     ) -> None:
         self.page = page
@@ -118,7 +117,7 @@ class PaginationParams:
 
     @property
     def offset(self) -> int:
-        """Filas a saltar. Es lo que espera `.offset()` de SQLAlchemy."""
+        """Rows to skip. It is what SQLAlchemy's `.offset()` expects."""
         return (self.page - 1) * self.page_size
 
     @property
@@ -130,27 +129,26 @@ Pagination = Annotated[PaginationParams, Depends(PaginationParams)]
 
 
 # ---------------------------------------------------------
-# RANGO DE FECHAS — issue #134 (B18)
+# DATE RANGE — issue #134 (B18)
 # ---------------------------------------------------------
 class DateRangeParams:
     """
-    `?from=&to=` compartido por la analítica (overview, alerts/weekly,
-    export).
+    `?from=&to=` shared by analytics (overview, alerts/weekly, export).
 
         @router.get("/overview")
         def overview(rango: DateRange): ...   # rango.start, rango.end
 
-    - Sin parámetros: los últimos `DEFAULT_DAYS` días hasta ahora.
-    - Solo `from`: desde ahí hasta ahora. Solo `to`: los 30 días anteriores.
-    - Una fecha sin zona horaria se toma como UTC, para que `2026-10-01`
-      signifique lo mismo para todos.
-    - 422 si `from >= to` o si el rango pasa de `MAX_DAYS`: sin tope, un
-      `?from=2000-01-01` recorre la tabla de lecturas entera. Un formato que
-      no es fecha ya lo rechaza FastAPI, también con 422.
+    - No parameters: the last `DEFAULT_DAYS` days until now.
+    - Only `from`: from there until now. Only `to`: the 30 days before.
+    - A date without a time zone is taken as UTC, so `2026-10-01` means
+      the same for everyone.
+    - 422 if `from >= to` or if the range is longer than `MAX_DAYS`:
+      without a cap, `?from=2000-01-01` scans the whole readings table. A
+      value that is not a date is already rejected by FastAPI, also 422.
 
-    El intervalo es semiabierto, [start, end): `created_at >= start AND
-    created_at < end`, para que dos rangos seguidos no cuenten dos veces el
-    mismo instante.
+    The interval is half-open, [start, end): `created_at >= start AND
+    created_at < end`, so two consecutive ranges never count the same
+    instant twice.
     """
 
     DEFAULT_DAYS = 30
@@ -162,14 +160,14 @@ class DateRangeParams:
             datetime | None,
             Query(
                 alias="from",
-                description="Inicio del periodo (ISO 8601). Por defecto, 30 días antes de `to`.",
+                description="Start of the period (ISO 8601). By default, 30 days before `to`.",
             ),
         ] = None,
         end: Annotated[
             datetime | None,
             Query(
                 alias="to",
-                description="Fin del periodo, sin incluir (ISO 8601). Por defecto, ahora.",
+                description="End of the period, excluded (ISO 8601). By default, now.",
             ),
         ] = None,
     ) -> None:
@@ -205,28 +203,28 @@ DateRange = Annotated[DateRangeParams, Depends(DateRangeParams)]
 
 
 # ---------------------------------------------------------
-# FILTROS COMUNES — issue #138 (B0)
+# COMMON FILTERS — issue #138 (B0)
 # ---------------------------------------------------------
-# Todos los listados usan los mismos nombres: `?q=` para buscar y
-# `organization_id`, `site_id`, `sensor_id` donde tengan sentido.
+# Every list uses the same names: `?q=` to search and `organization_id`,
+# `site_id`, `sensor_id` where they make sense.
 #
-# **Los filtros por id se suman al alcance de la sesión, no lo sustituyen.**
-# El repository filtra por `OrgScope` Y por `organization_id`: un admin lo
-# usa para ver un cliente concreto; un cliente que pida otra organización
-# recibe una lista vacía, nunca datos ajenos.
+# **The id filters add to the session scope, they do not replace it.**
+# The repository filters by `OrgScope` AND by `organization_id`: an admin
+# uses it to see one client; a client asking for another organization gets
+# an empty list, never someone else's data.
 def get_search(
     q: Annotated[
         str | None,
         Query(
             max_length=100,
             description=(
-                "Texto a buscar, sin distinguir mayúsculas. Vacío o solo "
-                "espacios es como no enviarlo."
+                "Text to search, ignoring case. Empty or only spaces is "
+                "the same as not sending it."
             ),
         ),
     ] = None,
 ) -> str | None:
-    """`q` recortado; `None` si no hay nada que buscar."""
+    """`q` trimmed; `None` if there is nothing to search."""
     if q is None:
         return None
     q = q.strip()
@@ -239,43 +237,42 @@ OrganizationIdFilter = Annotated[
     UUID | None,
     Query(
         description=(
-            "Deja solo lo de esa organización. Un cliente solo ve la suya: "
-            "con otra, la lista sale vacía."
+            "Keeps only what belongs to that organization. A client only "
+            "sees its own: with another one, the list comes back empty."
         )
     ),
 ]
-SiteIdFilter = Annotated[UUID | None, Query(description="Deja solo lo de ese edificio.")]
-SensorIdFilter = Annotated[UUID | None, Query(description="Deja solo lo de ese sensor.")]
+SiteIdFilter = Annotated[UUID | None, Query(description="Keeps only what belongs to that building.")]
+SensorIdFilter = Annotated[UUID | None, Query(description="Keeps only what belongs to that sensor.")]
 
 
 # ---------------------------------------------------------
-# AUTENTICACIÓN — issue #26
+# AUTHENTICATION — issue #26
 # ---------------------------------------------------------
 def get_current_user(request: Request, db: DbSession) -> User:
     """
-    Usuario de la sesión actual, leído de la cookie httpOnly (ADR 0001).
+    User of the current session, read from the httpOnly cookie (ADR 0001).
 
-    Tres pasos, y cada uno puede cortar con un 401:
+    Three steps, and each one can stop with a 401:
 
-    1. Sacar la cookie de la petición.
-    2. Comprobar su firma y que no haya caducado, que devuelve el id.
-    3. Buscar ese usuario en la base de datos.
+    1. Get the cookie from the request.
+    2. Check its signature and that it has not expired, which gives the id.
+    3. Look that user up in the database.
 
-    **El paso 3 no sobra.** Sería más rápido fiarse de lo que trae la
-    cookie, pero entonces el rol y la organización se quedarían congelados
-    en el momento de entrar: cambiarle el rol a alguien, o darlo de baja,
-    no tendría efecto hasta que volviera a iniciar sesión. Leyendo el
-    usuario en cada petición, el cambio se aplica en la siguiente.
+    **Step 3 is not redundant.** Trusting what the cookie carries would be
+    faster, but then the role and organization would be frozen at login
+    time: changing someone's role, or removing them, would have no effect
+    until they logged in again. Reading the user on each request, the
+    change applies on the next one.
 
-    Es el precio que se paga por meter solo el id en la cookie
-    (`core/security.py`), y se paga a gusto: una consulta por clave
-    primaria.
+    It is the price of putting only the id in the cookie
+    (`core/security.py`), and it is worth it: one primary-key query.
 
-    Sobre los mensajes de error: se distingue «no hay cookie» de «la
-    cookie no vale», porque el cliente ya sabe si la ha enviado. Lo que NO
-    se distingue es por qué no vale — firma incorrecta, caducada, o
-    usuario que ya no existe. Las tres responden igual: decirle a alguien
-    cuál de las tres es le está diciendo hasta dónde ha llegado su intento.
+    About the error messages: "no cookie" is told apart from "the cookie
+    is not valid", because the client already knows whether it sent one.
+    What is NOT told apart is why it is not valid — wrong signature,
+    expired, or a user that no longer exists. All three answer the same:
+    telling someone which one it is tells them how far their attempt got.
     """
     token = request.cookies.get(SESSION_COOKIE)
     if token is None:
@@ -285,34 +282,35 @@ def get_current_user(request: Request, db: DbSession) -> User:
     if user_id is None:
         raise UnauthorizedError("La sesión no es válida.")
 
-    # Se busca por id a secas, sin filtrar por organización: la cookie solo
-    # lleva el id, y la organización es justo lo que se quiere averiguar.
+    # Looked up by id alone, without filtering by organization: the cookie
+    # only holds the id, and the organization is exactly what we want to
+    # find out.
     user = UserRepository(db).get(user_id)
     if user is None:
         raise UnauthorizedError("La sesión no es válida.")
 
-    # Una sesión abierta antes de suspender la organización deja de servir
-    # en la siguiente petición, no a las 8 horas cuando caduque la cookie.
+    # A session opened before the organization was suspended stops working
+    # on the next request, not 8 hours later when the cookie expires.
     ensure_account_enabled(user)
     return user
 
 
 def ensure_account_enabled(user: User) -> None:
     """
-    Corta con 403 `ACCOUNT_DISABLED` si el usuario está desactivado (B6)
-    o su organización está suspendida (B1). La usan el login y
+    Stops with 403 `ACCOUNT_DISABLED` if the user is deactivated (B6) or
+    their organization is suspended (B1). Used by login and
     `get_current_user`.
 
-    Un usuario desactivado no entra sea cual sea su rol: un admin puede
-    desactivar a otro admin. Lo que no puede es desactivarse a sí mismo
-    (`users/service.py`), así que siempre queda alguien que lo deshaga.
+    A deactivated user cannot log in whatever their role: an admin can
+    deactivate another admin. What they cannot do is deactivate themselves
+    (`users/service.py`), so there is always someone left to undo it.
 
-    La organización suspendida no bloquea al admin: gestiona todas las
-    organizaciones, y suspender la suya no debe dejar la plataforma sin
-    nadie que pueda reactivarla.
+    A suspended organization does not block the admin: they manage every
+    organization, and suspending their own must not leave the platform
+    with nobody able to reactivate it.
     """
-    # `is False` y no `not`: en un `User` recién creado y sin guardar el
-    # campo aún vale None, y la columna es `true` por defecto.
+    # `is False` and not `not`: on a `User` just created and not saved yet
+    # the field is still None, and the column defaults to `true`.
     if user.is_active is False:
         raise ForbiddenError(
             "Tu cuenta está desactivada. Habla con quien te dio acceso.",
@@ -332,12 +330,13 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 def get_optional_user(request: Request, db: DbSession) -> User | None:
     """
-    Como `get_current_user`, pero sin sesión devuelve `None` en vez de 401.
+    Like `get_current_user`, but without a session it returns `None`
+    instead of 401.
 
-    Solo para `GET /api/me/session`: al abrir la app sin haber entrado, no
-    tener sesión es lo normal, y un 401 saldría como error en la consola del
-    navegador (el subject no permite errores en la consola). Una cuenta
-    desactivada sigue cortando con 403 `ACCOUNT_DISABLED`.
+    Only for `GET /api/me/session`: opening the app without logging in,
+    having no session is normal, and a 401 would show up as an error in
+    the browser console (the subject allows no console errors). A
+    deactivated account still stops with 403 `ACCOUNT_DISABLED`.
     """
     try:
         return get_current_user(request, db)
@@ -349,21 +348,22 @@ OptionalUser = Annotated[User | None, Depends(get_optional_user)]
 
 
 # ---------------------------------------------------------
-# AUTORIZACIÓN — issue #27
+# AUTHORIZATION — issue #27
 # ---------------------------------------------------------
 def require_role(*roles: str):
     """
-    Fábrica de dependencias que exige uno de los roles indicados.
+    Dependency factory that requires one of the given roles.
 
         @router.get("/", dependencies=[Depends(require_role("admin"))])
 
-    Devuelve una función distinta por cada combinación de roles, que es la
-    forma de parametrizar una dependency en FastAPI (una dependency no
-    acepta argumentos propios en el momento de declararla).
+    It returns a different function for each combination of roles, which
+    is how a dependency is parametrized in FastAPI (a dependency takes no
+    arguments of its own when it is declared).
 
-    Sin sesión responde 401, porque depende de `get_current_user`; con
-    sesión y otro rol, 403. El rol no basta para decidir qué datos ve
-    alguien: eso lo hace `get_org_scope`.
+    Without a session it answers 401, because it depends on
+    `get_current_user`; with a session and another role, 403. The role is
+    not enough to decide which data someone sees: `get_org_scope` does
+    that.
     """
 
     def dependency(user: CurrentUser) -> User:
@@ -376,21 +376,21 @@ def require_role(*roles: str):
 
 def get_org_scope(user: CurrentUser) -> UUID | None:
     """
-    Qué organizaciones puede ver quien pregunta. Issue #27, decidido por
-    Ana el 28-09-2026:
+    Which organizations the caller can see. Issue #27, decided by Ana on
+    2026-09-28:
 
-        admin (con o sin organización)  → None = TODAS
-        cliente con organización        → su organization_id
-        cliente sin organización        → 403
+        admin (with or without organization)  → None = ALL
+        client with organization              → its organization_id
+        client without organization           → 403
 
-    **`None` significa «todas», no «ninguna».** Los repositories solo
-    filtran por organización si reciben un id. Por eso ningún router debe
-    pasar `user.organization_id` directamente a una consulta: con un
-    cliente sin organización, ese `None` le enseñaría los datos de todos.
-    El alcance se calcula solo aquí, y aquí se corta ese caso.
+    **`None` means "all", not "none".** Repositories only filter by
+    organization if they get an id. That is why no router must pass
+    `user.organization_id` straight to a query: with a client without an
+    organization, that `None` would show them everyone's data. The scope
+    is only computed here, and this case is stopped here.
 
-    El admin ve todo aunque tenga organización: gestiona las
-    organizaciones de todos los clientes, no la suya.
+    The admin sees everything even with an organization: they manage the
+    organizations of every client, not their own.
     """
     if user.role == "admin":
         return None
@@ -403,27 +403,28 @@ OrgScope = Annotated[UUID | None, Depends(get_org_scope)]
 
 
 # ---------------------------------------------------------
-# PRUEBA CADUCADA — issue #146 (B12)
+# EXPIRED TRIAL — issue #146 (B12)
 # ---------------------------------------------------------
 def require_trial_not_expired(user: CurrentUser) -> None:
     """
-    Con la prueba vencida, la cuenta pasa a solo lectura (B12).
+    With the trial over, the account becomes read-only (B12).
 
         @router.patch("/me", dependencies=[Depends(require_trial_not_expired)])
 
-    Va en cada escritura que puede hacer un cliente; las lecturas no lo
-    llevan, así que el cliente sigue entrando y viendo sus datos. Las
-    escrituras solo de admin tampoco: ahí un cliente debe recibir
-    `FORBIDDEN`, no un `TRIAL_EXPIRED` que le prometa que podrá hacerlo
-    cuando le amplíen la prueba. `test_prueba_caducada_b12.py` recorre
-    todas las escrituras de la API para que una nueva no se olvide.
+    It goes on every write a client can make; reads do not have it, so the
+    client can still log in and see their data. Admin-only writes do not
+    have it either: there a client must get `FORBIDDEN`, not a
+    `TRIAL_EXPIRED` that promises they will be able to once the trial is
+    extended. `test_prueba_caducada_b12.py` goes through every write of the
+    API so a new one is not forgotten.
 
-    Responde 403 `TRIAL_EXPIRED` hasta que el cliente se haga cliente
-    (`subscribe`, B14) o un admin amplíe la prueba (`extend-trial`). Como `get_current_user` lee
-    la organización en cada petición, el cambio se aplica en la siguiente.
-    La regla de cuándo vence está en `organizations/trial.py`.
+    It answers 403 `TRIAL_EXPIRED` until the organization becomes a client
+    (`subscribe`, B14) or an admin extends the trial (`extend-trial`).
+    Since `get_current_user` reads the organization on each request, the
+    change applies on the next one. The rule for when it expires is in
+    `organizations/trial.py`.
 
-    El admin no se bloquea, igual que en `ensure_account_enabled`.
+    The admin is never blocked, as in `ensure_account_enabled`.
     """
     if user.role == "admin":
         return
@@ -436,33 +437,34 @@ def require_trial_not_expired(user: CurrentUser) -> None:
 
 
 # ---------------------------------------------------------
-# INGESTA DE LECTURAS — issue #106
+# READING INGESTION — issue #106
 # ---------------------------------------------------------
 def require_ingest_key(
     x_ingest_key: Annotated[
         str | None,
         Header(
             description=(
-                "Clave del simulador (`INGEST_API_KEY` del .env). Sin ella, "
-                "o si no coincide, la lectura se rechaza con 401."
+                "Simulator key (`INGEST_API_KEY` in .env). Without it, or if "
+                "it does not match, the reading is rejected with 401."
             ),
         ),
     ] = None,
 ) -> None:
     """
-    Exige la clave compartida con el simulador en `X-Ingest-Key`.
+    Requires the key shared with the simulator in `X-Ingest-Key`.
 
-    `POST /api/readings` no puede pedir sesión: el simulador no es una
-    persona y no hace login. Sin otra comprobación, cualquiera que llegue
-    al servidor podría mandar lecturas, y desde la #28 cada lectura fuera
-    de rango abre una alerta.
+    `POST /api/readings` cannot require a session: the simulator is not a
+    person and does not log in. Without another check, anyone reaching the
+    server could send readings, and since #28 every out-of-range reading
+    opens an alert.
 
-    Se compara con `secrets.compare_digest`, que tarda lo mismo acierte o
-    no. Con un `==` normal, la comparación se corta en el primer carácter
-    distinto, y midiendo tiempos se podría adivinar la clave letra a letra.
+    It is compared with `secrets.compare_digest`, which takes the same
+    time whether it matches or not. With a plain `==`, the comparison stops
+    at the first different character, and by timing it the key could be
+    guessed letter by letter.
 
-    Faltar la cabecera y traerla mal responden igual: decir cuál de las dos
-    es da pistas a quien está probando.
+    A missing header and a wrong one answer the same: telling which one
+    it is gives hints to whoever is probing.
     """
     esperada = app_settings.INGEST_API_KEY
     if x_ingest_key is None or not secrets.compare_digest(

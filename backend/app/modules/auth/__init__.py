@@ -1,1 +1,1 @@
-# Módulo auth — Registro, login, logout y sesión por cookie.
+# auth module — sign-up, login, logout and cookie session.

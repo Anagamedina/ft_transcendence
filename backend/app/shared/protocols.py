@@ -1,48 +1,47 @@
-# PROTOCOLS — contratos de repository que los services esperan encontrar.
+# PROTOCOLS — repository contracts the services expect to find.
 """
-Contratos de persistencia (issue #22).
+Persistence contracts (issue #22).
 
-Aquí se declara **qué métodos necesita** un service para funcionar, sin
-decir cómo se implementan. Es la frontera entre el trabajo de Ana
-(routers, services, contratos) y el de Daruny (modelos, repositories,
-SQLAlchemy).
+This declares **which methods** a service needs to work, without saying
+how they are implemented. It is the boundary between Ana's work (routers,
+services, contracts) and Daruny's (models, repositories, SQLAlchemy).
 
 --------------------------------------------------------------------
-POR QUÉ UN Protocol Y NO UNA CLASE BASE
+WHY A Protocol AND NOT A BASE CLASS
 --------------------------------------------------------------------
-`typing.Protocol` es *structural typing*: cualquier clase que tenga esos
-métodos, con esas firmas, cumple el contrato. No hace falta heredar ni
-registrar nada.
+`typing.Protocol` is *structural typing*: any class with those methods,
+with those signatures, meets the contract. Nothing has to inherit or
+register anything.
 
-La consecuencia práctica es la que importa:
+The practical consequence is what matters:
 
-    Daruny NO tiene que importar este archivo ni heredar de nada.
+    Daruny does NOT have to import this file nor inherit from anything.
 
-Su `ReadingRepository` cumple el protocolo por el mero hecho de tener
-un método `create(...)` compatible. Acoplamiento cero en las dos
-direcciones. Con una clase base abstracta, en cambio,
-`modules/readings/repository.py` tendría que importar de `shared/`, y
-cualquier cambio en la firma rompería su archivo.
+Her `ReadingRepository` meets the protocol just by having a compatible
+`create(...)` method. Zero coupling in both directions. With an abstract
+base class, instead, `modules/readings/repository.py` would have to import
+from `shared/`, and any signature change would break that file.
 
-Y al revés: permite escribir y probar los services **antes** de que exista
-PostgreSQL, sustituyendo el repository por uno en memoria:
+And the other way round: it lets the services be written and tested
+**before** PostgreSQL exists, replacing the repository with an in-memory
+one:
 
     app.dependency_overrides[get_reading_repository] = (
         lambda: InMemoryReadingRepository()
     )
 
-El router, el service y toda la validación son los mismos que en
-producción. Lo único que cambia es dónde acaban los datos. Por eso las
-issues #22, #23 y #24 pueden cerrarse sin esperar a la #11.
+The router, the service and all the validation are the same as in
+production. The only thing that changes is where the data ends up. That
+is why issues #22, #23 and #24 can be closed without waiting for #11.
 
 --------------------------------------------------------------------
-DÓNDE VIVE ESTE ARCHIVO
+WHERE THIS FILE LIVES
 --------------------------------------------------------------------
-El diagrama de arquitectura coloca el Protocol dentro de
-`modules/<x>/repository.py`. Se ha movido a `shared/` a propósito: ese
-archivo es donde Daruny está escribiendo la implementación real, y dos
-personas editando el mismo fichero en ramas distintas es un conflicto de
-merge asegurado. Manteniéndolos separados, cada uno toca solo lo suyo.
+The architecture diagram puts the Protocol inside
+`modules/<x>/repository.py`. It was moved to `shared/` on purpose: that
+file is where Daruny writes the real implementation, and two people
+editing the same file on different branches is a guaranteed merge
+conflict. Keeping them apart, each one only touches their own.
 """
 
 from __future__ import annotations
@@ -55,15 +54,15 @@ from uuid import UUID
 @runtime_checkable
 class ReadingRepository(Protocol):
     """
-    Operaciones de persistencia que necesita `ReadingService`.
+    Persistence operations `ReadingService` needs.
 
-    Los métodos devuelven `Any` porque quien los implementa devuelve
-    entidades SQLAlchemy, y este módulo no debe conocerlas: el service
-    convierte esa fila al schema de salida con `model_validate`.
+    The methods return `Any` because the implementation returns SQLAlchemy
+    entities, and this module must not know them: the service turns that
+    row into the output schema with `model_validate`.
 
-    `runtime_checkable` permite hacer `isinstance(obj, ReadingRepository)`
-    en un test. Solo comprueba que los métodos existan, no sus firmas;
-    la verificación completa la hace el type checker.
+    `runtime_checkable` allows `isinstance(obj, ReadingRepository)` in a
+    test. It only checks that the methods exist, not their signatures; the
+    type checker does the full check.
     """
 
     def create(
@@ -75,22 +74,22 @@ class ReadingRepository(Protocol):
         id: UUID | None = None,
     ) -> Any:
         """
-        Inserta una lectura y devuelve la fila creada, con su id.
+        Inserts a reading and returns the created row, with its id.
 
-        Los nombres son los del almacenamiento, no los del contrato HTTP.
-        La API habla de `pressure` y `measured_at`; la tabla guarda
-        `value`, `unit` y `recorded_at`. **La traducción la hace el
-        service**, que es la capa que conoce los dos lados.
+        The names are the storage ones, not the HTTP contract ones. The API
+        speaks of `pressure` and `measured_at`; the table stores `value`,
+        `unit` and `recorded_at`. **The service does the translation**,
+        being the layer that knows both sides.
 
-        `unit` se pasa explícitamente en lugar de fijarla en `"bar"`: el
-        valor que se escribe es el del propio sensor
-        (`sensors/model.py`), y así la unidad de la lectura no puede
-        contradecir la del sensor que la emitió.
+        `unit` is passed explicitly instead of being fixed to `"bar"`: the
+        value written is the sensor's own (`sensors/model.py`), so the
+        reading unit can never contradict the unit of the sensor that sent
+        it.
         """
         ...
 
     def get(self, reading_id: UUID) -> Any | None:
-        """La lectura con ese id, o `None`. Sin filtro de organización."""
+        """The reading with that id, or `None`. No organization filter."""
         ...
 
     def list_by_sensor(
@@ -104,20 +103,21 @@ class ReadingRepository(Protocol):
         newest_first: bool = False,
     ) -> tuple[list[Any], int]:
         """
-        Histórico de un sensor, ordenado por fecha de medida: de la más
-        antigua a la más reciente, o al revés con `newest_first` (B7).
-        `start` y `end` lo limitan a [start, end).
+        History of a sensor, ordered by measurement date: oldest to newest,
+        or the other way round with `newest_first` (B7). `start` and `end`
+        limit it to [start, end).
 
-        Devuelve la página y el total de filas que cumplen el filtro. Van
-        juntos porque el total exige un COUNT aparte, y dejarlo fuera del
-        repository obligaría al service a lanzar una segunda consulta y a
-        saber cómo se filtra — que es justo lo que esta capa oculta.
+        Returns the page and the total rows matching the filter. They go
+        together because the total needs a separate COUNT, and leaving it
+        outside the repository would force the service to run a second
+        query and to know how it is filtered — exactly what this layer
+        hides.
 
-        `organization_id` no se puede omitir «porque ya conocemos el
-        sensor»: sin él, cualquiera que acierte un `sensor_id` ajeno se lee
-        el histórico de otro cliente. `None` es un valor explícito que
-        significa «todas las organizaciones», solo para un admin; lo decide
-        `get_org_scope` (issue #27).
+        `organization_id` cannot be left out "because we already know the
+        sensor": without it, anyone guessing another client's `sensor_id`
+        reads that client's history. `None` is an explicit value meaning
+        "all organizations", for an admin only; `get_org_scope` decides it
+        (issue #27).
         """
         ...
 
@@ -129,35 +129,36 @@ class ReadingRepository(Protocol):
         bucket: timedelta,
     ) -> list[tuple[datetime, Any, Any, Any]]:
         """
-        Lecturas de un sensor en [start, end) agrupadas en tramos de
-        `bucket` (B7): `(inicio del tramo, media, mínimo, máximo)`, del
-        más antiguo al más reciente y solo los tramos con lecturas.
+        Readings of a sensor in [start, end) grouped in `bucket` slots
+        (B7): `(slot start, average, minimum, maximum)`, oldest first and
+        only the slots that have readings.
         """
         ...
 
 
 @runtime_checkable
 class SensorRepository(Protocol):
-    """Operaciones sobre sensores que necesitan los services."""
+    """Sensor operations the services need."""
 
     def get(self, sensor_id: UUID) -> Any | None:
         """
-        Devuelve el sensor o `None` si no existe.
+        Returns the sensor or `None` if it does not exist.
 
-        `None` y no una excepción: «no está» es un resultado normal de una
-        búsqueda. Es el service quien decide que eso significa un 404,
-        porque es él quien conoce el caso de uso.
+        `None` and not an exception: "not there" is a normal search result.
+        The service decides that it means a 404, because it knows the use
+        case.
         """
         ...
 
     def get_by_id(self, sensor_id: UUID, organization_id: UUID | None) -> Any | None:
         """
-        El sensor, solo si pertenece a esa organización. Con `None`, de
-        cualquier organización (admin, issue #27).
+        The sensor, only if it belongs to that organization. With `None`,
+        from any organization (admin, issue #27).
 
-        Es la versión que se usa cuando quien pregunta tiene sesión, y la
-        que evita que alguien lea los sensores de otro cliente acertando un
-        id. `get()` existe aparte para el simulador, que no tiene sesión.
+        It is the version used when the caller has a session, and the one
+        that stops someone from reading another client's sensors by
+        guessing an id. `get()` exists separately for the simulator, which
+        has no session.
         """
         ...
 
@@ -173,55 +174,55 @@ class SensorRepository(Protocol):
         ahora: datetime | None = None,
     ) -> tuple[list[Any], int]:
         """
-        Sensores de esa organización, o de todas con `None` (admin), por
-        nombre. Devuelve la página y el total. Issue #25.
+        Sensors of that organization, or of all with `None` (admin), by
+        name. Returns the page and the total. Issue #25.
 
-        `q`, `organization_filter` y `site_id` son los filtros comunes de
-        la B0; `health` (con su `ahora`), el de la B3. Se suman al alcance
-        de `organization_id`.
+        `q`, `organization_filter` and `site_id` are the common filters of
+        B0; `health` (with its `ahora`, "now"), the B3 one. They add to the
+        `organization_id` scope.
         """
         ...
 
     def live(self, sensor_ids: list[UUID]) -> dict[UUID, Any]:
         """
-        Última lectura y gravedades de las alertas abiertas de cada sensor
-        (B3), para `status`, `health`, `last_seen_at` y `last_value`.
+        Last reading and severities of the open alerts of each sensor (B3),
+        for `status`, `health`, `last_seen_at` and `last_value`.
         """
         ...
 
     def get_for_update(self, sensor_id: UUID) -> Any | None:
-        """El sensor bloqueado hasta el final de la transacción (B3)."""
+        """The sensor, locked until the end of the transaction (B3)."""
         ...
 
     def list_by_site(
         self, site_id: UUID, offset: int, limit: int
     ) -> tuple[list[Any], int]:
-        """Sensores de un site, por nombre (#29). El site ya está comprobado."""
+        """Sensors of a site, by name (#29). The site is already checked."""
         ...
 
     def external_id_taken(self, site_id: UUID, external_id: str) -> bool:
-        """Si ya hay un sensor con esa etiqueta en ese site (#29)."""
+        """Whether that site already has a sensor with that label (#29)."""
         ...
 
     def external_ids_in_site(self, site_id: UUID) -> set[str]:
-        """Las etiquetas ya usadas en ese site, para importar de una vez."""
+        """The labels already used in that site, to import in one go."""
         ...
 
     def create(self, **campos: Any) -> Any:
-        """Crea el sensor y devuelve la fila, con su id (#29)."""
+        """Creates the sensor and returns the row, with its id (#29)."""
         ...
 
     def update(self, sensor: Any, **campos: Any) -> Any:
-        """Cambia los campos indicados y devuelve la fila (#29)."""
+        """Changes the given fields and returns the row (#29)."""
         ...
 
 
 @runtime_checkable
 class AlertRepository(Protocol):
     """
-    Lo que necesita `ReadingService` para abrir alertas al recibir una
-    lectura (issue #28). Listar, reconocer y resolver los usa
-    `AlertService` directamente sobre el repository real.
+    What `ReadingService` needs to open alerts when a reading arrives
+    (issue #28). Listing, acknowledging and resolving are used by
+    `AlertService` directly on the real repository.
     """
 
     def create(
@@ -231,22 +232,22 @@ class AlertRepository(Protocol):
         severity: str,
         message: str,
     ) -> Any:
-        """Abre una alerta en estado ACTIVE y devuelve la fila creada."""
+        """Opens an alert in ACTIVE state and returns the created row."""
         ...
 
     def get_active(self, sensor_id: UUID, alert_type: str) -> Any | None:
         """
-        La alerta ACTIVE de ese tipo para ese sensor, o `None`.
+        The ACTIVE alert of that type for that sensor, or `None`.
 
-        Es lo que evita abrir una alerta por cada lectura mala: mientras
-        haya una abierta, las siguientes lecturas no crean otra.
+        It is what stops an alert being opened for every bad reading:
+        while one is open, the next readings do not create another.
         """
         ...
 
     def escalate(self, alert: Any, severity: str, message: str) -> Any:
         """
-        Sube la severidad de una alerta abierta, con el mensaje de la
-        lectura que la ha empeorado. Solo se sube, nunca se baja: eso lo
-        decide el service.
+        Raises the severity of an open alert, with the message of the
+        reading that made it worse. It only goes up, never down: the
+        service decides that.
         """
         ...

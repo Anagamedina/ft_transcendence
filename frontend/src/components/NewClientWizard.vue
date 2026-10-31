@@ -4,7 +4,7 @@
   It only collects and validates the data; the parent creates the client and passes
   the result back in `created`, then the wizard shows the invitation link to send.
   While the parent is saving, `submitting` disables the buttons; an API error comes
-  back in `serverError` ({ field, message }): a 'name' error returns to step 1.
+  back in `serverError` ({ field, message }): an error of a field returns to its step.
   With `checkName`, step 1 asks the API if the name is free before moving on.
   Usage:
     <NewClientWizard :created="result" :check-name="isNameTaken" :submitting="saving"
@@ -113,76 +113,53 @@
           </label>
           <input
             :id="fieldId('name')"
-            :ref="(el) => (inputs.name = el)"
+            :ref="setRef('name')"
             v-model="form.client.name"
             type="text"
             required
             maxlength="120"
             autocomplete="organization"
             :class="inputClass('name')"
-            :aria-invalid="Boolean(errors.name)"
-            :aria-describedby="errors.name ? fieldId('name-error') : undefined"
+            v-bind="fieldAttrs('name')"
           />
-          <p
-            v-if="errors.name"
-            :id="fieldId('name-error')"
-            class="text-sm text-danger-dark"
-          >
-            {{ errors.name }}
-          </p>
+          <FieldError :id="errorId('name')" :message="errors.name" />
         </div>
         <div class="flex flex-col gap-1">
           <label
             :for="fieldId('contact_email')"
             class="text-sm font-semibold text-slate-700"
-            >Email de contacto *</label
+            >Email de contacto <span aria-hidden="true">*</span></label
           >
           <input
             :id="fieldId('contact_email')"
-            :ref="(el) => (inputs.contact_email = el)"
+            :ref="setRef('contact_email')"
             v-model="form.client.contact_email"
             type="email"
             required
             autocomplete="email"
             :class="inputClass('contact_email')"
-            :aria-invalid="Boolean(errors.contact_email)"
-            :aria-describedby="
-              errors.contact_email ? fieldId('contact_email-error') : undefined
-            "
+            v-bind="fieldAttrs('contact_email')"
           />
-          <p
-            v-if="errors.contact_email"
-            :id="fieldId('contact_email-error')"
-            class="text-sm text-danger-dark"
-          >
-            {{ errors.contact_email }}
-          </p>
+          <FieldError :id="errorId('contact_email')" :message="errors.contact_email" />
         </div>
         <div class="flex flex-col gap-1">
           <label
             :for="fieldId('phone')"
             class="text-sm font-semibold text-slate-700"
-            >Teléfono *</label
+            >Teléfono <span aria-hidden="true">*</span></label
           >
           <input
             :id="fieldId('phone')"
+            :ref="setRef('phone')"
             v-model="form.client.phone"
             type="tel"
             required
             maxlength="30"
             autocomplete="tel"
             :class="inputClass('phone')"
-            :aria-invalid="Boolean(errors.phone)"
-            :aria-describedby="errors.phone ? fieldId('phone-error') : undefined"
+            v-bind="fieldAttrs('phone')"
           />
-          <p
-            v-if="errors.phone"
-            :id="fieldId('phone-error')"
-            class="text-sm text-danger-dark"
-            role="alert"
-          >
-            {{ errors.phone }}
-          </p>
+          <FieldError :id="errorId('phone')" :message="errors.phone" />
         </div>
         <p class="text-sm text-slate-600 sm:col-span-2">
           AquaGuard solo da servicio en Barcelona.
@@ -207,24 +184,16 @@
           </label>
           <input
             :id="fieldId('user_name')"
-            :ref="(el) => (inputs.user_name = el)"
+            :ref="setRef('user_name')"
             v-model="form.user.name"
             type="text"
+            maxlength="120"
             required
             autocomplete="name"
             :class="inputClass('user_name')"
-            :aria-invalid="Boolean(errors.user_name)"
-            :aria-describedby="
-              errors.user_name ? fieldId('user_name-error') : undefined
-            "
+            v-bind="fieldAttrs('user_name')"
           />
-          <p
-            v-if="errors.user_name"
-            :id="fieldId('user_name-error')"
-            class="text-sm text-danger-dark"
-          >
-            {{ errors.user_name }}
-          </p>
+          <FieldError :id="errorId('user_name')" :message="errors.user_name" />
         </div>
         <div class="flex flex-col gap-1">
           <label
@@ -235,24 +204,15 @@
           </label>
           <input
             :id="fieldId('user_email')"
-            :ref="(el) => (inputs.user_email = el)"
+            :ref="setRef('user_email')"
             v-model="form.user.email"
             type="email"
             required
             autocomplete="email"
             :class="inputClass('user_email')"
-            :aria-invalid="Boolean(errors.user_email)"
-            :aria-describedby="
-              errors.user_email ? fieldId('user_email-error') : undefined
-            "
+            v-bind="fieldAttrs('user_email')"
           />
-          <p
-            v-if="errors.user_email"
-            :id="fieldId('user_email-error')"
-            class="text-sm text-danger-dark"
-          >
-            {{ errors.user_email }}
-          </p>
+          <FieldError :id="errorId('user_email')" :message="errors.user_email" />
         </div>
       </div>
 
@@ -269,11 +229,14 @@
           >
           <input
             :id="fieldId('legal_name')"
+            :ref="setRef('legal_name')"
             v-model="form.client.legal_name"
             type="text"
             maxlength="200"
             :class="inputClass('legal_name')"
+            v-bind="fieldAttrs('legal_name')"
           />
+          <FieldError :id="errorId('legal_name')" :message="errors.legal_name" />
         </div>
         <div class="flex flex-col gap-1">
           <label
@@ -283,11 +246,14 @@
           >
           <input
             :id="fieldId('tax_id')"
+            :ref="setRef('tax_id')"
             v-model="form.client.tax_id"
             type="text"
             maxlength="30"
             :class="inputClass('tax_id')"
+            v-bind="fieldAttrs('tax_id')"
           />
+          <FieldError :id="errorId('tax_id')" :message="errors.tax_id" />
         </div>
         <div class="flex flex-col gap-1 sm:col-span-2">
           <label
@@ -297,36 +263,19 @@
           >
           <input
             :id="fieldId('billing_email')"
-            :ref="(el) => (inputs.billing_email = el)"
+            :ref="setRef('billing_email')"
             v-model="form.client.billing_email"
             type="email"
             autocomplete="email"
             :class="inputClass('billing_email')"
-            :aria-invalid="Boolean(errors.billing_email)"
-            :aria-describedby="
-              errors.billing_email ? fieldId('billing_email-error') : undefined
-            "
+            v-bind="fieldAttrs('billing_email')"
           />
-          <p
-            v-if="errors.billing_email"
-            :id="fieldId('billing_email-error')"
-            class="text-sm text-danger-dark"
-          >
-            {{ errors.billing_email }}
-          </p>
+          <FieldError :id="errorId('billing_email')" :message="errors.billing_email" />
         </div>
       </div>
 
-      <!-- API error that does not belong to a field of this step -->
-      <p
-        v-if="generalError"
-        ref="generalErrorMessage"
-        role="alert"
-        tabindex="-1"
-        class="rounded-lg border border-danger/40 bg-danger-light px-4 py-3 text-sm text-danger-dark focus:outline-none"
-      >
-        {{ generalError }}
-      </p>
+      <!-- API error that does not belong to a field of this wizard -->
+      <FormError ref="generalErrorMessage" :message="generalError" />
 
       <div class="flex justify-between gap-3 border-t border-slate-200 pt-4">
         <button
@@ -355,13 +304,26 @@
 import { ref, reactive, computed, watch, nextTick, useId } from "vue";
 import SiteForm, { emptySite } from "./SiteForm.vue";
 import InviteLinkCopy from "./InviteLinkCopy.vue";
+import FieldError from "./FieldError.vue";
+import FormError from "./FormError.vue";
+import { useFieldErrors } from "../composables/useFieldErrors.js";
+// Same rules and messages as every other form and the API (utils/validation.js)
+import {
+  cleanText,
+  emailProblem,
+  organizationNameProblem,
+  personNameProblem,
+  phoneProblem,
+  taxIdProblem,
+  textProblem,
+} from "../utils/validation.js";
 
 const props = defineProps({
   // Set by the parent after creating: { client, invitation: { name, email, link, expires_at } | null }
   created: { type: Object, default: null },
   // True while the parent is calling the API
   submitting: { type: Boolean, default: false },
-  // API error after "Crear cliente": { field, message }. field 'name' goes back to step 1
+  // API error after "Crear cliente": { field, message }. An error of a field goes back to its step
   serverError: { type: Object, default: null },
   // Optional async (name) => true when the name is already used. Checked on "Siguiente" in step 1
   checkName: { type: Function, default: null },
@@ -382,16 +344,8 @@ const BUTTON_PRIMARY =
 const BUTTON_SECONDARY =
   "min-h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:border-aqua-600 disabled:opacity-60";
 
-// Same limit as OrganizationCreate.name (B1)
-const NAME_MAX = 120;
-
-// Simple email check; the API does the full validation
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const CLIENT_NAME_PATTERN =
-  /^[\p{L}\p{M}\p{N} .,'’&()-]+$/u;
-
-const PHONE_PATTERN = /^\+?[0-9().\s]+$/;
+// Same limit as OrganizationContact.legal_name (B1)
+const LEGAL_NAME_MAX = 200;
 
 const step = ref(0);
 const isLastStep = computed(() => step.value === STEPS.length - 1);
@@ -424,8 +378,6 @@ const form = reactive({
   user: { name: "", email: "" },
 });
 
-const errors = reactive({});
-const inputs = {};
 const heading = ref(null);
 const siteForm = ref(null);
 
@@ -434,75 +386,65 @@ function fieldId(name) {
   return `wizard-${uid}-${name}`;
 }
 
-function inputClass(field) {
-  const base =
-    "w-full rounded-lg border bg-white px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-aqua-600";
-  return errors[field] ? `${base} border-danger` : `${base} border-slate-300`;
-}
+// Step of each field, in screen order: an API error takes the admin back there
+const FIELD_STEP = {
+  name: 0,
+  contact_email: 0,
+  phone: 0,
+  user_name: 2,
+  user_email: 2,
+  legal_name: 3,
+  tax_id: 3,
+  billing_email: 3,
+};
 
-function emailError(value, required) {
-  const text = value.trim();
-  if (text === "") return required ? "Escribe el email." : "";
-  return EMAIL_PATTERN.test(text)
-    ? ""
-    : "Escribe un email válido, por ejemplo nombre@empresa.com.";
-}
-
-function phoneError(value) {
-  const phone = value.trim();
-
-  if (phone === "") {
-    return "Le numéro de téléphone est obligatoire.";
-  }
-
-  if (!PHONE_PATTERN.test(phone)) {
-    return "Le téléphone ne peut contenir que des chiffres, des espaces, +, ( ), et des points.";
-  }
-
-  const digits = phone.replace(/\D/g, "");
-
-  if (digits.length < 9 || digits.length > 15) {
-    return "Le numéro doit contenir entre 9 et 15 chiffres.";
-  }
-
-  return "";
-}
+const {
+  errors,
+  inputs,
+  errorId,
+  setRef,
+  inputClass,
+  fieldAttrs,
+  check,
+  focusFirstError,
+  clearOnEdit,
+} = useFieldErrors(Object.keys(FIELD_STEP));
+clearOnEdit({
+  name: () => form.client.name,
+  contact_email: () => form.client.contact_email,
+  phone: () => form.client.phone,
+  user_name: () => form.user.name,
+  user_email: () => form.user.email,
+  legal_name: () => form.client.legal_name,
+  tax_id: () => form.client.tax_id,
+  billing_email: () => form.client.billing_email,
+});
 
 // Rules of each step (the building step is validated by SiteForm itself).
-// Each returns the error message of a field, or '' when the value is valid
+// Each returns the error message of a field, or null when the value is valid
 const STEP_RULES = [
   {
-    name: () => {
-      const name = form.client.name.trim();
-
-      if (name === "") return "Escribe el nombre del cliente.";
-
-      if (name.length > NAME_MAX) {
-        return `Máximo ${NAME_MAX} caracteres.`;
-      }
-
-      if (!CLIENT_NAME_PATTERN.test(name)) {
-        return "El nombre contiene caracteres no permitidos.";
-      }
-
-      return "";
-    },
-
-    contact_email: () =>
-      emailError(form.client.contact_email, true),
+    name: () => organizationNameProblem(form.client.name),
+    contact_email: () => emailProblem(form.client.contact_email),
+    phone: () => phoneProblem(form.client.phone),
   },
   {},
   {
-    user_name: () =>
-      form.user.name.trim() === ""
-        ? "Escribe el nombre de la persona."
-        : "",
-
-    user_email: () => emailError(form.user.email, true),
+    user_name: () => personNameProblem(form.user.name),
+    user_email: () => emailProblem(form.user.email),
   },
   {
+    // Optional step: an empty field is fine, a wrong one is not
+    legal_name: () =>
+      form.client.legal_name.trim()
+        ? textProblem(form.client.legal_name, {
+            max: LEGAL_NAME_MAX,
+            message: `Escribe la razón social (máximo ${LEGAL_NAME_MAX} caracteres).`,
+          })
+        : null,
+    tax_id: () => taxIdProblem(form.client.tax_id, { required: false }),
     billing_email: () =>
-      emailError(form.client.billing_email, false),
+      emailProblem(form.client.billing_email, { required: false }),
   },
 ];
 
@@ -512,38 +454,9 @@ function validateStep() {
     return siteForm.value.validate();
   }
 
-  const rules = STEP_RULES[step.value];
-
-  for (const field of Object.keys(rules)) {
-    errors[field] = rules[field]();
-  }
-
-  if (step.value === 0) {
-    errors.phone = phoneError(form.client.phone);
-  }
-
-  const fieldsToCheck =
-    step.value === 0
-      ? [...Object.keys(rules), "phone"]
-      : Object.keys(rules);
-
-  const firstWrong = fieldsToCheck.find(
-    (field) => errors[field]
-  );
-
-  if (firstWrong) {
-    nextTick(() => {
-      if (firstWrong === "phone") {
-        document.getElementById(fieldId("phone"))?.focus();
-      } else {
-        inputs[firstWrong]?.focus();
-      }
-    });
-
-    return false;
-  }
-
-  return true;
+  if (check(STEP_RULES[step.value])) return true;
+  focusFirstError();
+  return false;
 }
 
 // Step 1: asks the API whether the name is free. If the check itself fails
@@ -555,7 +468,7 @@ async function nameIsFree() {
     const taken = await props.checkName(form.client.name);
     if (!taken) return true;
     errors.name = "Ya hay un cliente con este nombre.";
-    nextTick(() => inputs.name?.focus());
+    focusFirstError();
     return false;
   } catch {
     return true;
@@ -573,7 +486,7 @@ async function next() {
     emit("submit", {
       client: { ...form.client },
       site: { ...form.site },
-      user: { name: form.user.name.trim(), email: form.user.email.trim() },
+      user: { name: cleanText(form.user.name), email: form.user.email.trim() },
     });
   } else {
     step.value += 1;
@@ -584,25 +497,6 @@ function back() {
   if (step.value === 0) emit("cancel");
   else step.value -= 1;
 }
-
-// A shown error disappears as soon as the user fixes the field
-watch(
-  form,
-  () => {
-    for (const rules of STEP_RULES) {
-      for (const field of Object.keys(rules)) {
-        if (errors[field]) {
-          errors[field] = rules[field]();
-        }
-      }
-    }
-
-    if (step.value === 0 && errors.phone) {
-      errors.phone = phoneError(form.client.phone);
-    }
-  },
-  { deep: true },
-);
 
 // Field to focus instead of the title after the next step change (set by an API error)
 let focusAfterStep = null;
@@ -616,19 +510,21 @@ watch([step, () => props.created], () =>
   }),
 );
 
-// API error after submitting. A repeated or empty name goes back to step 1 and
-// marks the field; any other error is shown above the buttons
+// API error after submitting. An error of a field (repeated name, phone
+// that is not Spanish...) goes back to its step and marks the field; any
+// other error is shown above the buttons
 watch(
   () => props.serverError,
   (serverError) => {
     if (!serverError) return;
-    if (serverError.field === "name") {
-      errors.name = serverError.message;
-      if (step.value === 0) {
-        nextTick(() => inputs.name?.focus());
+    const field = serverError.field;
+    if (field in FIELD_STEP) {
+      errors[field] = serverError.message;
+      if (step.value === FIELD_STEP[field]) {
+        focusFirstError();
       } else {
-        focusAfterStep = "name";
-        step.value = 0;
+        focusAfterStep = field;
+        step.value = FIELD_STEP[field];
       }
     } else {
       generalError.value = serverError.message;

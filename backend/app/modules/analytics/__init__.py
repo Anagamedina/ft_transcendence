@@ -1,1 +1,1 @@
-# Módulo analytics — KPIs, agregaciones, rangos y exportación.
+# analytics module — KPIs, aggregations, date ranges and export.

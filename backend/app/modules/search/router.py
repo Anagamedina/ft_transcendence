@@ -1,11 +1,11 @@
 # ROUTER — search
-# Capa HTTP fina: valida schemas → llama service → responde.
+# Thin HTTP layer: validates schemas → calls the service → answers.
 """
-Búsqueda global del panel (B17, issue #150).
+Global search of the panel (B17, issue #150).
 
     GET /api/search?q=diag&limit=5
 
-Admin y cliente, cada uno dentro de su alcance (`OrgScope`, #27).
+Admin and client, each within their scope (`OrgScope`, #27).
 """
 
 from __future__ import annotations
@@ -24,34 +24,34 @@ router = APIRouter(prefix="/search", tags=["Search"])
 
 SearchSvc = Annotated[SearchService, Depends(get_search_service)]
 
-# Con una sola letra casi todo coincide, y la respuesta no ayuda a nadie.
+# With a single letter almost everything matches, and the answer helps nobody.
 Q_MIN = 2
 
 
 @router.get(
     "",
     response_model=SearchResponse,
-    summary="Buscar en el panel",
+    summary="Search the panel",
     description=(
-        "Busca clientes, edificios y sensores a la vez, sin distinguir "
-        "mayúsculas. Devuelve los primeros `limit` de cada tipo y el total.\n\n"
-        "Un cliente solo encuentra edificios y sensores de su organización, "
-        "y ninguna organización."
+        "Searches clients, buildings and sensors at once, ignoring case. "
+        "Returns the first `limit` of each type and the total.\n\n"
+        "A client only finds buildings and sensors of its organization, and "
+        "no organization."
     ),
     responses={
-        **error_response(status.HTTP_401_UNAUTHORIZED, "No hay sesión (`UNAUTHORIZED`)."),
+        **error_response(status.HTTP_401_UNAUTHORIZED, "No session (`UNAUTHORIZED`)."),
         **error_response(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            f"`q` con menos de {Q_MIN} caracteres sin contar espacios (`QUERY_TOO_SHORT`).",
+            f"`q` with fewer than {Q_MIN} characters not counting spaces (`QUERY_TOO_SHORT`).",
         ),
     },
 )
 def search(
     service: SearchSvc,
     scope: OrgScope,
-    q: Annotated[str, Query(max_length=100, description="Texto a buscar.")],
+    q: Annotated[str, Query(max_length=100, description="Text to search.")],
     limit: Annotated[
-        int, Query(ge=1, le=20, description="Resultados por tipo (máximo 20).")
+        int, Query(ge=1, le=20, description="Results per type (20 at most).")
     ] = 5,
 ) -> SearchResponse:
     q = q.strip()

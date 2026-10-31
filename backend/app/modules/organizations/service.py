@@ -1,43 +1,45 @@
 # SERVICE — organizations
-# Reglas de negocio y orquestación. No hablar HTTP aquí.
-# CRUD organizaciones y miembros (multi-tenant).
+# Business rules and orchestration. No HTTP here.
+# CRUD of organizations and members (multi-tenant).
 """
-Lógica de organizaciones (B1, issue #139; incluye la #121).
+Organization logic (B1, issue #139; includes #121).
 
-Todas las operaciones son del admin; lo comprueba el router. Aquí viven
-las reglas: el nombre único, el alta con su primer edificio y, sobre
-todo, **qué cambios de estado se permiten**:
+Every operation belongs to the admin; the router checks it. The rules
+live here: the unique name, creation with its first building and, above
+all, **which status changes are allowed**:
 
     ACTIVE    --suspend-->      SUSPENDED
     TRIAL     --suspend-->      SUSPENDED
-    SUSPENDED --reactivate-->   TRIAL si estaba en prueba, si no ACTIVE
-    TRIAL     --subscribe-->    ACTIVE (lo hace el cliente, B14; no el admin)
-    TRIAL     --extend-trial--> TRIAL con TRIAL_DAYS más
+    SUSPENDED --reactivate-->   TRIAL if it was on trial, otherwise ACTIVE
+    TRIAL     --subscribe-->    ACTIVE (done by the client, B14; not the admin)
+    TRIAL     --extend-trial--> TRIAL with TRIAL_DAYS more
 
-Y el borrado completo (B16, `delete`): confirmando el nombre, con
-`purge_organization` (D9) en una sola transacción.
+And full deletion (B16, `delete`): confirming the name, with
+`purge_organization` (D9) in a single transaction.
 
-Cualquier otro cambio responde 409 con un código propio, para que el
-frontend explique qué ha pasado en vez de mostrar un error genérico.
+Any other change answers 409 with its own code, so the frontend explains
+what happened instead of showing a generic error.
 
-Decisiones de Ana (10-10-2026):
+Ana's decisions (2026-10-10):
 
-- **Reactivar vuelve a TRIAL si la organización estaba en prueba**, que se
-  sabe porque conserva `trial_ends_at`. Así reactivar no convierte por
-  error una prueba en cliente de pago. Si la prueba ya había caducado,
-  vuelve igualmente a TRIAL y el admin decide si la amplía o la activa.
-- **Ampliar suma los días al fin actual de la prueba**; si ya caducó, se
-  cuentan desde hoy, para que ampliar siempre dé días útiles.
-- **El alta acepta `first_site`, no `first_user`**: los usuarios llegan
-  por invitación (B4), y así el admin nunca conoce la contraseña de un
-  cliente.
+- **Reactivating goes back to TRIAL if the organization was on trial**,
+  which is known because it keeps `trial_ends_at`. So reactivating never
+  turns a trial into a paying client by mistake. If the trial had already
+  expired, it still goes back to TRIAL and the admin decides whether to
+  extend it or activate it.
+- **Extending adds the days to the current end of the trial**; if it has
+  already expired, they count from today, so extending always gives
+  useful days.
+- **Creation accepts `first_site`, not `first_user`**: users arrive by
+  invitation (B4), so the admin never knows a client's password.
 
-Cada cambio de estado lee la organización con su fila bloqueada
-(`SELECT … FOR UPDATE`) en la misma transacción que valida y guarda. Sin
-eso, una activación que leyó TRIAL justo antes de una suspensión la
-dejaba en ACTIVE, y dos ampliaciones a la vez sumaban solo una vez los
-días (revisión de la PR #191). Los tests de concurrencia están en
-`tests/integration/test_organizations_concurrency.py`, contra PostgreSQL.
+Each status change reads the organization with its row locked
+(`SELECT … FOR UPDATE`) in the same transaction that validates and
+saves. Without that, an activation that read TRIAL right before a
+suspension left it ACTIVE, and two extensions at once only added the days
+once (review of PR #191). The concurrency tests are in
+`tests/integration/test_organizations_concurrency.py`, against
+PostgreSQL.
 """
 
 from __future__ import annotations
@@ -70,7 +72,15 @@ from app.modules.sites.repository import SiteRepository
 from app.modules.sites.service import site_campos
 from app.shared.dependencies import DbSession
 from app.shared.enums import OrganizationStatus
+from app.shared.fields import (
+    clean_text,
+    normalize_email,
+    normalize_phone,
+    normalize_tax_id,
+    organization_name,
+)
 from app.shared.schemas import Page
+
 
 _CONTACTO = (
     "city", "contact_email", "phone", "legal_name", "tax_id", "billing_email",
@@ -86,7 +96,7 @@ class OrganizationService:
         self.organizations = organizations or OrganizationRepository(db)
 
     # ---------------------------------------------------------
-    # LECTURA
+    # READ
     # ---------------------------------------------------------
     def list(
         self,
@@ -98,7 +108,7 @@ class OrganizationService:
         sort: str = "name",
         descending: bool = False,
     ) -> Page[OrganizationResponse]:
-        """Organizaciones ordenadas por `sort`, con sus contadores."""
+        """Organizations ordered by `sort`, with their counters."""
         filas, total = self.organizations.list(
             offset=offset,
             limit=limit,
@@ -120,23 +130,30 @@ class OrganizationService:
         return self._respuesta(self._existente(organization_id))
 
     # ---------------------------------------------------------
-    # ALTA Y EDICIÓN
+    # CREATE AND EDIT
     # ---------------------------------------------------------
     def create(self, payload: OrganizationCreate) -> OrganizationResponse:
         """
-        Alta de organización, `ACTIVE`, con su primer edificio si llega.
+        Creates an organization with its first building if one comes. It
+        starts on trial (`TRIAL`, expiring in `TRIAL_DAYS`), like the
+        public sign-up: it becomes `ACTIVE` when the client subscribes
+        (B14).
 
-        La organización y el edificio van en la misma transacción: si el
-        edificio falla, no queda una organización a medias.
+        The organization and the building go in the same transaction: if
+        the building fails, no half-created organization is left.
         """
         nombre = nombre_valido(payload.name)
         self._nombre_libre(nombre)
 
-        datos = payload.model_dump(include=set(_CONTACTO))
+        datos = _contacto(payload.model_dump(include=set(_CONTACTO)))
         try:
             with transaction(self.db):
                 organizacion = self.organizations.create(
-                    name=nombre, status=OrganizationStatus.ACTIVE.value, **datos
+                    name=nombre,
+                    status=OrganizationStatus.TRIAL.value,
+                    trial_ends_at=datetime.now(timezone.utc)
+                    + timedelta(days=app_settings.TRIAL_DAYS),
+                    **datos,
                 )
                 if payload.first_site is not None:
                     SiteRepository(self.db).create(
@@ -144,10 +161,10 @@ class OrganizationService:
                         **site_campos(payload.first_site),
                     )
         except IntegrityError as exc:
-            # Dos altas con el mismo nombre a la vez: las dos pasan la
-            # comprobación de arriba y el índice único para a la segunda.
-            # Solo si el nombre está ocupado es un 409; si la tabla ha
-            # rechazado el alta por otro motivo, el error sigue su camino.
+            # Two creations with the same name at once: both pass the check
+            # above and the unique index stops the second. Only if the name
+            # is taken is it a 409; if the table rejected the creation for
+            # another reason, the error goes on.
             self._nombre_libre(nombre, causa=exc)
             raise
         return self._respuesta(organizacion)
@@ -155,9 +172,10 @@ class OrganizationService:
     def update(
         self, organization_id: UUID, payload: OrganizationUpdate
     ) -> OrganizationResponse:
-        """Cambia solo los campos enviados (`exclude_unset`)."""
+        """Changes only the fields sent (`exclude_unset`)."""
         organizacion = self._existente(organization_id)
         cambios = payload.model_dump(exclude_unset=True)
+        cambios.update(_contacto({k: v for k, v in cambios.items() if k in _CONTACTO}))
 
         if "name" in cambios:
             if cambios["name"] is None:
@@ -177,13 +195,13 @@ class OrganizationService:
         return self._respuesta(organizacion)
 
     # ---------------------------------------------------------
-    # CAMBIOS DE ESTADO
+    # STATUS CHANGES
     # ---------------------------------------------------------
     def suspend(self, organization_id: UUID) -> OrganizationResponse:
         """
-        Suspende la organización. No borra nada: sus usuarios dejan de
-        poder entrar (login y sesiones abiertas, ver `auth`) hasta que se
-        reactive.
+        Suspends the organization. Nothing is deleted: its users can no
+        longer log in (login and open sessions, see `auth`) until it is
+        reactivated.
         """
         with transaction(self.db):
             organizacion = self._bloqueada(organization_id)
@@ -216,10 +234,11 @@ class OrganizationService:
         self, organization_id: UUID, ahora: datetime | None = None
     ) -> OrganizationResponse:
         """
-        Suma `TRIAL_DAYS` al fin de la prueba, o a hoy si ya caducó.
+        Adds `TRIAL_DAYS` to the end of the trial, or to today if it has
+        already expired.
 
-        `ahora` se puede pasar desde fuera para probarlo sin depender del
-        reloj.
+        `ahora` ("now") can be passed in to test it without depending on
+        the clock.
         """
         ahora = ahora or datetime.now(timezone.utc)
         with transaction(self.db):
@@ -234,17 +253,18 @@ class OrganizationService:
         return self._respuesta(organizacion)
 
     # ---------------------------------------------------------
-    # BORRADO (B16)
+    # DELETION (B16)
     # ---------------------------------------------------------
     def delete(self, organization_id: UUID, confirm_name: str) -> OrganizationDeleted:
         """
-        Borra la organización con todo lo suyo. Para dejarla fuera sin
-        perder nada está `suspend`.
+        Deletes the organization with everything it owns. To keep it out
+        without losing anything, use `suspend`.
 
-        Una sola transacción: la organización se bloquea, se comprueba el
-        nombre y `purge_organization` borra tabla a tabla. Si algo falla,
-        no se borra nada. Los archivos de documentos se borran después del
-        commit: si la transacción falla, tienen que seguir ahí.
+        A single transaction: the organization is locked, the name is
+        checked and `purge_organization` deletes table by table. If
+        something fails, nothing is deleted. The document files are deleted
+        after the commit: if the transaction fails, they must still be
+        there.
         """
         with transaction(self.db):
             organizacion = self._bloqueada(organization_id)
@@ -272,7 +292,7 @@ class OrganizationService:
         )
 
     # ---------------------------------------------------------
-    # AUXILIARES
+    # HELPERS
     # ---------------------------------------------------------
     def _existente(self, organization_id: UUID) -> Organization:
         organizacion = self.organizations.get_by_id(organization_id)
@@ -285,10 +305,10 @@ class OrganizationService:
 
     def _bloqueada(self, organization_id: UUID) -> Organization:
         """
-        La organización bloqueada hasta el final de la transacción. Así
-        leer, validar y cambiar el estado es un solo paso: dos cambios a la
-        vez sobre la misma organización van uno detrás de otro, y el
-        segundo valida contra lo que dejó el primero.
+        The organization, locked until the end of the transaction. So
+        reading, validating and changing the status is one single step: two
+        changes at once on the same organization go one after the other,
+        and the second validates against what the first left.
         """
         organizacion = self.organizations.get_for_update(organization_id)
         if organizacion is None:
@@ -315,18 +335,38 @@ class OrganizationService:
         return _to_response(organizacion, contadores[organizacion.id])
 
 
-def nombre_valido(nombre: str) -> str:
+def nombre_valido(nombre: str, campo: str = "name") -> str:
     """
-    El nombre ya llega recortado (`ApiRequest`); aquí se rechaza el vacío
-    con el código `INVALID_NAME` de la #121. La usa también el registro
-    público (B10), que crea la organización de quien se registra.
+    Normalized name, or 422 `INVALID_NAME` (#121) if it is empty or has a
+    sign that does not belong in a company name (`shared/fields.py`). The
+    public sign-up (B10) uses it too, as it creates the organization of
+    the person signing up.
     """
-    nombre = nombre.strip()
-    if not nombre:
-        raise DomainValidationError(
-            "El nombre no puede estar vacío.", code="INVALID_NAME"
-        )
-    return nombre
+    return organization_name(nombre, campo)
+
+
+def _contacto(datos: dict) -> dict:
+    """
+    Contact data with the shared rules (`shared/fields.py`): texts without
+    extra spaces, lowercase emails, Spanish phone and tax id without
+    separators. An empty text is stored as `NULL`.
+
+    The phone is mandatory: on creation the schema requires it, and when
+    editing it can be changed but not cleared.
+    """
+    limpios = {}
+    for campo, valor in datos.items():
+        if campo == "phone":
+            limpios[campo] = normalize_phone(valor)
+        elif valor is None:
+            limpios[campo] = None
+        elif campo in ("contact_email", "billing_email"):
+            limpios[campo] = normalize_email(str(valor))
+        elif campo == "tax_id":
+            limpios[campo] = normalize_tax_id(valor) if clean_text(valor) else None
+        else:
+            limpios[campo] = clean_text(valor)
+    return limpios
 
 
 def _comprobar_en_prueba(organizacion: Organization) -> None:
@@ -339,10 +379,10 @@ def _comprobar_en_prueba(organizacion: Organization) -> None:
 
 def _utc(valor: datetime | None) -> datetime | None:
     """
-    La fecha en UTC. sqlite (tests) la devuelve sin zona, y se guarda en
-    UTC; PostgreSQL, en la zona de la sesión. Hay que pasarla a UTC antes
-    de sumar días: en `Europe/Madrid`, sumar 7 días por encima del cambio
-    de hora movería el fin de la prueba una hora.
+    The date in UTC. sqlite (tests) returns it without a zone, and it is
+    stored in UTC; PostgreSQL, in the session zone. It has to be converted
+    to UTC before adding days: in `Europe/Madrid`, adding 7 days across the
+    daylight saving change would move the end of the trial by one hour.
     """
     if valor is None:
         return None
@@ -386,5 +426,5 @@ def _to_response(
 
 
 def get_organization_service(db: DbSession) -> OrganizationService:
-    """Proveedor del service para `Depends`."""
+    """Service provider for `Depends`."""
     return OrganizationService(db)

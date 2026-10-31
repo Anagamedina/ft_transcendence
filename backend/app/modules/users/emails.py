@@ -1,13 +1,15 @@
-# EMAILS — textos de los emails de Mi cuenta (B19).
+# EMAILS — texts of the My account emails (B19).
 """
-Asunto y cuerpo de los dos emails de confirmación del módulo GDPR:
+Subject and body of the two confirmation emails of the GDPR module:
 
-- al descargar los datos (`GET /api/me/export`),
-- al pedir la baja (`POST /api/me/deletion-request`), solo la primera vez.
+- on data download (`GET /api/me/export`),
+- on a deletion request (`POST /api/me/deletion-request`), only the
+  first time.
 
-Texto plano, sin plantillas HTML (fuera del alcance de B19). Cada función
-recibe datos simples y no el `User` del ORM: el email se envía en segundo
-plano, cuando la sesión de base de datos de la petición ya está cerrada.
+Plain text, no HTML templates (outside the scope of B19). The emails are
+written in Spanish, the language of the users. Each function gets plain
+data and not the ORM `User`: the email is sent in the background, when
+the request's database session is already closed.
 """
 
 from __future__ import annotations
@@ -21,7 +23,7 @@ _FIRMA = "El equipo de AquaGuard"
 
 
 def _fecha(momento: datetime) -> str:
-    """Fecha y hora legibles. La API guarda en UTC y así se indica."""
+    """Readable date and time. The API stores UTC and says so."""
     return momento.strftime("%d/%m/%Y a las %H:%M (UTC)")
 
 

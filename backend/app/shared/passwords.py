@@ -1,26 +1,28 @@
 """
-Regla común de contraseñas (B10, issue #140).
+Shared password rule (B10, issue #140).
 
-Se define aquí, y no en el registro, porque la usan todas las rutas donde
-alguien elige contraseña: el registro público (B10), aceptar una
-invitación (B4) y cambiarla desde «Mi cuenta» (B8). Si cada una tuviera
-su propia regla, acabarían siendo distintas.
+It is defined here, and not in the sign-up, because every route where
+someone chooses a password uses it: the public sign-up (B10), accepting
+an invitation (B4) and changing it from "Mi cuenta" (B8). If each had its
+own rule, they would end up different.
 
-La regla (B10, 12-10-2026):
+The rule (B10, 2026-10-12):
 
-- **12 caracteres como mínimo y 128 como máximo.** El máximo no es por
-  seguridad: Argon2 tarda más cuanto más larga es la contraseña, y sin
-  tope un texto de un mega dejaría el servidor ocupado.
-- **No puede ser una contraseña común** (lista de abajo) ni repetir casi
-  siempre el mismo carácter (`aaaaaaaaaaaa`, `121212121212`).
-- **No puede contener el email** de la cuenta: es lo primero que se prueba.
+- **12 characters minimum and 128 maximum.** The maximum is not about
+  security: Argon2 takes longer the longer the password, and without a
+  cap a one-megabyte text would keep the server busy.
+- **It cannot be a common password** (list below) nor repeat almost
+  always the same character (`aaaaaaaaaaaa`, `121212121212`).
+- **It cannot contain the account email**: it is the first thing anyone
+  tries.
 
-Todo responde 422 `WEAK_PASSWORD`, con un mensaje que dice qué falla
-para que el formulario lo pueda enseñar junto al campo.
+Everything answers 422 `WEAK_PASSWORD`, with a message that says what
+fails so the form can show it next to the field.
 
-La comprobación vive en el service y no en el schema a propósito: así el
-error tiene su propio código en vez del `VALIDATION_ERROR` genérico, y el
-login (que no debe validar nada de esto) no la hereda por accidente.
+The check lives in the service and not in the schema on purpose: the
+error gets its own code instead of the generic `VALIDATION_ERROR`, and
+login (which must not validate any of this) does not inherit it by
+accident.
 """
 
 from __future__ import annotations
@@ -30,9 +32,9 @@ from app.core.exceptions import DomainValidationError
 PASSWORD_MIN_LENGTH = 12
 PASSWORD_MAX_LENGTH = 128
 
-# Con 12 caracteres de mínimo, las de las listas típicas («123456»,
-# «qwerty») ya fallan por largo. Aquí van las que pasan de 12 y aun así
-# son de las primeras que prueba cualquiera. Se comparan en minúsculas.
+# With a 12-character minimum, the usual list entries ("123456",
+# "qwerty") already fail on length. These are the ones longer than 12
+# that are still among the first anyone tries. Compared in lowercase.
 _COMUNES = frozenset(
     {
         "123456789012",
@@ -74,17 +76,17 @@ _COMUNES = frozenset(
     }
 )
 
-# Menos caracteres distintos que esto es repetir lo mismo: `aaaaaaaaaaaa`,
-# `121212121212`, `abcabcabcabc`.
+# Fewer distinct characters than this is repeating the same thing:
+# `aaaaaaaaaaaa`, `121212121212`, `abcabcabcabc`.
 _MINIMO_DISTINTOS = 5
 
 
 def check_password(password: str, email: str | None = None) -> None:
     """
-    Corta con 422 `WEAK_PASSWORD` si la contraseña no cumple la regla.
+    Stops with 422 `WEAK_PASSWORD` if the password breaks the rule.
 
-    `email` es el de la cuenta a la que va la contraseña; si se pasa, la
-    contraseña no puede contenerlo (ni su parte antes de la `@`).
+    `email` is the one of the account the password is for; if given, the
+    password cannot contain it (nor its part before the `@`).
     """
     if len(password) < PASSWORD_MIN_LENGTH:
         _debil(f"La contraseña tiene que tener al menos {PASSWORD_MIN_LENGTH} caracteres.")
@@ -98,8 +100,8 @@ def check_password(password: str, email: str | None = None) -> None:
     if email:
         email = email.strip().lower()
         usuario = email.split("@", 1)[0]
-        # Un usuario de 1-3 letras («ana») aparece en muchas contraseñas
-        # sin que tenga nada que ver con el email.
+        # A 1-3 letter user name ("ana") shows up in many passwords that
+        # have nothing to do with the email.
         if email in minusculas or (len(usuario) >= 4 and usuario in minusculas):
             _debil("La contraseña no puede contener tu email.")
 

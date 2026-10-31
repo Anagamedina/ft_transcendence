@@ -1,24 +1,24 @@
-# EMAIL — envío de correos en texto plano (B19).
+# EMAIL — sending plain-text emails (B19).
 """
-Envío de emails por SMTP estándar (`smtplib`, viene con Python).
+Sending emails over standard SMTP (`smtplib`, bundled with Python).
 
 --------------------------------------------------------------------
-POR QUÉ NUNCA LANZA ERRORES
+WHY IT NEVER RAISES
 --------------------------------------------------------------------
-El email es un aviso, no parte de la operación. Si el servidor SMTP está
-caído, la descarga de datos o la petición de baja ya se han hecho y no
-tienen que fallar por eso. Así que cualquier error se anota en el log y
-la función vuelve con normalidad.
+The email is a notice, not part of the operation. If the SMTP server is
+down, the data download or the deletion request has already been done
+and must not fail because of it. So any error is logged and the function
+returns normally.
 
-Además se llama desde `BackgroundTasks`, después de enviar la respuesta:
-un error aquí ya no podría llegar al usuario, solo ensuciaría el log con
-una traza de Starlette.
+It is also called from `BackgroundTasks`, after the response is sent: an
+error here could no longer reach the user, it would only clutter the log
+with a Starlette trace.
 
 --------------------------------------------------------------------
-SIN SERVIDOR CONFIGURADO
+WITHOUT A CONFIGURED SERVER
 --------------------------------------------------------------------
-Con `SMTP_HOST` vacío no se intenta conectar: se anota qué email se
-habría enviado. Es el caso de los tests y de uvicorn en local.
+With `SMTP_HOST` empty no connection is attempted: it logs which email
+would have been sent. That is the case for the tests and local uvicorn.
 """
 
 from __future__ import annotations
@@ -32,15 +32,15 @@ from app.core.app_config import app_settings
 
 logger = logging.getLogger(__name__)
 
-# Segundos máximos para conectar y hablar con el servidor. Corre en segundo
-# plano, pero un servidor que no contesta no debe dejar la tarea colgada.
+# Maximum seconds to connect and talk to the server. It runs in the
+# background, but a server that does not answer must not hang the task.
 SMTP_TIMEOUT_SECONDS = 10
 
 SENDER_NAME = "AquaGuard"
 
 
 def send_email(to: str, subject: str, body: str) -> None:
-    """Envía un email en texto plano. Si falla, lo anota en el log y sigue."""
+    """Sends a plain-text email. If it fails, it logs it and carries on."""
     if not app_settings.SMTP_HOST:
         logger.info("SMTP_HOST vacío: no se envía «%s» a %s", subject, to)
         return
@@ -62,8 +62,8 @@ def send_email(to: str, subject: str, body: str) -> None:
             if app_settings.SMTP_USER:
                 smtp.login(app_settings.SMTP_USER, app_settings.SMTP_PASSWORD)
             smtp.send_message(message)
-    # Cualquier error (conexión, login, TLS, rechazo del servidor): el email
-    # nunca rompe la operación, ver la cabecera.
+    # Any error (connection, login, TLS, server rejection): the email never
+    # breaks the operation, see the header.
     except Exception:
         logger.warning(
             "No se ha podido enviar «%s» a %s por %s:%s",

@@ -178,7 +178,7 @@ const privacySections = [
     body: [
       "AquaGuard es un proyecto estrictamente académico, desarrollado por un equipo de estudiantes de 42 Barcelona para el currículo de 42 (ft_transcendence).",
       "No hay una sociedad detrás ni actividad comercial real, por eso no hay razón social, NIF ni domicilio social. Si el servicio pasara a ofrecerse de verdad, aquí aparecerían esos datos, como exigen la LSSI-CE (art. 10) y el RGPD (art. 13).",
-      "Para cualquier cuestión sobre tus datos, contacta con el equipo de AquaGuard.",
+      "Para cualquier cuestión sobre tus datos, escribe a soporte@aquaguard.dev.",
     ],
   },
   {
@@ -298,7 +298,8 @@ const privacySections = [
     id: "derechos",
     title: "Tus derechos",
     body: [
-      "Puedes pedir en cualquier momento acceder a tus datos, corregirlos, borrarlos, limitar su uso, oponerte a su tratamiento o llevártelos en un formato estándar. Para hacerlo, contacta con el equipo de AquaGuard.",
+      "Puedes pedir en cualquier momento acceder a tus datos, corregirlos, borrarlos, limitar su uso, oponerte a su tratamiento o llevártelos en un formato estándar.",
+      "Desde Mi cuenta puedes descargar tus datos en un archivo JSON y pedir la baja: te enviamos un email de confirmación en los dos casos. Para el resto, escribe a soporte@aquaguard.dev.",
       "Si crees que no lo hemos hecho bien, puedes reclamar ante la Agencia Española de Protección de Datos (aepd.es).",
     ],
   },
@@ -363,7 +364,7 @@ const termsSections = [
       "Al hacerte cliente eliges cuántos edificios y sensores necesitas, y el plan se elige solo según los edificios: Básico (de 1 a 5), Profesional (de 6 a 10) o Empresa (de 11 a 20). Los sensores no cambian el plan, se pagan aparte. Para más de 20 edificios, escríbenos y te preparamos un presupuesto.",
       "El precio al mes es la base del plan (29 €, 79 € o 199 €) más 10 € por cada sensor, IVA no incluido. Puedes pagar cada mes, sin permanencia, o un año por adelantado, que son 10 meses. El precio queda fijado el día del alta y el servicio de pago empieza ese mismo día.",
       "Lo contratado es también tu máximo: no damos de alta más edificios ni sensores de los que pagas, y no puedes contratar menos de los que ya tienes. Para ampliar el contrato, escríbenos.",
-      "El cobro es por domiciliación SEPA en la cuenta que indicas al contratar, y para eso nos autorizas en el mismo formulario. Al contratar aceptas también estas condiciones.",
+      "El cobro es por domiciliación SEPA en la cuenta que indicas al contratar, que tiene que ser un IBAN español, y para eso nos autorizas en el mismo formulario. Al contratar aceptas también estas condiciones.",
       "AquaGuard es un proyecto académico: el alta funciona como una real, pero no se hace ningún cobro.",
     ],
   },

@@ -1,22 +1,22 @@
-# HEALTH — liveness y readiness de la API.
+# HEALTH — API liveness and readiness.
 """
-Endpoints de salud (issue #22).
+Health endpoints (issue #22).
 
-Hay dos, y la diferencia entre ellos es la que usan Docker y Nginx para
-decidir cosas distintas:
+There are two, and Docker and Nginx use the difference between them to
+decide different things:
 
-- `GET /api/health`    — *liveness*. ¿Está vivo el proceso? No toca la base
-  de datos. Es el que debe usar el healthcheck del contenedor: si aquí
-  metiéramos PostgreSQL, una caída de la base tumbaría también al backend
-  y Docker lo reiniciaría en bucle sin motivo.
+- `GET /api/health`    — *liveness*. Is the process alive? It does not
+  touch the database. The container healthcheck must use this one: if it
+  included PostgreSQL, a database outage would also take the backend down
+  and Docker would restart it in a loop for no reason.
 
-- `GET /api/health/db` — *readiness*. ¿Puede el backend atender tráfico de
-  verdad? Ejecuta un `SELECT 1`. Si falla devuelve 503, que es lo correcto:
-  el servicio está levantado pero no operativo.
+- `GET /api/health/db` — *readiness*. Can the backend really serve
+  traffic? It runs a `SELECT 1`. On failure it returns 503, which is
+  right: the service is up but not operational.
 
-La consulta contra la base la escribió Daruny en la issue #11; aquí se
-mueve desde `main.py` a su propio router y se le añade el manejo del caso
-en que la base no responde.
+Daruny wrote the database query in issue #11; here it moves from
+`main.py` to its own router and handles the case where the database does
+not answer.
 """
 
 from __future__ import annotations
@@ -41,10 +41,10 @@ router = APIRouter(tags=["health"])
 @router.get(
     "/health",
     response_model=HealthResponse,
-    summary="Liveness — el proceso responde",
+    summary="Liveness — the process answers",
     description=(
-        "No consulta la base de datos. Pensado para el healthcheck del "
-        "contenedor y para comprobar rápidamente que la API está arriba."
+        "Does not query the database. Meant for the container healthcheck "
+        "and for a quick check that the API is up."
     ),
 )
 def health() -> HealthResponse:
@@ -54,14 +54,14 @@ def health() -> HealthResponse:
 @router.get(
     "/health/db",
     response_model=DatabaseHealthResponse,
-    summary="Readiness — la base de datos responde",
+    summary="Readiness — the database answers",
     description=(
-        "Ejecuta `SELECT 1` contra PostgreSQL. Devuelve 503 si la conexión "
-        "no está disponible."
+        "Runs `SELECT 1` against PostgreSQL. Returns 503 if the connection "
+        "is not available."
     ),
     responses={
         status.HTTP_503_SERVICE_UNAVAILABLE: {
-            "description": "La base de datos no responde (`DATABASE_UNAVAILABLE`).",
+            "description": "The database does not answer (`DATABASE_UNAVAILABLE`).",
             "content": {
                 "application/json": {
                     "schema": {"$ref": "#/components/schemas/ErrorResponse"},
@@ -81,8 +81,8 @@ def health_db(db: DbSession):
     try:
         db.execute(text("SELECT 1")).scalar_one()
     except SQLAlchemyError as exc:
-        # No se propaga el texto de la excepción: incluye la cadena de
-        # conexión, y con ella el usuario y el host de PostgreSQL.
+        # The exception text is not passed on: it includes the connection
+        # string, and with it the PostgreSQL user and host.
         logger.error("Health check de base de datos fallido: %s", exc)
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

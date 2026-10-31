@@ -15,6 +15,8 @@ import NewClientWizard from "../../components/NewClientWizard.vue";
 import { useOrganizationsStore } from "../../stores/organizations";
 import { useSitesStore } from "../../stores/sites";
 import { useSensorsStore } from "../../stores/sensors";
+import { apiErrorMessage } from "../../utils/apiError";
+import { apiErrorField } from "../../utils/validation";
 
 const router = useRouter();
 const organizationsStore = useOrganizationsStore();
@@ -138,9 +140,16 @@ const created = ref(null);
 const createError = ref(null);
 
 // API error codes that belong to the client name (step 1 of the wizard)
-const NAME_ERRORS = {
+// API errors of one field of the wizard. The backend message says what is
+// wrong (shared/fields.py); a repeated name gets our "cliente" wording
+const FIELD_BY_CODE = {
+  ORGANIZATION_NAME_TAKEN: "name",
+  INVALID_NAME: "name",
+  INVALID_PHONE: "phone",
+  INVALID_TAX_ID: "tax_id",
+};
+const MESSAGE_BY_CODE = {
   ORGANIZATION_NAME_TAKEN: "Ya hay un cliente con este nombre.",
-  INVALID_NAME: "Escribe el nombre del cliente.",
 };
 
 function startCreating() {
@@ -165,14 +174,15 @@ async function onCreate(data) {
   try {
     client = await organizationsStore.createOrganization(data);
   } catch (err) {
-    createError.value = NAME_ERRORS[err?.code]
-      ? { field: "name", message: NAME_ERRORS[err.code] }
-      : {
-          field: null,
-          message:
-            err?.message ||
-            "No se ha podido crear el cliente. Inténtalo de nuevo.",
-        };
+    createError.value = {
+      field: FIELD_BY_CODE[err?.code] ?? apiErrorField(err),
+      message:
+        MESSAGE_BY_CODE[err?.code] ??
+        apiErrorMessage(
+          err,
+          "No se ha podido crear el cliente. Inténtalo de nuevo.",
+        ),
+    };
     saving.value = false;
     return;
   }

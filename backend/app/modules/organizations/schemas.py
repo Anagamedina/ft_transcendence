@@ -1,18 +1,18 @@
 # SCHEMAS — organizations
-# Pydantic request/response (contrato OpenAPI). No devolver model ORM crudo.
+# Pydantic request/response (OpenAPI contract). Never return a raw ORM model.
 """
-Contrato de organizaciones (issue #23).
+Organizations contract (issue #23).
 
-La organización es el cliente de AquaGuard: una comunidad, un municipio o
-una empresa. Es además la **unidad de aislamiento** de todo el sistema.
+The organization is the AquaGuard client: a community, a town council or
+a company. It is also the **isolation unit** of the whole system.
 
     organization → sites → sensors → readings → alerts
 
-Todo cuelga de ella, y esa cadena es lo que permite responder a la
-pregunta "¿puede este usuario ver esta lectura?" subiendo por las
-relaciones hasta la organización. El aislamiento lo aplica
-`get_org_scope` (issue #27), y el contrato lo refleja exponiendo
-`organization_id` en los recursos que dependen de ella.
+Everything hangs from it, and that chain is what lets the question "can
+this user see this reading?" be answered by going up the relationships to
+the organization. `get_org_scope` (issue #27) enforces the isolation, and
+the contract reflects it by exposing `organization_id` on the resources
+that depend on it.
 """
 
 from __future__ import annotations
@@ -27,12 +27,12 @@ from app.modules.sites.schemas import SiteBase
 from app.shared.enums import BillingPeriod, OrganizationStatus, SubscriptionPlan
 from app.shared.schemas import ApiModel, ApiRequest
 
-# Los nombres de organización se guardan con 120 caracteres como máximo
-# (columna `name` y migración de la #120).
+# Organization names are stored with 120 characters at most (`name`
+# column and migration of #120).
 NAME_MAX = 120
 
-# Columnas por las que se puede ordenar el listado: las mismas que muestra la
-# tabla de Clientes, con el nombre del campo de `OrganizationResponse`.
+# Columns the list can be sorted by: the same the Clients table shows,
+# with the field name of `OrganizationResponse`.
 OrganizationSort = Literal[
     "name", "trial_ends_at", "site_count", "sensor_count", "user_count", "open_alerts"
 ]
@@ -40,65 +40,82 @@ OrganizationSort = Literal[
 
 class OrganizationContact(ApiRequest):
     """
-    Datos de contacto y de facturación (B1, columnas de la D1).
+    Contact and billing data (B1, columns from D1).
 
-    Todos opcionales: el admin da de alta un cliente con el nombre y va
-    completando lo demás. Los emails se validan como email; el resto es
-    texto libre con el mismo largo que su columna.
+    All optional except the phone on creation: the admin creates a client
+    and fills in the rest over time. Only the type and length of each
+    column are checked here; the service normalizes them with the shared
+    rules of `app/shared/fields.py` (spaces, lowercase emails, Spanish
+    phone, tax id without separators).
     """
 
     city: str | None = Field(default=None, max_length=120, examples=["Barcelona"])
     contact_email: EmailStr | None = Field(
-        default=None, description="Email de contacto del cliente."
+        default=None, description="Contact email of the client."
     )
     phone: str | None = Field(default=None, max_length=30, examples=["+34 600 000 000"])
     legal_name: str | None = Field(
-        default=None, max_length=200, description="Razón social.",
+        default=None, max_length=200, description="Legal company name.",
         examples=["Hoteles Diagonal S.L."],
     )
     tax_id: str | None = Field(
-        default=None, max_length=30, description="NIF o CIF.", examples=["B12345678"]
+        default=None, max_length=30, description="Tax id (NIF or CIF).", examples=["B12345678"]
     )
     billing_email: EmailStr | None = Field(
-        default=None, description="Email al que se envían las facturas."
+        default=None, description="Email the invoices are sent to."
     )
     billing_address: str | None = Field(
-        default=None, max_length=200, description="Dirección fiscal.",
+        default=None, max_length=200, description="Billing address.",
         examples=["Avinguda Diagonal 100, 08019"],
     )
 
 
 class OrganizationCreate(OrganizationContact):
     """
-    Alta de una organización (solo admin). Nace `ACTIVE`: las organizaciones
-    en prueba las crea el registro público (B10).
+    Creation of an organization (admin only). It starts on trial (`TRIAL`,
+    expiring in `TRIAL_DAYS`), like the public sign-up one (B10): it
+    becomes `ACTIVE` when the client subscribes from "Hazte cliente"
+    (B14).
 
-    El nombre vacío o de solo espacios no lo rechaza el schema sino el
-    service, para responder con el código `INVALID_NAME` que pide la #121
-    en lugar del genérico `VALIDATION_ERROR`.
+    An empty or spaces-only name is rejected by the service, not the
+    schema, to answer with the `INVALID_NAME` code #121 asks for instead of
+    the generic `VALIDATION_ERROR`.
     """
 
     name: str = Field(
         max_length=NAME_MAX,
-        description="Nombre de la organización. No puede estar vacío ni repetirse (sin distinguir mayúsculas).",
+        description=(
+            "Organization name: letters, numbers, spaces and "
+            "`. , ' ’ - & ( )`. It cannot be empty nor repeat (ignoring "
+            "case)."
+        ),
         examples=["Hotel Diagonal Mar"],
+    )
+    phone: str = Field(
+        max_length=30,
+        description=(
+            "Spanish phone, mandatory. Stored as `+34 612 345 678`; if it is "
+            "not valid, 422 `INVALID_PHONE`."
+        ),
+        examples=["612 345 678"],
     )
     first_site: SiteBase | None = Field(
         default=None,
         description=(
-            "Primer edificio del cliente, opcional. Se crea en la misma "
-            "operación: o se crean los dos, o ninguno."
+            "First building of the client, optional. It is created in the "
+            "same operation: either both are created, or neither."
         ),
     )
 
 
 class OrganizationUpdate(OrganizationContact):
     """
-    Modificación parcial (solo admin): nombre, contacto y facturación.
+    Partial update (admin only): name, contact and billing.
 
-    El estado no se cambia aquí: tiene sus propias rutas (`/suspend`,
-    `/reactivate`, `/activate`, `/extend-trial`), porque cada cambio de
-    estado tiene sus reglas.
+    The status is not changed here: it has its own routes (`/suspend`,
+    `/reactivate`, `/extend-trial`), because each status change has its
+    own rules. Going to `ACTIVE` is done by the client by subscribing
+    (B14).
     """
 
     name: str | None = Field(default=None, max_length=NAME_MAX)
@@ -106,22 +123,22 @@ class OrganizationUpdate(OrganizationContact):
 
 class OrganizationResponse(ApiModel):
     """
-    Campos según el documento de arquitectura (apartado 5): `id`, `name`,
-    `created_at`. La B0 añadió `status` y `trial_ends_at`; la B1, el
-    contacto, la facturación y los contadores.
+    Fields according to the architecture document (section 5): `id`,
+    `name`, `created_at`. B0 added `status` and `trial_ends_at`; B1, the
+    contact, the billing and the counters.
 
-    Los contadores no se guardan: se calculan al responder, con una
-    consulta `GROUP BY` por cada uno para toda la página.
+    The counters are not stored: they are computed when answering, with
+    one `GROUP BY` query each for the whole page.
     """
 
     id: UUID
     name: str
     status: OrganizationStatus = Field(
-        description="TRIAL (prueba de 7 días), ACTIVE o SUSPENDED."
+        description="TRIAL (7-day trial), ACTIVE or SUSPENDED."
     )
     trial_ends_at: datetime | None = Field(
         default=None,
-        description="Fin de la prueba, en UTC. Solo en organizaciones que están o estuvieron en prueba.",
+        description="End of the trial, in UTC. Only for organizations that are or were on trial.",
     )
     city: str | None = None
     contact_email: str | None = None
@@ -133,70 +150,70 @@ class OrganizationResponse(ApiModel):
     postal_code: str | None = None
     plan: SubscriptionPlan | None = Field(
         default=None,
-        description="Plan contratado desde la app (B14). `null` si no se ha suscrito.",
+        description="Plan subscribed from the app (B14). `null` if not subscribed.",
     )
     billing_period: BillingPeriod | None = Field(
-        default=None, description="`MONTHLY` o `YEARLY`. `null` si no se ha suscrito."
+        default=None, description="`MONTHLY` or `YEARLY`. `null` if not subscribed."
     )
     contracted_sites: int | None = Field(
-        default=None, description="Edificios contratados: también su límite."
+        default=None, description="Contracted buildings: also their limit."
     )
     contracted_sensors: int | None = Field(
-        default=None, description="Sensores contratados: también su límite."
+        default=None, description="Contracted sensors: also their limit."
     )
     monthly_price_eur: int | None = Field(
-        default=None, description="Precio al mes acordado al contratar, IVA no incluido."
+        default=None, description="Monthly price agreed when subscribing, VAT not included."
     )
     subscribed_at: datetime | None = Field(
-        default=None, description="Cuándo se suscribió, en UTC."
+        default=None, description="When it subscribed, in UTC."
     )
     iban_masked: str | None = Field(
-        default=None, description="Solo enmascarado: el IBAN entero no se guarda."
+        default=None, description="Masked only: the full IBAN is not stored."
     )
     sepa_accepted_at: datetime | None = Field(
-        default=None, description="Cuándo autorizó la domiciliación SEPA, en UTC."
+        default=None, description="When the SEPA direct debit was authorized, in UTC."
     )
-    site_count: int = Field(default=0, description="Edificios del cliente.")
-    sensor_count: int = Field(default=0, description="Sensores en todos sus edificios.")
-    user_count: int = Field(default=0, description="Usuarios de la organización.")
-    open_alerts: int = Field(default=0, description="Alertas sin resolver.")
+    site_count: int = Field(default=0, description="Buildings of the client.")
+    sensor_count: int = Field(default=0, description="Sensors in all its buildings.")
+    user_count: int = Field(default=0, description="Users of the organization.")
+    open_alerts: int = Field(default=0, description="Unresolved alerts.")
     critical_alerts: int = Field(
-        default=0, description="De las alertas sin resolver, cuántas son CRITICAL."
+        default=0, description="Of the unresolved alerts, how many are CRITICAL."
     )
     oldest_open_alert_at: datetime | None = Field(
         default=None,
         description=(
-            "Cuándo se creó la alerta sin resolver más antigua, en UTC. Nulo "
-            "si no tiene ninguna. Sirve para «la más antigua: 6 h» en la "
-            "página de alertas del admin."
+            "When the oldest unresolved alert was created, in UTC. Null if "
+            "there is none. Used for \"la más antigua: 6 h\" (oldest: 6 h) "
+            "on the admin alerts page."
         ),
     )
-    created_at: datetime = Field(description="Alta de la organización, en UTC.")
+    created_at: datetime = Field(description="Creation of the organization, in UTC.")
 
 
 class OrganizationDelete(ApiRequest):
     """
-    Confirmación del borrado (B16): el nombre exacto de la organización,
-    como en «escribe el nombre para confirmar». Evita borrar otra por un id
-    equivocado.
+    Deletion confirmation (B16): the exact name of the organization, as in
+    "type the name to confirm". It avoids deleting another one by a wrong
+    id.
     """
 
     confirm_name: str = Field(
         max_length=NAME_MAX,
-        description="Nombre de la organización, tal cual (se distinguen mayúsculas).",
+        description="Name of the organization, exactly (case-sensitive).",
         examples=["Hotel Diagonal Mar"],
     )
 
 
 class OrganizationDeleted(ApiModel):
-    """Lo que se ha borrado, para que el admin vea el alcance (B16)."""
+    """What was deleted, so the admin sees the scope (B16)."""
 
     id: UUID
     name: str
     deleted: dict[str, int] = Field(
         description=(
-            "Filas borradas por tabla: readings, alerts, sensors, documents, "
-            "sites, invitations, users y organizations."
+            "Rows deleted per table: readings, alerts, sensors, documents, "
+            "sites, invitations, users and organizations."
         ),
         examples=[
             {
@@ -213,8 +230,8 @@ class OrganizationDeleted(ApiModel):
     )
     detached_admins: int = Field(
         default=0,
-        description="Admins que tenían esta organización: no se borran, se quedan sin ella.",
+        description="Admins that had this organization: they are not deleted, they are left without it.",
     )
     deleted_files: int = Field(
-        default=0, description="Archivos de documentos borrados del disco."
+        default=0, description="Document files deleted from disk."
     )

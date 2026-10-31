@@ -1,1 +1,1 @@
-# core — configuración transversal del backend.
+# core — cross-cutting backend configuration.

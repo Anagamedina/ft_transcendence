@@ -1,5 +1,5 @@
 # MODEL — readings
-# Entidad/es SQLAlchemy de este dominio.
+# SQLAlchemy entity (or entities) of this domain.
 from __future__ import annotations
 
 import uuid

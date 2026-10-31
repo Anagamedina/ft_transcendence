@@ -1,47 +1,48 @@
-# SECURITY — hash de contraseñas y firma de la cookie de sesión.
+# SECURITY — password hashing and session cookie signing.
 """
-Las dos operaciones criptográficas de la issue #26.
+The two cryptographic operations of issue #26.
 
 --------------------------------------------------------------------
-QUÉ HACE Y QUÉ NO
+WHAT IT DOES AND DOES NOT DO
 --------------------------------------------------------------------
-Aquí NO se decide nada de negocio: no se comprueba si un usuario existe,
-ni si tiene permiso. Eso es del service. Este módulo solo sabe convertir
-una contraseña en huella, comparar una contraseña con una huella, y meter
-y sacar un identificador de una cadena firmada.
+No business decision is made here: it does not check whether a user
+exists or has permission. That belongs to the service. This module only
+knows how to turn a password into a hash, compare a password with a hash,
+and put an id into a signed string and get it back out.
 
-Se separa por dos motivos concretos:
+It is kept apart for two concrete reasons:
 
-1. Es lo único del backend que hay que revisar si mañana se cambia de
-   algoritmo. Repartido por los services, ese cambio sería una búsqueda
-   por todo el proyecto.
-2. Se prueba solo, sin base de datos y sin levantar la aplicación.
-
---------------------------------------------------------------------
-POR QUÉ ARGON2 Y NO UN HASH NORMAL
---------------------------------------------------------------------
-`sha256("mi-contraseña")` es rapidísimo, y eso es justo el problema: una
-tarjeta gráfica prueba miles de millones por segundo. Argon2 está diseñado
-para ser **lento a propósito** y para consumir memoria, de modo que probar
-a lo bruto salga caro aunque se roben las huellas.
-
-Además sala cada contraseña automáticamente. La *sal* es un valor aleatorio
-que se mezcla antes de calcular la huella y se guarda dentro de ella: hace
-que dos personas con la misma contraseña tengan huellas distintas, y que no
-sirva una tabla precalculada.
+1. It is the only part of the backend to review if the algorithm changes
+   tomorrow. Spread across the services, that change would mean searching
+   the whole project.
+2. It is tested on its own, without a database and without starting the
+   application.
 
 --------------------------------------------------------------------
-POR QUÉ UNA COOKIE FIRMADA Y NO UN JWT EN localStorage
+WHY ARGON2 AND NOT A NORMAL HASH
 --------------------------------------------------------------------
-Lo fija la ADR 0001. El resumen: lo que vive en `localStorage` lo lee
-cualquier JavaScript de la página, así que un script inyectado se lleva la
-sesión. Una cookie `httpOnly` no la puede leer JavaScript — solo viaja
-sola en cada petición.
+`sha256("my-password")` is very fast, and that is exactly the problem: a
+graphics card tries billions per second. Argon2 is designed to be **slow
+on purpose** and to use memory, so brute force is expensive even if the
+hashes are stolen.
 
-**Firmada no es lo mismo que cifrada.** Quien tenga la cookie puede leer el
-id que lleva dentro; lo que no puede es cambiarlo, porque la firma dejaría
-de cuadrar. Por eso dentro va solo el id del usuario: ningún dato que
-importe que se lea.
+It also salts each password automatically. The *salt* is a random value
+mixed in before computing the hash and stored inside it: two people with
+the same password get different hashes, and a precomputed table is
+useless.
+
+--------------------------------------------------------------------
+WHY A SIGNED COOKIE AND NOT A JWT IN localStorage
+--------------------------------------------------------------------
+ADR 0001 decides it. In short: whatever lives in `localStorage` can be
+read by any JavaScript on the page, so an injected script steals the
+session. JavaScript cannot read an `httpOnly` cookie — it just travels
+with each request.
+
+**Signed is not the same as encrypted.** Whoever has the cookie can read
+the id inside it; what they cannot do is change it, because the signature
+would no longer match. That is why only the user id goes inside: no data
+that matters if it is read.
 """
 
 from __future__ import annotations
@@ -54,19 +55,19 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from app.core.app_config import app_settings
 
-# Nombre de la cookie. Constante para que el router y los tests no la
-# escriban a mano cada uno por su lado.
+# Cookie name. A constant so the router and the tests do not each type it
+# by hand.
 SESSION_COOKIE = "aquaguard_session"
 
-# Cuánto vale una sesión antes de obligar a entrar otra vez. Ocho horas es
-# una jornada: quien entra por la mañana no tiene que repetir al volver de
-# comer, y la sesión no queda viva indefinidamente en un ordenador
-# compartido.
+# How long a session lasts before asking to log in again. Eight hours is a
+# working day: whoever logs in in the morning does not have to repeat it
+# after lunch, and the session does not stay alive forever on a shared
+# computer.
 SESSION_MAX_AGE_SECONDS = 8 * 60 * 60
 
-# "Para qué" de la firma. Dos cadenas firmadas con la misma clave pero
-# distinto `salt` no son intercambiables, así que un token de sesión no
-# podría colarse mañana donde se espere uno de recuperar contraseña.
+# The "purpose" of the signature. Two strings signed with the same key but
+# a different `salt` are not interchangeable, so a session token could not
+# be slipped in tomorrow where a password-reset one is expected.
 _SESSION_SALT = "aquaguard.session.v1"
 
 _hasher = PasswordHasher()
@@ -74,32 +75,32 @@ _hasher = PasswordHasher()
 
 def _serializer() -> URLSafeTimedSerializer:
     """
-    Firmador de la cookie.
+    Cookie signer.
 
-    Se construye en cada llamada en vez de guardarlo en una variable de
-    módulo, y es a propósito: así lee `SECRET_KEY` en el momento de usarlo.
-    Cacheado, un test que cambie la clave seguiría firmando con la vieja y
-    pasaría por motivos equivocados.
+    It is built on each call instead of kept in a module variable, on
+    purpose: that way it reads `SECRET_KEY` when it is used. Cached, a
+    test that changes the key would keep signing with the old one and pass
+    for the wrong reasons.
     """
     return URLSafeTimedSerializer(app_settings.SECRET_KEY, salt=_SESSION_SALT)
 
 
 def session_cookie_kwargs() -> dict[str, object]:
     """
-    Atributos con los que se pone y se borra la cookie de sesión.
+    Attributes used to set and to delete the session cookie.
 
-    Están aquí, y no escritos a mano en cada endpoint, porque **borrar una
-    cookie exige repetir los mismos atributos con los que se puso**. Si el
-    logout usara un `path` distinto del login, el navegador trataría la
-    cookie como otra distinta y no la borraría: el usuario creería haber
-    salido y seguiría dentro.
+    They live here, and are not typed by hand in each endpoint, because
+    **deleting a cookie requires repeating the same attributes it was set
+    with**. If logout used a different `path` than login, the browser
+    would treat it as another cookie and not delete it: the user would
+    think they had logged out and would still be in.
 
-    - `httponly`: JavaScript no la puede leer (ADR 0001).
-    - `secure`: solo viaja por HTTPS. En local va a False porque se sirve
-      por http; en producción se activa desde el `.env`.
-    - `samesite="lax"`: no se envía en peticiones que vengan de otra web,
-      salvo al navegar. Corta el grueso de los ataques CSRF sin romper
-      llegar a la aplicación desde un enlace externo.
+    - `httponly`: JavaScript cannot read it (ADR 0001).
+    - `secure`: only sent over HTTPS. Locally it is False because it is
+      served over http; in production it is enabled from `.env`.
+    - `samesite="lax"`: not sent on requests coming from another site,
+      except when navigating. It stops most CSRF attacks without breaking
+      arriving at the application from an external link.
     """
     return {
         "httponly": True,
@@ -111,22 +112,22 @@ def session_cookie_kwargs() -> dict[str, object]:
 
 def hash_password(password: str) -> str:
     """
-    Convierte una contraseña en la huella que se guarda en la base.
+    Turns a password into the hash stored in the database.
 
-    La cadena que sale ya lleva dentro el algoritmo, sus parámetros y la
-    sal, así que no hay que guardar nada más en otra columna.
+    The resulting string already holds the algorithm, its parameters and
+    the salt, so nothing else needs to be stored in another column.
     """
     return _hasher.hash(password)
 
 
 def verify_password(password: str, password_hash: str) -> bool:
     """
-    Comprueba si una contraseña corresponde a una huella.
+    Checks whether a password matches a hash.
 
-    Devuelve `False` en lugar de lanzar excepción, también cuando la huella
-    está corrupta o tiene un formato que Argon2 no reconoce. Quien llama
-    solo necesita saber si entra o no entra, y un `InvalidHashError`
-    escapándose desde aquí acabaría en un 500 en vez de en el 401 que toca.
+    Returns `False` instead of raising, also when the hash is corrupt or
+    has a format Argon2 does not recognize. The caller only needs to know
+    whether it gets in, and an `InvalidHashError` escaping from here would
+    end in a 500 instead of the right 401.
     """
     try:
         return _hasher.verify(password_hash, password)
@@ -136,12 +137,12 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 def needs_rehash(password_hash: str) -> bool:
     """
-    Dice si conviene volver a calcular la huella con los parámetros de hoy.
+    Tells whether the hash should be recomputed with today's parameters.
 
-    Argon2 recomienda subir el coste según mejora el hardware. Cuando eso
-    pase, las huellas viejas siguen siendo válidas pero se quedan flojas, y
-    este es el momento de renovarlas: en el login ya tenemos la contraseña
-    en claro, que es la única ocasión en que se puede rehacer.
+    Argon2 recommends raising the cost as hardware improves. When that
+    happens, old hashes stay valid but become weak, and this is the moment
+    to renew them: at login we have the plain password, the only time it
+    can be redone.
     """
     try:
         return _hasher.check_needs_rehash(password_hash)
@@ -151,26 +152,26 @@ def needs_rehash(password_hash: str) -> bool:
 
 def create_session_token(user_id: UUID) -> str:
     """
-    Crea el contenido firmado de la cookie de sesión.
+    Creates the signed content of the session cookie.
 
-    Solo lleva el id del usuario. Ni el rol ni la organización: si fueran
-    dentro, cambiarle el rol a alguien no tendría efecto hasta que volviera
-    a entrar. Yendo solo el id, cada petición lee el usuario de la base y
-    ve su estado real.
+    It only holds the user id. Neither the role nor the organization: if
+    they were inside, changing someone's role would have no effect until
+    they logged in again. With only the id, each request reads the user
+    from the database and sees their real state.
     """
     return _serializer().dumps(str(user_id))
 
 
 def read_session_token(token: str) -> UUID | None:
     """
-    Saca el id del usuario de la cookie, o `None` si no vale.
+    Gets the user id out of the cookie, or `None` if it is not valid.
 
-    Devuelve `None` en los tres casos en que no se puede confiar en ella:
-    firma que no cuadra (manipulada o de otra clave), sesión caducada, o
-    contenido que no es un UUID. Quien llama los trata igual — no hay
-    sesión — y no conviene distinguirlos hacia fuera: decirle a alguien
-    «tu firma es inválida» frente a «ha caducado» le da información sobre
-    qué está fallando en su intento.
+    Returns `None` in the three cases where it cannot be trusted: a
+    signature that does not match (tampered with or from another key), an
+    expired session, or content that is not a UUID. The caller treats them
+    the same — no session — and they should not be told apart outside:
+    telling someone "your signature is invalid" versus "it has expired"
+    gives them information about what is failing in their attempt.
     """
     try:
         raw = _serializer().loads(token, max_age=SESSION_MAX_AGE_SECONDS)

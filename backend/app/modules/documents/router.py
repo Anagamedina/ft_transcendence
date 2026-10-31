@@ -1,12 +1,12 @@
 # ROUTER — documents
-# Capa HTTP fina: valida schemas → llama service → responde.
+# Thin HTTP layer: validates schemas → calls the service → answers.
 """
-Documentos de cada edificio (B11, issue #147):
+Documents of each building (B11, issue #147):
 
-    POST   /api/documents                 → con sesión, multipart (file, site_id, kind)
-    GET    /api/documents                 → con sesión (cada uno ve lo suyo)
-    GET    /api/documents/{id}/download   → con sesión
-    DELETE /api/documents/{id}            → con sesión; un cliente no borra lo del admin
+    POST   /api/documents                 → with a session, multipart (file, site_id, kind)
+    GET    /api/documents                 → with a session (each one sees their own)
+    GET    /api/documents/{id}/download   → with a session
+    DELETE /api/documents/{id}            → with a session; a client does not delete the admin's
 """
 
 from __future__ import annotations
@@ -36,17 +36,17 @@ router = APIRouter(prefix="/documents", tags=["Documents"])
 DocumentSvc = Annotated[DocumentService, Depends(get_document_service)]
 
 _NO_AUTORIZADO = {
-    **error_response(status.HTTP_401_UNAUTHORIZED, "No hay sesión (`UNAUTHORIZED`)."),
+    **error_response(status.HTTP_401_UNAUTHORIZED, "No session (`UNAUTHORIZED`)."),
     **error_response(
         status.HTTP_403_FORBIDDEN,
-        "Cuenta de cliente sin organización (`FORBIDDEN`).",
+        "Client account without an organization (`FORBIDDEN`).",
     ),
 }
 _NO_EXISTE = error_response(
     status.HTTP_404_NOT_FOUND,
-    "El documento no existe, o no es de tu organización (`DOCUMENT_NOT_FOUND`).",
+    "The document does not exist, or is not from your organization (`DOCUMENT_NOT_FOUND`).",
 )
-# Escrituras de cliente: con la prueba vencida, solo lectura (B12).
+# Client writes: with the trial over, read-only (B12).
 _SOLO_LECTURA_SI_CADUCA = [Depends(require_trial_not_expired)]
 
 
@@ -54,34 +54,34 @@ _SOLO_LECTURA_SI_CADUCA = [Depends(require_trial_not_expired)]
     "",
     response_model=DocumentResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Subir un documento",
+    summary="Upload a document",
     description=(
-        "`multipart/form-data` con `file`, `site_id` y `kind`. Un cliente "
-        "sube solo a edificios de su organización; un admin, a cualquiera.\n\n"
-        f"PDF, JPG, PNG o CSV de hasta {app_settings.MAX_UPLOAD_MB} MB. El "
-        "tipo se comprueba por el contenido, no por la extensión: un `.exe` "
-        "renombrado a `.pdf` se rechaza."
+        "`multipart/form-data` with `file`, `site_id` and `kind`. A client "
+        "only uploads to buildings of their organization; an admin, to any.\n\n"
+        f"PDF, JPG, PNG or CSV up to {app_settings.MAX_UPLOAD_MB} MB. The "
+        "type is checked by the content, not by the extension: an `.exe` "
+        "renamed to `.pdf` is rejected."
     ),
     dependencies=_SOLO_LECTURA_SI_CADUCA,
     responses={
         **_NO_AUTORIZADO,
         **error_response(
             status.HTTP_403_FORBIDDEN,
-            "Cuenta de cliente sin organización (`FORBIDDEN`), o la prueba ha "
-            "vencido y la cuenta es de solo lectura (`TRIAL_EXPIRED`).",
+            "Client account without an organization (`FORBIDDEN`), or the trial "
+            "is over and the account is read-only (`TRIAL_EXPIRED`).",
         ),
         **error_response(
             status.HTTP_404_NOT_FOUND,
-            "El site no existe, o no es de tu organización (`SITE_NOT_FOUND`).",
+            "The site does not exist, or is not from your organization (`SITE_NOT_FOUND`).",
         ),
         **error_response(
             status.HTTP_413_CONTENT_TOO_LARGE,
-            f"El archivo pasa de {app_settings.MAX_UPLOAD_MB} MB (`FILE_TOO_LARGE`).",
+            f"The file is over {app_settings.MAX_UPLOAD_MB} MB (`FILE_TOO_LARGE`).",
         ),
         **error_response(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            "Archivo vacío (`EMPTY_FILE`), de un tipo no admitido "
-            "(`UNSUPPORTED_FILE_TYPE`), o falta algún campo.",
+            "Empty file (`EMPTY_FILE`), unsupported type "
+            "(`UNSUPPORTED_FILE_TYPE`), or a missing field.",
         ),
     },
 )
@@ -89,9 +89,9 @@ def upload_document(
     service: DocumentSvc,
     user: CurrentUser,
     scope: OrgScope,
-    file: Annotated[UploadFile, File(description="El archivo.")],
-    site_id: Annotated[UUID, Form(description="Edificio al que pertenece.")],
-    kind: Annotated[DocumentKind, Form(description="Tipo de documento.")],
+    file: Annotated[UploadFile, File(description="The file.")],
+    site_id: Annotated[UUID, Form(description="Building it belongs to.")],
+    kind: Annotated[DocumentKind, Form(description="Document type.")],
 ) -> DocumentResponse:
     return service.upload(
         user=user,
@@ -106,11 +106,11 @@ def upload_document(
 @router.get(
     "",
     response_model=Page[DocumentResponse],
-    summary="Listar documentos",
+    summary="List documents",
     description=(
-        "Documentos de tu organización, del más nuevo al más antiguo. Un "
-        "admin ve los de todas. `site_id`, `kind` y `organization_id` "
-        "estrechan la lista."
+        "Documents of your organization, newest first. An admin sees those "
+        "of every organization. `site_id`, `kind` and `organization_id` "
+        "narrow the list."
     ),
     responses={**_NO_AUTORIZADO},
 )
@@ -121,7 +121,7 @@ def list_documents(
     pagination: Pagination,
     site_id: SiteIdFilter = None,
     kind: Annotated[
-        DocumentKind | None, Query(description="Deja solo los de ese tipo.")
+        DocumentKind | None, Query(description="Keeps only those of that type.")
     ] = None,
     organization_id: OrganizationIdFilter = None,
 ) -> Page[DocumentResponse]:
@@ -139,10 +139,10 @@ def list_documents(
 @router.get(
     "/{document_id}/download",
     response_class=FileResponse,
-    summary="Descargar un documento",
+    summary="Download a document",
     description=(
-        "Devuelve el archivo como adjunto, con el nombre y el tipo con que "
-        "se guardó. Se comprueba la organización en cada descarga."
+        "Returns the file as an attachment, with the name and type it was "
+        "stored with. The organization is checked on every download."
     ),
     responses={
         status.HTTP_200_OK: {
@@ -152,13 +152,13 @@ def list_documents(
                 "image/png": {},
                 "text/csv": {},
             },
-            "description": "El archivo.",
+            "description": "The file.",
         },
         **_NO_AUTORIZADO,
         **error_response(
             status.HTTP_404_NOT_FOUND,
-            "El documento no existe o no es de tu organización "
-            "(`DOCUMENT_NOT_FOUND`), o su archivo falta en el disco "
+            "The document does not exist or is not from your organization "
+            "(`DOCUMENT_NOT_FOUND`), or its file is missing on disk "
             "(`DOCUMENT_FILE_MISSING`).",
         ),
     },
@@ -167,8 +167,8 @@ def download_document(
     document_id: UUID, service: DocumentSvc, scope: OrgScope
 ) -> FileResponse:
     document, path = service.download(document_id, organization_id=scope)
-    # `filename` pone `Content-Disposition: attachment`: el navegador lo
-    # guarda en vez de abrirlo dentro de la aplicación.
+    # `filename` sets `Content-Disposition: attachment`: the browser saves
+    # it instead of opening it inside the application.
     return FileResponse(
         path,
         media_type=document.content_type,
@@ -180,19 +180,19 @@ def download_document(
 @router.delete(
     "/{document_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Borrar un documento",
+    summary="Delete a document",
     description=(
-        "Borra el documento y su archivo. Un admin borra cualquiera; un "
-        "cliente, los de su organización que no haya subido un admin."
+        "Deletes the document and its file. An admin deletes any; a client, "
+        "those of their organization not uploaded by an admin."
     ),
     dependencies=_SOLO_LECTURA_SI_CADUCA,
     responses={
-        **error_response(status.HTTP_401_UNAUTHORIZED, "No hay sesión (`UNAUTHORIZED`)."),
+        **error_response(status.HTTP_401_UNAUTHORIZED, "No session (`UNAUTHORIZED`)."),
         **error_response(
             status.HTTP_403_FORBIDDEN,
-            "Cuenta de cliente sin organización (`FORBIDDEN`), el documento "
-            "lo subió un admin (`DOCUMENT_UPLOADED_BY_ADMIN`), o la prueba ha "
-            "vencido y la cuenta es de solo lectura (`TRIAL_EXPIRED`).",
+            "Client account without an organization (`FORBIDDEN`), the "
+            "document was uploaded by an admin (`DOCUMENT_UPLOADED_BY_ADMIN`), "
+            "or the trial is over and the account is read-only (`TRIAL_EXPIRED`).",
         ),
         **_NO_EXISTE,
     },

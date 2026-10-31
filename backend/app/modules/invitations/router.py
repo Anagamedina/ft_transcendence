@@ -1,18 +1,18 @@
 # ROUTER — invitations
-# Capa HTTP fina: valida schemas → llama service → responde.
+# Thin HTTP layer: validates schemas → calls the service → answers.
 """
-Invitaciones (B4, issue #141). Contrato en `schemas.py`.
+Invitations (B4, issue #141). Contract in `schemas.py`.
 
-    POST   /api/invitations                        admin   → código y enlace (201)
-    GET    /api/invitations                        admin   → lista
-    DELETE /api/invitations/{id}                   admin   → revocar (204)
-    POST   /api/invitations/{id}/resend            admin   → código nuevo
-    GET    /api/invitations/by-code/{code}         público → lo justo para el formulario
-    POST   /api/invitations/by-code/{code}/accept  público → crea el usuario y abre sesión (201)
+    POST   /api/invitations                        admin  → code and link (201)
+    GET    /api/invitations                        admin  → list
+    DELETE /api/invitations/{id}                   admin  → revoke (204)
+    POST   /api/invitations/{id}/resend            admin  → new code
+    GET    /api/invitations/by-code/{code}         public → just enough for the form
+    POST   /api/invitations/by-code/{code}/accept  public → creates the user and opens a session (201)
 
-Las rutas de admin llevan el `require_role` una a una, no en el router,
-porque las dos públicas cuelgan del mismo prefijo. Esas dos son las que
-el gateway limita por IP (`location /api/invitations/by-code/`).
+The admin routes carry `require_role` one by one, not on the router,
+because the two public ones hang from the same prefix. Those two are the
+ones the gateway rate-limits per IP (`location /api/invitations/by-code/`).
 """
 
 from __future__ import annotations
@@ -49,26 +49,26 @@ router = APIRouter(prefix="/invitations", tags=["Invitations"])
 
 InvitationSvc = Annotated[InvitationService, Depends(get_invitation_service)]
 Admin = Annotated[User, Depends(require_role("admin"))]
-# Un código de `token_urlsafe` tiene 24 caracteres; el tope solo evita que
-# llegue cualquier cosa hasta la base.
+# A `token_urlsafe` code has 24 characters; the cap only stops anything
+# arbitrary from reaching the database.
 Code = Annotated[str, Path(min_length=1, max_length=64)]
 
 _SOLO_ADMIN = {
-    **error_response(status.HTTP_401_UNAUTHORIZED, "No hay sesión (`UNAUTHORIZED`)."),
+    **error_response(status.HTTP_401_UNAUTHORIZED, "No session (`UNAUTHORIZED`)."),
     **error_response(
-        status.HTTP_403_FORBIDDEN, "La sesión no es de un admin (`FORBIDDEN`)."
+        status.HTTP_403_FORBIDDEN, "The session is not an admin one (`FORBIDDEN`)."
     ),
 }
 _NO_EXISTE = error_response(
-    status.HTTP_404_NOT_FOUND, "La invitación no existe (`INVITATION_NOT_FOUND`)."
+    status.HTTP_404_NOT_FOUND, "The invitation does not exist (`INVITATION_NOT_FOUND`)."
 )
 _ENLACE = {
     **error_response(
         status.HTTP_404_NOT_FOUND,
-        "El código no existe, ya se usó o se revocó (`INVITATION_NOT_FOUND`).",
+        "The code does not exist, was already used or was revoked (`INVITATION_NOT_FOUND`).",
     ),
     **error_response(
-        status.HTTP_410_GONE, "La invitación ha caducado (`INVITATION_EXPIRED`)."
+        status.HTTP_410_GONE, "The invitation has expired (`INVITATION_EXPIRED`)."
     ),
 }
 
@@ -80,24 +80,24 @@ _ENLACE = {
     "",
     response_model=InvitationSentResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Invitar a un email",
+    summary="Invite an email",
     description=(
-        "Crea una invitación a la organización, válida "
-        "`INVITATION_TTL_DAYS` días (7 por defecto).\n\n"
-        "**`code` y `url` solo salen en esta respuesta**: en la base se "
-        "guarda su hash. El enlace no se envía por correo; el admin lo "
-        "hace llegar."
+        "Creates an invitation to the organization, valid for "
+        "`INVITATION_TTL_DAYS` days (7 by default).\n\n"
+        "**`code` and `url` only show in this response**: the database "
+        "stores their hash. The link is not emailed; the admin passes it "
+        "on."
     ),
     responses={
         **_SOLO_ADMIN,
         **error_response(
             status.HTTP_404_NOT_FOUND,
-            "La organización no existe (`ORGANIZATION_NOT_FOUND`).",
+            "The organization does not exist (`ORGANIZATION_NOT_FOUND`).",
         ),
         **error_response(
             status.HTTP_409_CONFLICT,
-            "Ese email ya tiene cuenta (`EMAIL_ALREADY_EXISTS`) o una "
-            "invitación vigente en esa organización (`INVITATION_ALREADY_PENDING`).",
+            "That email already has an account (`EMAIL_ALREADY_EXISTS`) or a "
+            "valid invitation in that organization (`INVITATION_ALREADY_PENDING`).",
         ),
     },
 )
@@ -110,10 +110,10 @@ def create_invitation(
 @router.get(
     "",
     response_model=Page[InvitationResponse],
-    summary="Listar invitaciones",
+    summary="List invitations",
     description=(
-        "Las más recientes primero, sin el código. `status=PENDING` deja "
-        "las que todavía se pueden aceptar."
+        "Newest first, without the code. `status=PENDING` keeps the ones "
+        "that can still be accepted."
     ),
     responses={**_SOLO_ADMIN},
 )
@@ -124,7 +124,7 @@ def list_invitations(
     organization_id: OrganizationIdFilter = None,
     status_filtro: Annotated[
         InvitationStatus | None,
-        Query(alias="status", description="Deja solo las invitaciones en ese estado."),
+        Query(alias="status", description="Keeps only the invitations in that status."),
     ] = None,
 ) -> Page[InvitationResponse]:
     return service.list(
@@ -138,13 +138,13 @@ def list_invitations(
 @router.delete(
     "/{invitation_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Revocar una invitación",
-    description="El enlace deja de valer. Revocar dos veces no es un error.",
+    summary="Revoke an invitation",
+    description="The link stops working. Revoking twice is not an error.",
     responses={
         **_SOLO_ADMIN,
         **_NO_EXISTE,
         **error_response(
-            status.HTTP_409_CONFLICT, "Ya se aceptó (`INVITATION_NOT_PENDING`)."
+            status.HTTP_409_CONFLICT, "It was already accepted (`INVITATION_NOT_PENDING`)."
         ),
     },
 )
@@ -158,17 +158,17 @@ def revoke_invitation(
 @router.post(
     "/{invitation_id}/resend",
     response_model=InvitationSentResponse,
-    summary="Reenviar una invitación",
+    summary="Resend an invitation",
     description=(
-        "Código nuevo y otros `INVITATION_TTL_DAYS` días. El enlace "
-        "anterior deja de valer. Sirve también para una caducada."
+        "New code and another `INVITATION_TTL_DAYS` days. The previous "
+        "link stops working. It also works for an expired one."
     ),
     responses={
         **_SOLO_ADMIN,
         **_NO_EXISTE,
         **error_response(
             status.HTTP_409_CONFLICT,
-            "Ya se aceptó o se revocó (`INVITATION_NOT_PENDING`).",
+            "It was already accepted or revoked (`INVITATION_NOT_PENDING`).",
         ),
     },
 )
@@ -179,13 +179,13 @@ def resend_invitation(
 
 
 # ---------------------------------------------------------
-# PÚBLICO
+# PUBLIC
 # ---------------------------------------------------------
 @router.get(
     "/by-code/{code}",
     response_model=InvitationPublicResponse,
-    summary="Abrir un enlace de invitación",
-    description="Sin sesión. Lo justo para el formulario de aceptar.",
+    summary="Open an invitation link",
+    description="No session. Just enough for the accept form.",
     responses={**_ENLACE},
 )
 def get_invitation_by_code(code: Code, service: InvitationSvc) -> InvitationPublicResponse:
@@ -196,26 +196,26 @@ def get_invitation_by_code(code: Code, service: InvitationSvc) -> InvitationPubl
     "/by-code/{code}/accept",
     response_model=SessionResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Aceptar una invitación",
+    summary="Accept an invitation",
     description=(
-        "Sin sesión. Crea la cuenta de cliente en la organización de la "
-        "invitación, con su email, y **deja la sesión abierta**, como el "
-        "registro. El enlace no vuelve a valer."
+        "No session. Creates the client account in the invitation's "
+        "organization, with its email, and **leaves the session open**, "
+        "like the sign-up. The link does not work again."
     ),
     responses={
         **_ENLACE,
         **error_response(
             status.HTTP_403_FORBIDDEN,
-            "La organización está suspendida (`ACCOUNT_DISABLED`).",
+            "The organization is suspended (`ACCOUNT_DISABLED`).",
         ),
         **error_response(
             status.HTTP_409_CONFLICT,
-            "Ese email ya tiene cuenta (`EMAIL_ALREADY_EXISTS`).",
+            "That email already has an account (`EMAIL_ALREADY_EXISTS`).",
         ),
         **error_response(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            "Términos sin aceptar (`TERMS_NOT_ACCEPTED`), contraseña débil "
-            "(`WEAK_PASSWORD`) o nombre vacío (`VALIDATION_ERROR`).",
+            "Terms not accepted (`TERMS_NOT_ACCEPTED`), weak password "
+            "(`WEAK_PASSWORD`) or empty name (`VALIDATION_ERROR`).",
         ),
     },
 )
@@ -227,7 +227,7 @@ def accept_invitation(
 ) -> SessionResponse:
     creado = service.accept(code, payload)
 
-    # Como en el login y el registro: la cookie la pone el router.
+    # As in login and sign-up: the router sets the cookie.
     response.set_cookie(
         SESSION_COOKIE,
         create_session_token(creado.id),

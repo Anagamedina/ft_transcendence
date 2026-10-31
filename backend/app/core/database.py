@@ -1,4 +1,4 @@
-# Flujo: request → dependencia get_db → service/repository → commit/rollback.
+# Flow: request → get_db dependency → service/repository → commit/rollback.
 from collections.abc import Generator
 
 from sqlalchemy import create_engine
@@ -13,18 +13,18 @@ from sqlalchemy.orm import DeclarativeBase
 # ENGINE
 # ---------------------------------------------------------
 
-# El Engine representa la infraestructura de conexión
-# entre SQLAlchemy y PostgreSQL.
+# The Engine is the connection infrastructure
+# between SQLAlchemy and PostgreSQL.
 #
-# Usa la DATABASE_URL construida en config.py:
+# It uses the DATABASE_URL built in config.py:
 #
 # postgresql+psycopg://user:password@database:5432/aquaguard
 #
-# El Engine:
-# - conoce dónde está PostgreSQL;
-# - utiliza psycopg como driver;
-# - administra un pool de conexiones;
-# - será compartido por toda la aplicación.
+# The Engine:
+# - knows where PostgreSQL is;
+# - uses psycopg as the driver;
+# - manages a connection pool;
+# - is shared by the whole application.
 
 engine = create_engine(
     settings.DATABASE_URL,
@@ -35,16 +35,16 @@ engine = create_engine(
 # SESSION FACTORY
 # ---------------------------------------------------------
 
-# SessionLocal NO es una sesión.
+# SessionLocal is NOT a session.
 #
-# Es una fábrica que crea sesiones nuevas cuando
-# la aplicación las necesita.
+# It is a factory that creates new sessions when
+# the application needs them.
 #
 # SessionLocal()
 #       ↓
-# Session concreta
+# A concrete Session
 #
-# Cada request podrá obtener su propia Session.
+# Each request gets its own Session.
 
 SessionLocal = sessionmaker(
     bind=engine,
@@ -56,9 +56,9 @@ SessionLocal = sessionmaker(
 # FASTAPI DATABASE DEPENDENCY
 # ---------------------------------------------------------
 """
-Crea una Session para una operación/request.
+Creates a Session for one operation/request.
 
-Flujo:
+Flow:
 
     SessionLocal()
           ↓
@@ -70,8 +70,8 @@ Flujo:
           ↓
         close()
 
-El bloque finally garantiza que la sesión se cierre
-incluso si ocurre un error.
+The finally block makes sure the session is closed
+even if an error happens.
 """
 
 def get_db() -> Generator[Session, None, None]:
@@ -83,9 +83,9 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 """
-    - operacion correcta    --> commit()
-    - error --> rollback()
-    - close in immediateness --> get_db()
+    - operation succeeds --> commit()
+    - error              --> rollback()
+    - closing is done by --> get_db()
 """
 @contextmanager
 def transaction(db: Session):
@@ -100,32 +100,7 @@ def transaction(db: Session):
 #   SETUP ALEMBIC
 # ---------------------------------------------------------
 """
-    The models must inherit from that class, when implemented in models/
+    Every model inherits from this class (see the modules' model.py files)
 """
 class Base(DeclarativeBase):
     pass
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

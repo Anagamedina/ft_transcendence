@@ -1,1 +1,1 @@
-# modules — dominios del monolito modular.
+# modules — domains of the modular monolith.

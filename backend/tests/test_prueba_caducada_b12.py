@@ -298,6 +298,7 @@ def test_con_la_prueba_vencida_se_puede_contratar_un_plan(cliente, datos):
             "postal_code": "08003",
             "city": "Barcelona",
             "billing_email": "facturas@mar.dev",
+            "phone": "612 345 678",
             "iban": "ES91 2100 0418 4502 0005 1332",
             "accept_terms": True,
             "accept_sepa": True,

@@ -1,29 +1,29 @@
 # STATUS — sensors
-# Reglas que deciden si un sensor está ONLINE u OFFLINE y su salud (B3).
-# Sin base de datos.
+# Rules that decide whether a sensor is ONLINE or OFFLINE and its health (B3).
+# No database.
 """
-Estado operativo de un sensor (issue #25).
+Operational status of a sensor (issue #25).
 
-Un sensor está **OFFLINE** si lleva más de `OFFLINE_TRAS` sin mandar
-ninguna lectura, o si no ha mandado nunca ninguna. Si no, **ONLINE**.
+A sensor is **OFFLINE** if it has gone more than `OFFLINE_TRAS` without
+sending any reading, or if it has never sent one. Otherwise, **ONLINE**.
 
-Decidido por Ana el 03-10-2026:
+Decided by Ana on 2026-10-03:
 
-- **5 minutos.** El simulador manda una lectura cada 5 segundos
-  (`SIMULATOR_INTERVAL_SECONDS`), así que son 60 lecturas seguidas
-  perdidas: ya no es un corte puntual. Es un número de negocio: si el
-  equipo acuerda otro, se cambia aquí y nada más.
-- **Cuenta cuándo llegó la lectura al backend** (`created_at`), no la hora
-  que dice el sensor que la midió (`recorded_at`). Un sensor que reenvía
-  lecturas antiguas no debe parecer conectado.
+- **5 minutes.** The simulator sends a reading every 5 seconds
+  (`SIMULATOR_INTERVAL_SECONDS`), so that is 60 readings lost in a row:
+  no longer a brief cut. It is a business number: if the team agrees on
+  another, change it here and nothing else.
+- **What counts is when the reading reached the backend** (`created_at`),
+  not the time the sensor says it measured it (`recorded_at`). A sensor
+  resending old readings must not look connected.
 
-La alerta SENSOR_OFFLINE de la #28 debería usar esta misma regla, para que
-el estado del sensor y su alerta nunca se contradigan.
+The SENSOR_OFFLINE alert of #28 (`alerts/offline.py`) uses this same
+value, so the sensor status and its alert never contradict each other.
 
-**Salud** (`health`, B3 de la #139): el color del sensor en la planta del
-edificio. Sale de `status` y de las alertas sin resolver del sensor.
-`SensorRepository.list_by_organization` repite esta misma regla en SQL
-para el filtro `?health=`; si cambia aquí, hay que cambiarla también allí.
+**Health** (`health`, B3 of #139): the color of the sensor on the
+building floor. It comes from `status` and the unresolved alerts of the
+sensor. `SensorRepository.list_by_organization` repeats this rule in SQL
+for the `?health=` filter; if it changes here, change it there too.
 """
 
 from __future__ import annotations
@@ -37,9 +37,9 @@ OFFLINE_TRAS = timedelta(minutes=5)
 
 def calcular_estado(ultima_lectura: datetime | None, ahora: datetime) -> SensorStatus:
     """
-    `ultima_lectura` es cuándo llegó la última lectura del sensor, o `None`
-    si no ha llegado ninguna. `ahora` se pasa desde fuera para poder
-    probarlo sin depender del reloj.
+    `ultima_lectura` is when the last reading of the sensor arrived, or
+    `None` if none has arrived. `ahora` ("now") is passed in so it can be
+    tested without depending on the clock.
     """
     if ultima_lectura is None:
         return SensorStatus.OFFLINE
@@ -52,15 +52,15 @@ def calcular_salud(
     estado: SensorStatus, severidades_abiertas: set[str] | frozenset[str]
 ) -> SensorHealth:
     """
-    Salud del sensor (B3), por orden de prioridad:
+    Health of the sensor (B3), in order of priority:
 
-    - `OFFLINE`  → el sensor está `OFFLINE`, tenga o no alertas.
-    - `CRITICAL` → tiene alguna alerta sin resolver de gravedad CRITICAL.
-    - `WARNING`  → tiene alguna alerta sin resolver de gravedad WARNING.
-    - `OK`       → lo demás.
+    - `OFFLINE`  → the sensor is `OFFLINE`, with or without alerts.
+    - `CRITICAL` → it has some unresolved alert of CRITICAL severity.
+    - `WARNING`  → it has some unresolved alert of WARNING severity.
+    - `OK`       → everything else.
 
-    `severidades_abiertas` son las gravedades de sus alertas en estado
-    `ACTIVE`, reconocidas o no: reconocer una alerta no la arregla.
+    `severidades_abiertas` are the severities of its alerts in `ACTIVE`
+    status, acknowledged or not: acknowledging an alert does not fix it.
     """
     if estado == SensorStatus.OFFLINE:
         return SensorHealth.OFFLINE

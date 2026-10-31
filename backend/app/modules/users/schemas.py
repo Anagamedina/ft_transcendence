@@ -1,19 +1,19 @@
 # SCHEMAS — users
-# Pydantic request/response (contrato OpenAPI). No devolver model ORM crudo.
+# Pydantic request/response (OpenAPI contract). Never return a raw ORM model.
 """
-Contrato de usuarios (issue #23).
+Users contract (issue #23).
 
-El punto importante de este archivo es la separación entre lo que entra y
-lo que sale:
+The key point of this file is the split between what comes in and what
+goes out:
 
-    PasswordChange → contraseñas    (entran, nunca salen)
-    UserResponse   → sin password ni hash
+    PasswordChange → passwords        (they come in, never go out)
+    UserResponse   → no password or hash
 
-Es tentador declarar un único `User` y reutilizarlo en las dos
-direcciones. No se hace porque el día que el modelo gane un campo
-`password_hash` o `reset_token`, ese campo aparecería solo en la respuesta
-de la API. Con schemas separados eso no puede ocurrir: `UserResponse`
-únicamente copia los campos que declara.
+It is tempting to declare a single `User` and reuse it in both
+directions. It is not done because the day the model gains a
+`password_hash` or `reset_token` field, that field would show up in the
+API response on its own. With separate schemas that cannot happen:
+`UserResponse` only copies the fields it declares.
 """
 
 from __future__ import annotations
@@ -35,15 +35,15 @@ from app.shared.schemas import ApiModel, ApiRequest, Password, RawPassword
 
 class UserRole(str, Enum):
     """
-    Rol dentro de la aplicación.
+    Role inside the application.
 
-    Hereda de `str` para que serialice como `"admin"` y no como
-    `"UserRole.ADMIN"`, y para poder compararlo con una cadena sin
-    convertir. En OpenAPI aparece como un enum de strings, que es lo que
-    el frontend necesita para pintar el selector.
+    It inherits from `str` so it serializes as `"admin"` and not as
+    `"UserRole.ADMIN"`, and so it can be compared with a string without
+    converting. In OpenAPI it shows up as a string enum, which is what the
+    frontend needs to draw the selector.
 
-    - `admin`  → gestiona organizaciones, sites y sensores.
-    - `client` → solo ve los datos de su propia organización.
+    - `admin`  → manages organizations, sites and sensors.
+    - `client` → only sees the data of its own organization.
     """
 
     ADMIN = "admin"
@@ -52,55 +52,55 @@ class UserRole(str, Enum):
 
 class UserUpdate(ApiRequest):
     """
-    Modificación parcial. Todos los campos son opcionales.
+    Partial update. Every field is optional.
 
-    `None` y "campo ausente" significan cosas distintas: para saber cuáles
-    tocó el cliente hay que usar `model_dump(exclude_unset=True)`, no
+    `None` and "field missing" mean different things: to know which ones
+    the client touched, use `model_dump(exclude_unset=True)`, not
     `exclude_none`.
     """
 
     name: str | None = Field(default=None, min_length=1, max_length=120)
     role: UserRole | None = None
-    # B6 (#141): mover o añadir un usuario a una organización. Un `client`
-    # siempre necesita una (CHECK `ck_users_client_has_organization`). El
-    # email no se edita: no está aquí, y `extra="forbid"` lo rechaza.
+    # B6 (#141): move or add a user to an organization. A `client` always
+    # needs one (CHECK `ck_users_client_has_organization`). The email is
+    # not editable: it is not here, and `extra="forbid"` rejects it.
     organization_id: UUID | None = Field(
         default=None,
-        description="Organización del usuario. Obligatoria si queda como `client`.",
+        description="Organization of the user. Mandatory if it stays a `client`.",
     )
 
 
 class UserResponse(ApiModel):
     """
-    Usuario tal y como lo ve el cliente.
+    User as the client sees it.
 
-    Campos según el modelo de dominio del documento de arquitectura
-    (apartado 5): `id`, `organization_id`, `name`, `email`, `role`,
-    `created_at`. `password_hash` existe en la tabla y NO aparece aquí:
-    es justamente lo que garantiza la separación entrada/salida.
+    Fields according to the domain model of the architecture document
+    (section 5): `id`, `organization_id`, `name`, `email`, `role`,
+    `created_at`. `password_hash` exists in the table and does NOT appear
+    here: that is exactly what the input/output split guarantees.
     """
 
-    id: UUID = Field(description="Identificador del usuario.")
+    id: UUID = Field(description="User id.")
     email: EmailStr
     name: str
     role: UserRole
     organization_id: UUID | None = Field(
         default=None,
         description=(
-            "Organización a la que pertenece. Nulo para un admin global, "
-            "que no está atado a ninguna."
+            "Organization it belongs to. Null for a global admin, who is "
+            "not tied to any."
         ),
     )
-    created_at: datetime = Field(description="Alta del usuario, en UTC.")
+    created_at: datetime = Field(description="Creation of the user, in UTC.")
 
 
 # ---------------------------------------------------------
-# CONTRATO DE LA B6 Y LA B8 (#141, #144)
+# B6 AND B8 CONTRACT (#141, #144)
 # ---------------------------------------------------------
-# Se publican antes que las rutas, como en la #23, para que el frontend
-# (F11 y F13 de Eduardo y Lylia) monte sus pantallas con mocks.
+# Published before the routes, as in #23, so the frontend (F11 and F13 by
+# Eduardo and Lylia) could build its screens with mocks.
 #
-# B6 — usuarios (admin):
+# B6 — users (admin):
 #   GET    /api/users?organization_id=&q=&active=  → Page[UserAdminResponse]
 #   GET    /api/users/{id}                         → UserAdminResponse
 #   PATCH  /api/users/{id}                         → UserAdminResponse (UserUpdate)
@@ -108,105 +108,105 @@ class UserResponse(ApiModel):
 #   POST   /api/users/{id}/activate                → UserAdminResponse
 #   DELETE /api/users/{id}                         → 204
 #
-# B8 — Mi cuenta (cualquiera con sesión):
+# B8 — My account (anyone with a session):
 #   GET    /api/me                → MeResponse
 #   PATCH  /api/me                → MeResponse (MeUpdate)
 #   POST   /api/me/password       → MessageResponse (PasswordChange)
 class UserAdminResponse(UserResponse):
-    """Un usuario en la gestión de usuarios del admin (B6)."""
+    """A user in the admin user management (B6)."""
 
     organization_name: str | None = Field(
-        default=None, description="Nombre de su organización.", examples=["Hotel Mar"]
+        default=None, description="Name of its organization.", examples=["Hotel Mar"]
     )
     is_active: bool = Field(
         default=True,
         description=(
-            "`false` si un admin lo ha desactivado: no puede entrar (403 "
+            "`false` if an admin has deactivated it: it cannot log in (403 "
             "`ACCOUNT_DISABLED`)."
         ),
     )
     last_login_at: datetime | None = Field(
-        default=None, description="Último login, en UTC. Nulo si nunca ha entrado."
+        default=None, description="Last login, in UTC. Null if it never logged in."
     )
 
 
 class OrganizationSummary(ApiModel):
-    """La organización de quien tiene la sesión, para Mi cuenta (B8)."""
+    """The organization of the session holder, for My account (B8)."""
 
     id: UUID
     name: str = Field(examples=["Hotel Mar"])
     status: OrganizationStatus = Field(examples=["TRIAL"])
     trial_ends_at: datetime | None = Field(
-        default=None, description="Fin de la prueba, en UTC. Nulo si no está en prueba."
+        default=None, description="End of the trial, in UTC. Null if not on trial."
     )
 
 
 class MeResponse(ApiModel):
     """
-    Respuesta de `GET /api/me` desde la B8. Mantiene `user` donde estaba
-    (el frontend ya lo lee así) y añade lo de Mi cuenta.
+    Response of `GET /api/me` since B8. It keeps `user` where it was (the
+    frontend already reads it like that) and adds the My account data.
     """
 
     user: UserResponse
     organization: OrganizationSummary | None = Field(
-        default=None, description="Nula para un admin sin organización."
+        default=None, description="Null for an admin without an organization."
     )
     last_login_at: datetime | None = None
     terms_version: str | None = Field(
         default=None,
-        description="Versión de los términos que aceptó. Nula en cuentas anteriores a la B10.",
+        description="Version of the terms it accepted. Null for accounts older than B10.",
         examples=["2026-10"],
     )
     terms_accepted_at: datetime | None = None
     deletion_requested_at: datetime | None = Field(
         default=None,
-        description="Cuándo pidió la baja (B15), en UTC. Nulo si no la ha pedido.",
+        description="When it requested deletion (B15), in UTC. Null if it has not.",
     )
 
 
 class CurrentSessionResponse(ApiModel):
-    """Respuesta de `GET /api/me/session`: el usuario, o `null` sin sesión."""
+    """Response of `GET /api/me/session`: the user, or `null` without a session."""
 
     user: MeResponse | None = Field(
-        default=None, description="Lo mismo que `GET /api/me`, o nulo si no hay sesión."
+        default=None, description="The same as `GET /api/me`, or null without a session."
     )
 
 
 class MeUpdate(ApiRequest):
-    """Lo que cada uno puede cambiar de su cuenta (B8). El email no."""
+    """What each user can change in their account (B8). Not the email."""
 
     name: str = Field(min_length=1, max_length=120, examples=["Ana Medina"])
 
 
 class PasswordChange(ApiRequest):
     """
-    Cambiar la propia contraseña (B8). Si `current_password` no coincide,
-    422 `WRONG_PASSWORD` (no 401: la sesión sigue siendo válida, y un 401
-    haría que el frontend la cerrara); si la nueva no cumple la regla de
-    la B10, 422 `WEAK_PASSWORD`. Las demás sesiones abiertas no se cierran (necesitaría
-    una columna que no existe).
+    Change your own password (B8). If `current_password` does not match,
+    422 `WRONG_PASSWORD` (not 401: the session is still valid, and a 401
+    would make the frontend close it); if the new one breaks the B10 rule,
+    422 `WEAK_PASSWORD`. Other open sessions are not closed (it would need
+    a column that does not exist).
     """
 
-    # Se compara tal cual, sin recortar: igual que en el login.
+    # Compared as is, without trimming: same as login.
     current_password: RawPassword = Field(min_length=1, max_length=128)
     new_password: Password = Field(
         max_length=128,
-        description="Misma regla que el registro (B10): al menos 12 caracteres, no común, sin el email.",
+        description="Same rule as the sign-up (B10): at least 12 characters, not common, without the email.",
         examples=["agua-que-no-se-escapa"],
     )
 
 
 # ---------------------------------------------------------
-# B15 — EXPORTAR MIS DATOS Y PEDIR LA BAJA (#149)
+# B15 — EXPORT MY DATA AND REQUEST DELETION (#149)
 # ---------------------------------------------------------
-#   GET  /api/me/export            → MyDataExport (se descarga como .json)
+#   GET  /api/me/export            → MyDataExport (downloaded as .json)
 #   POST /api/me/deletion-request  → DeletionRequestResponse
 #
-# Los schemas de la exportación son propios, no `SiteResponse` ni
-# `OrganizationResponse`: llevan solo lo que está guardado (sin contadores
-# ni estados calculados) y no cambian si cambian las pantallas.
+# The export schemas are their own, not `SiteResponse` nor
+# `OrganizationResponse`: they only hold what is stored (no counters or
+# computed states) and do not change if the screens change.
 class AccountExport(ApiModel):
-    """La cuenta de quien exporta. Sin `password_hash`, como `UserResponse`."""
+    """The account of whoever exports. Without `password_hash`, like `UserResponse`."""
 
     id: UUID
     email: EmailStr
@@ -217,7 +217,7 @@ class AccountExport(ApiModel):
     last_login_at: datetime | None = None
     terms_version: str | None = Field(
         default=None,
-        description="Versión de los términos que aceptó (B10). Nula en cuentas anteriores.",
+        description="Version of the terms it accepted (B10). Null for older accounts.",
         examples=["2026-10"],
     )
     terms_accepted_at: datetime | None = None
@@ -225,7 +225,7 @@ class AccountExport(ApiModel):
 
 
 class OrganizationExport(ApiModel):
-    """La organización tal y como está guardada. El IBAN, solo enmascarado."""
+    """The organization as it is stored. The IBAN, masked only."""
 
     id: UUID
     name: str
@@ -251,7 +251,7 @@ class OrganizationExport(ApiModel):
 
 
 class SiteExport(ApiModel):
-    """Un edificio de la organización, con lo que está guardado."""
+    """A building of the organization, with what is stored."""
 
     id: UUID
     name: str
@@ -267,16 +267,16 @@ class SiteExport(ApiModel):
 
 class MyDataExport(ApiModel):
     """
-    Todo lo que AquaGuard guarda de la cuenta (B15): la cuenta, su
-    organización y sus edificios. Un admin sin organización recibe
-    `organization` nula y `sites` vacía, no los edificios de todos.
+    Everything AquaGuard stores about the account (B15): the account, its
+    organization and its buildings. An admin without an organization gets
+    a null `organization` and an empty `sites`, not everyone's buildings.
     """
 
-    exported_at: datetime = Field(description="Cuándo se generó, en UTC.")
+    exported_at: datetime = Field(description="When it was generated, in UTC.")
     current_terms_version: str = Field(
         description=(
-            "Versión de los términos vigente. Si no coincide con "
-            "`account.terms_version`, la cuenta aceptó unos anteriores."
+            "Current version of the terms. If it does not match "
+            "`account.terms_version`, the account accepted older ones."
         ),
         examples=["2026-10"],
     )
@@ -286,10 +286,10 @@ class MyDataExport(ApiModel):
 
 
 class DeletionRequestResponse(ApiModel):
-    """Petición de baja registrada (B15). Nada se borra todavía."""
+    """Deletion request recorded (B15). Nothing is deleted yet."""
 
     deletion_requested_at: datetime = Field(
-        description="Cuándo se pidió por primera vez, en UTC. Repetir la petición no la cambia."
+        description="When it was first requested, in UTC. Repeating the request does not change it."
     )
     message: str = Field(
         examples=["Hemos registrado tu petición de baja. Un administrador la tramitará."]

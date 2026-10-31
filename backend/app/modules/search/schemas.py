@@ -1,13 +1,13 @@
 # SCHEMAS — search
-# Pydantic request/response (contrato OpenAPI). No devolver model ORM crudo.
+# Pydantic request/response (OpenAPI contract). Never return a raw ORM model.
 """
-Contrato de la búsqueda global (B17, issue #150).
+Global search contract (B17, issue #150).
 
     GET /api/search?q=diag → SearchResponse
 
-Un grupo por tipo, cada uno con sus primeros resultados y el total, para
-que el panel enseñe «3 de 12» y enlace a la lista filtrada con el mismo
-`?q=` (los listados ya lo aceptan desde la B0).
+One group per type, each with its first results and the total, so the
+panel shows "3 de 12" (3 of 12) and links to the list filtered with the
+same `?q=` (the lists accept it since B0).
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ T = TypeVar("T")
 
 class SearchGroup(ApiModel, Generic[T]):
     items: list[T]
-    total: int = Field(description="Coincidencias de este tipo, aunque no salgan todas.")
+    total: int = Field(description="Matches of this type, even if not all are shown.")
 
 
 class OrganizationHit(ApiModel):
@@ -56,12 +56,12 @@ class SensorHit(ApiModel):
 
 class SearchResponse(BaseModel):
     """
-    `organizations` solo trae resultados para el admin: un cliente solo
-    tiene la suya, y buscarla no le sirve de nada. Edificios y sensores,
-    siempre dentro de su alcance.
+    `organizations` only brings results for the admin: a client only has
+    its own, and searching for it is useless. Buildings and sensors,
+    always within its scope.
     """
 
-    q: str = Field(description="El texto buscado, ya recortado.")
+    q: str = Field(description="The searched text, already trimmed.")
     organizations: SearchGroup[OrganizationHit]
     sites: SearchGroup[SiteHit]
     sensors: SearchGroup[SensorHit]

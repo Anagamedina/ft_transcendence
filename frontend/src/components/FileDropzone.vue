@@ -9,7 +9,7 @@
 -->
 
 <template>
-  <form class="space-y-4" @submit.prevent="submit">
+  <form novalidate class="space-y-4" @submit.prevent="submit">
     <p class="text-sm text-slate-600">
       PDF, JPG, PNG o CSV. Tamaño máximo: 10 MB.
     </p>
@@ -20,7 +20,7 @@
         <select
           v-model="siteId"
           required
-          class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+          :class="[INPUT_CLASS, INPUT_SIZE.md, INPUT_OK_CLASS, 'mt-1 block']"
         >
           <option value="" disabled>Selecciona un edificio</option>
           <option v-for="site in sites" :key="site.id" :value="site.id">
@@ -34,7 +34,7 @@
         <select
           v-model="kind"
           required
-          class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+          :class="[INPUT_CLASS, INPUT_SIZE.md, INPUT_OK_CLASS, 'mt-1 block']"
         >
           <option value="PLAN">Plano</option>
           <option value="REPORT">Informe</option>
@@ -79,9 +79,7 @@
       </button>
     </div>
 
-    <p v-if="error" role="alert" class="text-sm text-danger-dark">
-      {{ error }}
-    </p>
+    <FormError :message="error" />
 
     <div v-if="uploading" class="space-y-1">
       <div class="flex justify-between text-xs text-slate-600">
@@ -129,6 +127,12 @@
 
 <script setup>
 import { ref } from "vue";
+import FormError from "./FormError.vue";
+import {
+  INPUT_CLASS,
+  INPUT_OK_CLASS,
+  INPUT_SIZE,
+} from "../composables/useFieldErrors.js";
 
 const props = defineProps({
   sites: { type: Array, default: () => [] },

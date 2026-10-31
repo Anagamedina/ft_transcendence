@@ -1,1 +1,1 @@
-# Módulo sensors — Sensores, umbrales y estado (vía site → organization).
+# sensors module — sensors, thresholds and status (via site → organization).

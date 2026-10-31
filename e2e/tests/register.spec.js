@@ -34,7 +34,7 @@ test.afterAll(async () => {
 function newAccount() {
   const id = Date.now()
   return {
-    name: 'E2E Visitor',
+    name: 'Visitante de Prueba',
     email: `e2e-${id}@aquaguard.dev`,
     password: PASSWORD,
     organization_name: `E2E Org ${id}`,

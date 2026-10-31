@@ -13,7 +13,7 @@
   POST /api/me/organization/subscribe and reloads /api/me, so the trial
   banner goes away. The API computes the plan and the price again; the
   checks here are the same as the backend ones, to show the errors before
-  sending (the backend also checks the IBAN check digits).
+  sending.
 -->
 
 <template>
@@ -111,22 +111,17 @@
                 </label>
                 <input
                   id="subscribe-sites"
-                  ref="sitesInput"
+                  :ref="setRef('sites')"
                   v-model.number="form.sites"
                   type="number"
                   inputmode="numeric"
                   :min="minSites"
                   :max="MAX_SITES"
                   step="1"
+                  :class="inputClass('sites')"
                   v-bind="fieldAttrs('sites')"
                 />
-                <p
-                  v-if="fieldErrors.sites"
-                  :id="errorId('sites')"
-                  :class="ERROR_CLASS"
-                >
-                  {{ fieldErrors.sites }}
-                </p>
+                <FieldError :id="errorId('sites')" :message="errors.sites" />
               </div>
 
               <div>
@@ -135,26 +130,20 @@
                 </label>
                 <input
                   id="subscribe-sensors"
-                  ref="sensorsInput"
+                  :ref="setRef('sensors')"
                   v-model.number="form.sensors"
                   type="number"
                   inputmode="numeric"
                   :min="minSensors"
                   :max="MAX_SENSORS"
                   step="1"
-                  v-bind="fieldAttrs('sensors')"
-                  :aria-describedby="describedBy('sensors')"
+                  :class="inputClass('sensors')"
+                  v-bind="fieldAttrs('sensors', hintId('sensors'))"
                 />
                 <p :id="hintId('sensors')" class="mt-1 text-xs text-slate-600">
                   Uno por planta, contando sótanos.
                 </p>
-                <p
-                  v-if="fieldErrors.sensors"
-                  :id="errorId('sensors')"
-                  :class="ERROR_CLASS"
-                >
-                  {{ fieldErrors.sensors }}
-                </p>
+                <FieldError :id="errorId('sensors')" :message="errors.sensors" />
               </div>
             </div>
 
@@ -256,21 +245,16 @@
                 </label>
                 <input
                   id="subscribe-legal-name"
-                  ref="legalNameInput"
+                  :ref="setRef('legal_name')"
                   v-model="form.legal_name"
                   type="text"
                   autocomplete="organization"
                   maxlength="200"
                   placeholder="p. ej. Hoteles del Turia, S.L."
+                  :class="inputClass('legal_name')"
                   v-bind="fieldAttrs('legal_name')"
                 />
-                <p
-                  v-if="fieldErrors.legal_name"
-                  :id="errorId('legal_name')"
-                  :class="ERROR_CLASS"
-                >
-                  {{ fieldErrors.legal_name }}
-                </p>
+                <FieldError :id="errorId('legal_name')" :message="errors.legal_name" />
               </div>
 
               <div>
@@ -279,44 +263,33 @@
                 </label>
                 <input
                   id="subscribe-tax-id"
-                  ref="taxIdInput"
+                  :ref="setRef('tax_id')"
                   v-model="form.tax_id"
                   type="text"
                   autocapitalize="characters"
                   maxlength="30"
                   placeholder="B12345678"
+                  :class="inputClass('tax_id')"
                   v-bind="fieldAttrs('tax_id')"
                 />
-                <p
-                  v-if="fieldErrors.tax_id"
-                  :id="errorId('tax_id')"
-                  :class="ERROR_CLASS"
-                >
-                  {{ fieldErrors.tax_id }}
-                </p>
+                <FieldError :id="errorId('tax_id')" :message="errors.tax_id" />
               </div>
 
               <div>
                 <label for="subscribe-phone" :class="LABEL_CLASS">
                   Teléfono de la empresa
-                  <span class="font-normal text-slate-500">(opcional)</span>
                 </label>
                 <input
                   id="subscribe-phone"
-                  ref="phoneInput"
+                  :ref="setRef('phone')"
                   v-model="form.phone"
                   type="tel"
                   autocomplete="tel"
                   maxlength="30"
+                  :class="inputClass('phone')"
                   v-bind="fieldAttrs('phone')"
                 />
-                <p
-                  v-if="fieldErrors.phone"
-                  :id="errorId('phone')"
-                  :class="ERROR_CLASS"
-                >
-                  {{ fieldErrors.phone }}
-                </p>
+                <FieldError :id="errorId('phone')" :message="errors.phone" />
               </div>
 
               <div class="sm:col-span-2">
@@ -325,20 +298,15 @@
                 </label>
                 <input
                   id="subscribe-address"
-                  ref="addressInput"
+                  :ref="setRef('address')"
                   v-model="form.address"
                   type="text"
                   autocomplete="street-address"
                   :maxlength="ADDRESS_MAX_LENGTH"
+                  :class="inputClass('address')"
                   v-bind="fieldAttrs('address')"
                 />
-                <p
-                  v-if="fieldErrors.address"
-                  :id="errorId('address')"
-                  :class="ERROR_CLASS"
-                >
-                  {{ fieldErrors.address }}
-                </p>
+                <FieldError :id="errorId('address')" :message="errors.address" />
               </div>
 
               <div>
@@ -347,21 +315,16 @@
                 </label>
                 <input
                   id="subscribe-postal-code"
-                  ref="postalCodeInput"
+                  :ref="setRef('postal_code')"
                   v-model="form.postal_code"
                   type="text"
                   inputmode="numeric"
                   autocomplete="postal-code"
                   maxlength="5"
+                  :class="inputClass('postal_code')"
                   v-bind="fieldAttrs('postal_code')"
                 />
-                <p
-                  v-if="fieldErrors.postal_code"
-                  :id="errorId('postal_code')"
-                  :class="ERROR_CLASS"
-                >
-                  {{ fieldErrors.postal_code }}
-                </p>
+                <FieldError :id="errorId('postal_code')" :message="errors.postal_code" />
               </div>
 
               <div>
@@ -370,20 +333,15 @@
                 </label>
                 <input
                   id="subscribe-city"
-                  ref="cityInput"
+                  :ref="setRef('city')"
                   v-model="form.city"
                   type="text"
                   autocomplete="address-level2"
                   maxlength="120"
+                  :class="inputClass('city')"
                   v-bind="fieldAttrs('city')"
                 />
-                <p
-                  v-if="fieldErrors.city"
-                  :id="errorId('city')"
-                  :class="ERROR_CLASS"
-                >
-                  {{ fieldErrors.city }}
-                </p>
+                <FieldError :id="errorId('city')" :message="errors.city" />
               </div>
             </div>
           </section>
@@ -400,20 +358,15 @@
                 </label>
                 <input
                   id="subscribe-billing-email"
-                  ref="billingEmailInput"
+                  :ref="setRef('billing_email')"
                   v-model="form.billing_email"
                   type="email"
                   autocomplete="email"
                   maxlength="320"
+                  :class="inputClass('billing_email')"
                   v-bind="fieldAttrs('billing_email')"
                 />
-                <p
-                  v-if="fieldErrors.billing_email"
-                  :id="errorId('billing_email')"
-                  :class="ERROR_CLASS"
-                >
-                  {{ fieldErrors.billing_email }}
-                </p>
+                <FieldError :id="errorId('billing_email')" :message="errors.billing_email" />
               </div>
 
               <div>
@@ -422,22 +375,17 @@
                 </label>
                 <input
                   id="subscribe-iban"
-                  ref="ibanInput"
+                  :ref="setRef('iban')"
                   v-model="form.iban"
                   type="text"
                   autocomplete="off"
                   autocapitalize="characters"
                   maxlength="42"
                   placeholder="ES00 0000 0000 0000 0000 0000"
-                  v-bind="fieldAttrs('iban', 'font-mono')"
+                  :class="inputClass('iban', 'font-mono')"
+                  v-bind="fieldAttrs('iban')"
                 />
-                <p
-                  v-if="fieldErrors.iban"
-                  :id="errorId('iban')"
-                  :class="ERROR_CLASS"
-                >
-                  {{ fieldErrors.iban }}
-                </p>
+                <FieldError :id="errorId('iban')" :message="errors.iban" />
                 <p class="mt-1 text-xs text-slate-600">
                   Solo guardamos el IBAN enmascarado.
                 </p>
@@ -456,16 +404,11 @@
                 <div class="flex items-start gap-3">
                   <input
                     id="subscribe-terms"
-                    ref="termsInput"
+                    :ref="setRef('accept_terms')"
                     v-model="form.accept_terms"
                     type="checkbox"
                     class="mt-1 h-4 w-4 accent-aqua-600"
-                    :aria-invalid="Boolean(fieldErrors.accept_terms)"
-                    :aria-describedby="
-                      fieldErrors.accept_terms
-                        ? errorId('accept_terms')
-                        : undefined
-                    "
+                    v-bind="fieldAttrs('accept_terms')"
                   />
                   <label for="subscribe-terms" class="text-sm text-slate-700">
                     Acepto las
@@ -486,41 +429,24 @@
                     >.
                   </label>
                 </div>
-                <p
-                  v-if="fieldErrors.accept_terms"
-                  :id="errorId('accept_terms')"
-                  :class="ERROR_CLASS"
-                >
-                  {{ fieldErrors.accept_terms }}
-                </p>
+                <FieldError :id="errorId('accept_terms')" :message="errors.accept_terms" />
               </div>
 
               <div>
                 <div class="flex items-start gap-3">
                   <input
                     id="subscribe-sepa"
-                    ref="sepaInput"
+                    :ref="setRef('accept_sepa')"
                     v-model="form.accept_sepa"
                     type="checkbox"
                     class="mt-1 h-4 w-4 accent-aqua-600"
-                    :aria-invalid="Boolean(fieldErrors.accept_sepa)"
-                    :aria-describedby="
-                      fieldErrors.accept_sepa
-                        ? errorId('accept_sepa')
-                        : undefined
-                    "
+                    v-bind="fieldAttrs('accept_sepa')"
                   />
                   <label for="subscribe-sepa" class="text-sm text-slate-700">
                     Autorizo la domiciliación SEPA en la cuenta indicada.
                   </label>
                 </div>
-                <p
-                  v-if="fieldErrors.accept_sepa"
-                  :id="errorId('accept_sepa')"
-                  :class="ERROR_CLASS"
-                >
-                  {{ fieldErrors.accept_sepa }}
-                </p>
+                <FieldError :id="errorId('accept_sepa')" :message="errors.accept_sepa" />
               </div>
             </div>
           </fieldset>
@@ -561,13 +487,7 @@
             Sin IVA: {{ chosenPeriod.price }}
           </p>
 
-          <p
-            v-if="generalError"
-            class="mt-4 rounded-lg border border-danger bg-danger-light/40 p-3 text-sm text-slate-900"
-            role="alert"
-          >
-            {{ generalError }}
-          </p>
+          <FormError class="mt-4" :message="generalError" />
 
           <button
             type="submit"
@@ -592,6 +512,19 @@ import { useSitesStore } from "../../stores/sites";
 import { parseDate } from "../../composables/useFormat";
 import { apiErrorMessage } from "../../utils/apiError";
 import { billedPrice, monthlyPrice, planFor } from "../../utils/pricing";
+import FieldError from "../../components/FieldError.vue";
+import FormError from "../../components/FormError.vue";
+import { useFieldErrors } from "../../composables/useFieldErrors.js";
+// Same rules as the API and the new client wizard (utils/validation.js)
+import {
+  cleanText,
+  emailProblem,
+  ibanProblem,
+  phoneProblem,
+  postalCodeProblem,
+  taxIdProblem,
+  textProblem,
+} from "../../utils/validation";
 
 // Where clients ask about the contract (no in-app request yet)
 const SUPPORT_EMAIL = "soporte@aquaguard.dev";
@@ -604,22 +537,13 @@ const MAX_SENSORS = 1000;
 const ADDRESS_MAX_LENGTH = 200;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-// Same checks as the backend (subscriptions/service.py)
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const POSTAL_CODE_PATTERN = /^\d{5}$/;
 // 08001 to 08042: Barcelona city
 const BARCELONA_POSTAL_CODE = /^080(0[1-9]|[1-3]\d|4[0-2])$/;
 const BARCELONA = "Barcelona";
-const SEPARATORS = /[\s.-]/g;
-const TAX_ID_PATTERN = /^[A-Z0-9]{8,15}$/;
-const IBAN_PATTERN = /^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/;
 
 const CARD_CLASS = "rounded-2xl border border-slate-200 bg-white p-6";
 const TITLE_CLASS = "mb-4 font-bold text-slate-900";
 const LABEL_CLASS = "mb-1 block text-xs font-semibold text-slate-700";
-const ERROR_CLASS = "mt-1 text-sm text-danger-dark";
-const INPUT_CLASS =
-  "w-full rounded-lg border px-4 py-3 focus:outline-none focus:ring-2 focus:ring-aqua-400";
 
 const authStore = useAuthStore();
 const sitesStore = useSitesStore();
@@ -688,73 +612,72 @@ const FIELD_ORDER = [
   "accept_sepa",
 ];
 
-const fieldErrors = reactive(
-  Object.fromEntries(FIELD_ORDER.map((field) => [field, ""])),
-);
-
-// Template refs, to move the focus to the first field with an error
-const sitesInput = ref(null);
-const sensorsInput = ref(null);
-const legalNameInput = ref(null);
-const taxIdInput = ref(null);
-const phoneInput = ref(null);
-const addressInput = ref(null);
-const postalCodeInput = ref(null);
-const cityInput = ref(null);
-const billingEmailInput = ref(null);
-const ibanInput = ref(null);
-const termsInput = ref(null);
-const sepaInput = ref(null);
-
-const inputRefs = {
-  sites: sitesInput,
-  sensors: sensorsInput,
-  legal_name: legalNameInput,
-  tax_id: taxIdInput,
-  phone: phoneInput,
-  address: addressInput,
-  postal_code: postalCodeInput,
-  city: cityInput,
-  billing_email: billingEmailInput,
-  iban: ibanInput,
-  accept_terms: termsInput,
-  accept_sepa: sepaInput,
-};
-
-// API field names that are not the field on screen
-const SCREEN_FIELD_BY_API_FIELD = { billing_address: "address" };
-
-// Backend error codes that belong to one field, with our Spanish text
-const FIELD_BY_CODE = {
-  SENSORS_BELOW_SITES: "sensors",
-  INVALID_TAX_ID: "tax_id",
-  INVALID_POSTAL_CODE: "postal_code",
-  INVALID_IBAN: "iban",
-  TERMS_NOT_ACCEPTED: "accept_terms",
-  SEPA_NOT_ACCEPTED: "accept_sepa",
-};
-
-// The backend checks more than the shape (the IBAN check digits), so its
-// rejection gets its own text instead of the shape hint of MESSAGE_BY_FIELD
-const MESSAGE_BY_CODE = {
-  SENSORS_BELOW_SITES: "Necesitas al menos un sensor por edificio.",
-  INVALID_IBAN: "El IBAN no es válido: revisa los dígitos de la cuenta.",
-};
+const {
+  errors,
+  errorId,
+  setRef,
+  inputClass,
+  fieldAttrs,
+  clear,
+  check,
+  focusFirstError,
+  clearOnEdit,
+  applyApiError,
+} = useFieldErrors(FIELD_ORDER, { size: "lg" });
+clearOnEdit({
+  sites: () => form.sites,
+  sensors: () => [form.sites, form.sensors],
+  legal_name: () => form.legal_name,
+  tax_id: () => form.tax_id,
+  phone: () => form.phone,
+  address: () => form.address,
+  postal_code: () => form.postal_code,
+  city: () => form.city,
+  billing_email: () => form.billing_email,
+  iban: () => form.iban,
+  accept_terms: () => form.accept_terms,
+  accept_sepa: () => form.accept_sepa,
+});
 
 const MESSAGE_BY_FIELD = {
   sites: `Elige entre 1 y ${MAX_SITES} edificios. Para más, escríbenos.`,
   sensors: `Elige entre 1 y ${MAX_SENSORS} sensores.`,
   legal_name: "Escribe la razón social (máximo 200 caracteres).",
   tax_id: "Escribe un CIF o NIF válido: entre 8 y 15 letras o números.",
-  phone: "Escribe un teléfono de 30 caracteres como máximo.",
+  phone: "Escribe un teléfono español de 9 cifras, por ejemplo 612 345 678.",
   address: "Escribe la dirección fiscal.",
   postal_code: "Escribe un código postal de 5 cifras.",
   city: "Escribe la ciudad y la provincia (máximo 120 caracteres).",
   billing_email: "Escribe un email válido, por ejemplo facturas@empresa.com.",
-  iban: "Revisa el IBAN: empieza por el país (ES) y tiene 24 caracteres en España.",
+  iban: "Revisa el IBAN: tiene que ser español, empieza por ES y tiene 24 caracteres.",
   accept_terms:
     "Tienes que aceptar las condiciones y la política de privacidad.",
   accept_sepa: "Tienes que autorizar la domiciliación para pagar por SEPA.",
+};
+
+// API errors of one field. The backend message is kept for the rules of
+// shared/fields.py (phone, tax id, postal code); some codes get our text
+const API_ERRORS = {
+  codes: {
+    SENSORS_BELOW_SITES: {
+      field: "sensors",
+      message: "Necesitas al menos un sensor por edificio.",
+    },
+    INVALID_TAX_ID: { field: "tax_id", message: MESSAGE_BY_FIELD.tax_id },
+    INVALID_POSTAL_CODE: "postal_code",
+    INVALID_PHONE: "phone",
+    INVALID_IBAN: { field: "iban", message: MESSAGE_BY_FIELD.iban },
+    TERMS_NOT_ACCEPTED: {
+      field: "accept_terms",
+      message: MESSAGE_BY_FIELD.accept_terms,
+    },
+    SEPA_NOT_ACCEPTED: {
+      field: "accept_sepa",
+      message: MESSAGE_BY_FIELD.accept_sepa,
+    },
+  },
+  aliases: { billing_address: "address" },
+  messages: MESSAGE_BY_FIELD,
 };
 
 function euros(value) {
@@ -912,42 +835,8 @@ const summaryRows = computed(() => [
   { label: "Empieza", value: "hoy, al confirmar el alta" },
 ]);
 
-function errorId(field) {
-  return `subscribe-${field}-error`;
-}
-
 function hintId(field) {
   return `subscribe-${field}-hint`;
-}
-
-// Hint always, and the error when there is one
-function describedBy(field) {
-  return [hintId(field), fieldErrors[field] ? errorId(field) : null]
-    .filter(Boolean)
-    .join(" ");
-}
-
-// Class and aria attributes of a text input, marked when it has an error
-function fieldAttrs(field, extraClass = "") {
-  const hasError = Boolean(fieldErrors[field]);
-  return {
-    class: [
-      INPUT_CLASS,
-      extraClass,
-      hasError ? "border-danger bg-danger-light/40" : "border-slate-300",
-    ],
-    "aria-invalid": hasError,
-    "aria-describedby": hasError ? errorId(field) : undefined,
-  };
-}
-
-function clearErrors() {
-  for (const field of FIELD_ORDER) fieldErrors[field] = "";
-  generalError.value = "";
-}
-
-function compact(value) {
-  return value.replace(SEPARATORS, "").toUpperCase();
 }
 
 // The same rules as the API, with the reason of the first one that fails
@@ -972,50 +861,43 @@ function sensorsError() {
 
 // Client-side checks, before calling the API. Returns true when valid.
 function validate() {
-  fieldErrors.sites = sitesError();
-  fieldErrors.sensors = sensorsError();
-  if (!form.legal_name.trim())
-    fieldErrors.legal_name = MESSAGE_BY_FIELD.legal_name;
-  if (!TAX_ID_PATTERN.test(compact(form.tax_id))) {
-    fieldErrors.tax_id = MESSAGE_BY_FIELD.tax_id;
-  }
-  if (form.phone.trim().length > 30) fieldErrors.phone = MESSAGE_BY_FIELD.phone;
-  if (!form.address.trim()) fieldErrors.address = MESSAGE_BY_FIELD.address;
-  if (!POSTAL_CODE_PATTERN.test(form.postal_code.trim())) {
-    fieldErrors.postal_code = MESSAGE_BY_FIELD.postal_code;
-  }
-  if (!form.city.trim()) fieldErrors.city = MESSAGE_BY_FIELD.city;
-  if (!EMAIL_PATTERN.test(form.billing_email.trim())) {
-    fieldErrors.billing_email = MESSAGE_BY_FIELD.billing_email;
-  }
-  if (!IBAN_PATTERN.test(compact(form.iban))) {
-    fieldErrors.iban = MESSAGE_BY_FIELD.iban;
-  }
-  if (!form.accept_terms)
-    fieldErrors.accept_terms = MESSAGE_BY_FIELD.accept_terms;
-  if (!form.accept_sepa) fieldErrors.accept_sepa = MESSAGE_BY_FIELD.accept_sepa;
-
-  return FIELD_ORDER.every((field) => !fieldErrors[field]);
-}
-
-function focusFirstError() {
-  const field = FIELD_ORDER.find((name) => fieldErrors[name]);
-  if (field) inputRefs[field].value?.focus();
+  return check({
+    sites: sitesError,
+    sensors: sensorsError,
+    legal_name: () =>
+      textProblem(form.legal_name, {
+        max: 200,
+        message: MESSAGE_BY_FIELD.legal_name,
+      }),
+    tax_id: () => taxIdProblem(form.tax_id),
+    phone: () => phoneProblem(form.phone),
+    address: () =>
+      textProblem(form.address, {
+        max: ADDRESS_MAX_LENGTH,
+        message: MESSAGE_BY_FIELD.address,
+      }),
+    postal_code: () => postalCodeProblem(form.postal_code),
+    city: () =>
+      textProblem(form.city, { max: 120, message: MESSAGE_BY_FIELD.city }),
+    billing_email: () => emailProblem(form.billing_email),
+    iban: () => ibanProblem(form.iban),
+    accept_terms: () => (form.accept_terms ? null : MESSAGE_BY_FIELD.accept_terms),
+    accept_sepa: () => (form.accept_sepa ? null : MESSAGE_BY_FIELD.accept_sepa),
+  });
 }
 
 function toPayload() {
-  const phone = form.phone.trim();
   return {
     sites: form.sites,
     sensors: form.sensors,
     billing_period: form.period,
-    legal_name: form.legal_name.trim(),
+    legal_name: cleanText(form.legal_name),
     tax_id: form.tax_id.trim(),
-    billing_address: form.address.trim(),
+    billing_address: cleanText(form.address),
     postal_code: form.postal_code.trim(),
-    city: form.city.trim(),
+    city: cleanText(form.city),
     billing_email: form.billing_email.trim(),
-    phone: phone || null,
+    phone: form.phone.trim(),
     iban: form.iban.trim(),
     accept_terms: form.accept_terms,
     accept_sepa: form.accept_sepa,
@@ -1024,40 +906,19 @@ function toPayload() {
 
 // Turns an API error (already normalized by the adapter) into field or general messages
 async function showApiError(err) {
-  const field = FIELD_BY_CODE[err?.code];
-  if (field) {
-    fieldErrors[field] = MESSAGE_BY_CODE[err.code] ?? MESSAGE_BY_FIELD[field];
-    return;
-  }
-
-  // Less than what it already has (a building or sensor was added meanwhile):
-  // the API says which field and how many. Reload the buildings for the minimums.
-  if (err?.code === "CONTRACT_BELOW_CURRENT") {
-    const apiField = err.details?.[0]?.field;
-    if (apiField in fieldErrors) {
-      fieldErrors[apiField] = err.message;
-      await sitesStore.fetchSites().catch(() => {});
-      return;
-    }
-  }
-
-  // Generic 422: details = [{ field, message, type }]
-  if (err?.code === "VALIDATION_ERROR" && Array.isArray(err.details)) {
-    let matched = false;
-    for (const detail of err.details) {
-      const screenField =
-        SCREEN_FIELD_BY_API_FIELD[detail?.field] ?? detail?.field;
-      if (screenField in fieldErrors) {
-        fieldErrors[screenField] = MESSAGE_BY_FIELD[screenField];
-        matched = true;
-      }
-    }
-    if (matched) return;
-  }
-
   // Already a client (another tab, or an admin activated it): reload the session
   if (err?.code === "ORGANIZATION_NOT_IN_TRIAL") {
     await authStore.fetchMe();
+    return;
+  }
+
+  // An error of a field: the code says which, or details[0].field
+  // (CONTRACT_BELOW_CURRENT, the API message says how many it already has)
+  if (applyApiError(err, API_ERRORS)) {
+    // A building or sensor was added meanwhile: reload them for the minimums
+    if (err.code === "CONTRACT_BELOW_CURRENT") {
+      await sitesStore.fetchSites().catch(() => {});
+    }
     return;
   }
 
@@ -1069,10 +930,10 @@ async function showApiError(err) {
 
 async function onSubmit() {
   if (submitting.value) return;
-  clearErrors();
+  clear();
+  generalError.value = "";
   if (!validate()) {
-    await nextTick();
-    focusFirstError();
+    await focusFirstError();
     return;
   }
 
@@ -1086,8 +947,7 @@ async function onSubmit() {
     doneTitle.value?.focus();
   } catch (err) {
     await showApiError(err);
-    await nextTick();
-    focusFirstError();
+    await focusFirstError();
   } finally {
     submitting.value = false;
   }

@@ -1,14 +1,14 @@
 # REPOSITORY — sites
-# Acceso a datos (SQLAlchemy queries). Filtrar siempre por organización.
+# Data access (SQLAlchemy queries). Always filter by organization.
 """
-Consultas de sites (issue #29).
+Site queries (issue #29).
 
-Lo escribe Ana: la #29 atribuía los repositories a Daruny, pero ninguna
-issue suya los recogía, y Ana decidió hacerlos el 03-10-2026.
+Written by Ana: #29 assigned the repositories to Daruny, but none of her
+issues covered them, and Ana decided to write them on 2026-10-03.
 
-`organization_id=None` significa TODAS las organizaciones (admin), como en
-el resto de repositories desde la #27. Lo decide `get_org_scope` en
-shared/dependencies.py; nunca se pasa `user.organization_id` directamente.
+`organization_id=None` means ALL organizations (admin), as in the rest
+of the repositories since #27. `get_org_scope` in shared/dependencies.py
+decides it; `user.organization_id` is never passed directly.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ from app.shared.utils import matches_text
 
 @dataclass(frozen=True)
 class SiteCounts:
-    """Campos calculados de `SiteResponse` (B2)."""
+    """Computed fields of `SiteResponse` (B2)."""
 
     sensors: int = 0
     status: SiteStatus = SiteStatus.OK
@@ -48,8 +48,8 @@ class SiteRepository:
         organization_filter: UUID | None = None,
     ) -> tuple[list[Site], int]:
         """
-        `organization_id` es el alcance de la sesión; `organization_filter`
-        y `q`, los filtros comunes de la B0. Se aplican todos a la vez.
+        `organization_id` is the session scope; `organization_filter` and
+        `q`, the common filters of B0. They all apply at once.
         """
         if offset < 0 or limit <= 0:
             raise ValueError("Invalid pagination")
@@ -66,12 +66,12 @@ class SiteRepository:
             select(func.count()).select_from(query.subquery())
         )
 
-        # Por nombre, que es como se buscan en una lista; el id desempata
-        # para que la paginación no repita ni salte sites con el mismo nombre.
+        # By name, which is how they are looked for in a list; the id breaks
+        # ties so pagination never repeats or skips sites with the same name.
         items = list(
             self.db.scalars(
-                # La organización de toda la página en una sola consulta,
-                # para `organization_name` (B0).
+                # The organization of the whole page in a single query, for
+                # `organization_name` (B0).
                 query.options(selectinload(Site.organization))
                 .order_by(Site.name, Site.id).offset(offset).limit(limit)
             ).all()
@@ -80,7 +80,7 @@ class SiteRepository:
         return items, int(total or 0)
 
     def create(self, **campos) -> Site:
-        """Alta de site. La usa el alta de organización con `first_site` (B1)."""
+        """Creates a site. Also used by the organization creation with `first_site` (B1)."""
         site = Site(**campos)
         self.db.add(site)
         self.db.flush()
@@ -98,14 +98,15 @@ class SiteRepository:
 
     def get_for_update(self, site_id: UUID) -> Site | None:
         """
-        El site con su fila bloqueada (`SELECT … FOR UPDATE`) hasta el
-        commit o el rollback (B3, #139).
+        The site with its row locked (`SELECT … FOR UPDATE`) until the
+        commit or rollback (B3, #139).
 
-        Lo usan las operaciones que comprueban plantas: editar el edificio y
-        dar de alta o mover un sensor. Todas bloquean el site, así que van
-        una detrás de otra y ninguna valida contra plantas que otra está
-        cambiando. `populate_existing` rellena el objeto con lo que devuelve
-        la consulta aunque la sesión ya lo tuviera cargado. SQLite lo ignora.
+        Used by the operations that check floors: editing the building and
+        creating or moving a sensor. They all lock the site, so they go one
+        after the other and none validates against floors another one is
+        changing. `populate_existing` fills the object with what the query
+        returns even if the session already had it loaded. SQLite ignores
+        it.
         """
         return self.db.scalar(
             select(Site)
@@ -114,11 +115,11 @@ class SiteRepository:
             .execution_options(populate_existing=True)
         )
 
-    # Añadidos por Ana para la B2 (#139).
+    # Added by Ana for B2 (#139).
     def counts(self, site_ids: list[UUID]) -> dict[UUID, SiteCounts]:
         """
-        Sensores y estado de varios sites a la vez: dos consultas
-        `GROUP BY` para toda la página, no dos por site.
+        Sensors and status of several sites at once: two `GROUP BY`
+        queries for the whole page, not two per site.
         """
         if not site_ids:
             return {}
@@ -157,7 +158,7 @@ class SiteRepository:
         }
 
     def count_by_organization(self, organization_id: UUID) -> int:
-        """Edificios de una organización, para el límite del plan (B14)."""
+        """Buildings of an organization, for the plan limit (B14)."""
         return self.db.scalar(
             select(func.count()).select_from(Site).where(
                 Site.organization_id == organization_id
@@ -165,17 +166,17 @@ class SiteRepository:
         )
 
     def has_sensors(self, site_id: UUID) -> bool:
-        """True si el site tiene algún sensor. `EXISTS`: no hace falta contarlos."""
+        """True if the site has some sensor. `EXISTS`: no need to count them."""
         return bool(self.db.scalar(select(exists().where(Sensor.site_id == site_id))))
 
     def has_documents(self, site_id: UUID) -> bool:
         """
-        True si el site tiene algún documento.
+        True if the site has some document.
 
-        Hace falta mirarlo a mano: `documents.site_id` es `ON DELETE
-        CASCADE`, así que la base de datos borraría los documentos sin avisar
-        (revisión de la PR #194). El CASCADE se queda para la B16, que borra
-        un cliente entero con todo lo suyo.
+        It has to be checked by hand: `documents.site_id` is `ON DELETE
+        CASCADE`, so the database would delete the documents without
+        warning (review of PR #194). The CASCADE stays for B16, which
+        deletes a whole client with everything it owns.
         """
         return bool(
             self.db.scalar(select(exists().where(Document.site_id == site_id)))
@@ -185,9 +186,9 @@ class SiteRepository:
         self, organization_id: UUID, name: str, exclude_id: UUID | None = None
     ) -> bool:
         """
-        True si el cliente ya tiene un edificio con ese nombre. Mismo
-        criterio que la restricción `uq_sites_organization_name`: nombre
-        exacto dentro de la organización.
+        True if the client already has a building with that name. Same
+        rule as the `uq_sites_organization_name` constraint: exact name
+        within the organization.
         """
         query = select(Site.id).where(
             Site.organization_id == organization_id, Site.name == name
@@ -198,8 +199,9 @@ class SiteRepository:
 
     def sensor_floor_range(self, site_id: UUID) -> tuple[int, int] | None:
         """
-        Planta más baja y más alta con sensores, o `None` si no tiene.
-        Sirve para no dejar sensores fuera del edificio al quitarle plantas.
+        Lowest and highest floor with sensors, or `None` if it has none.
+        Used to avoid leaving sensors outside the building when floors are
+        removed.
         """
         minimo, maximo = self.db.execute(
             select(func.min(Sensor.floor), func.max(Sensor.floor)).where(

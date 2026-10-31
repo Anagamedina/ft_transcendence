@@ -24,7 +24,11 @@ test.beforeAll(async () => {
   expect((await api.post('/api/auth/login', { data: ADMIN })).ok()).toBe(true)
   // Floors 0 to 2 and one basement
   const created = await api.post('/api/organizations', {
-    data: { name: CLIENT_NAME, first_site: { name: SITE_NAME, floors: 3, basements: 1 } },
+    data: {
+      name: CLIENT_NAME,
+      phone: '612 345 678',
+      first_site: { name: SITE_NAME, floors: 3, basements: 1 },
+    },
   })
   expect(created.status()).toBe(201)
   const client = await created.json()

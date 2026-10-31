@@ -1,1 +1,1 @@
-# shared — utilidades y dependencias reutilizadas por modules/*.
+# shared — utilities and dependencies reused by modules/*.

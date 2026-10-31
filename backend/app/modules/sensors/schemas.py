@@ -1,26 +1,27 @@
 # SCHEMAS — sensors
-# Pydantic request/response (contrato OpenAPI). No devolver model ORM crudo.
+# Pydantic request/response (OpenAPI contract). Never return a raw ORM model.
 """
-Contrato de sensores (issue #23).
+Sensors contract (issue #23).
 
-Campos según el modelo de dominio del documento de arquitectura
-(apartado 5):
+Fields according to the domain model of the architecture document
+(section 5):
 
     sensors: id, site_id, name, location, sensor_type,
              min_pressure, max_pressure, status, last_seen_at, created_at
 
-Dos cosas que conviene entender de este módulo:
+Two things worth understanding about this module:
 
-**Los umbrales viven en el sensor, no en la regla de alerta.** Cada sensor
-tiene su `min_pressure` y `max_pressure` porque la presión normal de un
-depósito no es la de una planta 12. La issue #28 comparará cada lectura
-con los umbrales de *su* sensor para decidir si hay LOW_PRESSURE o
-HIGH_PRESSURE.
+**The thresholds live on the sensor, not on the alert rule.** Each sensor
+has its own `min_pressure` and `max_pressure` because the normal pressure
+of a tank is not that of a 12th floor. Issue #28 compares each reading
+with the thresholds of *its* sensor to decide whether there is
+LOW_PRESSURE or HIGH_PRESSURE.
 
-**`last_seen_at` es la base de la tercera alerta.** SENSOR_OFFLINE no se
-detecta por lo que llega, sino por lo que deja de llegar: si
-`last_seen_at` se aleja demasiado del momento actual, el sensor está
-mudo. Por eso el campo está en el sensor y no en las lecturas.
+**`last_seen_at` is the basis of the third alert.** SENSOR_OFFLINE is not
+detected from what arrives, but from what stops arriving: if
+`last_seen_at` gets too far from now, the sensor is silent. It is not a
+column: it is computed from the readings when answering
+(`sensors/status.py`).
 """
 
 from __future__ import annotations
@@ -30,19 +31,20 @@ from uuid import UUID
 
 from pydantic import Field, field_validator, model_validator
 
-# SensorType y SensorStatus viven en shared/enums.py (B0); se reexportan
-# desde aquí porque el resto del código ya los importa de este módulo.
+# SensorType and SensorStatus live in shared/enums.py (B0); they are
+# re-exported from here because the rest of the code already imports them
+# from this module.
 from app.shared.enums import SensorHealth, SensorStatus, SensorType
 from app.shared.schemas import ApiModel, ApiRequest
 
-# Límite físico del rango de medida que aceptamos para un sensor de
-# presión de instalación interna, en bar. La presión de servicio real de
-# un edificio ronda 1–6 bar; el margen hasta 25 cubre picos y golpe de
-# ariete sin dar por buena una lectura absurda como 900.
+# Physical limit of the measuring range we accept for an indoor
+# installation pressure sensor, in bar. The real service pressure of a
+# building is around 1–6 bar; the margin up to 25 covers peaks and water
+# hammer without accepting an absurd reading like 900.
 #
-# La tabla `sensors` aplica este mismo rango a los umbrales con el CHECK
-# `ck_sensors_threshold_range` (issue #97): si se cambia aquí, hay que
-# cambiarlo también allí con una migración.
+# The `sensors` table applies the same range to the thresholds with the
+# `ck_sensors_threshold_range` CHECK (issue #97): if it changes here,
+# change it there too with a migration.
 PRESSURE_MIN_BAR = 0.0
 PRESSURE_MAX_BAR = 25.0
 
@@ -51,29 +53,29 @@ class SensorBase(ApiRequest):
     name: str = Field(
         min_length=1,
         max_length=120,
-        description="Nombre del sensor.",
+        description="Sensor name.",
         examples=["Sensor cocina"],
     )
     location: str | None = Field(
         default=None,
         max_length=120,
-        description="Zona del edificio donde está instalado.",
+        description="Area of the building where it is installed.",
         examples=["Planta 1 - Cocina"],
     )
     sensor_type: SensorType = Field(
         default=SensorType.PRESSURE,
-        description="Magnitud medida.",
+        description="Measured quantity.",
     )
     min_pressure: float = Field(
         ge=PRESSURE_MIN_BAR,
         le=PRESSURE_MAX_BAR,
-        description="Umbral inferior en bar. Por debajo se genera LOW_PRESSURE.",
+        description="Lower threshold in bar. Below it, LOW_PRESSURE is raised.",
         examples=[1.5],
     )
     max_pressure: float = Field(
         ge=PRESSURE_MIN_BAR,
         le=PRESSURE_MAX_BAR,
-        description="Umbral superior en bar. Por encima se genera HIGH_PRESSURE.",
+        description="Upper threshold in bar. Above it, HIGH_PRESSURE is raised.",
         examples=[6.0],
     )
 
@@ -81,8 +83,8 @@ class SensorBase(ApiRequest):
     @classmethod
     def _nombre_no_vacio(cls, valor: str) -> str:
         """
-        `min_length=1` no recorta: `"   "` lo pasaría. Se quitan los espacios
-        de los extremos y, si no queda nada, se rechaza (#29).
+        `min_length=1` does not trim: `"   "` would pass it. The spaces at
+        both ends are removed and, if nothing is left, it is rejected (#29).
         """
         valor = valor.strip()
         if not valor:
@@ -92,15 +94,15 @@ class SensorBase(ApiRequest):
     @model_validator(mode="after")
     def _check_threshold_order(self) -> "SensorBase":
         """
-        Validación entre campos: el mínimo tiene que ser menor que el máximo.
+        Cross-field validation: the minimum must be lower than the maximum.
 
-        `Field(ge=..., le=...)` solo puede mirar un campo por separado, así
-        que `min_pressure=8` con `max_pressure=2` pasaría esa capa sin
-        problema. Un `model_validator(mode="after")` se ejecuta cuando el
-        objeto ya está construido y sí puede comparar los dos.
+        `Field(ge=..., le=...)` can only look at one field at a time, so
+        `min_pressure=8` with `max_pressure=2` would pass that layer. A
+        `model_validator(mode="after")` runs once the object is built and
+        can compare both.
 
-        Sin esto el sensor quedaría en un estado imposible: toda lectura
-        sería a la vez demasiado baja y demasiado alta.
+        Without this the sensor would be in an impossible state: every
+        reading would be too low and too high at the same time.
         """
         if self.min_pressure >= self.max_pressure:
             raise ValueError("min_pressure debe ser menor que max_pressure")
@@ -109,21 +111,22 @@ class SensorBase(ApiRequest):
 
 class SensorCreate(SensorBase):
     """
-    Alta de sensor (`POST /api/sensors`, issue #29).
+    Sensor creation (`POST /api/sensors`, issue #29).
 
-    `site_id` sí se envía aquí, a diferencia de `organization_id` en sites:
-    el admin elige en qué edificio instala el sensor. Solo un admin puede
-    dar de alta sensores, y un admin ve todas las organizaciones (#27), así
-    que el service solo comprueba que el site exista (404 si no).
+    `site_id` is sent here, unlike `organization_id` in sites: the admin
+    chooses the building the sensor is installed in. Only an admin can
+    create sensors, and an admin sees every organization (#27), so the
+    service only checks that the site exists (404 if not).
     """
 
-    site_id: UUID = Field(description="Site donde se instala el sensor.")
+    site_id: UUID = Field(description="Site where the sensor is installed.")
     external_id: str = Field(
         min_length=1,
         max_length=100,
         description=(
-            "Etiqueta del aparato físico o del fabricante, distinta del id "
-            "interno. Única dentro de su site: repetirla da 409."
+            "Label of the physical device or the manufacturer, different "
+            "from the internal id. Unique within its site: repeating it "
+            "gives 409."
         ),
         examples=["SENS-001"],
     )
@@ -131,15 +134,15 @@ class SensorCreate(SensorBase):
         default="bar",
         min_length=1,
         max_length=20,
-        description="Unidad de medida. Si no se envía, `bar`.",
+        description="Unit of measure. If not sent, `bar`.",
         examples=["bar"],
     )
     floor: int = Field(
         default=0,
         description=(
-            "Planta donde se instala (B3). 0 es la baja; negativo, sótano. "
-            "Tiene que existir en el edificio: entre `-basements` y "
-            "`floors - 1`, o 422 `FLOOR_OUT_OF_SITE`."
+            "Floor where it is installed (B3). 0 is the ground floor; "
+            "negative, a basement. It must exist in the building: between "
+            "`-basements` and `floors - 1`, or 422 `FLOOR_OUT_OF_SITE`."
         ),
         examples=[2],
     )
@@ -147,12 +150,12 @@ class SensorCreate(SensorBase):
 
 class SensorUpdate(ApiRequest):
     """
-    Modificación parcial (`PATCH /api/sensors/{id}`, issue #29).
+    Partial update (`PATCH /api/sensors/{id}`, issue #29).
 
-    No incluye `status`, `health`, `last_seen_at` ni `last_value`: los
-    calcula el backend a partir de las lecturas y las alertas. Si el
-    cliente pudiera escribirlos, podría marcar como ONLINE un sensor que
-    lleva días mudo.
+    It does not include `status`, `health`, `last_seen_at` or
+    `last_value`: the backend computes them from the readings and the
+    alerts. If the client could write them, it could mark ONLINE a sensor
+    that has been silent for days.
     """
 
     name: str | None = Field(default=None, min_length=1, max_length=120)
@@ -166,15 +169,16 @@ class SensorUpdate(ApiRequest):
     floor: int | None = Field(
         default=None,
         description=(
-            "Mover el sensor de planta (B3). Misma regla que en el alta: "
-            "entre `-basements` y `floors - 1` de su edificio."
+            "Move the sensor to another floor (B3). Same rule as on "
+            "creation: between `-basements` and `floors - 1` of its "
+            "building."
         ),
     )
 
     @field_validator("name")
     @classmethod
     def _nombre_no_vacio(cls, valor: str | None) -> str | None:
-        """Igual que en el alta. `None` lo trata el service (no se puede borrar)."""
+        """Same as on creation. The service handles `None` (it cannot be cleared)."""
         if valor is None:
             return None
         valor = valor.strip()
@@ -185,12 +189,12 @@ class SensorUpdate(ApiRequest):
     @model_validator(mode="after")
     def _check_threshold_order(self) -> "SensorUpdate":
         """
-        Aquí solo se puede comparar si llegan los dos umbrales a la vez.
+        Here it can only compare if both thresholds arrive together.
 
-        Si el PATCH trae únicamente `max_pressure`, hay que contrastarlo
-        con el `min_pressure` que ya está guardado, y eso requiere leer el
-        sensor: es una comprobación de negocio y la hace el service, no el
-        schema.
+        If the PATCH only brings `max_pressure`, it has to be checked
+        against the `min_pressure` already stored, and that needs reading
+        the sensor: it is a business check and the service does it, not
+        the schema.
         """
         if self.min_pressure is not None and self.max_pressure is not None:
             if self.min_pressure >= self.max_pressure:
@@ -201,43 +205,43 @@ class SensorUpdate(ApiRequest):
 class SensorResponse(ApiModel):
     id: UUID
     site_id: UUID
-    # Campos de lectura (B0): para que las listas pinten el edificio y el
-    # cliente sin pedirlos aparte.
-    site_name: str = Field(description="Nombre del edificio.")
-    organization_id: UUID = Field(description="Organización del edificio.")
-    organization_name: str = Field(description="Nombre de la organización.")
+    # Read-only fields (B0): so lists can show the building and the client
+    # without asking for them separately.
+    site_name: str = Field(description="Building name.")
+    organization_id: UUID = Field(description="Organization of the building.")
+    organization_name: str = Field(description="Organization name.")
     floor: int = Field(
-        description="Planta donde está el sensor. 0 es la baja; negativo, sótano."
+        description="Floor of the sensor. 0 is the ground floor; negative, a basement."
     )
     external_id: str = Field(
-        description="Etiqueta del aparato físico (`SENS-001`), única en su site."
+        description="Label of the physical device (`SENS-001`), unique in its site."
     )
     name: str
     location: str | None = None
     sensor_type: SensorType
-    unit: str = Field(description="Unidad de las lecturas y de los umbrales.")
-    min_pressure: float = Field(description="Umbral inferior en bar.")
-    max_pressure: float = Field(description="Umbral superior en bar.")
-    status: SensorStatus = Field(description="Estado operativo calculado.")
+    unit: str = Field(description="Unit of the readings and the thresholds.")
+    min_pressure: float = Field(description="Lower threshold in bar.")
+    max_pressure: float = Field(description="Upper threshold in bar.")
+    status: SensorStatus = Field(description="Computed operational status.")
     health: SensorHealth = Field(
         description=(
-            "Salud calculada (B3): `OFFLINE` si lleva más de 5 minutos sin "
-            "lecturas; si no, `CRITICAL` o `WARNING` según sus alertas sin "
-            "resolver, y `OK` si no tiene ninguna."
+            "Computed health (B3): `OFFLINE` if it has gone more than 5 "
+            "minutes without readings; otherwise `CRITICAL` or `WARNING` "
+            "depending on its unresolved alerts, and `OK` if it has none."
         )
     )
     last_seen_at: datetime | None = Field(
         default=None,
         description=(
-            "Última vez que se recibió una lectura de este sensor, en UTC. "
-            "Nulo si nunca ha enviado ninguna."
+            "Last time a reading from this sensor was received, in UTC. "
+            "Null if it has never sent one."
         ),
     )
     last_value: float | None = Field(
         default=None,
         description=(
-            "Valor de esa misma última lectura, en `unit` (B3). Nulo si "
-            "nunca ha enviado ninguna."
+            "Value of that same last reading, in `unit` (B3). Null if it "
+            "has never sent one."
         ),
         examples=[3.4],
     )
@@ -245,9 +249,9 @@ class SensorResponse(ApiModel):
 
 
 class SensorImportRow(ApiModel):
-    """Un sensor del CSV, tal como se va a crear (o se ha creado)."""
+    """A sensor of the CSV, as it will be created (or was created)."""
 
-    line: int = Field(description="Línea del archivo; la cabecera es la 1.")
+    line: int = Field(description="Line of the file; the header is line 1.")
     external_id: str
     name: str
     location: str | None = None
@@ -258,13 +262,14 @@ class SensorImportRow(ApiModel):
 
 class SensorImportResponse(ApiModel):
     """
-    Resultado de `POST /api/sensors/import`.
+    Result of `POST /api/sensors/import`.
 
-    Con `dry_run` no se crea nada: es la vista previa de lo que se crearía.
+    With `dry_run` nothing is created: it is a preview of what would be
+    created.
     """
 
     dry_run: bool
     site_id: UUID
     site_name: str
-    created: int = Field(description="Sensores creados: 0 en la vista previa.")
+    created: int = Field(description="Sensors created: 0 in the preview.")
     sensors: list[SensorImportRow]

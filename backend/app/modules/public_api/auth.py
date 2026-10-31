@@ -1,18 +1,19 @@
-"""Autenticación y scope de la API pública.
+"""Authentication and scope of the public API.
 
-La API pública no usa la cookie de sesión ni la clave del simulador. Dos
-claves de entorno, enviadas en la misma cabecera `X-API-Key`, identifican
-al consumidor y quedan limitadas a una única organización configurada:
+The public API uses neither the session cookie nor the simulator key. Two
+environment keys, sent in the same `X-API-Key` header, identify the
+consumer and are limited to a single configured organization:
 
-- `PUBLIC_API_KEY` solo lee (los GET).
-- `PUBLIC_API_WRITE_KEY` lee y escribe (POST, PUT y DELETE). Si está vacía,
-  la escritura queda apagada.
+- `PUBLIC_API_KEY` only reads (the GETs).
+- `PUBLIC_API_WRITE_KEY` reads and writes (POST, PUT and DELETE). If it is
+  empty, writing is off.
 
-Así una integración que solo consulta datos no puede borrar nada aunque
-alguien le robe la clave.
+So an integration that only queries data cannot delete anything even if
+someone steals its key.
 
-La organización sigue las mismas reglas que en la app: suspendida, no
-entra (`ACCOUNT_DISABLED`); con la prueba vencida, solo lee (`TRIAL_EXPIRED`).
+The organization follows the same rules as in the app: suspended, it
+cannot get in (`ACCOUNT_DISABLED`); with the trial over, it only reads
+(`TRIAL_EXPIRED`).
 """
 
 from __future__ import annotations
@@ -36,8 +37,8 @@ public_api_key_header = APIKeyHeader(
     name="X-API-Key",
     scheme_name="PublicApiKey",
     description=(
-        "Clave de la API pública, configurada fuera de Git. `PUBLIC_API_KEY` "
-        "solo lee; `PUBLIC_API_WRITE_KEY` también crea, reemplaza y borra."
+        "Public API key, configured outside Git. `PUBLIC_API_KEY` only "
+        "reads; `PUBLIC_API_WRITE_KEY` also creates, replaces and deletes."
     ),
     auto_error=False,
 )
@@ -46,14 +47,14 @@ ApiKey = Annotated[str | None, Security(public_api_key_header)]
 
 
 def _matches(api_key: str | None, expected: str | None) -> bool:
-    """Comparación en tiempo constante; una clave vacía no abre nada."""
+    """Constant-time comparison; an empty key opens nothing."""
     return bool(expected) and api_key is not None and secrets.compare_digest(
         api_key, expected
     )
 
 
 def _organization(db: DbSession) -> Organization:
-    """La organización a la que queda limitada la API, o 400 si falta."""
+    """The organization the API is limited to, or 400 if it is missing."""
     organization_id = app_settings.PUBLIC_API_ORGANIZATION_ID
     if organization_id is None:
         raise BadRequestError(
@@ -61,8 +62,8 @@ def _organization(db: DbSession) -> Organization:
             code="PUBLIC_API_NOT_CONFIGURED",
         )
 
-    # Una configuración que apunte a una organización borrada no debe
-    # parecer una API vacía válida: es un error de despliegue detectable.
+    # A configuration pointing to a deleted organization must not look like
+    # a valid empty API: it is a detectable deployment error.
     organization = db.get(Organization, organization_id)
     if organization is None:
         raise BadRequestError(
@@ -78,7 +79,7 @@ def _organization(db: DbSession) -> Organization:
 
 
 def require_public_api_key(api_key: ApiKey, db: DbSession) -> UUID:
-    """Lectura: vale cualquiera de las dos claves."""
+    """Read: either key works."""
     if not (
         _matches(api_key, app_settings.PUBLIC_API_KEY)
         or _matches(api_key, app_settings.PUBLIC_API_WRITE_KEY)
@@ -88,7 +89,7 @@ def require_public_api_key(api_key: ApiKey, db: DbSession) -> UUID:
 
 
 def require_public_write_key(api_key: ApiKey, db: DbSession) -> UUID:
-    """Escritura: solo la clave de escritura. La de lectura da 403."""
+    """Write: only the write key. The read key gives 403."""
     if _matches(api_key, app_settings.PUBLIC_API_KEY):
         raise ForbiddenError(
             "Esta API key es de solo lectura.", code="PUBLIC_API_READ_ONLY"

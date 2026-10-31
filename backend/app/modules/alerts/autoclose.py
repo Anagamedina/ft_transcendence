@@ -1,28 +1,29 @@
 # AUTOCLOSE — alerts
-# Cierre automático de alertas cuando las lecturas vuelven a ser normales (#277).
+# Automatic closing of alerts when readings are normal again (#277).
 """
-Si el cliente arregla la avería, las lecturas lo reflejan en segundos: son
-la prueba. Decidido el 25-10 (cambia la decisión del 28-09, «no se cierra
-sola»): **las lecturas cierran; el botón del admin es la excepción.**
+If the client fixes the fault, the readings show it within seconds: they
+are the proof. Decided on 2026-10-25 (it changes the 2026-09-28 decision,
+"it does not close on its own"): **readings close alerts; the admin
+button is the exception.**
 
-- **Presión baja o alta**: se cierra tras `CONFIRMAR_DURANTE` (15 min)
-  seguidos sin ninguna lectura fuera de rango.
-- **Sensor sin conexión**: se cierra tras 15 min enviando lecturas otra vez.
-- **Solo con un sensor que sigue enviando**: si su última lectura tiene más
-  de `OFFLINE_TRAS`, no se confirma nada (si se calla, ya saltará su propia
-  alerta de sin conexión).
-- **`resolved_at` es la primera lectura normal**, no el momento en que se
-  confirma: los 15 minutos son de confirmación, el agua ya iba bien. Así
-  «Tardó» y la mediana de resolución son reales. `resolved_by` queda vacío:
-  «por las lecturas».
+- **Low or high pressure**: closed after `CONFIRMAR_DURANTE` (15 min) in
+  a row without any out-of-range reading.
+- **Sensor offline**: closed after 15 min of sending readings again.
+- **Only with a sensor that keeps sending**: if its last reading is older
+  than `OFFLINE_TRAS`, nothing is confirmed (if it goes silent, its own
+  offline alert will fire).
+- **`resolved_at` is the first normal reading**, not the moment it is
+  confirmed: the 15 minutes are for confirmation, the water was already
+  fine. So "Tardó" (time taken) and the resolution median are real.
+  `resolved_by` stays empty: "by the readings".
 
-`normal_desde` la usan también los avisos al cliente (#275: no se avisa
-mientras se confirma) y la API (`normal_since`, `closes_at`).
+`normal_desde` is also used by the client notices (#275: no notice while
+confirming) and by the API (`normal_since`, `closes_at`).
 
-Se mira por `created_at` (cuándo llegó la lectura), como la regla de sensor
-sin conexión, con el índice `ix_readings_sensor_created_at`. Se comparan
-los umbrales actuales del sensor: si el admin corrige un límite mal puesto,
-las lecturas siguientes ya cuentan como normales.
+It looks at `created_at` (when the reading arrived), like the offline
+sensor rule, with the `ix_readings_sensor_created_at` index. The current
+sensor thresholds are compared: if the admin fixes a wrong limit, the
+next readings already count as normal.
 """
 
 from __future__ import annotations
@@ -41,7 +42,7 @@ CONFIRMAR_DURANTE = timedelta(minutes=15)
 
 
 def _utc(fecha: datetime | None) -> datetime | None:
-    """sqlite (tests) devuelve las fechas sin zona; se guardan en UTC."""
+    """sqlite (tests) returns dates without a zone; they are stored in UTC."""
     if fecha is None:
         return None
     return fecha if fecha.tzinfo else fecha.replace(tzinfo=timezone.utc)
@@ -49,9 +50,9 @@ def _utc(fecha: datetime | None) -> datetime | None:
 
 def normal_desde(db: Session, alerta: Alert, ahora: datetime | None = None) -> datetime | None:
     """
-    Desde cuándo las lecturas del sensor de esta alerta son normales sin
-    interrupción, o None si ahora mismo no lo son (o no se puede saber).
-    Solo tiene sentido para alertas abiertas.
+    Since when the readings of this alert's sensor have been normal without
+    interruption, or None if they are not right now (or it cannot be
+    known). Only meaningful for open alerts.
     """
     ahora = ahora or datetime.now(timezone.utc)
     if alerta.status != "ACTIVE":
@@ -64,14 +65,14 @@ def normal_desde(db: Session, alerta: Alert, ahora: datetime | None = None) -> d
         return None
 
     if alerta.alert_type == "SENSOR_OFFLINE":
-        # Vuelve a mandar: cuenta desde la primera lectura después de la alerta
+        # Sending again: counts from the first reading after the alert
         return _utc(db.scalar(select(func.min(Reading.created_at)).where(*desde_alerta)))
 
     fuera = or_(Reading.value < sensor.low_threshold, Reading.value > sensor.high_threshold)
     ultima_mala = db.scalar(select(func.max(Reading.created_at)).where(*desde_alerta, fuera))
     if ultima_mala is None:
-        # La lectura que abrió la alerta puede haber llegado con la misma
-        # hora: si desde entonces todo es normal, cuenta desde la primera
+        # The reading that opened the alert may have arrived with the same
+        # time: if everything is normal since then, count from the first
         return _utc(db.scalar(select(func.min(Reading.created_at)).where(*desde_alerta)))
     return _utc(db.scalar(
         select(func.min(Reading.created_at)).where(
@@ -81,16 +82,17 @@ def normal_desde(db: Session, alerta: Alert, ahora: datetime | None = None) -> d
 
 
 def se_cierra_a(desde: datetime | None) -> datetime | None:
-    """Cuándo se cerrará sola si sigue normal. Es `closes_at` de la API."""
+    """When it will close on its own if it stays normal. It is the API `closes_at`."""
     return desde + CONFIRMAR_DURANTE if desde else None
 
 
 def cerrar_por_lecturas(db: Session, ahora: datetime | None = None) -> int:
     """
-    Cierra las alertas abiertas cuyo sensor lleva 15 minutos normal.
-    Devuelve cuántas ha cerrado.
+    Closes the open alerts whose sensor has been normal for 15 minutes.
+    Returns how many it closed.
 
-    `ahora` se puede pasar desde fuera para probarlo sin depender del reloj.
+    `ahora` ("now") can be passed in to test it without depending on the
+    clock.
     """
     ahora = ahora or datetime.now(timezone.utc)
     abiertas = db.scalars(
@@ -108,7 +110,7 @@ def cerrar_por_lecturas(db: Session, ahora: datetime | None = None) -> int:
     with transaction(db):
         for alerta, desde in cerrar:
             alerta.status = "RESOLVED"
-            # Nunca antes de que saltara (lecturas con la misma hora)
+            # Never before it fired (readings with the same time)
             alerta.resolved_at = max(desde, _utc(alerta.created_at))
             alerta.resolved_by = None
     return len(cerrar)

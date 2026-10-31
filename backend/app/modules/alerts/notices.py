@@ -1,32 +1,35 @@
 # NOTICES — alerts
-# Avisos por email al cliente cuando nadie se encarga de una alerta (#275).
+# Email notices to the client when nobody handles an alert (#275).
 """
-Nuestro servicio es avisar a tiempo. Si una alerta sigue «Sin atender»
-(nadie ha pulsado «Me encargo»), se avisa al cliente por email y, si nadie
-responde, AquaGuard llama. Lo llama cada minuto `alerts/vigilante.py`.
+Our service is to warn in time. If an alert is still "Sin atender"
+(unhandled: nobody pressed "Me encargo", "I'll handle it"), the client is
+emailed and, if nobody answers, AquaGuard calls. `alerts/vigilante.py`
+calls this every minute.
 
-Calendario (minutos desde que saltó la alerta), el mismo que dibuja el
-frontend en `utils/notificationSteps.js`:
+Schedule (minutes since the alert fired), the same one the frontend draws
+in `utils/notificationSteps.js`:
 
-    CRITICAL  email 1 a los 5 · email 2 a los 20 · a los 45, AquaGuard llama
-    WARNING   email 1 a los 60
+    CRITICAL  email 1 at 5 · email 2 at 20 · at 45, AquaGuard calls
+    WARNING   email 1 at 60
 
-- **A quién**: el 1.º al email de contacto de la organización; el 2.º a ese
-  contacto y a todos sus usuarios activos. Sin contacto, el 1.º va a los
-  usuarios. Sin nadie a quien enviar, no se apunta nada (se ve en el log).
-- **Uno por vuelta y por alerta**: si el backend estuvo parado y ya tocaban
-  los dos, se envía el 1.º y el 2.º en la vuelta siguiente, no los dos de
-  golpe.
-- **Se apunta antes de enviar**: la fila de `alert_notifications` se guarda
-  primero (con `UNIQUE (alert_id, attempt)`) y después se envía. Si el
-  proceso muere entre medias, ese aviso se pierde, pero nunca se repite.
-  Avisar dos veces asusta y quita credibilidad; uno perdido lo cubre el
-  siguiente y, al final, la llamada.
-- «Me encargo» o cerrar la alerta para los avisos: solo se miran las
-  alertas ACTIVE sin `acknowledged_at`.
-- **Mientras se confirma el cierre automático (#277), no se avisa**: si las
-  lecturas ya son normales, sería absurdo escribir «nadie atiende tu
-  alerta». Si vuelven a ir mal, se sigue donde se estaba.
+- **Who to**: the 1st to the organization contact email; the 2nd to that
+  contact and all its active users. Without a contact, the 1st goes to
+  the users. With nobody to send to, nothing is recorded (it shows in the
+  log).
+- **One per round and per alert**: if the backend was stopped and both
+  were already due, the 1st is sent and the 2nd on the next round, not
+  both at once.
+- **Recorded before sending**: the `alert_notifications` row is saved
+  first (with `UNIQUE (alert_id, attempt)`) and then sent. If the process
+  dies in between, that notice is lost, but it is never repeated. Warning
+  twice scares people and costs credibility; a lost one is covered by the
+  next one and, in the end, by the call.
+- "Me encargo" or closing the alert stops the notices: only ACTIVE alerts
+  without `acknowledged_at` are looked at.
+- **While the automatic closing (#277) is being confirmed, no notice is
+  sent**: if the readings are already normal, writing "nobody is handling
+  your alert" would be absurd. If they go bad again, it carries on where
+  it was.
 """
 
 from __future__ import annotations
@@ -52,8 +55,8 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class Calendario:
-    emails: tuple[int, ...]   # minutos de cada email
-    llamada: int | None       # minuto en que AquaGuard debe llamar
+    emails: tuple[int, ...]   # minute of each email
+    llamada: int | None       # minute when AquaGuard must call
 
 
 CALENDARIO = {
@@ -70,15 +73,15 @@ URGENCIA = {"CRITICAL": "crítica", "WARNING": "leve"}
 
 
 def _utc(fecha: datetime) -> datetime:
-    """sqlite (tests) devuelve las fechas sin zona; se guardan en UTC."""
+    """sqlite (tests) returns dates without a zone; they are stored in UTC."""
     return fecha if fecha.tzinfo else fecha.replace(tzinfo=timezone.utc)
 
 
 def siguiente_aviso(alerta: Alert) -> datetime | None:
     """
-    Cuándo toca el próximo email de esta alerta, o None si ya no toca
-    ninguno (enviados todos, alguien se encarga o está cerrada).
-    Es `next_notification_at` de la API.
+    When the next email of this alert is due, or None if none is due any
+    more (all sent, someone is handling it or it is closed).
+    It is the API `next_notification_at`.
     """
     if alerta.status != "ACTIVE" or alerta.acknowledged_at is not None:
         return None
@@ -104,7 +107,7 @@ def _destinatarios(db: Session, alerta: Alert, intento: int) -> list[str]:
             User.is_active.is_(True),
         ).order_by(User.email)
     ).all()
-    # Sin repetir el contacto si también es usuario
+    # Without repeating the contact if it is also a user
     return list(dict.fromkeys([*contacto, *usuarios]))
 
 
@@ -131,9 +134,10 @@ def _texto(alerta: Alert, intento: int) -> tuple[str, str]:
 
 def enviar_avisos(db: Session, ahora: datetime | None = None) -> int:
     """
-    Envía los emails que tocan ahora. Devuelve cuántos ha enviado.
+    Sends the emails that are due now. Returns how many it sent.
 
-    `ahora` se puede pasar desde fuera para probarlo sin depender del reloj.
+    `ahora` ("now") can be passed in to test it without depending on the
+    clock.
     """
     ahora = ahora or datetime.now(timezone.utc)
     pendientes = db.scalars(
@@ -151,7 +155,7 @@ def enviar_avisos(db: Session, ahora: datetime | None = None) -> int:
         if calendario is None:
             continue
         hechos = {n.attempt for n in alerta.notifications}
-        # El primer email que falta; si aún no es su hora, nada esta vuelta
+        # The first missing email; if it is not due yet, nothing this round
         intento = next(
             (i for i in range(1, len(calendario.emails) + 1) if i not in hechos), None
         )
@@ -167,7 +171,7 @@ def enviar_avisos(db: Session, ahora: datetime | None = None) -> int:
             logger.warning("Alerta %s: el cliente no tiene a quién avisar", alerta.id)
             continue
 
-        # Primero se apunta; si otra vuelta ya lo apuntó, no se envía
+        # Record it first; if another round already recorded it, do not send
         try:
             db.add(AlertNotification(
                 alert_id=alerta.id,

@@ -32,12 +32,12 @@ from app.modules.subscriptions.plans import (
     monthly_price,
     plan_for,
 )
-from app.modules.subscriptions.service import (
+from app.modules.users.model import User
+from app.shared.fields import (
     check_postal_code,
     mask_iban,
     normalize_tax_id,
 )
-from app.modules.users.model import User
 
 IBAN = "ES91 2100 0418 4502 0005 1332"
 URL = "/api/me/organization/subscribe"
@@ -114,6 +114,7 @@ def _cuerpo(**cambios):
         "postal_code": "08001",
         "city": "Barcelona",
         "billing_email": "facturas@luna.dev",
+        "phone": "612 345 678",
         "iban": IBAN,
         "accept_terms": True,
         "accept_sepa": True,
@@ -298,8 +299,10 @@ def test_el_admin_ve_lo_contratado_en_la_ficha(client, datos):
         ({"tax_id": "B1"}, "INVALID_TAX_ID"),
         ({"postal_code": "8001"}, "INVALID_POSTAL_CODE"),
         ({"postal_code": "08O01"}, "INVALID_POSTAL_CODE"),
-        ({"iban": "ES00 2100 0418 4502 0005 1332"}, "INVALID_IBAN"),
+        ({"iban": "ES91 2100 0418 4502 0005 133"}, "INVALID_IBAN"),
         ({"iban": "1234"}, "INVALID_IBAN"),
+        # Válido en Alemania, pero solo se aceptan IBAN españoles
+        ({"iban": "DE89 3704 0044 0532 0130 00"}, "INVALID_IBAN"),
         ({"sites": 0}, "VALIDATION_ERROR"),
         ({"sensors": 0}, "VALIDATION_ERROR"),
         # Más de 20 edificios es un presupuesto a medida
@@ -325,7 +328,7 @@ def test_datos_incorrectos_dan_422_y_no_cambian_nada(client, datos, engine, camb
 @pytest.mark.parametrize(
     "campo",
     ["sites", "sensors", "legal_name", "billing_period", "postal_code", "city",
-     "iban", "accept_sepa"],
+     "phone", "iban", "accept_sepa"],
 )
 def test_faltan_datos_obligatorios(client, datos, campo):
     _entrar(client, datos["u_luna"])
@@ -356,11 +359,15 @@ def test_no_se_contrata_menos_de_lo_que_ya_tiene(client, datos, engine, cambios,
 
 
 def test_mask_iban_y_normalize_tax_id():
-    assert mask_iban("de89370400440532013000") == "DE** **** **** **** **30 00"
+    assert mask_iban("es91-2100.0418 4502 0005 1332") == "ES** **** **** **** **** 1332"
     assert normalize_tax_id(" x-1234567.l ") == "X1234567L"
     assert check_postal_code(" 08002 ") == "08002"
+    # Solo la forma: unos dígitos de control que no cuadran se aceptan
+    assert mask_iban("ES00 2100 0418 4502 0005 1333") == "ES** **** **** **** **** 1333"
     with pytest.raises(DomainValidationError):
-        mask_iban("ES91 2100 0418 4502 0005 1333")
+        mask_iban("ES91 2100 0418 4502 0005 133")
+    with pytest.raises(DomainValidationError):
+        mask_iban("de89370400440532013000")
 
 
 # ---------------------------------------------------------

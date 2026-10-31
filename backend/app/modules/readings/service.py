@@ -1,22 +1,23 @@
 # SERVICE — readings
-# Reglas de negocio y orquestación. No hablar HTTP aquí.
+# Business rules and orchestration. No HTTP here.
 """
-Lógica de negocio de lecturas.
+Business logic of readings.
 
-La frontera que define este archivo: aquí NO se importa `fastapi`, no se
-devuelven códigos HTTP y no se conocen los objetos `Request`/`Response`.
-Un service recibe datos ya validados, decide, y lanza excepciones de
-dominio si algo no cuadra. El router se encarga de traducir.
+The boundary this file sets: `fastapi` is NOT imported here, no HTTP
+codes are returned and `Request`/`Response` objects are unknown. A
+service gets already validated data, decides, and raises domain
+exceptions if something is wrong. The router translates.
 
-Sirve para dos cosas concretas:
+It serves two concrete purposes:
 
-1. La misma función la puede llamar el endpoint HTTP o, más adelante, el
-   consumidor de WebSocket, sin duplicar reglas.
-2. Se puede probar con Pytest sin levantar la aplicación (issue #30).
+1. The same function can be called by the HTTP endpoint or, later, by a
+   WebSocket consumer, without duplicating rules.
+2. It can be tested with Pytest without starting the application
+   (issue #30).
 
-Implementación: `create` en la issue #24 (con las reglas de alertas de
-la #28) e histórico `list_by_sensor` en la #25. El modelo `Reading` y su
-repository son de Daruny (issues #13 y #14).
+Implementation: `create` in issue #24 (with the alert rules of #28) and
+the `list_by_sensor` history in #25. The `Reading` model and its
+repository are Daruny's (issues #13 and #14).
 """
 
 from __future__ import annotations
@@ -53,12 +54,12 @@ from app.shared.protocols import (
 from app.shared.schemas import Page
 
 
-# B7: tope de puntos de una serie (7 días a 15 min son 672).
+# B7: maximum points of a series (7 days at 15 min are 672).
 MAX_SERIES_POINTS = 1000
 
 
 def _as_utc(moment: datetime | None) -> datetime | None:
-    """Una fecha sin zona horaria se toma como UTC, como en la analítica."""
+    """A date without a time zone is taken as UTC, as in analytics."""
     if moment is None:
         return None
     if moment.tzinfo is None:
@@ -68,14 +69,14 @@ def _as_utc(moment: datetime | None) -> datetime | None:
 
 class ReadingService:
     """
-    Casos de uso de lecturas.
+    Reading use cases.
 
-    Recibe los repositories por constructor en lugar de crearlos dentro.
-    Es lo que permite pasarle en un test uno en memoria y ejercitar todas
-    las reglas sin PostgreSQL.
+    It gets the repositories through the constructor instead of creating
+    them inside. That is what lets a test pass an in-memory one and
+    exercise every rule without PostgreSQL.
 
-    Si no se pasan, se usan los de SQLAlchemy, como en `SensorService` y
-    `AlertService`.
+    If none are passed, the SQLAlchemy ones are used, as in `SensorService`
+    and `AlertService`.
     """
 
     def __init__(
@@ -92,32 +93,32 @@ class ReadingService:
 
     def create(self, payload: ReadingCreate) -> ReadingResponse:
         """
-        Registra una lectura enviada por el simulador.
+        Stores a reading sent by the simulator.
 
-        1. Comprobar que `payload.sensor_id` existe. Si no,
-           `NotFoundError(code="SENSOR_NOT_FOUND")` — con código
-           específico, porque el interceptor del frontend ramifica por él.
-        2. Resolver `measured_at`: el que venga, o el momento actual.
-        3. Guardar mediante `self.readings.create(...)`.
-        4. No se toca `last_seen_at`: no es una columna, se calcula a
-           partir de las lecturas al responder (issue #25,
+        1. Check that `payload.sensor_id` exists. If not,
+           `NotFoundError(code="SENSOR_NOT_FOUND")` — with a specific code,
+           because the frontend interceptor branches on it.
+        2. Resolve `measured_at`: the one sent, or the current time.
+        3. Store it through `self.readings.create(...)`.
+        4. `last_seen_at` is not touched: it is not a column, it is
+           computed from the readings when answering (issue #25,
            `sensors/status.py`).
-        5. Evaluar los umbrales y abrir o empeorar la alerta si procede
-           (issue #28, `_aplicar_reglas`). En la misma transacción que la
-           lectura: o se guardan las dos, o ninguna.
-        6. Devolver la fila convertida al schema de salida.
+        5. Evaluate the thresholds and open or escalate the alert if needed
+           (issue #28, `_aplicar_reglas`). In the same transaction as the
+           reading: either both are stored, or neither.
+        6. Return the row converted to the output schema.
 
-        El paso 1 no es opcional: sin él, una `sensor_id` inventada crearía
-        lecturas huérfanas que no aparecen en ningún histórico. Se busca
-        con `get()` y no con `get_by_id()` porque quien llama aquí es el
-        simulador, que no tiene sesión y no puede aportar una organización.
+        Step 1 is not optional: without it, a made-up `sensor_id` would
+        create orphan readings that show up in no history. It is looked up
+        with `get()` and not `get_by_id()` because the caller here is the
+        simulator, which has no session and cannot give an organization.
 
-        Nótese que aquí se cruza la frontera de vocabulario: entra un
-        `ReadingCreate` que habla de `pressure` y `measured_at`, y se
-        guarda un `value` con su `unit` y un `recorded_at`. Ese cambio de
-        nombres es deliberado y pertenece a esta capa: el contrato HTTP
-        (issue #23) y el esquema de la tabla (issue #13) se acordaron por
-        separado, y el service es quien conoce los dos.
+        Note that the vocabulary boundary is crossed here: a
+        `ReadingCreate` comes in speaking of `pressure` and `measured_at`,
+        and a `value` with its `unit` and a `recorded_at` is stored. That
+        renaming is deliberate and belongs to this layer: the HTTP contract
+        (issue #23) and the table schema (issue #13) were agreed
+        separately, and the service is the one that knows both.
         """
 
         sensor = self.sensors.get(payload.sensor_id)
@@ -129,10 +130,11 @@ class ReadingService:
 
         measured_at = self._resolve_measured_at(payload.measured_at)
 
-        # Idempotencia: el simulador genera el `id` y lo reutiliza en los
-        # reintentos. Si la primera petición se guardó pero su respuesta se
-        # perdió, el reintento llega con un `id` que ya existe: se devuelve
-        # la lectura guardada, sin insertar otra ni volver a evaluar alertas.
+        # Idempotency: the simulator generates the `id` and reuses it on
+        # retries. If the first request was stored but its response got
+        # lost, the retry arrives with an `id` that already exists: the
+        # stored reading is returned, without inserting another one or
+        # evaluating alerts again.
         if payload.id is not None:
             existente = self.readings.get(payload.id)
             if existente is not None:
@@ -143,21 +145,21 @@ class ReadingService:
                     )
                 return self._to_response(existente)
 
-        # `transaction` confirma al salir y deshace si algo revienta. Hace
-        # falta ponerlo aquí: `get_db` (core/database.py) solo cierra la
-        # sesión, y el repository solo hace `flush`. Sin este bloque la
-        # fila se escribiría, se devolvería un 201 con su id, y al cerrar
-        # la petición se perdería — el 201 mentiroso que esta issue evita
-        # a propósito.
+        # `transaction` commits on exit and rolls back if something breaks.
+        # It has to be here: `get_db` (core/database.py) only closes the
+        # session, and the repository only does `flush`. Without this block
+        # the row would be written, a 201 with its id would be returned,
+        # and it would be lost when the request closes — the lying 201 this
+        # issue avoids on purpose.
         #
-        # El límite de la transacción lo marca el caso de uso, y el caso
-        # de uso vive aquí. Por eso no se resuelve haciendo que `get_db`
-        # confirme siempre: eso confirmaría también peticiones que acaban
-        # en error a medias.
+        # The use case sets the transaction boundary, and the use case
+        # lives here. That is why it is not solved by making `get_db`
+        # always commit: that would also commit requests that fail halfway.
         with transaction(self.db):
-            # `unit` sale del sensor, no de una constante "bar". El sensor
-            # ya declara la suya, y copiarla evita que una lectura acabe
-            # diciendo una unidad distinta de la del aparato que la emitió.
+            # `unit` comes from the sensor, not from a "bar" constant. The
+            # sensor already declares its own, and copying it stops a
+            # reading from stating a different unit than the device that
+            # sent it.
             reading = self.readings.create(
                 sensor_id=sensor.id,
                 value=payload.pressure,
@@ -167,9 +169,9 @@ class ReadingService:
             )
             self._aplicar_reglas(sensor, payload.pressure)
 
-        # Se lee después del commit a propósito: `SessionLocal` se crea con
-        # `expire_on_commit=False` (core/database.py), así que los
-        # atributos siguen cargados y no hace falta un SELECT extra.
+        # Read after the commit on purpose: `SessionLocal` is created with
+        # `expire_on_commit=False` (core/database.py), so the attributes
+        # stay loaded and no extra SELECT is needed.
         return self._to_response(reading)
 
     def list_by_sensor(
@@ -183,25 +185,27 @@ class ReadingService:
         newest_first: bool = True,
     ) -> Page[ReadingResponse]:
         """
-        Histórico de un sensor, paginado y ordenado por fecha de medida.
+        History of a sensor, paginated and ordered by measurement date.
 
-        B7: por defecto de la más reciente a la más antigua, que es lo que
-        pinta una tabla de histórico; `start` y `end` lo limitan a
-        [start, end). Una fecha sin zona horaria se toma como UTC.
+        B7: by default newest first, which is what a history table shows;
+        `start` and `end` limit it to [start, end). A date without a time
+        zone is taken as UTC.
 
-        `organization_id` sale siempre de `get_org_scope`, nunca de lo que
-        mande quien llama: sin él, cualquiera que acierte el id de un sensor
-        ajeno se leería el histórico de otro cliente. `None` significa
-        «todas las organizaciones», y solo se da para un admin (issue #27).
+        `organization_id` always comes from `get_org_scope`, never from
+        what the caller sends: without it, anyone guessing the id of
+        someone else's sensor would read another client's history. `None`
+        means "all organizations", and is only given to an admin
+        (issue #27).
 
-        **Se comprueba primero que el sensor exista y sea suyo.** Sin esa
-        comprobación, pedir un sensor inventado —o de otra organización—
-        devolvería una página vacía, y el frontend no podría distinguir
-        «este sensor aún no tiene lecturas» de «este sensor no es tuyo».
-        Son dos cosas que se pintan distinto.
+        **It first checks that the sensor exists and is theirs.** Without
+        that check, asking for a made-up sensor — or one from another
+        organization — would return an empty page, and the frontend could
+        not tell "this sensor has no readings yet" from "this sensor is not
+        yours". They are shown differently.
 
-        La consulta la aporta el repository, que mantiene el índice
-        `(sensor_id, recorded_at)` que evita recorrer la tabla entera.
+        The repository provides the query, and keeps the
+        `(sensor_id, recorded_at)` index that avoids scanning the whole
+        table.
         """
         if self.sensors.get_by_id(sensor_id, organization_id) is None:
             raise NotFoundError(
@@ -228,9 +232,9 @@ class ReadingService:
             newest_first=newest_first,
         )
 
-        # `Page` se expresa en páginas y el repository en filas saltadas.
-        # La conversión vive aquí porque el sobre de paginación es parte de
-        # la respuesta, y la respuesta la compone el service.
+        # `Page` speaks in pages and the repository in skipped rows. The
+        # conversion lives here because the pagination envelope is part of
+        # the response, and the service builds the response.
         return Page[ReadingResponse](
             items=[self._to_response(f) for f in filas],
             total=total,
@@ -247,13 +251,13 @@ class ReadingService:
         ahora: datetime | None = None,
     ) -> ReadingSeriesResponse:
         """
-        Serie de presión de los últimos `days` días en tramos de `bucket`
-        (B7), con los umbrales del sensor para la banda permitida.
+        Pressure series of the last `days` days in `bucket` slots (B7),
+        with the sensor thresholds for the allowed band.
 
-        Mismo alcance que el histórico: un sensor de otra organización da
-        404. La agregación (media, mínimo y máximo por tramo) la hace
-        PostgreSQL con `date_bin`, así que viajan como mucho
-        `MAX_SERIES_POINTS` filas y no miles de lecturas.
+        Same scope as the history: a sensor from another organization gives
+        404. PostgreSQL does the aggregation (average, minimum and maximum
+        per slot) with `date_bin`, so at most `MAX_SERIES_POINTS` rows
+        travel, not thousands of readings.
         """
         sensor = self.sensors.get_by_id(sensor_id, organization_id)
         if sensor is None:
@@ -301,11 +305,11 @@ class ReadingService:
         cls, existente: Any, sensor_id: UUID, payload: ReadingCreate
     ) -> bool:
         """
-        Compara un reintento con la lectura ya guardada.
+        Compares a retry with the reading already stored.
 
-        `pressure` se redondea a 3 decimales porque la columna es
-        `Numeric(10,3)`. `measured_at` solo se compara si viene en la
-        petición: sin él, cada intento resolvería un «ahora» distinto.
+        `pressure` is rounded to 3 decimals because the column is
+        `Numeric(10,3)`. `measured_at` is only compared if it comes in the
+        request: without it, each attempt would resolve a different "now".
         """
         if existente.sensor_id != sensor_id:
             return False
@@ -320,16 +324,17 @@ class ReadingService:
     @staticmethod
     def _to_response(reading: Any) -> ReadingResponse:
         """
-        Convierte la fila guardada al schema de salida.
+        Converts the stored row to the output schema.
 
-        No sirve `ReadingResponse.model_validate(reading)` pese a que
-        `ApiModel` lleva `from_attributes=True`: eso copia campos que se
-        llaman igual, y aquí dos no coinciden (`value`→`pressure`,
-        `recorded_at`→`measured_at`). Se construye a mano para que el
-        desajuste quede a la vista en vez de fallar en tiempo de ejecución.
+        `ReadingResponse.model_validate(reading)` does not work even though
+        `ApiModel` has `from_attributes=True`: that copies fields with the
+        same name, and two of them differ here (`value`→`pressure`,
+        `recorded_at`→`measured_at`). It is built by hand so the mismatch
+        is visible instead of failing at run time.
 
-        `value` llega como `Decimal` porque la columna es `Numeric(10,3)`;
-        el contrato lo publica como número JSON, así que se convierte aquí.
+        `value` arrives as a `Decimal` because the column is
+        `Numeric(10,3)`; the contract publishes it as a JSON number, so it
+        is converted here.
         """
         return ReadingResponse(
             id=reading.id,
@@ -341,18 +346,19 @@ class ReadingService:
 
     def _aplicar_reglas(self, sensor: Any, presion: float) -> None:
         """
-        Abre o empeora la alerta que toque. Decisiones de Ana, 28-09-2026:
+        Opens or escalates the right alert. Ana's decisions, 2026-09-28:
 
-        - **Una sola ACTIVE por sensor y tipo.** Si la presión sigue baja
-          durante cien lecturas, es la misma alerta, no cien.
-        - **Solo se sube la severidad, nunca se baja.** Si la abierta es
-          WARNING y llega una lectura CRITICAL, pasa a CRITICAL con el
-          mensaje de esa lectura: quien la está atendiendo tiene que
-          enterarse de que ha empeorado. Una lectura menos mala no la
-          rebaja.
-        - **No se resuelve sola.** Aunque la presión vuelva al rango, la
-          alerta sigue ACTIVE hasta el `PATCH /resolve`, para que nadie
-          se pierda una bajada que duró cinco minutos.
+        - **A single ACTIVE alert per sensor and type.** If the pressure
+          stays low for a hundred readings, it is the same alert, not a
+          hundred.
+        - **Severity only goes up, never down.** If the open one is WARNING
+          and a CRITICAL reading arrives, it becomes CRITICAL with that
+          reading's message: whoever is handling it has to know it got
+          worse. A less bad reading does not lower it.
+        - **A normal reading does not close it here.** It stays ACTIVE
+          until the sensor has been normal for 15 minutes
+          (`alerts/autoclose.py`, #277) or someone resolves it by hand, so
+          nobody misses a drop that lasted five minutes.
         """
         propuesta = evaluar_presion(
             presion,
@@ -384,12 +390,12 @@ class ReadingService:
     @staticmethod
     def _resolve_measured_at(value: datetime | None) -> datetime:
         """
-        Momento de la medida: el que envía el sensor, o el de recepción.
+        Time of the measurement: the one the sensor sends, or the time it
+        was received.
 
-        Si viene sin zona horaria se asume UTC. Guardar un datetime
-        *naive* junto a otros con zona hace que las comparaciones fallen
-        en tiempo de ejecución, y en un histórico eso significa lecturas
-        ordenadas al azar.
+        Without a time zone, UTC is assumed. Storing a *naive* datetime
+        next to others with a zone makes comparisons fail at run time, and
+        in a history that means readings in random order.
         """
         if value is None:
             return datetime.now(timezone.utc)
@@ -400,22 +406,21 @@ class ReadingService:
 
 def get_reading_service(db: DbSession) -> ReadingService:
     """
-    Proveedor del service para `Depends`.
+    Service provider for `Depends`.
 
-    Que sea un único punto de construcción es lo que permite sustituirlo
-    en los tests con `app.dependency_overrides[get_reading_service]`.
+    Having a single construction point is what allows replacing it in
+    tests with `app.dependency_overrides[get_reading_service]`.
 
-    Los repositories concretos de Daruny se llaman igual que los
-    protocolos de `shared/protocols.py` (`ReadingRepository`,
-    `SensorRepository`). Se importan con alias `Sql*` para que en este
-    archivo se distinga de un vistazo el contrato de la implementación:
-    la anotación de tipo sigue siendo el protocolo, y lo que se construye
-    es la clase de SQLAlchemy.
+    Daruny's concrete repositories have the same names as the protocols
+    in `shared/protocols.py` (`ReadingRepository`, `SensorRepository`).
+    They are imported with a `Sql*` alias so this file tells the contract
+    from the implementation at a glance: the type annotation is still the
+    protocol, and what gets built is the SQLAlchemy class.
 
-    Nota sobre la frontera: esta función sí conoce FastAPI, porque
-    `DbSession` lleva un `Depends` dentro. Es *wiring*, no negocio — la
-    clase `ReadingService` de arriba sigue sin importar nada de FastAPI, y
-    es la que se prueba de forma aislada.
+    Note on the boundary: this function does know FastAPI, because
+    `DbSession` has a `Depends` inside. It is *wiring*, not business — the
+    `ReadingService` class above still imports nothing from FastAPI, and
+    it is the one tested in isolation.
     """
     return ReadingService(
         db,

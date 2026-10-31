@@ -14,6 +14,16 @@ import {
 } from "./fixtures/building.js";
 import { organizations } from "./fixtures/organizations.js";
 import { billedPrice, monthlyPrice, planFor } from "../utils/pricing.js";
+import {
+  EMAIL_PATTERN,
+  cleanText,
+  ibanProblem,
+  normalizePhone,
+  organizationNameProblem,
+  phoneProblem,
+  postalCodeProblem,
+  taxIdProblem,
+} from "../utils/validation.js";
 
 // The C-Edificio demo building (8 sensors on 6 floors) also appears in the
 // admin sites and sensors lists, so the floor-by-floor view has real content.
@@ -204,7 +214,7 @@ function validationError(field, message) {
   };
 }
 
-const MOCK_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MOCK_EMAIL_PATTERN = EMAIL_PATTERN;
 
 // Error with the backend shape: { status, code, message, details }
 function domainError(status, code, message) {
@@ -286,11 +296,9 @@ function mockSensorCount(organizationId) {
   return sensors.filter((sensor) => siteIds.has(sensor.site_id)).length;
 }
 
-// Same checks as subscriptions/service.py: separators out, then the shape
+// Same checks as the API (backend/app/shared/fields.py), through the rules
+// the forms use (utils/validation.js)
 const MOCK_SEPARATORS = /[\s.-]/g;
-const MOCK_TAX_ID_PATTERN = /^[A-Z0-9]{8,15}$/;
-const MOCK_POSTAL_CODE_PATTERN = /^[0-9]{5}$/;
-const MOCK_IBAN_PATTERN = /^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/;
 
 // 'ES91 2100 0418 4502 0005 1332' -> 'ES** **** **** **** **** 1332'
 function maskMockIban(iban) {
@@ -1580,13 +1588,13 @@ const mockAdapter = {
       const taxId = String(data.tax_id ?? "")
         .replace(MOCK_SEPARATORS, "")
         .toUpperCase();
-      if (!MOCK_TAX_ID_PATTERN.test(taxId)) {
+      if (taxIdProblem(taxId)) {
         return Promise.reject(
           domainError(422, "INVALID_TAX_ID", "El NIF o CIF no es válido."),
         );
       }
       const postalCode = String(data.postal_code).trim();
-      if (!MOCK_POSTAL_CODE_PATTERN.test(postalCode)) {
+      if (postalCodeProblem(postalCode)) {
         return Promise.reject(
           domainError(
             422,
@@ -1595,12 +1603,16 @@ const mockAdapter = {
           ),
         );
       }
-      // Shape only; the backend also checks the ISO 13616 digits
+      // Spanish IBAN, shape only (ES and 22 digits), like the API
       const iban = String(data.iban).replace(MOCK_SEPARATORS, "").toUpperCase();
-      if (!MOCK_IBAN_PATTERN.test(iban)) {
+      if (ibanProblem(iban)) {
         return Promise.reject(
           domainError(422, "INVALID_IBAN", "El IBAN no es válido."),
         );
+      }
+      const phoneError = phoneProblem(data.phone);
+      if (phoneError) {
+        return Promise.reject(domainError(422, "INVALID_PHONE", phoneError));
       }
 
       const organization = organizations.find(
@@ -1648,12 +1660,13 @@ const mockAdapter = {
         postal_code: postalCode,
         city: data.city,
         billing_email: data.billing_email,
+        phone: normalizePhone(data.phone),
         iban_masked: maskMockIban(iban),
         sepa_accepted_at: now,
       });
-      // Contact data is optional: what does not arrive stays as it was
-      for (const field of ["contact_email", "phone"]) {
-        if (data[field] != null) organization[field] = data[field];
+      // The contact email is optional: if it does not arrive, it stays as it was
+      if (data.contact_email != null) {
+        organization.contact_email = data.contact_email;
       }
       currentUser.terms_version = "2026-10";
       currentUser.terms_accepted_at = now;
@@ -1855,8 +1868,8 @@ const mockAdapter = {
       if (!user) {
         return Promise.reject({
           status: 401,
-          code: "INVALID_CREDENTIALS",
-          message: "Correo electrónico o contraseña incorrectos.",
+          code: "UNAUTHORIZED",
+          message: "Email o contraseña incorrectos.",
           details: null,
         });
       }
@@ -1918,14 +1931,19 @@ const mockAdapter = {
       const denied = adminCheck();
       if (denied) return Promise.reject(denied);
 
-      const name = typeof data.name === "string" ? data.name.trim() : "";
-      if (name === "") {
+      const name = cleanText(data.name);
+      const nameError = organizationNameProblem(name);
+      if (nameError) {
         return Promise.reject({
           status: 422,
           code: "INVALID_NAME",
-          message: "El nombre no puede estar vacío.",
-          details: null,
+          message: nameError,
+          details: [{ field: "name", message: nameError }],
         });
+      }
+      const phoneError = phoneProblem(data.phone);
+      if (phoneError) {
+        return Promise.reject(domainError(422, "INVALID_PHONE", phoneError));
       }
       if (nameTaken(name)) {
         return Promise.reject(
@@ -1939,11 +1957,14 @@ const mockAdapter = {
       const organization = {
         id: crypto.randomUUID(),
         name,
-        status: "ACTIVE",
-        trial_ends_at: null,
+        // Like the API: a client created by the admin starts on the trial
+        status: "TRIAL",
+        trial_ends_at: new Date(
+          Date.now() + 7 * 24 * 60 * 60 * 1000,
+        ).toISOString(),
         city: data.city ?? null,
         contact_email: data.contact_email ?? null,
-        phone: data.phone ?? null,
+        phone: normalizePhone(data.phone),
         legal_name: data.legal_name ?? null,
         tax_id: data.tax_id ?? null,
         billing_email: data.billing_email ?? null,

@@ -1,31 +1,31 @@
 # ROUTER — readings
-# Capa HTTP fina: valida schemas → llama service → responde.
+# Thin HTTP layer: validates schemas → calls the service → answers.
 """
-Endpoints de lecturas.
+Reading endpoints.
 
-`POST /api/readings` (issue #24) es el endpoint que usa el simulador y el
-primer eslabón del flujo vertical obligatorio (apartado 8.5 del
-documento):
+`POST /api/readings` (issue #24) is the endpoint the simulator uses and
+the first link of the mandatory vertical flow (section 8.5 of the
+document):
 
     Simulator → POST /api/readings → FastAPI → Service → Repository → PostgreSQL
 
-**Este router no lleva `prefix`.** Es la excepción entre los ocho, y es
-deliberada: expone dos rutas que cuelgan de árboles distintos.
+**This router has no `prefix`.** It is the exception among the eight, on
+purpose: it exposes routes that hang from different trees.
 
     POST /api/readings                              → issue #24
-    GET  /api/sensors/{sensor_id}/readings          → issue #25 (histórico)
-    GET  /api/sensors/{sensor_id}/readings/series   → B7 (gráfica)
+    GET  /api/sensors/{sensor_id}/readings          → issue #25 (history)
+    GET  /api/sensors/{sensor_id}/readings/series   → B7 (chart)
 
-Ambas son "lecturas" y comparten service y schemas, así que viven en el
-mismo módulo; pero la segunda se lee desde un sensor. Con
-`prefix="/readings"` la segunda quedaría en
-`/api/readings/sensors/{id}/readings`, que no es lo que fija el
-documento.
+They are all "readings" and share service and schemas, so they live in
+the same module; but the last two are read from a sensor. With
+`prefix="/readings"` the history would end up at
+`/api/readings/sensors/{id}/readings`, which is not what the document
+sets.
 
-Obsérvese lo que NO hay en este archivo: ni una consulta, ni una regla, ni
-un `try/except`. El router declara la ruta, FastAPI valida el cuerpo
-contra el schema, y se delega. Es el criterio de aceptación de la issue
-#22: «No hay lógica de acceso a datos dentro de los routers».
+Note what is NOT in this file: no query, no rule, no `try/except`. The
+router declares the route, FastAPI validates the body against the schema,
+and it delegates. It is the acceptance criterion of issue #22: "No data
+access logic inside the routers".
 """
 
 from __future__ import annotations
@@ -48,8 +48,9 @@ from app.shared.schemas import Page, error_response
 
 router = APIRouter(tags=["Readings"])
 
-# El service se pide con Depends en lugar de construirlo en cada endpoint.
-# Así un test puede sustituirlo entero sin tocar el router.
+# The service is requested with Depends instead of being built in each
+# endpoint. That way a test can replace it entirely without touching the
+# router.
 ReadingSvc = Annotated[ReadingService, Depends(get_reading_service)]
 
 
@@ -57,82 +58,82 @@ ReadingSvc = Annotated[ReadingService, Depends(get_reading_service)]
     "/readings",
     response_model=ReadingResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Registrar una lectura",
+    summary="Store a reading",
     description=(
-        "Recibe una medición de presión de un sensor. Lo usa el simulador "
-        "(issue #16). Devuelve **201** con la lectura registrada.\n\n"
-        "**Exige la cabecera `X-Ingest-Key`** con la clave del simulador "
-        "(`INGEST_API_KEY` del .env, issue #106). No pide sesión: quien "
-        "manda lecturas es el simulador, no una persona.\n\n"
-        "`measured_at` es opcional: si no se envía, el servidor usa el "
-        "momento de recepción.\n\n"
-        "Si la presión se sale de los umbrales del sensor, se abre una "
-        "alerta `LOW_PRESSURE` o `HIGH_PRESSURE` (visible en "
-        "`GET /api/alerts`). Mientras siga abierta, las lecturas "
-        "siguientes no crean otra; solo pueden subirla de `WARNING` a "
+        "Receives a pressure measurement from a sensor. Used by the "
+        "simulator (issue #16). Returns **201** with the stored reading.\n\n"
+        "**Requires the `X-Ingest-Key` header** with the simulator key "
+        "(`INGEST_API_KEY` in .env, issue #106). No session is needed: "
+        "readings are sent by the simulator, not by a person.\n\n"
+        "`measured_at` is optional: if not sent, the server uses the time "
+        "it was received.\n\n"
+        "If the pressure goes outside the sensor thresholds, a "
+        "`LOW_PRESSURE` or `HIGH_PRESSURE` alert is opened (visible in "
+        "`GET /api/alerts`). While it stays open, the next readings do not "
+        "create another one; they can only raise it from `WARNING` to "
         "`CRITICAL`.\n\n"
-        "`id` es opcional. Si se reenvía una lectura con un `id` ya "
-        "guardado y los mismos datos, se devuelve la existente sin "
-        "duplicarla ni abrir otra alerta."
+        "`id` is optional. If a reading is resent with an `id` already "
+        "stored and the same data, the existing one is returned without "
+        "duplicating it or opening another alert."
     ),
     dependencies=[Depends(require_ingest_key)],
     responses={
         **error_response(
             status.HTTP_401_UNAUTHORIZED,
-            "Falta `X-Ingest-Key` o no es la clave del simulador "
+            "`X-Ingest-Key` is missing or is not the simulator key "
             "(`UNAUTHORIZED`).",
         ),
         **error_response(
             status.HTTP_404_NOT_FOUND,
-            "El sensor indicado no existe (`SENSOR_NOT_FOUND`).",
+            "The given sensor does not exist (`SENSOR_NOT_FOUND`).",
         ),
         **error_response(
             status.HTTP_409_CONFLICT,
-            "Ya existe una lectura con ese `id` y datos distintos "
+            "A reading with that `id` and different data already exists "
             "(`READING_ID_CONFLICT`).",
         ),
         **error_response(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            "Presión fuera del rango 0–25 bar, campo desconocido o cuerpo "
-            "mal formado.",
+            "Pressure outside the 0–25 bar range, unknown field or "
+            "malformed body.",
         ),
     },
 )
 def create_reading(payload: ReadingCreate, service: ReadingSvc) -> ReadingResponse:
-    # `payload` llega ya validado: si el JSON no encajaba con ReadingCreate,
-    # FastAPI cortó antes y el handler de validación devolvió el 422.
+    # `payload` arrives already validated: if the JSON did not fit
+    # ReadingCreate, FastAPI stopped earlier and the validation handler
+    # returned the 422.
     return service.create(payload)
 
 
 @router.get(
     "/sensors/{sensor_id}/readings",
     response_model=Page[ReadingResponse],
-    summary="Histórico de lecturas de un sensor",
+    summary="Reading history of a sensor",
     description=(
-        "Devuelve las lecturas de un sensor, paginadas y ordenadas por "
-        "fecha de medida: **de la más reciente a la más antigua** por "
-        "defecto, o al revés con `?order=asc` (B7). `?from=&to=` lo limita "
-        "a ese periodo, sin incluir `to`; una fecha sin zona horaria se "
-        "toma como UTC y `from` posterior a `to` da 422 "
-        "(`INVALID_DATE_RANGE`). Lo consume la vista de detalle de sensor "
-        "(issue #40).\n\n"
-        "Solo devuelve sensores de **tu propia organización**: un "
-        "`sensor_id` de otro cliente responde 404, igual que uno que no "
-        "existe. Que respondan lo mismo es deliberado — distinguirlos "
-        "diría si ese identificador existe en alguna parte."
+        "Returns the readings of a sensor, paginated and ordered by "
+        "measurement date: **newest first** by default, or the other way "
+        "round with `?order=asc` (B7). `?from=&to=` limits it to that "
+        "period, `to` excluded; a date without a time zone is taken as UTC "
+        "and `from` after `to` gives 422 (`INVALID_DATE_RANGE`). Used by "
+        "the sensor detail view (issue #40).\n\n"
+        "It only returns sensors of **your own organization**: another "
+        "client's `sensor_id` answers 404, like one that does not exist. "
+        "Answering the same is deliberate — telling them apart would say "
+        "whether that id exists somewhere."
     ),
     responses={
         **error_response(
             status.HTTP_401_UNAUTHORIZED,
-            "No hay sesión (`UNAUTHORIZED`).",
+            "No session (`UNAUTHORIZED`).",
         ),
         **error_response(
             status.HTTP_403_FORBIDDEN,
-            "Cuenta de cliente sin organización (`FORBIDDEN`).",
+            "Client account without an organization (`FORBIDDEN`).",
         ),
         **error_response(
             status.HTTP_404_NOT_FOUND,
-            "El sensor no existe o no es de tu organización "
+            "The sensor does not exist or is not from your organization "
             "(`SENSOR_NOT_FOUND`).",
         ),
     },
@@ -144,19 +145,20 @@ def list_sensor_readings(
     pagination: Pagination,
     start: Annotated[
         datetime | None,
-        Query(alias="from", description="Desde (ISO 8601, incluido)."),
+        Query(alias="from", description="From (ISO 8601, included)."),
     ] = None,
     end: Annotated[
         datetime | None,
-        Query(alias="to", description="Hasta (ISO 8601, sin incluir)."),
+        Query(alias="to", description="Until (ISO 8601, excluded)."),
     ] = None,
     order: Annotated[
         Literal["asc", "desc"],
-        Query(description="`desc`: la más reciente primero."),
+        Query(description="`desc`: newest first."),
     ] = "desc",
 ) -> Page[ReadingResponse]:
-    # La organización sale de la sesión (`OrgScope`), nunca de lo que envíe
-    # el cliente: si viniera en la query, cualquiera podría pedir la de otro.
+    # The organization comes from the session (`OrgScope`), never from
+    # what the client sends: if it came in the query, anyone could ask for
+    # someone else's.
     return service.list_by_sensor(
         sensor_id=sensor_id,
         organization_id=scope,
@@ -171,30 +173,30 @@ def list_sensor_readings(
 @router.get(
     "/sensors/{sensor_id}/readings/series",
     response_model=ReadingSeriesResponse,
-    summary="Serie de presión de un sensor para la gráfica",
+    summary="Pressure series of a sensor for the chart",
     description=(
-        "Presión de los últimos `days` días agrupada en tramos de `bucket` "
-        "(B7): cada punto trae el inicio del tramo (`t`) y la presión "
-        "media, mínima y máxima. Los tramos sin lecturas no salen. Incluye "
-        "`min_pressure` y `max_pressure` del sensor para dibujar la banda "
-        "permitida.\n\n"
-        "Mismo alcance que el histórico: un sensor de otra organización "
-        "responde 404. Más de 1000 puntos (por ejemplo, 30 días a 15 min) "
-        "da 422 (`TOO_MANY_POINTS`)."
+        "Pressure of the last `days` days grouped in `bucket` slots (B7): "
+        "each point brings the slot start (`t`) and the average, minimum "
+        "and maximum pressure. Slots without readings are left out. It "
+        "includes the sensor `min_pressure` and `max_pressure` to draw the "
+        "allowed band.\n\n"
+        "Same scope as the history: a sensor from another organization "
+        "answers 404. More than 1000 points (for example, 30 days at "
+        "15 min) gives 422 (`TOO_MANY_POINTS`)."
     ),
     responses={
         **error_response(
             status.HTTP_401_UNAUTHORIZED,
-            "No hay sesión (`UNAUTHORIZED`).",
+            "No session (`UNAUTHORIZED`).",
         ),
         **error_response(
             status.HTTP_404_NOT_FOUND,
-            "El sensor no existe o no es de tu organización "
+            "The sensor does not exist or is not from your organization "
             "(`SENSOR_NOT_FOUND`).",
         ),
         **error_response(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            "Demasiados puntos (`TOO_MANY_POINTS`) o parámetros no válidos.",
+            "Too many points (`TOO_MANY_POINTS`) or invalid parameters.",
         ),
     },
 )
@@ -202,9 +204,9 @@ def sensor_readings_series(
     sensor_id: UUID,
     service: ReadingSvc,
     scope: OrgScope,
-    days: Annotated[int, Query(ge=1, le=30, description="Días hasta ahora.")] = 7,
+    days: Annotated[int, Query(ge=1, le=30, description="Days until now.")] = 7,
     bucket: Annotated[
-        SeriesBucket, Query(description="Tamaño de cada tramo.")
+        SeriesBucket, Query(description="Size of each slot.")
     ] = SeriesBucket.H2,
 ) -> ReadingSeriesResponse:
     return service.series(

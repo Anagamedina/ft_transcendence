@@ -1,2 +1,2 @@
-# Módulo invitations — invitar usuarios a una organización existente (#130).
-# Endpoints, schemas y service: B4 (Ana).
+# invitations module — invite users to an existing organization (#130).
+# Endpoints, schemas and service: B4 (Ana).
