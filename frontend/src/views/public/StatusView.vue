@@ -6,7 +6,7 @@
       <LoadingState v-if="!report" message="Comprobando el estado…" />
 
       <template v-else>
-        <p class="text-sm text-gray-500 mb-8">
+        <p class="text-sm text-slate-500 mb-8">
           Última comprobación: {{ formatDate(report.checked_at) }}
         </p>
 
@@ -21,13 +21,13 @@
           <li
             v-for="component in report.components"
             :key="component.name"
-            class="flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-white px-6 py-4"
+            class="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-6 py-4"
           >
             <div>
-              <p class="font-semibold text-gray-900">
+              <p class="font-semibold text-slate-900">
                 {{ NAMES[component.name] }}
               </p>
-              <p class="text-sm text-gray-500">{{ describe(component) }}</p>
+              <p class="text-sm text-slate-500">{{ describe(component) }}</p>
             </div>
             <span
               class="shrink-0 rounded-full px-3 py-1 text-sm font-semibold"
@@ -61,18 +61,18 @@ import { useFormat } from "../../composables/useFormat";
 const STATES = {
   OPERATIONAL: {
     label: "Operativo",
-    badge: "bg-green-100 text-green-800",
-    banner: "border-green-200 bg-green-50 text-green-800",
+    badge: "bg-success-light text-success-dark",
+    banner: "border-success/40 bg-success-light text-success-dark",
   },
   DEGRADED: {
     label: "Degradado",
-    badge: "bg-yellow-100 text-yellow-800",
-    banner: "border-yellow-200 bg-yellow-50 text-yellow-800",
+    badge: "bg-warning-light text-warning-dark",
+    banner: "border-warning/40 bg-warning-light text-warning-dark",
   },
   DOWN: {
     label: "Caído",
-    badge: "bg-red-100 text-red-800",
-    banner: "border-red-200 bg-red-50 text-red-800",
+    badge: "bg-danger-light text-danger-dark",
+    banner: "border-danger/40 bg-danger-light text-danger-dark",
   },
 };
 

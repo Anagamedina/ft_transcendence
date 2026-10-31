@@ -11,7 +11,7 @@
     <div
       class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
     >
-      <h2 class="text-lg font-bold text-gray-800">Clientes</h2>
+      <h2 class="text-lg font-bold text-slate-800">Clientes</h2>
 
       <!-- Search box: visual only. Filtering logic belongs to the parent view -->
       <label class="w-full sm:w-72">
@@ -45,13 +45,13 @@
     <!-- overflow-x-auto: on narrow screens the table scrolls inside its card, not the whole page -->
     <div
       v-else
-      class="overflow-x-auto rounded-xl border border-gray-200 bg-white"
+      class="overflow-x-auto rounded-xl border border-slate-200 bg-white"
     >
       <table class="w-full min-w-[760px] text-sm">
         <caption class="sr-only">
           Clientes
         </caption>
-        <thead class="bg-gray-50 text-left text-gray-600">
+        <thead class="bg-slate-50 text-left text-slate-600">
           <tr>
             <!-- aria-sort: screen readers say which column orders the list and in which direction -->
             <th
@@ -74,7 +74,7 @@
                   aria-hidden="true"
                   class="w-3 text-xs"
                   :class="
-                    sort === column.sort ? 'text-aqua-600' : 'text-gray-400'
+                    sort === column.sort ? 'text-aqua-600' : 'text-slate-400'
                   "
                   >{{ arrow(column.sort) }}</span
                 >
@@ -85,7 +85,7 @@
         </thead>
         <!-- One tbody per client keeps the expandable row keyed without a template wrapper. -->
         <tbody v-for="{ client, status } in rows" :key="client.id">
-          <tr class="border-t border-gray-200">
+          <tr class="border-t border-slate-200">
             <th
               scope="row"
               class="sticky left-0 bg-white px-4 py-3 text-left font-semibold"
@@ -95,7 +95,7 @@
                 <button
                   v-if="client.site_count > 0"
                   type="button"
-                  class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-lg text-gray-500 hover:bg-aqua-50 hover:text-aqua-600"
+                  class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-lg text-slate-500 hover:bg-aqua-50 hover:text-aqua-600"
                   :aria-expanded="isExpanded(client.id)"
                   :aria-controls="`sites-${client.id}`"
                   :aria-label="`Edificios de ${client.name}`"
@@ -129,7 +129,7 @@
                 {{ status.label }}
               </span>
             </td>
-            <td class="whitespace-nowrap px-4 py-3 text-gray-600">
+            <td class="whitespace-nowrap px-4 py-3 text-slate-600">
               {{ status.trialText }}
             </td>
             <td class="px-4 py-3 text-right tabular-nums">
@@ -145,7 +145,7 @@
             <td
               class="px-4 py-3 text-right tabular-nums font-bold"
               :class="
-                client.critical_alerts > 0 ? 'text-red-700' : 'text-gray-800'
+                client.critical_alerts > 0 ? 'text-danger-dark' : 'text-slate-800'
               "
             >
               {{ client.open_alerts }}
@@ -161,13 +161,13 @@
             <td colspan="7" class="px-4 py-3">
               <ul class="sticky left-4 w-fit space-y-3 pl-9">
                 <li v-for="site in sitesOf(client.id)" :key="site.id">
-                  <p class="font-semibold text-gray-800">
+                  <p class="font-semibold text-slate-800">
                     {{ site.name }}
-                    <span class="font-normal text-gray-600"
+                    <span class="font-normal text-slate-600"
                       >· {{ sensorsLabel(site.sensors.length) }}</span
                     >
                   </p>
-                  <p v-if="site.address" class="text-gray-600">
+                  <p v-if="site.address" class="text-slate-600">
                     {{ site.address }}
                   </p>
                   <ul
@@ -177,10 +177,10 @@
                     <li
                       v-for="sensor in site.sensors"
                       :key="sensor.id"
-                      class="text-gray-700"
+                      class="text-slate-700"
                     >
                       {{ sensor.name }}
-                      <span class="text-gray-500">
+                      <span class="text-slate-500">
                         · {{ sensor.location }} · {{ sensorStateLabel(sensor) }}
                       </span>
                     </li>
@@ -196,7 +196,7 @@
     <!-- Pagination: only when there is something to paginate -->
     <div
       v-if="!loading && !error && total > 0"
-      class="flex flex-col gap-3 text-sm text-gray-600 sm:flex-row sm:items-center sm:justify-between"
+      class="flex flex-col gap-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between"
     >
       <label class="flex items-center gap-2">
         Por página
@@ -298,7 +298,7 @@ const columns = [
     label: "Cliente",
     sort: "name",
     first: "asc",
-    class: "sticky left-0 bg-gray-50",
+    class: "sticky left-0 bg-slate-50",
   },
   { label: "Estado" },
   { label: "Prueba", sort: "trial_ends_at", first: "asc" },
@@ -383,6 +383,6 @@ function pageButtonClass(isCurrent) {
     "min-h-9 min-w-9 rounded-lg border px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50";
   return isCurrent
     ? `${base} border-aqua-600 bg-aqua-600 text-white`
-    : `${base} border-gray-300 bg-white text-gray-700 hover:border-aqua-600`;
+    : `${base} border-slate-300 bg-white text-slate-700 hover:border-aqua-600`;
 }
 </script>

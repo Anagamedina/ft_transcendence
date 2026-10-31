@@ -64,7 +64,7 @@ const buttons = ref([]);
 
 const ICON_BOX = {
   offline: "bg-slate-100 text-slate-600",
-  floors: "bg-amber-50 text-amber-700",
+  floors: "bg-warning-light text-warning-dark",
   all: "bg-success-light text-success-dark",
 };
 

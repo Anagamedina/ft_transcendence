@@ -15,8 +15,7 @@
             class="flex items-center gap-2 px-2"
             aria-label="AquaGuard, ir al panel"
           >
-            <span class="water-drop" aria-hidden="true"></span>
-            <span class="text-lg font-bold text-aqua-900">AquaGuard</span>
+            <AppLogo class="text-aqua-900" />
             <span
               class="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold tracking-wider text-aqua-700"
               >ADMIN</span
@@ -54,6 +53,7 @@
 </template>
 
 <script setup>
+import AppLogo from "../components/AppLogo.vue";
 import Sidebar from "../components/Sidebar.vue";
 import Footer from "../components/Footer.vue";
 
@@ -107,14 +107,3 @@ async function handleLogout() {
 }
 </script>
 
-<style scoped>
-/* Same drop as the public header logo, smaller */
-.water-drop {
-  width: 18px;
-  height: 22px;
-  background: #06b6d4;
-  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-  transform: rotate(0deg);
-  clip-path: polygon(50% 0, 100% 62%, 92% 85%, 72% 98%, 28% 98%, 8% 85%, 0 62%);
-}
-</style>

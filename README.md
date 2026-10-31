@@ -923,6 +923,7 @@ users in [Demo data](#demo-data). Backend rules are covered by
 | Frontend       | Public: landing page, fixed header and legal page with privacy and terms (#195)                                  | Florinda               | `/` · `/legal`                               |
 | Frontend       | Landing: how an alert works (calls only if critical) and who can do what (F28)                                   | Florinda               | `/` → #alertas · #roles                      |
 | Frontend       | Coherent sensor counters: "Sensores conectados X de Y", same refresh, pending closure (F30)                      | Florinda               | `/admin` · `/app` · `/app/edificios/:id`     |
+| Frontend       | Visual identity: one logo (AppLogo), bundled Inter font, palette-only colours, "Ir a mi panel" (F29)             | Florinda               | all screens · `/` · `/legal`                 |
 | Frontend       | Public: trial sign-up and invitation acceptance, shared password rule (F15-P, F6)                                | Florinda               | `/prueba` · `/registro`                      |
 | Frontend       | Auth UI: login, logout, route guards and role-based redirects (#99, #174)                                        | Lylia                  | `/login` · `/admin` as a client              |
 | Frontend       | Admin dashboard: KPI cards, active alerts and the Barcelona sites map (#156)                                     | Florinda, Eduardo, Ana | `/admin`                                     |

@@ -9,24 +9,17 @@
     <div
       class="relative z-10 flex flex-col sm:flex-row sm:justify-between sm:items-center px-4 py-3 sm:px-6 gap-3"
     >
+      <!-- F29: same logo as the admin and client Sidebars -->
       <router-link
         to="/"
-        class="flex items-center gap-2 hover:opacity-90 transition"
+        class="hover:opacity-90 transition"
         aria-label="AquaGuard, ir a la portada"
       >
-        <div class="water-drop-header"></div>
-        <h1
-          :class="[
-            'title-clamp text-xl sm:text-2xl font-bold',
-            light ? '' : 'drop-shadow',
-          ]"
-        >
-          {{ title }}
-        </h1>
+        <AppLogo :text="title" size="lg" />
       </router-link>
       <slot name="actions">
         <button
-          class="bg-white text-aqua-600 px-4 py-2 md:px-6 rounded-lg font-semibold hover:bg-gray-100 transition shrink-0"
+          class="bg-white text-aqua-600 px-4 py-2 md:px-6 rounded-lg font-semibold hover:bg-aqua-50 transition shrink-0"
         >
           Menu
         </button>
@@ -36,35 +29,11 @@
 </template>
 
 <script setup>
+import AppLogo from "./AppLogo.vue";
+
 defineProps({
   title: { type: String, default: "AquaGuard" },
   // Light variant (white background) used by the public area
   light: { type: Boolean, default: false },
 });
 </script>
-
-<style scoped>
-.title-clamp {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.water-drop-header {
-  width: 26px;
-  height: 26px;
-  background: linear-gradient(
-    135deg,
-    white 0%,
-    theme('colors.aqua.300') 45%,
-    theme('colors.aqua.600') 100%
-  );
-  border-radius: 50% 50% 50% 0;
-  transform: rotate(135deg);
-  box-shadow:
-    inset -3px -3px 8px rgb(255 255 255 / 0.4),
-    3px 3px 10px theme('colors.aqua.600 / 30%');
-}
-</style>

@@ -14,13 +14,13 @@
   <div class="space-y-4">
     <!-- Status card: trial, active or suspended -->
     <section
-      class="space-y-3 rounded-xl border border-gray-200 bg-white p-5"
+      class="space-y-3 rounded-xl border border-slate-200 bg-white p-5"
       aria-labelledby="actions-status-title"
     >
-      <h2 id="actions-status-title" class="text-lg font-bold text-gray-900">
+      <h2 id="actions-status-title" class="text-lg font-bold text-slate-900">
         {{ statusTitle }}
       </h2>
-      <p class="text-gray-600">{{ statusText }}</p>
+      <p class="text-slate-600">{{ statusText }}</p>
 
       <div class="flex flex-wrap gap-2">
         <button
@@ -57,9 +57,9 @@
         role="alertdialog"
         aria-labelledby="confirm-suspend-text"
         @keydown.esc="cancel"
-        class="flex flex-col gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between"
+        class="flex flex-col gap-3 rounded-lg border border-warning/40 bg-warning-light p-4 sm:flex-row sm:items-center sm:justify-between"
       >
-        <p id="confirm-suspend-text" class="text-amber-900">
+        <p id="confirm-suspend-text" class="text-warning-dark">
           <strong>¿Suspender {{ client.name }}?</strong>
           {{ suspendText }}
         </p>
@@ -85,17 +85,17 @@
 
     <!-- Danger zone: delete -->
     <section
-      class="space-y-3 rounded-xl border border-red-200 bg-white p-5"
+      class="space-y-3 rounded-xl border border-danger/40 bg-white p-5"
       aria-labelledby="actions-delete-title"
     >
       <div
         class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
       >
         <div>
-          <h2 id="actions-delete-title" class="text-lg font-bold text-red-800">
+          <h2 id="actions-delete-title" class="text-lg font-bold text-danger-dark">
             Eliminar cliente
           </h2>
-          <p class="text-sm text-gray-600">
+          <p class="text-sm text-slate-600">
             Borra la organización, sus edificios, sensores y lecturas. No se
             puede deshacer.
           </p>
@@ -117,9 +117,9 @@
         role="alertdialog"
         aria-labelledby="confirm-delete-text"
         @keydown.esc="cancel"
-        class="flex flex-col gap-3 rounded-lg border border-red-300 bg-red-50 p-4 sm:flex-row sm:items-center sm:justify-between"
+        class="flex flex-col gap-3 rounded-lg border border-danger/40 bg-danger-light p-4 sm:flex-row sm:items-center sm:justify-between"
       >
-        <p id="confirm-delete-text" class="text-red-900">
+        <p id="confirm-delete-text" class="text-danger-dark">
           <strong>¿Eliminar {{ client.name }} para siempre?</strong>
           {{ deleteText }}
         </p>
@@ -160,10 +160,10 @@ const emit = defineEmits(["extend", "suspend", "reactivate", "delete"]);
 const BASE = "min-h-10 rounded-lg border px-4 text-sm font-semibold";
 const BUTTON_PRIMARY = `${BASE} border-aqua-600 bg-aqua-600 text-white hover:bg-aqua-700`;
 const BUTTON_OUTLINE = `${BASE} border-aqua-600 bg-white text-aqua-600 hover:bg-aqua-50`;
-const BUTTON_SECONDARY = `${BASE} border-gray-300 bg-white text-gray-700 hover:border-aqua-600`;
-const BUTTON_WARNING = `${BASE} border-amber-600 bg-white text-amber-800 hover:bg-amber-50`;
-const BUTTON_WARNING_SOLID = `${BASE} border-amber-700 bg-amber-700 text-white hover:bg-amber-800`;
-const BUTTON_DANGER = `${BASE} border-red-700 bg-red-700 text-white hover:bg-red-800`;
+const BUTTON_SECONDARY = `${BASE} border-slate-300 bg-white text-slate-700 hover:border-aqua-600`;
+const BUTTON_WARNING = `${BASE} border-warning-dark bg-white text-warning-dark hover:bg-warning-light`;
+const BUTTON_WARNING_SOLID = `${BASE} border-warning-dark bg-warning-dark text-white hover:bg-warning-dark/90`;
+const BUTTON_DANGER = `${BASE} border-danger-dark bg-danger-dark text-white hover:bg-danger-dark/90`;
 
 // Which confirmation is open: 'suspend', 'delete' or null
 const confirming = ref(null);

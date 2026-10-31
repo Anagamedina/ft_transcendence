@@ -276,7 +276,7 @@ watch(
         >
           <div class="space-y-1">
             <div class="flex flex-wrap items-center gap-3">
-              <h1 class="text-2xl font-bold text-gray-900">
+              <h1 class="text-2xl font-bold text-slate-900">
                 {{ client.name }}
               </h1>
               <span
@@ -286,7 +286,7 @@ watch(
                 {{ pillText }}
               </span>
             </div>
-            <p class="text-sm text-gray-600">
+            <p class="text-sm text-slate-600">
               Cliente desde {{ formatDate(client.created_at) }}
               <template v-if="client.contact_email">
                 · {{ client.contact_email }}</template
@@ -295,30 +295,30 @@ watch(
           </div>
 
           <dl class="grid grid-cols-4 gap-2 text-center">
-            <div class="rounded-lg border border-gray-200 bg-white px-3 py-2">
-              <dt class="text-xs text-gray-600">Edificios</dt>
-              <dd class="text-xl font-bold tabular-nums text-gray-900">
+            <div class="rounded-lg border border-slate-200 bg-white px-3 py-2">
+              <dt class="text-xs text-slate-600">Edificios</dt>
+              <dd class="text-xl font-bold tabular-nums text-slate-900">
                 {{ client.site_count }}
               </dd>
             </div>
-            <div class="rounded-lg border border-gray-200 bg-white px-3 py-2">
-              <dt class="text-xs text-gray-600">Sensores</dt>
-              <dd class="text-xl font-bold tabular-nums text-gray-900">
+            <div class="rounded-lg border border-slate-200 bg-white px-3 py-2">
+              <dt class="text-xs text-slate-600">Sensores</dt>
+              <dd class="text-xl font-bold tabular-nums text-slate-900">
                 {{ client.sensor_count }}
               </dd>
             </div>
-            <div class="rounded-lg border border-gray-200 bg-white px-3 py-2">
-              <dt class="text-xs text-gray-600">Usuarios</dt>
-              <dd class="text-xl font-bold tabular-nums text-gray-900">
+            <div class="rounded-lg border border-slate-200 bg-white px-3 py-2">
+              <dt class="text-xs text-slate-600">Usuarios</dt>
+              <dd class="text-xl font-bold tabular-nums text-slate-900">
                 {{ client.user_count }}
               </dd>
             </div>
-            <div class="rounded-lg border border-gray-200 bg-white px-3 py-2">
-              <dt class="text-xs text-gray-600">Alertas</dt>
+            <div class="rounded-lg border border-slate-200 bg-white px-3 py-2">
+              <dt class="text-xs text-slate-600">Alertas</dt>
               <dd
                 class="text-xl font-bold tabular-nums"
                 :class="
-                  client.critical_alerts > 0 ? 'text-red-700' : 'text-gray-900'
+                  client.critical_alerts > 0 ? 'text-danger-dark' : 'text-slate-900'
                 "
               >
                 {{ client.open_alerts }}
@@ -334,12 +334,12 @@ watch(
           tabindex="-1"
           class="text-sm font-semibold"
           :class="[
-            feedbackIsError ? 'text-red-800' : 'text-green-800',
+            feedbackIsError ? 'text-danger-dark' : 'text-success-dark',
             feedback
               ? `rounded-lg border px-4 py-2 focus:outline-none focus:ring-2 focus:ring-aqua-600 ${
                   feedbackIsError
-                    ? 'border-red-200 bg-red-50'
-                    : 'border-green-200 bg-green-50'
+                    ? 'border-danger/40 bg-danger-light'
+                    : 'border-success/40 bg-success-light'
                 }`
               : '',
           ]"
@@ -375,11 +375,11 @@ watch(
 
           <!-- Datos -->
           <template #data>
-            <div class="rounded-xl border border-gray-200 bg-white p-5">
+            <div class="rounded-xl border border-slate-200 bg-white p-5">
               <dl class="grid gap-x-8 gap-y-4 sm:grid-cols-2">
                 <div v-for="field in dataFields" :key="field.label">
-                  <dt class="text-sm text-gray-600">{{ field.label }}</dt>
-                  <dd class="font-semibold text-gray-900 break-words">
+                  <dt class="text-sm text-slate-600">{{ field.label }}</dt>
+                  <dd class="font-semibold text-slate-900 break-words">
                     {{ field.value || "—" }}
                   </dd>
                 </div>

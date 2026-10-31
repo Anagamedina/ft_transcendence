@@ -287,7 +287,7 @@
     <section
       class="bg-aqua-50 px-6 py-14 md:px-20 text-center flex flex-col items-center gap-4"
     >
-      <div class="water-drop mb-4" aria-hidden="true"></div>
+      <AppLogo icon-only size="xl" class="floating-drop mb-4" />
       <h2 class="text-3xl font-bold text-aqua-900">
         ¿Tu edificio está en Barcelona?
       </h2>
@@ -306,6 +306,7 @@
 
 <script setup>
 import PublicLayout from "../../layouts/PublicLayout.vue";
+import AppLogo from "../../components/AppLogo.vue";
 import BuildingDrawing from "../../components/BuildingDrawing.vue";
 import { useLabels } from "../../composables/useLabels";
 
@@ -469,37 +470,26 @@ const plans = [
 </script>
 
 <style scoped>
-/* Decorative floating drop for the final call to action */
-.water-drop {
-  width: 96px;
-  height: 96px;
-  background: linear-gradient(
-    135deg,
-    white 0%,
-    theme("colors.aqua.300") 45%,
-    theme("colors.aqua.600") 100%
-  );
-  border-radius: 50% 50% 50% 0;
-  transform: rotate(135deg);
-  box-shadow:
-    inset -6px -6px 14px rgb(255 255 255 / 0.4),
-    6px 6px 18px theme("colors.aqua.600 / 30%");
+/* Decorative floating drop for the final call to action (same drop as
+   the logo, AppLogo) */
+.floating-drop {
+  filter: drop-shadow(6px 6px 12px theme('colors.aqua.600 / 30%'));
   animation: float 3s ease-in-out infinite;
 }
 
 @keyframes float {
   0%,
   100% {
-    transform: rotate(135deg) translateY(0);
+    transform: translateY(0);
   }
   50% {
-    transform: rotate(135deg) translateY(-10px);
+    transform: translateY(-10px);
   }
 }
 
 /* Respect users who disable animations in their system settings */
 @media (prefers-reduced-motion: reduce) {
-  .water-drop {
+  .floating-drop {
     animation: none;
   }
 }

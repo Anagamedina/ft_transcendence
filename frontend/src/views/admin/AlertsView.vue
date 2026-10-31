@@ -18,7 +18,7 @@
         <p class="flex items-center gap-1.5 text-sm text-slate-500" aria-live="polite">
           <span
             class="h-2 w-2 rounded-full"
-            :class="store.status === 'error' ? 'bg-rose-600' : 'bg-emerald-500'"
+            :class="store.status === 'error' ? 'bg-danger' : 'bg-success'"
             aria-hidden="true"
           ></span>
           {{ updatedText }}
@@ -60,10 +60,10 @@
 
         <div
           v-else-if="allClear"
-          class="flex flex-col items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 p-10 text-center"
+          class="flex flex-col items-center gap-1 rounded-xl border border-success/40 bg-success-light p-10 text-center"
         >
-          <p class="text-xl font-bold text-emerald-800">✓ Todo en orden</p>
-          <p class="text-sm text-emerald-900">
+          <p class="text-xl font-bold text-success-dark">✓ Todo en orden</p>
+          <p class="text-sm text-success-dark">
             No hay ninguna alerta abierta. Las arregladas de la semana están en «Arregladas».
           </p>
         </div>
@@ -78,7 +78,7 @@
         <template v-else>
           <p
             v-if="store.truncated"
-            class="mb-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900"
+            class="mb-3 rounded-lg bg-warning-light p-3 text-sm text-warning-dark"
           >
             Hay más de 100 alertas en esta pestaña: se ordenan las 100 más recientes.
             Filtra por cliente o urgencia para ver el resto.

@@ -113,7 +113,7 @@
         >2–3</span
       >
       <span class="flex items-center gap-1"
-        ><span class="h-3 w-3 rounded-sm bg-danger" aria-hidden="true"></span>4
+        ><span class="h-3 w-3 rounded-sm bg-danger-dark" aria-hidden="true"></span>4
         o más</span
       >
     </p>
@@ -197,7 +197,7 @@ const sortedRows = computed(() =>
 function cellClass(count) {
   if (!count) return "bg-slate-100 text-slate-400";
   if (count === 1) return "bg-warning-light text-warning-dark";
-  if (count <= 3) return "bg-warning text-white";
-  return "bg-danger text-white";
+  if (count <= 3) return "bg-warning text-slate-900";
+  return "bg-danger-dark text-white";
 }
 </script>

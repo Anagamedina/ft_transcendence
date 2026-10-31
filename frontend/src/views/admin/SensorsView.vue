@@ -55,12 +55,12 @@
           </label>
           <span
             v-if="siteFilter"
-            class="inline-flex h-8 items-center gap-1 rounded-full bg-sky-100 pl-3 pr-1 text-sm font-semibold text-aqua-700"
+            class="inline-flex h-8 items-center gap-1 rounded-full bg-aqua-100 pl-3 pr-1 text-sm font-semibold text-aqua-700"
           >
             {{ siteFilter.name }}
             <button
               type="button"
-              class="flex h-6 w-6 items-center justify-center rounded-full hover:bg-sky-200"
+              class="flex h-6 w-6 items-center justify-center rounded-full hover:bg-aqua-200"
               :aria-label="`Quitar el filtro de edificio ${siteFilter.name}`"
               @click="updateQuery({ site: null })"
             >
@@ -83,7 +83,7 @@
         <template v-else-if="tab === 'floors'">
           <p
             v-if="!missingFloors.length"
-            class="rounded-xl border border-emerald-200 bg-emerald-50 p-8 text-center font-semibold text-emerald-800"
+            class="rounded-xl border border-success/40 bg-success-light p-8 text-center font-semibold text-success-dark"
           >
             ✓ Todas las plantas tienen sensor
           </p>
@@ -274,7 +274,7 @@ const tabs = computed(() => {
       count: stopped.length,
       note: stopped.length ? `el más antiguo, hace ${formatDuration(oldest)}` : "todos envían lecturas",
       shortNote: stopped.length ? `hace ${formatDuration(oldest)}` : "",
-      noteClass: stopped.length ? "font-semibold text-amber-700" : "font-semibold text-success-dark",
+      noteClass: stopped.length ? "font-semibold text-warning-dark" : "font-semibold text-success-dark",
     },
     {
       key: "floors",

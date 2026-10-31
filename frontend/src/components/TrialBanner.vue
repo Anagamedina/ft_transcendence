@@ -13,7 +13,7 @@
 <template>
   <div
     v-if="state === 'expired'"
-    class="border-b border-red-200 bg-red-50 px-6 py-3 text-sm text-red-900"
+    class="border-b border-danger/40 bg-danger-light px-6 py-3 text-sm text-danger-dark"
     role="status"
   >
     <strong>Tu periodo de prueba ha terminado.</strong>
@@ -26,7 +26,7 @@
 
   <div
     v-else-if="state === 'trial'"
-    class="border-b border-amber-200 bg-amber-50 px-6 py-3 text-sm text-amber-900"
+    class="border-b border-warning/40 bg-warning-light px-6 py-3 text-sm text-warning-dark"
     role="status"
   >
     <strong>Periodo de prueba:</strong>

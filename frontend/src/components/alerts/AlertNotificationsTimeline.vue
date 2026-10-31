@@ -63,7 +63,7 @@ const DOT = {
   start: "h-3 w-3 bg-slate-400",
   next: "h-4 w-4 border-[3px] border-aqua-600 bg-white",
   pending: "h-3 w-3 border-2 border-slate-300 bg-white",
-  call: "h-4 w-4 bg-rose-700",
+  call: "h-4 w-4 bg-danger",
   normal: "h-4 w-4 border-[3px] border-success-dark bg-success-light",
 };
 
@@ -72,7 +72,7 @@ const TITLE = {
   done: "font-semibold text-slate-900",
   next: "font-semibold text-aqua-600",
   pending: "text-slate-600",
-  call: "font-bold text-rose-700",
+  call: "font-bold text-danger-dark",
   normal: "font-semibold text-success-dark",
 };
 

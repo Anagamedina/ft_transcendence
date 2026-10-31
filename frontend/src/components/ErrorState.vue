@@ -10,21 +10,21 @@
 <template>
   <div
     role="alert"
-    class="flex flex-col items-center justify-center gap-3 text-center rounded-xl border border-red-200 bg-red-50 px-6"
+    class="flex flex-col items-center justify-center gap-3 text-center rounded-xl border border-danger/40 bg-danger-light px-6"
     :class="compact ? 'py-6' : 'py-12'"
   >
-    <div class="w-10 h-10 text-red-700">
+    <div class="w-10 h-10 text-danger-dark">
       <AppIcon name="alert" />
     </div>
     <div class="flex flex-col gap-1">
-      <p class="font-semibold text-red-800">{{ title }}</p>
-      <p class="text-sm text-red-700">{{ message || defaultMessage }}</p>
+      <p class="font-semibold text-danger-dark">{{ title }}</p>
+      <p class="text-sm text-danger-dark">{{ message || defaultMessage }}</p>
     </div>
     <button
       v-if="retryable"
       ref="retryButton"
       type="button"
-      class="min-h-[44px] px-5 rounded-lg border border-red-700 bg-white text-red-700 font-semibold hover:bg-red-100 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700"
+      class="min-h-[44px] px-5 rounded-lg border border-danger bg-white text-danger-dark font-semibold hover:bg-danger-light transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger"
       @click="$emit('retry')"
     >
       {{ retryText }}

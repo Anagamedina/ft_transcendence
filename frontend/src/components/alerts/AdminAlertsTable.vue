@@ -38,8 +38,8 @@
           v-for="alert in rows"
           :key="alert.id"
           tabindex="0"
-          class="cursor-pointer align-top hover:bg-slate-50 focus:bg-sky-50 focus:outline-none"
-          :class="alert.id === selectedId ? 'bg-sky-50' : ''"
+          class="cursor-pointer align-top hover:bg-slate-50 focus:bg-aqua-50 focus:outline-none"
+          :class="alert.id === selectedId ? 'bg-aqua-50' : ''"
           :aria-label="`${label('AlertType', alert.type)}, ${alert.organization_name}. Ver detalle`"
           @click="$emit('open', alert)"
           @keydown.enter.prevent="$emit('open', alert)"
@@ -108,7 +108,7 @@
           <td class="px-3 py-3 xl:px-4">
             <span
               class="inline-flex items-center gap-1.5 whitespace-nowrap"
-              :class="cellB(alert).late ? 'font-semibold text-amber-700' : 'text-slate-700'"
+              :class="cellB(alert).late ? 'font-semibold text-warning-dark' : 'text-slate-700'"
             >
               <svg
                 v-if="cellB(alert).late"
@@ -153,7 +153,7 @@
               {{ floorLabel(alert.floor) }}
             </span>
             <span class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
-              <span :class="cellB(alert).late ? 'font-semibold text-amber-700' : 'text-slate-500'">
+              <span :class="cellB(alert).late ? 'font-semibold text-warning-dark' : 'text-slate-500'">
                 {{ columns[1] }}: {{ cellB(alert).text }}
               </span>
               <span v-if="notice(alert)" :class="NOTICE_TEXT[notice(alert).tone ?? 'none']">
@@ -242,7 +242,7 @@ const columns = computed(() => {
 
 // Amber like the "late" clock: it waits too long. Red is only for "Crítica"
 const NOTICE_TEXT = {
-  call: "font-semibold text-amber-700",
+  call: "font-semibold text-warning-dark",
   sent: "font-medium text-slate-700",
   normal: "font-medium text-success-dark",
   none: "text-slate-500",
@@ -293,11 +293,11 @@ function cellB(alert) {
 
 function severityClass(severity) {
   return severity === "CRITICAL"
-    ? "bg-rose-50 text-rose-700"
-    : "bg-amber-50 text-amber-800";
+    ? "bg-danger-light text-danger-dark"
+    : "bg-warning-light text-warning-dark";
 }
 
 function dotClass(severity) {
-  return severity === "CRITICAL" ? "bg-rose-700" : "bg-amber-600";
+  return severity === "CRITICAL" ? "bg-danger" : "bg-warning";
 }
 </script>

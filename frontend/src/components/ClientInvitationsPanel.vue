@@ -12,16 +12,16 @@
 
 <template>
   <section
-    class="rounded-xl border border-gray-200 bg-white p-5"
+    class="rounded-xl border border-slate-200 bg-white p-5"
     aria-labelledby="client-invitations-title"
   >
     <header class="mb-2 flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h2 id="client-invitations-title" class="font-bold text-gray-900">
+        <h2 id="client-invitations-title" class="font-bold text-slate-900">
           Invitaciones
-          <span class="font-normal text-gray-600">({{ pendingText }})</span>
+          <span class="font-normal text-slate-600">({{ pendingText }})</span>
         </h2>
-        <p class="text-sm text-gray-600">Accesos pendientes de aceptar.</p>
+        <p class="text-sm text-slate-600">Accesos pendientes de aceptar.</p>
       </div>
       <button
         v-if="!formOpen"
@@ -38,13 +38,13 @@
       <li
         v-for="invitation in invitations"
         :key="invitation.id"
-        class="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 py-4 first:border-t-0"
+        class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 py-4 first:border-t-0"
       >
         <div class="min-w-0">
-          <p class="break-all font-semibold text-gray-900">
+          <p class="break-all font-semibold text-slate-900">
             {{ invitation.email }}
           </p>
-          <p class="text-sm text-gray-600">
+          <p class="text-sm text-slate-600">
             Caduca el {{ formatDate(invitation.expires_at) }} · Sin aceptar
           </p>
         </div>
@@ -55,11 +55,11 @@
         </span>
       </li>
     </ul>
-    <p v-else class="text-sm text-gray-600">No hay invitaciones pendientes.</p>
+    <p v-else class="text-sm text-slate-600">No hay invitaciones pendientes.</p>
 
     <!-- New invitation -->
-    <div v-if="formOpen" class="mt-4 space-y-3 rounded-lg bg-gray-50 p-4">
-      <h3 class="font-semibold text-gray-900">Nueva invitación</h3>
+    <div v-if="formOpen" class="mt-4 space-y-3 rounded-lg bg-slate-50 p-4">
+      <h3 class="font-semibold text-slate-900">Nueva invitación</h3>
       <form
         novalidate
         class="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end"
@@ -67,7 +67,7 @@
         @keydown.esc="closeForm"
       >
         <div class="flex flex-col gap-1">
-          <label for="invite-email" class="text-sm font-semibold text-gray-700">
+          <label for="invite-email" class="text-sm font-semibold text-slate-700">
             Email de la persona invitada <span aria-hidden="true">*</span>
           </label>
           <input
@@ -96,7 +96,7 @@
         >
           {{ inviting ? "Creando…" : "Crear invitación" }}
         </button>
-        <p id="invite-email-hint" class="text-xs text-gray-600 sm:col-span-2">
+        <p id="invite-email-hint" class="text-xs text-slate-600 sm:col-span-2">
           Acceso de cliente a esta organización. La persona creará su cuenta al
           aceptar.
         </p>
@@ -104,7 +104,7 @@
           v-if="error"
           id="invite-email-error"
           role="alert"
-          class="text-sm text-red-700 sm:col-span-2"
+          class="text-sm text-danger-dark sm:col-span-2"
         >
           {{ error }}
         </p>
@@ -117,9 +117,9 @@
     <!-- The link is only available right after creating it (InvitationSentResponse) -->
     <div
       v-if="lastInvitation"
-      class="mt-4 space-y-2 border-t border-gray-200 pt-4"
+      class="mt-4 space-y-2 border-t border-slate-200 pt-4"
     >
-      <p class="text-sm text-gray-700" role="status">
+      <p class="text-sm text-slate-700" role="status">
         Envía este enlace a {{ lastInvitation.email }} para que active su
         cuenta.
       </p>
@@ -153,7 +153,7 @@ const BUTTON_PRIMARY =
 const TEXT_BUTTON =
   "min-h-10 px-1 text-sm font-semibold text-aqua-700 hover:underline";
 const INPUT =
-  "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-aqua-600";
+  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-aqua-600";
 
 // The store keeps the pending invitations of the open client
 const invitations = computed(() => organizationsStore.invitations);

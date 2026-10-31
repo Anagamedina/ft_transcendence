@@ -16,8 +16,7 @@
             class="flex items-center gap-2 px-2"
             aria-label="AquaGuard, ir a Mis edificios"
           >
-            <span class="water-drop" aria-hidden="true"></span>
-            <span class="text-lg font-bold text-aqua-900">AquaGuard</span>
+            <AppLogo class="text-aqua-900" />
           </router-link>
         </template>
         <template #footer>
@@ -58,6 +57,7 @@
 </template>
 
 <script setup>
+import AppLogo from "../components/AppLogo.vue";
 import { computed, onMounted } from "vue";
 import { useRouter, RouterView } from "vue-router";
 
@@ -131,13 +131,3 @@ async function handleLogout() {
 }
 </script>
 
-<style scoped>
-/* Same drop as AdminLayout and the public header logo */
-.water-drop {
-  width: 18px;
-  height: 22px;
-  background: #06b6d4;
-  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-  clip-path: polygon(50% 0, 100% 62%, 92% 85%, 72% 98%, 28% 98%, 8% 85%, 0 62%);
-}
-</style>

@@ -4,17 +4,17 @@
 -->
 
 <template>
-  <section class="bg-white border border-gray-200 rounded-xl shadow-md p-5">
+  <section class="bg-white border border-slate-200 rounded-xl shadow-md p-5">
     <div class="flex items-center gap-2 mb-4">
       <span class="w-5 h-5 text-aqua-600"><AppIcon name="building" /></span>
-      <h2 class="text-lg font-bold text-gray-800">Edificios</h2>
+      <h2 class="text-lg font-bold text-slate-800">Edificios</h2>
     </div>
 
-    <p v-if="sites.length === 0" class="text-sm text-gray-500">
+    <p v-if="sites.length === 0" class="text-sm text-slate-500">
       No hay edificios disponibles todavía.
     </p>
 
-    <ul v-else class="divide-y divide-gray-100">
+    <ul v-else class="divide-y divide-slate-100">
       <li v-for="site in sites" :key="site.id" class="py-3">
         <!-- Renders a button when selectable (keyboard accessible), a plain div otherwise -->
         <!-- Renders a button when selectable (keyboard accessible), a plain div otherwise -->
@@ -31,19 +31,19 @@
         >
           <div>
             <p
-              class="font-semibold text-gray-800 transition"
+              class="font-semibold text-slate-800 transition"
               :class="selectable ? 'group-hover:text-aqua-700' : ''"
             >
               {{ site.name }}
             </p>
-            <p class="text-sm text-gray-500">{{ site.address }}</p>
+            <p class="text-sm text-slate-500">{{ site.address }}</p>
           </div>
 
           <!-- Arrow hint, only when the site is clickable -->
           <span
             v-if="selectable"
             aria-hidden="true"
-            class="text-xl text-gray-400 group-hover:text-aqua-600 group-hover:translate-x-1 transition"
+            class="text-xl text-slate-400 group-hover:text-aqua-600 group-hover:translate-x-1 transition"
             >›</span
           >
         </component>

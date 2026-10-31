@@ -94,7 +94,7 @@
             <button
               type="button"
               class="grid w-full grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-0.5 px-4 py-3 text-left"
-              :class="sensor.id === selectedSensorId ? 'bg-sky-50' : ''"
+              :class="sensor.id === selectedSensorId ? 'bg-aqua-50' : ''"
               @click="$emit('open', sensor)"
             >
               <b class="text-[15px] text-slate-900">{{ floorLabel(f.floor) }}</b>
@@ -128,7 +128,7 @@
               <tr
                 v-if="!f.sensors.length"
                 tabindex="0"
-                class="cursor-pointer bg-slate-50/60 hover:bg-slate-50 focus:bg-sky-50 focus:outline-none"
+                class="cursor-pointer bg-slate-50/60 hover:bg-slate-50 focus:bg-aqua-50 focus:outline-none"
                 :aria-label="`${floorLabel(f.floor)} sin sensor. Dar de alta`"
                 @click="install(row, f)"
                 @keydown.enter.prevent="install(row, f)"
@@ -145,7 +145,7 @@
                 :key="sensor.id"
                 tabindex="0"
                 class="cursor-pointer focus:outline-none"
-                :class="sensor.id === selectedSensorId ? 'bg-sky-50 shadow-[inset_3px_0_0_theme(colors.aqua.600)]' : 'hover:bg-slate-50 focus:bg-sky-50'"
+                :class="sensor.id === selectedSensorId ? 'bg-aqua-50 shadow-[inset_3px_0_0_theme(colors.aqua.600)]' : 'hover:bg-slate-50 focus:bg-aqua-50'"
                 :aria-current="sensor.id === selectedSensorId ? 'true' : undefined"
                 :aria-label="`${floorLabel(f.floor)}, ${sensor.name}. Ver detalle`"
                 @click="$emit('open', sensor)"
@@ -213,8 +213,8 @@ function addSensor(row) {
 }
 
 function valueClass(sensor) {
-  if (sensor.health === "CRITICAL") return "text-rose-700";
-  if (sensor.health === "WARNING") return "text-amber-700";
+  if (sensor.health === "CRITICAL") return "text-danger-dark";
+  if (sensor.health === "WARNING") return "text-warning-dark";
   return isOffline(sensor) ? "text-slate-500" : "text-slate-900";
 }
 
@@ -232,9 +232,9 @@ function status(sensor) {
     const alerts = props.alertCounts[sensor.id] ?? 0;
     return {
       text: alerts ? `${side} · ${alerts} ${alerts === 1 ? "alerta" : "alertas"} en 7 días` : side,
-      class: sensor.health === "CRITICAL" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-800",
+      class: sensor.health === "CRITICAL" ? "bg-danger-light text-danger-dark" : "bg-warning-light text-warning-dark",
     };
   }
-  return { text: "funciona", class: "bg-emerald-50 text-success-dark" };
+  return { text: "funciona", class: "bg-success-light text-success-dark" };
 }
 </script>

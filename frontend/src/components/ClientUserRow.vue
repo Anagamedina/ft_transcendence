@@ -15,17 +15,17 @@
 -->
 
 <template>
-  <li class="border-t border-gray-200 py-4 first:border-t-0">
+  <li class="border-t border-slate-200 py-4 first:border-t-0">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex min-w-0 flex-1 items-center gap-3">
         <UserAvatar :name="user.name" />
         <div class="min-w-0">
-          <p class="font-semibold text-gray-900">
+          <p class="font-semibold text-slate-900">
             {{ user.name }}
-            <span v-if="isSelf" class="font-normal text-gray-600">(tú)</span>
+            <span v-if="isSelf" class="font-normal text-slate-600">(tú)</span>
           </p>
-          <p class="break-all text-sm text-gray-600">{{ user.email }}</p>
-          <p class="text-sm text-gray-600">
+          <p class="break-all text-sm text-slate-600">{{ user.email }}</p>
+          <p class="text-sm text-slate-600">
             Rol: {{ ROLE_LABELS[user.role] ?? user.role }} · Último acceso:
             {{ formatDateTime(user.last_login_at, { empty: "nunca" }) }}
           </p>
@@ -38,7 +38,7 @@
           :class="
             user.is_active
               ? 'bg-success-light text-success-dark'
-              : 'bg-gray-100 text-gray-700'
+              : 'bg-slate-100 text-slate-700'
           "
         >
           {{ user.is_active ? "Activo" : "Desactivado" }}
@@ -56,7 +56,7 @@
           <button
             ref="removeButton"
             type="button"
-            :class="[TEXT_BUTTON, 'text-red-700']"
+            :class="[TEXT_BUTTON, 'text-danger-dark']"
             :aria-label="`Quitar acceso a ${user.name}`"
             @click="askRemove"
           >
@@ -70,7 +70,7 @@
     <form
       v-if="mode === 'edit'"
       novalidate
-      class="mt-3 space-y-3 rounded-lg bg-gray-50 p-4"
+      class="mt-3 space-y-3 rounded-lg bg-slate-50 p-4"
       :aria-label="`Editar a ${user.name}`"
       @submit.prevent="saveEdit"
       @keydown.esc="closeEdit"
@@ -93,7 +93,7 @@
         />
       </div>
 
-      <p class="text-xs text-gray-600">
+      <p class="text-xs text-slate-600">
         El email y el rol no se pueden cambiar.
       </p>
 
@@ -117,10 +117,10 @@
       v-if="mode === 'confirm'"
       role="alertdialog"
       :aria-labelledby="`confirm-remove-${user.id}`"
-      class="mt-3 flex flex-col gap-3 rounded-lg border border-red-300 bg-red-50 p-4 sm:flex-row sm:items-center sm:justify-between"
+      class="mt-3 flex flex-col gap-3 rounded-lg border border-danger/40 bg-danger-light p-4 sm:flex-row sm:items-center sm:justify-between"
       @keydown.esc="cancelRemove"
     >
-      <p :id="`confirm-remove-${user.id}`" class="text-red-900">
+      <p :id="`confirm-remove-${user.id}`" class="text-danger-dark">
         <strong>¿Quitar el acceso a {{ user.name }}?</strong>
         Dejará de poder entrar en AquaGuard. No se puede deshacer.
       </p>
@@ -150,7 +150,7 @@
       v-if="error"
       :id="`user-error-${user.id}`"
       role="alert"
-      class="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-800"
+      class="mt-3 rounded-lg border border-danger/40 bg-danger-light px-4 py-2 text-sm font-semibold text-danger-dark"
     >
       {{ error }}
     </p>
@@ -194,13 +194,13 @@ function errorText(err, fallback) {
 
 const BASE = "min-h-10 rounded-lg border px-4 text-sm font-semibold";
 const BUTTON_PRIMARY = `${BASE} border-aqua-600 bg-aqua-600 text-white hover:bg-aqua-700 disabled:cursor-wait disabled:opacity-60`;
-const BUTTON_SECONDARY = `${BASE} border-gray-300 bg-white text-gray-700 hover:border-aqua-600`;
-const BUTTON_DANGER = `${BASE} border-red-700 bg-red-700 text-white hover:bg-red-800 disabled:cursor-wait disabled:opacity-60`;
+const BUTTON_SECONDARY = `${BASE} border-slate-300 bg-white text-slate-700 hover:border-aqua-600`;
+const BUTTON_DANGER = `${BASE} border-danger-dark bg-danger-dark text-white hover:bg-danger-dark/90 disabled:cursor-wait disabled:opacity-60`;
 const TEXT_BUTTON =
   "min-h-10 px-1 text-sm font-semibold text-aqua-700 hover:underline";
-const LABEL = "text-sm font-semibold text-gray-700";
+const LABEL = "text-sm font-semibold text-slate-700";
 const INPUT =
-  "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-aqua-600";
+  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-aqua-600";
 
 // 'view' | 'edit' | 'confirm'
 const mode = ref("view");

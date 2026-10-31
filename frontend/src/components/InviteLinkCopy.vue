@@ -16,7 +16,7 @@
         type="text"
         readonly
         :value="link"
-        class="min-w-0 flex-1 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 font-mono text-sm text-gray-800"
+        class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 font-mono text-sm text-slate-800"
         @focus="$event.target.select()"
       />
       <button
@@ -28,7 +28,7 @@
       </button>
     </div>
 
-    <p v-if="expiresAt" class="text-xs text-gray-500">
+    <p v-if="expiresAt" class="text-xs text-slate-500">
       Caduca el {{ formatDate(expiresAt) }}
     </p>
 
@@ -36,7 +36,7 @@
     <p
       role="status"
       class="text-sm"
-      :class="failed ? 'text-red-700' : 'text-green-700'"
+      :class="failed ? 'text-danger-dark' : 'text-success-dark'"
     >
       {{ message }}
     </p>
