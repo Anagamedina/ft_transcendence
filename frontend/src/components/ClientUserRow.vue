@@ -81,16 +81,16 @@
         </label>
         <input
           :id="`user-name-${user.id}`"
-          ref="nameInput"
+          :ref="setRef('name')"
           v-model="form.name"
           type="text"
           required
           maxlength="120"
           autocomplete="off"
-          :class="INPUT"
-          :aria-invalid="Boolean(error)"
-          :aria-describedby="error ? `user-error-${user.id}` : undefined"
+          :class="inputClass('name')"
+          v-bind="fieldAttrs('name')"
         />
+        <FieldError :id="errorId('name')" :message="errors.name" />
       </div>
 
       <p class="text-xs text-slate-600">
@@ -146,14 +146,7 @@
     </div>
 
     <!-- API error of the last action (e.g. 409 CANNOT_DELETE_SELF) -->
-    <p
-      v-if="error"
-      :id="`user-error-${user.id}`"
-      role="alert"
-      class="mt-3 rounded-lg border border-danger/40 bg-danger-light px-4 py-2 text-sm font-semibold text-danger-dark"
-    >
-      {{ error }}
-    </p>
+    <FormError class="mt-3" :message="error" />
   </li>
 </template>
 
@@ -163,6 +156,11 @@ import UserAvatar from "./UserAvatar.vue";
 import { useUsersStore } from "../stores/users";
 import { formatDateTime } from "../composables/useFormat";
 import { apiErrorMessage } from "../utils/apiError";
+// Same name rule as Mi cuenta and the invitation (utils/validation.js)
+import { cleanText, personNameProblem } from "../utils/validation.js";
+import FieldError from "./FieldError.vue";
+import FormError from "./FormError.vue";
+import { useFieldErrors } from "../composables/useFieldErrors.js";
 
 const props = defineProps({
   // UserAdminResponse (B6): id, name, email, role, is_active, last_login_at…
@@ -183,7 +181,6 @@ const ROLE_LABELS = { client: "Cliente", admin: "Admin" };
 // Our own text for the errors this row can get; anything else keeps the API message
 const ERROR_TEXTS = {
   CANNOT_DELETE_SELF: "No puedes quitarte el acceso a ti mismo.",
-  INVALID_NAME: "El nombre no puede estar vacío.",
   ORGANIZATION_REQUIRED: "Un cliente tiene que pertenecer a una organización.",
   USER_NOT_FOUND: "Este usuario ya no existe. Recarga la página.",
 };
@@ -199,8 +196,6 @@ const BUTTON_DANGER = `${BASE} border-danger-dark bg-danger-dark text-white hove
 const TEXT_BUTTON =
   "min-h-10 px-1 text-sm font-semibold text-aqua-700 hover:underline";
 const LABEL = "text-sm font-semibold text-slate-700";
-const INPUT =
-  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-aqua-600";
 
 // 'view' | 'edit' | 'confirm'
 const mode = ref("view");
@@ -220,13 +215,27 @@ function backToView(button) {
 // ---------------------------------------------------------------------------
 const form = reactive({ name: "" });
 const saving = ref(false);
-const nameInput = ref(null);
+const {
+  errors,
+  inputs,
+  errorId,
+  setRef,
+  inputClass,
+  fieldAttrs,
+  clear,
+  check,
+  focusFirstError,
+  clearOnEdit,
+  applyApiError,
+} = useFieldErrors(["name"]);
+clearOnEdit({ name: () => form.name });
 
 function openEdit() {
   error.value = "";
+  clear();
   form.name = props.user.name;
   mode.value = "edit";
-  nextTick(() => nameInput.value?.focus());
+  nextTick(() => inputs.name?.focus());
 }
 
 function closeEdit() {
@@ -236,12 +245,12 @@ function closeEdit() {
 
 async function saveEdit() {
   if (saving.value) return;
-  const name = form.name.trim();
-  if (!name) {
-    error.value = ERROR_TEXTS.INVALID_NAME;
-    nameInput.value?.focus();
+  error.value = "";
+  if (!check({ name: () => personNameProblem(form.name) })) {
+    focusFirstError();
     return;
   }
+  const name = cleanText(form.name);
 
   if (name === props.user.name) {
     closeEdit();
@@ -256,6 +265,11 @@ async function saveEdit() {
     backToView(editButton);
     emit("updated", updated);
   } catch (err) {
+    // A name the API rejects goes under the field; anything else under the row
+    if (applyApiError(err, { codes: { INVALID_NAME: "name" } })) {
+      focusFirstError();
+      return;
+    }
     error.value = errorText(
       err,
       "No se han podido guardar los cambios. Inténtalo de nuevo.",

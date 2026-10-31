@@ -46,7 +46,7 @@
             Todos los campos son obligatorios.
           </p>
 
-          <!-- novalidate: we show our own Spanish messages next to each field -->
+          <!-- novalidate: our own Spanish messages, the same in every form -->
           <form novalidate class="space-y-5" @submit.prevent="handleSubmit">
             <!-- Name -->
             <div>
@@ -58,25 +58,16 @@
               </label>
               <input
                 id="trial-name"
-                ref="nameInput"
+                :ref="setRef('name')"
                 v-model="form.name"
                 type="text"
                 autocomplete="name"
-                :maxlength="MAX_NAME_LENGTH"
-                :aria-invalid="Boolean(fieldErrors.name)"
-                :aria-describedby="
-                  fieldErrors.name ? 'trial-name-error' : undefined
-                "
+                :maxlength="FIELD_LIMITS.username"
                 :class="inputClass('name')"
+                v-bind="fieldAttrs('name')"
                 placeholder="Nombre y apellidos"
               />
-              <p
-                v-if="fieldErrors.name"
-                id="trial-name-error"
-                class="mt-1 text-sm text-danger-dark"
-              >
-                {{ fieldErrors.name }}
-              </p>
+              <FieldError :id="errorId('name')" :message="errors.name" />
             </div>
 
             <!-- Email -->
@@ -89,31 +80,24 @@
               </label>
               <input
                 id="trial-email"
-                ref="emailInput"
+                :ref="setRef('email')"
                 v-model="form.email"
                 type="email"
                 autocomplete="email"
                 inputmode="email"
-                :aria-invalid="Boolean(fieldErrors.email)"
-                :aria-describedby="
-                  fieldErrors.email ? 'trial-email-error' : undefined
-                "
+                :maxlength="FIELD_LIMITS.email"
                 :class="inputClass('email')"
+                v-bind="fieldAttrs('email')"
                 placeholder="tu@empresa.com"
               />
-              <p
-                v-if="fieldErrors.email"
-                id="trial-email-error"
-                class="mt-1 text-sm text-danger-dark"
-              >
-                {{ fieldErrors.email }}
+              <FieldError :id="errorId('email')" :message="errors.email">
                 <RouterLink
                   v-if="emailTaken"
                   to="/login"
                   class="font-semibold underline hover:no-underline"
                   >Entrar</RouterLink
                 >
-              </p>
+              </FieldError>
             </div>
 
             <!-- Password -->
@@ -127,18 +111,12 @@
               <div class="relative">
                 <input
                   id="trial-password"
-                  ref="passwordInput"
+                  :ref="setRef('password')"
                   v-model="form.password"
                   :type="showPassword ? 'text' : 'password'"
                   autocomplete="new-password"
-                  :maxlength="PASSWORD_MAX_LENGTH"
-                  :aria-invalid="Boolean(fieldErrors.password)"
-                  :aria-describedby="
-                    fieldErrors.password
-                      ? 'trial-password-hint trial-password-error'
-                      : 'trial-password-hint'
-                  "
-                  :class="[inputClass('password'), 'pr-20']"
+                  :class="inputClass('password', 'pr-20')"
+                  v-bind="fieldAttrs('password', 'trial-password-hint')"
                 />
                 <button
                   type="button"
@@ -160,13 +138,7 @@
                   ({{ form.password.length }}/{{ PASSWORD_MIN_LENGTH }})
                 </span>
               </p>
-              <p
-                v-if="fieldErrors.password"
-                id="trial-password-error"
-                class="mt-1 text-sm text-danger-dark"
-              >
-                {{ fieldErrors.password }}
-              </p>
+              <FieldError :id="errorId('password')" :message="errors.password" />
             </div>
 
             <!-- Company name -->
@@ -179,27 +151,19 @@
               </label>
               <input
                 id="trial-organization"
-                ref="organizationInput"
+                :ref="setRef('organization_name')"
                 v-model="form.organization_name"
                 type="text"
                 autocomplete="organization"
-                :maxlength="MAX_ORGANIZATION_LENGTH"
-                :aria-invalid="Boolean(fieldErrors.organization_name)"
-                :aria-describedby="
-                  fieldErrors.organization_name
-                    ? 'trial-organization-error'
-                    : undefined
-                "
+                :maxlength="FIELD_LIMITS.organizationName"
                 :class="inputClass('organization_name')"
+                v-bind="fieldAttrs('organization_name')"
                 placeholder="Hotel, escuela, comunidad de vecinos..."
               />
-              <p
-                v-if="fieldErrors.organization_name"
-                id="trial-organization-error"
-                class="mt-1 text-sm text-danger-dark"
-              >
-                {{ fieldErrors.organization_name }}
-              </p>
+              <FieldError
+                :id="errorId('organization_name')"
+                :message="errors.organization_name"
+              />
             </div>
 
             <!-- Terms and privacy -->
@@ -207,14 +171,11 @@
               <div class="flex items-start gap-3">
                 <input
                   id="trial-terms"
-                  ref="termsInput"
+                  :ref="setRef('accept_terms')"
                   v-model="form.accept_terms"
                   type="checkbox"
                   class="mt-1 w-4 h-4 shrink-0 accent-aqua-600 cursor-pointer"
-                  :aria-invalid="Boolean(fieldErrors.accept_terms)"
-                  :aria-describedby="
-                    fieldErrors.accept_terms ? 'trial-terms-error' : undefined
-                  "
+                  v-bind="fieldAttrs('accept_terms')"
                 />
                 <label for="trial-terms" class="text-sm text-slate-700">
                   He leído y acepto los
@@ -236,23 +197,14 @@
                   <span class="sr-only">(se abren en una pestaña nueva)</span>
                 </label>
               </div>
-              <p
-                v-if="fieldErrors.accept_terms"
-                id="trial-terms-error"
-                class="mt-1 text-sm text-danger-dark"
-              >
-                {{ fieldErrors.accept_terms }}
-              </p>
+              <FieldError
+                :id="errorId('accept_terms')"
+                :message="errors.accept_terms"
+              />
             </div>
 
             <!-- General error (rate limit, network, unexpected) -->
-            <div
-              v-if="generalError"
-              class="bg-danger-light border border-danger text-danger-dark rounded-lg p-3 text-sm"
-              role="alert"
-            >
-              {{ generalError }}
-            </div>
+            <FormError :message="generalError" />
 
             <button
               type="submit"
@@ -281,28 +233,35 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../../stores/auth.js";
 import PublicLayout from "../../layouts/PublicLayout.vue";
+import FieldError from "../../components/FieldError.vue";
+import FormError from "../../components/FormError.vue";
+import { useFieldErrors } from "../../composables/useFieldErrors.js";
+import { apiErrorMessage } from "../../utils/apiError.js";
 import { FIELD_LIMITS } from "../../utils/limits.js";
 // Same rule as the backend (backend/app/shared/passwords.py) and Mi cuenta.
 // The backend also rejects common passwords and passwords containing the email.
 import {
   PASSWORD_MIN_LENGTH,
-  PASSWORD_MAX_LENGTH,
   passwordProblem,
 } from "../../utils/passwords.js";
-
-const MAX_NAME_LENGTH = FIELD_LIMITS.username;
-const MAX_ORGANIZATION_LENGTH = FIELD_LIMITS.organizationName;
+// Same name and email rules as every other form (utils/validation.js)
+import {
+  cleanText,
+  emailProblem,
+  organizationNameProblem,
+  personNameProblem,
+} from "../../utils/validation.js";
 
 // Where a new client lands after signing up.
 // The session is already open: the register response sets the cookie.
 const CLIENT_HOME = "/app";
 
-// Simple shape check; the backend does the strict validation.
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const TERMS_MESSAGE =
+  "Tienes que aceptar los términos y la política de privacidad.";
 
 const benefits = [
   "7 días gratis, sin tarjeta.",
@@ -322,177 +281,86 @@ const form = reactive({
   accept_terms: false,
 });
 
-// One message per field, shown under the input
-const fieldErrors = reactive({
-  name: "",
-  email: "",
-  password: "",
-  organization_name: "",
-  accept_terms: "",
+// Fields in screen order: the first one with an error gets the focus
+const {
+  errors,
+  errorId,
+  setRef,
+  inputClass,
+  fieldAttrs,
+  clear,
+  check,
+  focusFirstError,
+  clearOnEdit,
+  applyApiError,
+} = useFieldErrors(
+  ["name", "email", "password", "organization_name", "accept_terms"],
+  { size: "lg" },
+);
+clearOnEdit({
+  name: () => form.name,
+  email: () => form.email,
+  password: () => form.password,
+  organization_name: () => form.organization_name,
+  accept_terms: () => form.accept_terms,
 });
 
 const generalError = ref("");
 const emailTaken = ref(false);
 const showPassword = ref(false);
 
-// Template refs, used to move the focus to the first field with an error
-const nameInput = ref(null);
-const emailInput = ref(null);
-const passwordInput = ref(null);
-const organizationInput = ref(null);
-const termsInput = ref(null);
-
-const inputRefs = {
-  name: nameInput,
-  email: emailInput,
-  password: passwordInput,
-  organization_name: organizationInput,
-  accept_terms: termsInput,
-};
-
-// Fields in screen order: the first one with an error gets the focus
-const FIELD_ORDER = [
-  "name",
-  "email",
-  "password",
-  "organization_name",
-  "accept_terms",
-];
+watch(
+  () => form.email,
+  () => {
+    emailTaken.value = false;
+  },
+);
 
 const isLoading = computed(() => authStore.status === "loading");
 const passwordLongEnough = computed(
   () => form.password.length >= PASSWORD_MIN_LENGTH,
 );
 
-// Backend error codes that belong to one field
-const FIELD_BY_CODE = {
-  EMAIL_ALREADY_EXISTS: "email",
-  ORGANIZATION_NAME_TAKEN: "organization_name",
-  WEAK_PASSWORD: "password",
-  INVALID_NAME: "organization_name",
-  TERMS_NOT_ACCEPTED: "accept_terms",
+// API errors of one field. WEAK_PASSWORD and INVALID_NAME keep the backend
+// message, which says exactly what is wrong; INVALID_NAME says the field
+// (name or organization_name) in details
+const API_ERRORS = {
+  codes: {
+    EMAIL_ALREADY_EXISTS: {
+      field: "email",
+      message: "Ya hay una cuenta con este email.",
+    },
+    ORGANIZATION_NAME_TAKEN: {
+      field: "organization_name",
+      message: "Ya hay una empresa registrada con este nombre.",
+    },
+    WEAK_PASSWORD: "password",
+    TERMS_NOT_ACCEPTED: { field: "accept_terms", message: TERMS_MESSAGE },
+  },
+  messages: {
+    name: `Escribe tu nombre (máximo ${FIELD_LIMITS.username} caracteres).`,
+    email: "Escribe un email válido, por ejemplo nombre@empresa.com.",
+    password: "Revisa la contraseña.",
+    organization_name: `Escribe el nombre de tu empresa (máximo ${FIELD_LIMITS.organizationName} caracteres).`,
+    accept_terms: TERMS_MESSAGE,
+  },
 };
-
-// Our own Spanish text per code. WEAK_PASSWORD keeps the backend message,
-// because it says exactly what is wrong (too short, too common, has the email).
-const MESSAGE_BY_CODE = {
-  EMAIL_ALREADY_EXISTS: "Ya hay una cuenta con este email.",
-  ORGANIZATION_NAME_TAKEN: "Ya hay una empresa registrada con este nombre.",
-  INVALID_NAME: "Escribe el nombre de tu empresa.",
-  TERMS_NOT_ACCEPTED:
-    "Tienes que aceptar los términos y la política de privacidad.",
-};
-
-// Messages for the generic 422 VALIDATION_ERROR (Pydantic), by field
-const MESSAGE_BY_FIELD = {
-  name: `Escribe tu nombre (máximo ${MAX_NAME_LENGTH} caracteres).`,
-  email: "Escribe un email válido.",
-  password: "Revisa la contraseña.",
-  organization_name: `Escribe el nombre de tu empresa (máximo ${MAX_ORGANIZATION_LENGTH} caracteres).`,
-  accept_terms: "Tienes que aceptar los términos y la política de privacidad.",
-};
-
-function inputClass(field) {
-  const base =
-    "w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-aqua-400";
-  return fieldErrors[field]
-    ? `${base} border-danger bg-danger-light/40`
-    : `${base} border-slate-300`;
-}
-
-function clearErrors() {
-  for (const field of FIELD_ORDER) {
-    fieldErrors[field] = "";
-  }
-  generalError.value = "";
-  emailTaken.value = false;
-}
-
-// Client-side checks, before calling the API. Returns true when valid.
-function validate() {
-  const name = form.name.trim();
-  const organization = form.organization_name.trim();
-
-  if (!name) {
-    fieldErrors.name = "Escribe tu nombre.";
-  } else if (name.length > MAX_NAME_LENGTH) {
-    fieldErrors.name = MESSAGE_BY_FIELD.name;
-  }
-
-  if (!EMAIL_PATTERN.test(form.email.trim())) {
-    fieldErrors.email =
-      "Escribe un email válido, por ejemplo tu@empresa.com.";
-  }
-
-  const passwordError = passwordProblem(form.password, form.email);
-  if (passwordError) {
-    fieldErrors.password = passwordError;
-  }
-
-  if (!organization) {
-    fieldErrors.organization_name =
-      "Escribe el nombre de tu empresa.";
-  } else if (organization.length > MAX_ORGANIZATION_LENGTH) {
-    fieldErrors.organization_name =
-      MESSAGE_BY_FIELD.organization_name;
-  }
-
-  if (!form.accept_terms) {
-    fieldErrors.accept_terms = MESSAGE_BY_FIELD.accept_terms;
-  }
-
-  return FIELD_ORDER.every((field) => !fieldErrors[field]);
-}
-
-// Turns an API error (already normalized by the adapter) into field or general messages
-function showApiError(err) {
-  if (err?.status === 429) {
-    generalError.value = "Demasiados intentos, prueba en unos minutos.";
-    return;
-  }
-
-  const field = FIELD_BY_CODE[err?.code];
-  if (field) {
-    fieldErrors[field] = MESSAGE_BY_CODE[err.code] ?? err.message;
-    emailTaken.value = err.code === "EMAIL_ALREADY_EXISTS";
-    return;
-  }
-
-  // Generic 422: details = [{ field, message, type }], field without "body."
-  if (err?.code === "VALIDATION_ERROR" && Array.isArray(err.details)) {
-    let matched = false;
-    for (const detail of err.details) {
-      if (detail?.field in fieldErrors) {
-        fieldErrors[detail.field] = MESSAGE_BY_FIELD[detail.field];
-        matched = true;
-      }
-    }
-    if (matched) return;
-  }
-
-  if (err?.code === "NETWORK_ERROR") {
-    generalError.value =
-      "No hemos podido conectar con el servidor. Inténtalo de nuevo.";
-    return;
-  }
-
-  generalError.value =
-    "No hemos podido crear tu cuenta. Inténtalo de nuevo en unos minutos.";
-}
-
-async function focusFirstError() {
-  await nextTick();
-  const field = FIELD_ORDER.find((name) => fieldErrors[name]);
-  inputRefs[field]?.value?.focus();
-}
 
 async function handleSubmit() {
   if (isLoading.value) return;
 
-  clearErrors();
+  clear();
+  generalError.value = "";
   authStore.clearError();
 
-  if (!validate()) {
+  const valid = check({
+    name: () => personNameProblem(form.name),
+    email: () => emailProblem(form.email),
+    password: () => passwordProblem(form.password, form.email),
+    organization_name: () => organizationNameProblem(form.organization_name),
+    accept_terms: () => (form.accept_terms ? null : TERMS_MESSAGE),
+  });
+  if (!valid) {
     await focusFirstError();
     return;
   }
@@ -501,29 +369,25 @@ async function handleSubmit() {
     // The store keeps the user from the response (SessionResponse),
     // so there is no need to call /api/me afterwards.
     await authStore.register({
-      name: form.name.trim(),
+      name: cleanText(form.name),
       email: form.email.trim(),
       password: form.password,
-      organization_name: form.organization_name.trim(),
+      organization_name: cleanText(form.organization_name),
       accept_terms: form.accept_terms,
     });
 
     await router.replace(CLIENT_HOME);
   } catch (err) {
-    showApiError(err);
-    await focusFirstError();
+    if (applyApiError(err, API_ERRORS)) {
+      emailTaken.value = err.code === "EMAIL_ALREADY_EXISTS";
+      await focusFirstError();
+      return;
+    }
+    generalError.value = apiErrorMessage(
+      err,
+      "No hemos podido crear tu cuenta. Inténtalo de nuevo en unos minutos.",
+    );
   }
-}
-
-// Clear a field's error as soon as the user edits that field
-for (const field of FIELD_ORDER) {
-  watch(
-    () => form[field],
-    () => {
-      fieldErrors[field] = "";
-      if (field === "email") emailTaken.value = false;
-    },
-  );
 }
 
 onMounted(() => {

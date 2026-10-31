@@ -98,13 +98,11 @@
           </label>
           <select
             id="site-client"
-            ref="clientSelect"
+            :ref="clientField.setRef('client')"
             v-model="clientId"
             required
-            class="w-full rounded-lg border bg-white px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-aqua-600"
-            :class="clientError ? 'border-danger' : 'border-slate-300'"
-            :aria-invalid="Boolean(clientError)"
-            :aria-describedby="clientError ? 'site-client-error' : undefined"
+            :class="clientField.inputClass('client')"
+            v-bind="clientField.fieldAttrs('client')"
           >
             <option value="" disabled>Elige un cliente</option>
             <option
@@ -115,13 +113,10 @@
               {{ client.name }}
             </option>
           </select>
-          <p
-            v-if="clientError"
-            id="site-client-error"
-            class="text-sm text-danger-dark"
-          >
-            {{ clientError }}
-          </p>
+          <FieldError
+            :id="clientField.errorId('client')"
+            :message="clientField.errors.client"
+          />
         </div>
 
         <!-- On edit the client cannot change (SiteUpdate has no organization_id) -->
@@ -134,13 +129,7 @@
 
         <SiteForm ref="siteForm" v-model="form" :taken-names="takenNames" />
 
-        <p
-          v-if="saveError"
-          role="alert"
-          class="rounded-lg bg-danger-light px-3 py-2 text-sm text-danger-dark"
-        >
-          {{ saveError }}
-        </p>
+        <FormError :message="saveError" />
       </form>
 
       <template #footer>
@@ -165,12 +154,17 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import AdminLayout from "../../layouts/AdminLayout.vue";
 import DataTable from "../../components/DataTable.vue";
 import StatusPill from "../../components/StatusPill.vue";
 import Modal from "../../components/Modal.vue";
 import SiteForm, { emptySite } from "../../components/SiteForm.vue";
+import FieldError from "../../components/FieldError.vue";
+import FormError from "../../components/FormError.vue";
+import { useFieldErrors } from "../../composables/useFieldErrors.js";
+import { apiErrorMessage } from "../../utils/apiError";
+import { cleanText } from "../../utils/validation";
 import { useSitesStore } from "../../stores/sites.js";
 import { useLabels } from "../../composables/useLabels";
 
@@ -264,12 +258,13 @@ const formOpen = ref(false);
 const editing = ref(null);
 const form = ref(emptySite());
 const clientId = ref("");
-const clientError = ref("");
+// The client select is a field of this view; the rest are of SiteForm
+const clientField = reactive(useFieldErrors(["client"]));
+clientField.clearOnEdit({ client: () => clientId.value });
 const saveError = ref("");
 const saving = ref(false);
 
 const siteForm = ref(null);
-const clientSelect = ref(null);
 
 // Names of the other buildings of the chosen client (the one being edited does not count)
 const takenNames = computed(() => {
@@ -313,15 +308,15 @@ function closeForm() {
 }
 
 function resetMessages() {
-  clientError.value = "";
+  clientField.clear();
   saveError.value = "";
 }
 
-// Form values ready for the API: trimmed name, empty address sent as null
+// Form values ready for the API: spaces cleaned up, empty address sent as null
 function payload() {
-  const address = form.value.address.trim();
+  const address = cleanText(form.value.address);
   return {
-    name: form.value.name.trim(),
+    name: cleanText(form.value.name),
     address: address === "" ? null : address,
     floors: form.value.floors,
     basements: form.value.basements,
@@ -341,12 +336,15 @@ function changedFields(original, data) {
 async function save() {
   resetMessages();
 
-  if (!editing.value && !clientId.value) {
-    clientError.value = "Elige el cliente al que pertenece el edificio.";
-  }
+  const clientValid = clientField.check({
+    client: () =>
+      editing.value || clientId.value
+        ? null
+        : "Elige el cliente al que pertenece el edificio.",
+  });
   const formValid = siteForm.value.validate();
-  if (clientError.value) {
-    nextTick(() => clientSelect.value?.focus());
+  if (!clientValid) {
+    clientField.focusFirstError();
     return;
   }
   if (!formValid) return;
@@ -367,9 +365,15 @@ async function save() {
     saving.value = false;
     closeForm();
   } catch (err) {
-    // The API explains the problem in Spanish (repeated name, a sensor left
-    // outside the new number of floors...). Show its message as it comes.
-    saveError.value = err?.message || "No se ha podido guardar el edificio.";
+    // An error of a field (repeated name...) goes under it; any other (a
+    // sensor left outside the new number of floors...) above the buttons,
+    // with the API message, which is in Spanish
+    if (!siteForm.value?.showApiError(err)) {
+      saveError.value = apiErrorMessage(
+        err,
+        "No se ha podido guardar el edificio.",
+      );
+    }
     saving.value = false;
   }
 }

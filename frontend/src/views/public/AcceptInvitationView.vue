@@ -38,24 +38,20 @@
             </label>
             <input
               id="invite-link"
-              ref="linkInput"
+              :ref="link.setRef('link')"
               v-model="pastedLink"
               type="text"
               inputmode="url"
               autocomplete="off"
               spellcheck="false"
-              :aria-invalid="Boolean(linkError)"
-              :aria-describedby="linkError ? 'invite-link-error' : undefined"
-              :class="[linkError ? INPUT_ERROR : INPUT, 'font-mono text-sm']"
+              :class="link.inputClass('link', 'font-mono text-sm')"
+              v-bind="link.fieldAttrs('link')"
               placeholder="https://…/registro?invitacion=…"
             />
-            <p
-              v-if="linkError"
-              id="invite-link-error"
-              class="mt-1 text-sm text-danger-dark"
-            >
-              {{ linkError }}
-            </p>
+            <FieldError
+              :id="link.errorId('link')"
+              :message="link.errors.link"
+            />
           </div>
           <button type="submit" :class="BUTTON_PRIMARY">Continuar</button>
         </form>
@@ -195,7 +191,7 @@
             </button>
           </div>
 
-          <!-- novalidate: we show our own Spanish messages next to each field -->
+          <!-- novalidate: our own Spanish messages, the same in every form -->
           <form
             novalidate
             class="mt-6 space-y-5"
@@ -216,7 +212,7 @@
                 autocomplete="username"
                 readonly
                 aria-describedby="invite-email-hint"
-                class="w-full px-4 py-3 border border-slate-200 rounded-lg bg-slate-100 text-slate-600 cursor-default focus:outline-none focus:ring-2 focus:ring-aqua-400"
+                class="w-full px-4 py-3 border border-slate-200 rounded-lg bg-slate-100 text-slate-600 cursor-default focus:outline-none focus:ring-2 focus:ring-aqua-600"
               />
               <p id="invite-email-hint" class="mt-1 text-xs text-slate-500">
                 Viene de la invitación, no se puede cambiar.
@@ -233,25 +229,16 @@
               </label>
               <input
                 id="invite-name"
-                ref="nameInput"
+                :ref="setRef('name')"
                 v-model="form.name"
                 type="text"
                 autocomplete="name"
-                maxlength="120"
-                :aria-invalid="Boolean(fieldErrors.name)"
-                :aria-describedby="
-                  fieldErrors.name ? 'invite-name-error' : undefined
-                "
+                :maxlength="FIELD_LIMITS.username"
                 :class="inputClass('name')"
+                v-bind="fieldAttrs('name')"
                 placeholder="Nombre y apellidos"
               />
-              <p
-                v-if="fieldErrors.name"
-                id="invite-name-error"
-                class="mt-1 text-sm text-danger-dark"
-              >
-                {{ fieldErrors.name }}
-              </p>
+              <FieldError :id="errorId('name')" :message="errors.name" />
             </div>
 
             <!-- Password -->
@@ -265,18 +252,12 @@
               <div class="relative">
                 <input
                   id="invite-password"
-                  ref="passwordInput"
+                  :ref="setRef('password')"
                   v-model="form.password"
                   :type="showPassword ? 'text' : 'password'"
                   autocomplete="new-password"
-                  maxlength="128"
-                  :aria-invalid="Boolean(fieldErrors.password)"
-                  :aria-describedby="
-                    fieldErrors.password
-                      ? 'invite-password-hint invite-password-error'
-                      : 'invite-password-hint'
-                  "
-                  :class="[inputClass('password'), 'pr-20']"
+                  :class="inputClass('password', 'pr-20')"
+                  v-bind="fieldAttrs('password', 'invite-password-hint')"
                 />
                 <button
                   type="button"
@@ -297,13 +278,7 @@
                   ({{ form.password.length }}/{{ PASSWORD_MIN_LENGTH }})
                 </span>
               </p>
-              <p
-                v-if="fieldErrors.password"
-                id="invite-password-error"
-                class="mt-1 text-sm text-danger-dark"
-              >
-                {{ fieldErrors.password }}
-              </p>
+              <FieldError :id="errorId('password')" :message="errors.password" />
             </div>
 
             <!-- Terms and privacy -->
@@ -311,14 +286,11 @@
               <div class="flex items-start gap-3">
                 <input
                   id="invite-terms"
-                  ref="termsInput"
+                  :ref="setRef('accept_terms')"
                   v-model="form.accept_terms"
                   type="checkbox"
                   class="mt-1 w-4 h-4 shrink-0 accent-aqua-600 cursor-pointer"
-                  :aria-invalid="Boolean(fieldErrors.accept_terms)"
-                  :aria-describedby="
-                    fieldErrors.accept_terms ? 'invite-terms-error' : undefined
-                  "
+                  v-bind="fieldAttrs('accept_terms')"
                 />
                 <label for="invite-terms" class="text-sm text-slate-700">
                   Acepto los
@@ -340,29 +312,21 @@
                   <span class="sr-only">(se abren en una pestaña nueva)</span>
                 </label>
               </div>
-              <p
-                v-if="fieldErrors.accept_terms"
-                id="invite-terms-error"
-                class="mt-1 text-sm text-danger-dark"
-              >
-                {{ fieldErrors.accept_terms }}
-              </p>
+              <FieldError
+                :id="errorId('accept_terms')"
+                :message="errors.accept_terms"
+              />
             </div>
 
             <!-- General error (account exists, rate limit, network, unexpected) -->
-            <div
-              v-if="generalError"
-              class="bg-danger-light border border-danger text-danger-dark rounded-lg p-3 text-sm"
-              role="alert"
-            >
-              {{ generalError }}
+            <FormError :message="generalError">
               <RouterLink
                 v-if="emailTaken"
                 to="/login"
                 class="font-semibold underline hover:no-underline"
                 >Entrar</RouterLink
               >
-            </div>
+            </FormError>
 
             <button
               type="submit"
@@ -396,6 +360,10 @@ import invitationsService from "../../services/invitations.service.js";
 import PublicLayout from "../../layouts/PublicLayout.vue";
 import LoadingState from "../../components/LoadingState.vue";
 import ErrorState from "../../components/ErrorState.vue";
+import FieldError from "../../components/FieldError.vue";
+import FormError from "../../components/FormError.vue";
+import { useFieldErrors } from "../../composables/useFieldErrors.js";
+import { apiErrorMessage } from "../../utils/apiError.js";
 import { FIELD_LIMITS } from "../../utils/limits.js";
 // Same rule as the backend (backend/app/shared/passwords.py), /prueba and Mi cuenta.
 // The backend also rejects common passwords.
@@ -403,8 +371,11 @@ import {
   PASSWORD_MIN_LENGTH,
   passwordProblem,
 } from "../../utils/passwords.js";
+// Same name rule as /prueba and Mi cuenta (utils/validation.js)
+import { cleanText, personNameProblem } from "../../utils/validation.js";
 
-const MAX_NAME_LENGTH = FIELD_LIMITS.username;
+const TERMS_MESSAGE =
+  "Tienes que aceptar los términos y la política de privacidad.";
 
 // Where the new client lands. The session is already open: the accept
 // response sets the cookie, as the register one does.
@@ -413,10 +384,6 @@ const CLIENT_HOME = "/dashboard";
 // Shared classes, as in the mockup (pantallas/Invitacion.html)
 const CARD =
   "bg-white border border-aqua-100 rounded-2xl p-6 sm:p-8 shadow-[0_16px_40px_theme(colors.aqua.600/10%)]";
-const INPUT =
-  "w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-aqua-400";
-const INPUT_ERROR =
-  "w-full px-4 py-3 border border-danger bg-danger-light/40 rounded-lg focus:outline-none focus:ring-2 focus:ring-aqua-400";
 const BUTTON_PRIMARY =
   "w-full inline-flex justify-center bg-aqua-600 text-white font-semibold py-3 rounded-lg hover:bg-aqua-700 transition disabled:opacity-50 disabled:cursor-not-allowed";
 
@@ -448,11 +415,23 @@ const form = reactive({
   accept_terms: false,
 });
 
-// One message per field, shown under the input
-const fieldErrors = reactive({
-  name: "",
-  password: "",
-  accept_terms: "",
+// Fields in screen order: the first one with an error gets the focus
+const {
+  errors,
+  errorId,
+  setRef,
+  inputClass,
+  fieldAttrs,
+  clear,
+  check,
+  focusFirstError,
+  clearOnEdit,
+  applyApiError,
+} = useFieldErrors(["name", "password", "accept_terms"], { size: "lg" });
+clearOnEdit({
+  name: () => form.name,
+  password: () => form.password,
+  accept_terms: () => form.accept_terms,
 });
 
 const generalError = ref("");
@@ -461,24 +440,11 @@ const showPassword = ref(false);
 
 // "Sin código en la URL": the link (or bare code) the person pastes
 const pastedLink = ref("");
-const linkError = ref("");
+const link = reactive(useFieldErrors(["link"], { size: "lg" }));
+link.clearOnEdit({ link: () => pastedLink.value });
 
-// Template refs, used to move the focus to the first field with an error
-const nameInput = ref(null);
-const passwordInput = ref(null);
-const termsInput = ref(null);
 const problemHeading = ref(null);
 const doneHeading = ref(null);
-const linkInput = ref(null);
-
-const inputRefs = {
-  name: nameInput,
-  password: passwordInput,
-  accept_terms: termsInput,
-};
-
-// Fields in screen order: the first one with an error gets the focus
-const FIELD_ORDER = ["name", "password", "accept_terms"];
 
 // The code from ?invitacion=CODE. With a repeated param, the first one
 const code = computed(() => {
@@ -501,28 +467,20 @@ const expiresText = computed(() =>
     : "",
 );
 
-// Our own Spanish text per code. WEAK_PASSWORD keeps the backend message,
-// because it says exactly what is wrong (too short, too common, has the email).
-const MESSAGE_BY_CODE = {
-  TERMS_NOT_ACCEPTED:
-    "Tienes que aceptar los términos y la política de privacidad.",
+// API errors of one field. WEAK_PASSWORD and INVALID_NAME keep the backend
+// message, which says exactly what is wrong
+const API_ERRORS = {
+  codes: {
+    INVALID_NAME: "name",
+    WEAK_PASSWORD: "password",
+    TERMS_NOT_ACCEPTED: { field: "accept_terms", message: TERMS_MESSAGE },
+  },
+  messages: {
+    name: `Escribe tu nombre (máximo ${FIELD_LIMITS.username} caracteres).`,
+    password: "Revisa la contraseña.",
+    accept_terms: TERMS_MESSAGE,
+  },
 };
-
-const FIELD_BY_CODE = {
-  WEAK_PASSWORD: "password",
-  TERMS_NOT_ACCEPTED: "accept_terms",
-};
-
-// Messages for the generic 422 VALIDATION_ERROR (Pydantic), by field
-const MESSAGE_BY_FIELD = {
-  name: `Escribe tu nombre (máximo ${MAX_NAME_LENGTH} caracteres).`,
-  password: "Revisa la contraseña.",
-  accept_terms: "Tienes que aceptar los términos y la política de privacidad.",
-};
-
-function inputClass(field) {
-  return fieldErrors[field] ? INPUT_ERROR : INPUT;
-}
 
 // Gets the code from a pasted link (?invitacion=CODE) or from a bare code
 function codeFromPastedText(text) {
@@ -542,14 +500,16 @@ function codeFromPastedText(text) {
 // "Continuar": puts the code in the URL; the watch on `code` loads the invitation
 async function useLink() {
   const pasted = codeFromPastedText(pastedLink.value);
-  if (!pasted) {
-    linkError.value =
-      "No encontramos el código. Pega el enlace completo del email.";
-    await nextTick();
-    linkInput.value?.focus();
+  const valid = link.check({
+    link: () =>
+      pasted
+        ? null
+        : "No encontramos el código. Pega el enlace completo del email.",
+  });
+  if (!valid) {
+    await link.focusFirstError();
     return;
   }
-  linkError.value = "";
   await router.replace({ query: { invitacion: pasted } });
 }
 
@@ -591,8 +551,8 @@ async function loadInvitation() {
     if (handleLinkError(err)) return;
 
     loadError.value =
-      err?.status === 429
-        ? "Demasiados intentos, prueba en unos minutos."
+      err?.code === "TOO_MANY_REQUESTS"
+        ? apiErrorMessage(err)
         : "Comprueba la conexión e inténtalo de nuevo.";
     state.value = "error";
   }
@@ -604,85 +564,9 @@ function retryLoad() {
 }
 
 function clearErrors() {
-  for (const field of FIELD_ORDER) {
-    fieldErrors[field] = "";
-  }
+  clear();
   generalError.value = "";
   emailTaken.value = false;
-}
-
-// Client-side checks, before calling the API. Returns true when valid.
-function validate() {
-  const name = form.name.trim();
-
-  if (!name) {
-    fieldErrors.name = "Escribe tu nombre.";
-  } else if (name.length > MAX_NAME_LENGTH) {
-    fieldErrors.name = MESSAGE_BY_FIELD.name;
-  }
-
-  const passwordError = passwordProblem(
-    form.password,
-    invitation.value.email,
-  );
-
-  if (passwordError) {
-    fieldErrors.password = passwordError;
-  }
-
-  if (!form.accept_terms) {
-    fieldErrors.accept_terms = MESSAGE_BY_FIELD.accept_terms;
-  }
-
-  return FIELD_ORDER.every((field) => !fieldErrors[field]);
-}
-
-// Turns an API error (already normalized by the adapter) into field or general messages
-function showApiError(err) {
-  if (err?.status === 429) {
-    generalError.value = "Demasiados intentos, prueba en unos minutos.";
-    return;
-  }
-
-  const field = FIELD_BY_CODE[err?.code];
-  if (field) {
-    fieldErrors[field] = MESSAGE_BY_CODE[err.code] ?? err.message;
-    return;
-  }
-
-  // The invitation email already has an account (someone else accepted first)
-  if (err?.code === "EMAIL_ALREADY_EXISTS") {
-    generalError.value = "Ya hay una cuenta con este email.";
-    emailTaken.value = true;
-    return;
-  }
-
-  // Generic 422: details = [{ field, message, type }], field without "body."
-  if (err?.code === "VALIDATION_ERROR" && Array.isArray(err.details)) {
-    let matched = false;
-    for (const detail of err.details) {
-      if (detail?.field in fieldErrors) {
-        fieldErrors[detail.field] = MESSAGE_BY_FIELD[detail.field];
-        matched = true;
-      }
-    }
-    if (matched) return;
-  }
-
-  if (err?.code === "NETWORK_ERROR") {
-    generalError.value =
-      "No hemos podido conectar con el servidor. Inténtalo de nuevo.";
-    return;
-  }
-
-  generalError.value =
-    "No hemos podido crear tu cuenta. Inténtalo de nuevo en unos minutos.";
-}
-
-async function focusFirstError() {
-  await nextTick();
-  const field = FIELD_ORDER.find((name) => fieldErrors[name]);
-  inputRefs[field]?.value?.focus();
 }
 
 async function handleSubmit() {
@@ -691,7 +575,12 @@ async function handleSubmit() {
   clearErrors();
   authStore.clearError();
 
-  if (!validate()) {
+  const valid = check({
+    name: () => personNameProblem(form.name),
+    password: () => passwordProblem(form.password, invitation.value.email),
+    accept_terms: () => (form.accept_terms ? null : TERMS_MESSAGE),
+  });
+  if (!valid) {
     await focusFirstError();
     return;
   }
@@ -700,7 +589,7 @@ async function handleSubmit() {
     // The store keeps the user from the response (SessionResponse),
     // so there is no need to call /api/me afterwards.
     await authStore.acceptInvitation(code.value, {
-      name: form.name.trim(),
+      name: cleanText(form.name),
       password: form.password,
       accept_terms: form.accept_terms,
     });
@@ -713,23 +602,25 @@ async function handleSubmit() {
     // Expired or used while the form was open: show the problem screen
     if (handleLinkError(err)) return;
 
-    showApiError(err);
-    await focusFirstError();
+    if (applyApiError(err, API_ERRORS)) {
+      await focusFirstError();
+      return;
+    }
+    // The invitation email already has an account (someone else accepted first)
+    if (err?.code === "EMAIL_ALREADY_EXISTS") {
+      generalError.value = "Ya hay una cuenta con este email.";
+      emailTaken.value = true;
+      return;
+    }
+    generalError.value = apiErrorMessage(
+      err,
+      "No hemos podido crear tu cuenta. Inténtalo de nuevo en unos minutos.",
+    );
   }
 }
 
 async function logout() {
   await authStore.logout();
-}
-
-// Clear a field's error as soon as the user edits that field
-for (const field of FIELD_ORDER) {
-  watch(
-    () => form[field],
-    () => {
-      fieldErrors[field] = "";
-    },
-  );
 }
 
 // Another link opened in the same tab (only the query changes): load it again

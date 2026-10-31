@@ -169,10 +169,7 @@
         >
           <label v-if="mode === 'create'" class="flex flex-col gap-1 text-sm font-medium text-slate-700">
             Edificio
-            <select
-              v-model="siteId"
-              class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
-            >
+            <select v-model="siteId" :class="[INPUT_CLASS, INPUT_SIZE.md, INPUT_OK_CLASS]">
               <option v-for="option in siteOptions" :key="option.id" :value="option.id">{{ option.label }}</option>
             </select>
           </label>
@@ -185,7 +182,7 @@
             :mode="mode"
             :taken-labels="takenLabels"
           />
-          <p v-if="error" role="alert" class="rounded-lg bg-danger-light px-3 py-2 text-sm text-danger-dark">{{ error }}</p>
+          <FormError :message="error" />
         </form>
 
         <footer class="border-t border-slate-200 bg-slate-50 px-5 py-4">
@@ -226,6 +223,8 @@
 import { computed, nextTick, ref, watch } from "vue";
 import PressureChart from "../PressureChart.vue";
 import SensorForm, { emptySensor } from "../SensorForm.vue";
+import FormError from "../FormError.vue";
+import { INPUT_CLASS, INPUT_OK_CLASS, INPUT_SIZE } from "../../composables/useFieldErrors.js";
 import { PERIODS, useAdminSensorsStore } from "../../stores/adminSensors";
 import { formatDate, formatPressure, formatRange, formatTime } from "../../composables/useFormat";
 import { floorLabel } from "../../utils/floors";
@@ -373,6 +372,12 @@ function resetForm() {
     form.value = { ...emptySensor(), floor: props.preset?.floor ?? 0 };
   }
 }
+
+// An API error of a field goes under it; returns false for any other
+function showApiError(error) {
+  return Boolean(sensorForm.value?.showApiError(error));
+}
+defineExpose({ showApiError });
 
 function submit() {
   if (!sensorForm.value?.validate()) return;

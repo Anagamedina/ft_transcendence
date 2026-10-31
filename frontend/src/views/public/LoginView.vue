@@ -11,7 +11,8 @@
             <p class="mt-2 text-slate-600">Accede a tu cuenta de AquaGuard</p>
           </div>
 
-          <form @submit.prevent="handleSubmit" class="space-y-5">
+          <!-- novalidate: our own Spanish messages, the same in every form -->
+          <form novalidate class="space-y-5" @submit.prevent="handleSubmit">
             <div>
               <label
                 for="email"
@@ -22,14 +23,17 @@
 
               <input
                 id="email"
+                :ref="setRef('email')"
                 v-model="form.email"
                 type="email"
                 :maxlength="FIELD_LIMITS.email"
                 autocomplete="email"
                 required
-                class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-aqua-400"
+                :class="inputClass('email')"
+                v-bind="fieldAttrs('email')"
                 placeholder="tu@email.com"
               />
+              <FieldError :id="errorId('email')" :message="errors.email" />
             </div>
 
             <div>
@@ -43,16 +47,14 @@
               <div class="relative">
                 <input
                   id="password"
+                  :ref="setRef('password')"
                   v-model="form.password"
                   :type="showPassword ? 'text' : 'password'"
                   autocomplete="current-password"
                   required
-                  :aria-invalid="Boolean(passwordError)"
-                  :aria-describedby="passwordError ? 'password-error' : undefined"
-                  class="w-full px-4 py-3 pr-20 border rounded-lg focus:outline-none focus:ring-2 focus:ring-aqua-400"
-                  :class="passwordError ? 'border-danger' : 'border-slate-300'"
+                  :class="inputClass('password', 'pr-20')"
+                  v-bind="fieldAttrs('password')"
                   placeholder="Tu contraseña"
-                  @input="passwordError = null"
                 />
                 <!-- Show / hide the password, same as the trial sign-up form -->
                 <button
@@ -64,23 +66,10 @@
                   {{ showPassword ? "Ocultar" : "Mostrar" }}
                 </button>
               </div>
-              <p
-                v-if="passwordError"
-                id="password-error"
-                class="mt-1 text-sm text-danger-dark"
-              >
-                {{ passwordError }}
-              </p>
+              <FieldError :id="errorId('password')" :message="errors.password" />
             </div>
 
-            <!-- Error -->
-            <div
-              v-if="errorMessage"
-              class="bg-danger-light border border-danger text-danger-dark rounded-lg p-3 text-sm"
-              role="alert"
-            >
-              {{ errorMessage }}
-            </div>
+            <FormError :message="errorMessage" />
 
             <!-- Submit -->
             <button
@@ -115,6 +104,10 @@ import { useAuthStore } from "../../stores/auth.js";
 import PublicLayout from "../../layouts/PublicLayout.vue";
 import { FIELD_LIMITS } from "../../utils/limits.js";
 import { loginPasswordProblem } from "../../utils/passwords.js";
+import { emailProblem } from "../../utils/validation.js";
+import { useFieldErrors } from "../../composables/useFieldErrors.js";
+import FieldError from "../../components/FieldError.vue";
+import FormError from "../../components/FormError.vue";
 
 const router = useRouter();
 const route = useRoute();
@@ -126,7 +119,17 @@ const form = reactive({
 });
 
 const showPassword = ref(false);
-const passwordError = ref(null);
+const {
+  errors,
+  errorId,
+  setRef,
+  inputClass,
+  fieldAttrs,
+  check,
+  focusFirstError,
+  clearOnEdit,
+} = useFieldErrors(["email", "password"], { size: "lg" });
+clearOnEdit({ email: () => form.email, password: () => form.password });
 
 const isLoading = computed(() => authStore.status === "loading");
 
@@ -151,14 +154,20 @@ async function handleSubmit() {
 
   authStore.clearError();
 
-  // Only "something was typed": the password goes to the API as typed,
-  // without trimming, so " clave" does not log in as "clave".
-  passwordError.value = loginPasswordProblem(form.password);
-  if (passwordError.value) return;
+  // Only "something was typed" in the password: it goes to the API as
+  // typed, without trimming, so " clave" does not log in as "clave".
+  const valid = check({
+    email: () => emailProblem(form.email),
+    password: () => loginPasswordProblem(form.password),
+  });
+  if (!valid) {
+    await focusFirstError();
+    return;
+  }
 
   try {
     await authStore.login({
-      email: form.email,
+      email: form.email.trim(),
       password: form.password,
     });
 

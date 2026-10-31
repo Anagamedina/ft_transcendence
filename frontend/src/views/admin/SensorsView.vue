@@ -142,6 +142,7 @@
     </section>
 
     <SensorSidePanel
+      ref="sidePanel"
       :open="panel.open"
       :mode="panel.mode"
       :sensor="selected"
@@ -185,6 +186,7 @@ import { useAdminSensorsStore } from "../../stores/adminSensors.js";
 import { useListQuery } from "../../composables/useListQuery";
 import { REFRESH_MS, useAutoRefresh } from "../../composables/useAutoRefresh";
 import { apiErrorMessage } from "../../utils/apiError";
+import { cleanText } from "../../utils/validation";
 import { floorsWithoutSensor, isOffline, sensorTree, splitOffline } from "../../utils/sensorMaintenance";
 import { formatDuration, minutesSince } from "../../utils/alertText";
 
@@ -368,6 +370,7 @@ function closePanel() {
 //     outside the building, thresholds…) ---
 const saving = ref(false);
 const saveError = ref("");
+const sidePanel = ref(null);
 const EDITABLE = ["name", "floor", "min_pressure", "max_pressure"];
 
 async function save({ mode, siteId, data }) {
@@ -377,8 +380,8 @@ async function save({ mode, siteId, data }) {
     if (mode === "create") {
       const created = await sensorsStore.createSensor({
         site_id: siteId,
-        external_id: data.external_id.trim(),
-        name: data.name.trim(),
+        external_id: cleanText(data.external_id),
+        name: cleanText(data.name),
         floor: data.floor,
         min_pressure: data.min_pressure,
         max_pressure: data.max_pressure,
@@ -387,7 +390,7 @@ async function save({ mode, siteId, data }) {
       updateQuery({ sensor: created.id, page: page.value });
     } else {
       const current = selected.value;
-      const values = { ...data, name: data.name.trim() };
+      const values = { ...data, name: cleanText(data.name) };
       const changes = Object.fromEntries(
         EDITABLE.filter((f) => values[f] !== current[f]).map((f) => [f, values[f]]),
       );
@@ -395,7 +398,10 @@ async function save({ mode, siteId, data }) {
       panel.mode = "detail";
     }
   } catch (err) {
-    saveError.value = apiErrorMessage(err, "No se ha podido guardar el sensor.");
+    // An error of a field (label already used...) goes under it
+    if (!sidePanel.value?.showApiError(err)) {
+      saveError.value = apiErrorMessage(err, "No se ha podido guardar el sensor.");
+    }
   } finally {
     saving.value = false;
   }

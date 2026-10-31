@@ -24,6 +24,7 @@
     <form
       v-else
       id="sensor-import-form"
+      novalidate
       class="space-y-4"
       @submit.prevent="submit"
     >
@@ -48,7 +49,7 @@
           v-model="siteId"
           required
           :disabled="busy"
-          class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+          :class="[INPUT_CLASS, INPUT_SIZE.md, INPUT_OK_CLASS, 'mt-1 block']"
           @change="resetCheck"
         >
           <option value="" disabled>Elige un edificio</option>
@@ -71,7 +72,7 @@
         />
       </label>
 
-      <p v-if="error" role="alert" class="text-sm text-danger-dark">{{ error }}</p>
+      <FormError :message="error" />
 
       <!-- Errors by line: everything the file has to fix, at once -->
       <div v-if="rowErrors.length" role="alert" class="space-y-2">
@@ -175,6 +176,8 @@
 <script setup>
 import { computed, ref } from "vue";
 import Modal from "../Modal.vue";
+import FormError from "../FormError.vue";
+import { INPUT_CLASS, INPUT_OK_CLASS, INPUT_SIZE } from "../../composables/useFieldErrors.js";
 import sensorsService from "../../services/sensors.service.js";
 import { apiErrorMessage } from "../../utils/apiError";
 import { saveBlob } from "../../utils/download.js";

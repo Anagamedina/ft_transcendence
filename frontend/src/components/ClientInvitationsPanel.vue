@@ -72,20 +72,15 @@
           </label>
           <input
             id="invite-email"
-            ref="emailInput"
+            :ref="setRef('email')"
             v-model="email"
             type="email"
             :maxlength="FIELD_LIMITS.email"
             required
             autocomplete="email"
             placeholder="persona@empresa.com"
-            :class="INPUT"
-            :aria-invalid="Boolean(error)"
-            :aria-describedby="
-              error
-                ? 'invite-email-hint invite-email-error'
-                : 'invite-email-hint'
-            "
+            :class="inputClass('email')"
+            v-bind="fieldAttrs('email', 'invite-email-hint')"
           />
         </div>
         <button
@@ -100,14 +95,10 @@
           Acceso de cliente a esta organización. La persona creará su cuenta al
           aceptar.
         </p>
-        <p
-          v-if="error"
-          id="invite-email-error"
-          role="alert"
-          class="text-sm text-danger-dark sm:col-span-2"
-        >
-          {{ error }}
-        </p>
+        <div class="sm:col-span-2">
+          <FieldError :id="errorId('email')" :message="errors.email" />
+          <FormError :message="error" />
+        </div>
       </form>
       <button type="button" :class="TEXT_BUTTON" @click="closeForm">
         Cancelar
@@ -138,6 +129,10 @@ import { useOrganizationsStore } from "../stores/organizations";
 import { formatDate } from "../composables/useFormat";
 import { apiErrorMessage } from "../utils/apiError";
 import { FIELD_LIMITS } from "../utils/limits.js";
+import { emailProblem } from "../utils/validation.js";
+import FieldError from "./FieldError.vue";
+import FormError from "./FormError.vue";
+import { useFieldErrors } from "../composables/useFieldErrors.js";
 
 const props = defineProps({
   // Organization the invitations belong to
@@ -146,14 +141,10 @@ const props = defineProps({
 
 const organizationsStore = useOrganizationsStore();
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 const BUTTON_PRIMARY =
   "min-h-10 rounded-lg border border-aqua-600 bg-aqua-600 px-4 text-sm font-semibold text-white hover:bg-aqua-700 disabled:cursor-wait disabled:opacity-60";
 const TEXT_BUTTON =
   "min-h-10 px-1 text-sm font-semibold text-aqua-700 hover:underline";
-const INPUT =
-  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-aqua-600";
 
 // The store keeps the pending invitations of the open client
 const invitations = computed(() => organizationsStore.invitations);
@@ -169,13 +160,27 @@ const error = ref("");
 const inviting = ref(false);
 // InvitationSentResponse: the only answer with the link (url)
 const lastInvitation = ref(null);
-const emailInput = ref(null);
+const {
+  errors,
+  inputs,
+  errorId,
+  setRef,
+  inputClass,
+  fieldAttrs,
+  clear,
+  check,
+  focusFirstError,
+  clearOnEdit,
+  applyApiError,
+} = useFieldErrors(["email"]);
+clearOnEdit({ email: () => email.value });
 const openButton = ref(null);
 
 function openForm() {
   formOpen.value = true;
   error.value = "";
-  nextTick(() => emailInput.value?.focus());
+  clear();
+  nextTick(() => inputs.email?.focus());
 }
 
 function closeForm() {
@@ -187,12 +192,11 @@ function closeForm() {
 
 async function onInvite() {
   const value = email.value.trim();
-  if (!EMAIL_PATTERN.test(value)) {
-    error.value = "Escribe un email válido, por ejemplo nombre@empresa.com.";
-    emailInput.value?.focus();
+  error.value = "";
+  if (!check({ email: () => emailProblem(value) })) {
+    focusFirstError();
     return;
   }
-  error.value = "";
   inviting.value = true;
   try {
     // The store also adds it to the pending list
@@ -204,11 +208,23 @@ async function onInvite() {
     formOpen.value = false;
     nextTick(() => openButton.value?.focus());
   } catch (err) {
-    error.value = apiErrorMessage(
-      err,
-      "No se ha podido crear la invitación. Inténtalo de nuevo.",
-    );
-    emailInput.value?.focus();
+    // Email with an account or a pending invitation: under the field
+    const isField = applyApiError(err, {
+      codes: {
+        EMAIL_ALREADY_EXISTS: "email",
+        INVITATION_ALREADY_PENDING: "email",
+      },
+      messages: {
+        email: "Escribe un email válido, por ejemplo nombre@empresa.com.",
+      },
+    });
+    if (!isField) {
+      error.value = apiErrorMessage(
+        err,
+        "No se ha podido crear la invitación. Inténtalo de nuevo.",
+      );
+    }
+    focusFirstError();
   } finally {
     inviting.value = false;
   }
