@@ -16,9 +16,8 @@ Decisiones:
 - **Una prueba caducada también puede suscribirse.** Sigue en `TRIAL`
   (la caducidad se calcula, no se guarda), y es justo el momento en que
   el cliente quiere pagar.
-- **El IBAN nunca se guarda entero.** Se comprueba (dígitos de control,
-  ISO 13616) para avisar si está mal escrito, y se guarda solo
-  enmascarado: el país y los cuatro últimos dígitos. No hay pasarela de
+- **El IBAN nunca se guarda entero.** Solo se comprueba la forma (`ES` y
+  22 cifras), y se guarda solo enmascarado: el país y los cuatro últimos dígitos. No hay pasarela de
   pago; cobrar queda fuera del proyecto.
 - **El IBAN es obligatorio**, igual que la autorización SEPA: el pago
   es por domiciliación. La autorización queda en `sepa_accepted_at`.

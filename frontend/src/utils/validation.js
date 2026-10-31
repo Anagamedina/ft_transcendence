@@ -22,8 +22,10 @@ const PHONE_PATTERN = /^[6789]\d{8}$/;
 // NIF, NIE, CIF or a foreign tax id, without separators
 const TAX_ID_PATTERN = /^[A-Z0-9]{8,15}$/;
 const POSTAL_CODE_PATTERN = /^\d{5}$/;
-// Spanish IBAN: ES, 2 check digits and the 20-digit account
+// Spanish IBAN: ES and 22 digits
 const IBAN_PATTERN = /^ES\d{22}$/;
+const IBAN_MESSAGE =
+  "Revisa el IBAN: tiene que ser español, empieza por ES y tiene 24 caracteres.";
 // Letters (accents, ñ, ç included), digits, spaces and the signs of company
 // names: "Hotel Mar, S.L.", "Ca n'Oller", "Mar & Sol (Gràcia)"
 const ORGANIZATION_NAME_PATTERN = /^[\p{L}\p{N} .,'’&()-]+$/u;
@@ -132,22 +134,12 @@ export function postalCodeProblem(value) {
     : "Escribe un código postal de 5 cifras.";
 }
 
-// Shape and check digits (ISO 13616: the first four characters go to the
-// end, each letter becomes a number, A=10 … Z=35, and mod 97 must be 1)
+// Only the shape (ES and 22 digits), not the check digits: there is no real
+// charge, and a stricter rule would only stop a sign-up over a typo
 export function ibanProblem(value) {
-  const iban = compactCode(value);
-  if (!IBAN_PATTERN.test(iban)) {
-    return "Revisa el IBAN: tiene que ser español, empieza por ES y tiene 24 caracteres.";
-  }
-  const digits = [...(iban.slice(4) + iban.slice(0, 4))]
-    .map((char) => parseInt(char, 36))
-    .join("");
-  // Digit by digit: the whole number does not fit in a JS number
-  let remainder = 0;
-  for (const digit of digits) remainder = (remainder * 10 + Number(digit)) % 97;
-  return remainder === 1
+  return IBAN_PATTERN.test(compactCode(value))
     ? null
-    : "El IBAN no es válido: revisa los dígitos de la cuenta.";
+    : IBAN_MESSAGE;
 }
 
 // Required text with the spaces cleaned up, and its maximum length

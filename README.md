@@ -560,7 +560,7 @@ passwords keep theirs in `shared/passwords.py` and `utils/passwords.js`.
 | Email                         | Valid email, ≤ 320                                                | Lowercase                     | `VALIDATION_ERROR`    |
 | NIF / CIF                     | 8 to 15 letters or numbers, separators ignored                    | `B12345678`                   | `INVALID_TAX_ID`      |
 | Postal code                   | Five digits                                                       | `08002`                       | `INVALID_POSTAL_CODE` |
-| IBAN                          | Spanish (`ES` + 22 digits) with valid check digits                | Masked                        | `INVALID_IBAN`        |
+| IBAN                          | Spanish: `ES` + 22 digits (check digits not verified)             | Masked                        | `INVALID_IBAN`        |
 | Legal name, address and city  | Required where the form asks for them; length of their column     | Spaces collapsed              | `VALIDATION_ERROR`    |
 
 The phone is required when an admin creates a client and in "Hazte

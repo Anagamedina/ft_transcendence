@@ -33,7 +33,7 @@ _SEPARADORES_TELEFONO = re.compile(r"[\s.\-()]")
 _TELEFONO = re.compile(r"^[6789][0-9]{8}$")
 # NIF, NIE, CIF o el identificador fiscal de otro país, ya sin separadores.
 _TAX_ID = re.compile(r"^[A-Z0-9]{8,15}$")
-# IBAN español: ES, dígitos de control (2) y la cuenta (20 cifras).
+# IBAN español: ES y 22 cifras. Los dígitos de control no se comprueban.
 _IBAN = re.compile(r"^ES[0-9]{22}$")
 # Código postal español: cinco cifras.
 _POSTAL_CODE = re.compile(r"^[0-9]{5}$")
@@ -145,23 +145,19 @@ def check_postal_code(valor: str) -> str:
 
 def mask_iban(valor: str) -> str:
     """
-    IBAN comprobado y enmascarado, o 422 `INVALID_IBAN`.
+    IBAN español enmascarado, o 422 `INVALID_IBAN`.
 
         'ES91 2100 0418 4502 0005 1332' → 'ES** **** **** **** **** 1332'
 
-    La comprobación es la de ISO 13616: se pasan los cuatro primeros
-    caracteres al final, cada letra se cambia por un número (A=10 … Z=35)
-    y el resultado módulo 97 tiene que dar 1.
+    Solo se comprueba la forma (`ES` y 22 cifras), no los dígitos de
+    control: no hay cobro real, y una regla más estricta solo frenaría el
+    alta por un dígito mal copiado.
     """
     iban = _SEPARADORES.sub("", valor).upper()
-    valido = bool(_IBAN.match(iban))
-    if valido:
-        reordenado = iban[4:] + iban[:4]
-        valido = int("".join(str(int(c, 36)) for c in reordenado)) % 97 == 1
-    if not valido:
+    if not _IBAN.match(iban):
         raise DomainValidationError(
             "El IBAN no es válido.",
-            details={"field": "iban", "message": "Revisa los dígitos de la cuenta."},
+            details={"field": "iban", "message": "ES y 22 cifras."},
             code="INVALID_IBAN",
         )
     oculto = iban[:2] + "*" * (len(iban) - 6) + iban[-4:]

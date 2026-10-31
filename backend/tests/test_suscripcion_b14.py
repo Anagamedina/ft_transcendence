@@ -299,7 +299,7 @@ def test_el_admin_ve_lo_contratado_en_la_ficha(client, datos):
         ({"tax_id": "B1"}, "INVALID_TAX_ID"),
         ({"postal_code": "8001"}, "INVALID_POSTAL_CODE"),
         ({"postal_code": "08O01"}, "INVALID_POSTAL_CODE"),
-        ({"iban": "ES00 2100 0418 4502 0005 1332"}, "INVALID_IBAN"),
+        ({"iban": "ES91 2100 0418 4502 0005 133"}, "INVALID_IBAN"),
         ({"iban": "1234"}, "INVALID_IBAN"),
         # Válido en Alemania, pero solo se aceptan IBAN españoles
         ({"iban": "DE89 3704 0044 0532 0130 00"}, "INVALID_IBAN"),
@@ -362,8 +362,10 @@ def test_mask_iban_y_normalize_tax_id():
     assert mask_iban("es91-2100.0418 4502 0005 1332") == "ES** **** **** **** **** 1332"
     assert normalize_tax_id(" x-1234567.l ") == "X1234567L"
     assert check_postal_code(" 08002 ") == "08002"
+    # Solo la forma: unos dígitos de control que no cuadran se aceptan
+    assert mask_iban("ES00 2100 0418 4502 0005 1333") == "ES** **** **** **** **** 1333"
     with pytest.raises(DomainValidationError):
-        mask_iban("ES91 2100 0418 4502 0005 1333")
+        mask_iban("ES91 2100 0418 4502 0005 133")
     with pytest.raises(DomainValidationError):
         mask_iban("de89370400440532013000")
 

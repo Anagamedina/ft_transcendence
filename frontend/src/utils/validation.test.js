@@ -127,9 +127,11 @@ describe("tax id, postal code and IBAN", () => {
     expect(postalCodeProblem("8002")).toMatch(/5 cifras/);
   });
 
-  it("checks the IBAN shape and check digits", () => {
-    expect(ibanProblem("ES91 2100 0418 4502 0005 1332")).toBeNull();
-    expect(ibanProblem("ES92 2100 0418 4502 0005 1332")).toMatch(/dígitos/);
+  it("checks only the IBAN shape: ES and 22 digits", () => {
+    expect(ibanProblem("es91-2100.0418 4502 0005 1332")).toBeNull();
+    // Wrong check digits are fine: there is no real charge
+    expect(ibanProblem("ES92 2100 0418 4502 0005 1332")).toBeNull();
+    expect(ibanProblem("ES91 2100 0418 4502 0005 133")).toMatch(/español/);
     expect(ibanProblem("DE89 3704 0044 0532 0130 00")).toMatch(/español/);
   });
 });

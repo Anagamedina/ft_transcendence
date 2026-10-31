@@ -13,7 +13,7 @@
   POST /api/me/organization/subscribe and reloads /api/me, so the trial
   banner goes away. The API computes the plan and the price again; the
   checks here are the same as the backend ones, to show the errors before
-  sending (the backend also checks the IBAN check digits).
+  sending.
 -->
 
 <template>
@@ -666,10 +666,7 @@ const API_ERRORS = {
     INVALID_TAX_ID: { field: "tax_id", message: MESSAGE_BY_FIELD.tax_id },
     INVALID_POSTAL_CODE: "postal_code",
     INVALID_PHONE: "phone",
-    INVALID_IBAN: {
-      field: "iban",
-      message: "El IBAN no es válido: revisa los dígitos de la cuenta.",
-    },
+    INVALID_IBAN: { field: "iban", message: MESSAGE_BY_FIELD.iban },
     TERMS_NOT_ACCEPTED: {
       field: "accept_terms",
       message: MESSAGE_BY_FIELD.accept_terms,
