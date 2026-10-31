@@ -188,6 +188,7 @@ import { useClientStatus } from "../composables/useClientStatus";
 import {
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
+  loginPasswordProblem,
   passwordProblem,
 } from "../utils/passwords";
 import { apiErrorMessage } from "../utils/apiError";
@@ -259,10 +260,9 @@ async function saveProfile() {
 async function savePassword() {
   passwordError.value = "";
   passwordSaved.value = false;
-  const problem = passwordProblem(
-    password.value.new_password,
-    authStore.user?.email ?? "",
-  );
+  const problem =
+    loginPasswordProblem(password.value.current_password) ??
+    passwordProblem(password.value.new_password, authStore.user?.email ?? "");
   if (problem) {
     passwordError.value = problem;
     return;

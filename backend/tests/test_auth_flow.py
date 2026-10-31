@@ -151,6 +151,43 @@ def test_tampoco_se_distinguen_por_el_tiempo_que_tardan(client, datos):
     assert no_existe > existe * 0.5
 
 
+@pytest.mark.parametrize(
+    "password",
+    [f" {CONTRASENA}", f"{CONTRASENA} ", f"  {CONTRASENA}  "],
+    ids=["delante", "detras", "ambos"],
+)
+def test_la_contrasena_con_espacios_en_los_extremos_no_entra(client, datos, password):
+    """
+    La contraseña se compara tal cual. Ninguna puede guardarse con espacios
+    en los extremos (B10), así que con ellos no coincide nunca.
+    """
+    respuesta = _login(client, "admin@aquaguard.dev", password)
+
+    assert respuesta.status_code == 401
+    assert respuesta.json()["error"]["code"] == "UNAUTHORIZED"
+
+
+def test_una_contrasena_solo_de_espacios_es_401_y_no_422(client, datos):
+    """Mismo trato que cualquier contraseña mala: un 422 daría pistas."""
+    respuesta = _login(client, "admin@aquaguard.dev", "   ")
+
+    assert respuesta.status_code == 401
+    assert respuesta.json()["error"]["code"] == "UNAUTHORIZED"
+
+
+def test_una_contrasena_demasiado_larga_es_401_y_no_422(client, datos):
+    respuesta = _login(client, "admin@aquaguard.dev", "a" * 129)
+
+    assert respuesta.status_code == 401
+    assert respuesta.json()["error"]["code"] == "UNAUTHORIZED"
+
+
+def test_el_email_si_se_recorta_y_no_distingue_mayusculas(client, datos):
+    respuesta = _login(client, "  ADMIN@aquaguard.dev  ")
+
+    assert respuesta.status_code == 200
+
+
 # ---------------------------------------------------------
 # /api/me
 # ---------------------------------------------------------
@@ -243,6 +280,22 @@ def test_me_rechaza_contrasena_actual_incorrecta(client, datos):
         "/api/me/password",
         json={
             "current_password": "contraseña-equivocada",
+            "new_password": "otra-contrasena-larga",
+        },
+    )
+
+    assert respuesta.status_code == 422
+    assert respuesta.json()["error"]["code"] == "WRONG_PASSWORD"
+
+
+def test_me_no_recorta_la_contrasena_actual(client, datos):
+    """Como en el login: con un espacio delante ya no es la misma."""
+    _login(client, "cliente@aquaguard.dev")
+
+    respuesta = client.post(
+        "/api/me/password",
+        json={
+            "current_password": f" {CONTRASENA}",
             "new_password": "otra-contrasena-larga",
         },
     )

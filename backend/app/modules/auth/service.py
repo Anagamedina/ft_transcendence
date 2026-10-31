@@ -33,7 +33,7 @@ from app.modules.users.repository import UserRepository, normalize_email
 from app.modules.users.schemas import UserResponse, UserRole
 from app.shared.dependencies import DbSession, ensure_account_enabled
 from app.shared.enums import OrganizationStatus
-from app.shared.passwords import check_password
+from app.shared.passwords import PASSWORD_MAX_LENGTH, check_password
 
 
 # Huella de una contraseña que no es de nadie. Se calcula una vez al cargar
@@ -163,6 +163,13 @@ class AuthService:
 
         La cookie de sesión la pone el router — es HTTP, no negocio.
         """
+        # Ninguna contraseña guardada pasa de este largo (la regla de la
+        # B10 lo impide), así que una más larga no puede coincidir. Se
+        # responde sin pasar por Argon2, que tarda más cuanto más larga
+        # es: si no, un texto enorme dejaría el servidor ocupado.
+        if len(payload.password) > PASSWORD_MAX_LENGTH:
+            raise UnauthorizedError("Email o contraseña incorrectos.")
+
         usuario = self.users.get_by_email(payload.email)
 
         if usuario is None:

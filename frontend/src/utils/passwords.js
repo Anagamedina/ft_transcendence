@@ -34,3 +34,13 @@ export function passwordProblem(password, email = "") {
 
   return null;
 }
+
+// Login and "current password": only checks that something was typed. No
+// password rule here, and no trimming: the backend compares the password
+// exactly as typed and answers 401 when it does not match.
+export function loginPasswordProblem(password) {
+  if (password.trim() === "") {
+    return "Introduce tu contraseña.";
+  }
+  return null;
+}

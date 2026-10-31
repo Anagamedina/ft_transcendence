@@ -30,7 +30,7 @@ from app.shared.enums import (
     OrganizationStatus,
     SubscriptionPlan,
 )
-from app.shared.schemas import ApiModel, ApiRequest, Password
+from app.shared.schemas import ApiModel, ApiRequest, Password, RawPassword
 
 
 class UserRole(str, Enum):
@@ -216,7 +216,8 @@ class PasswordChange(ApiRequest):
     una columna que no existe).
     """
 
-    current_password: str = Field(min_length=1, max_length=128)
+    # Se compara tal cual, sin recortar: igual que en el login.
+    current_password: RawPassword = Field(min_length=1, max_length=128)
     new_password: Password = Field(
         max_length=128,
         description="Misma regla que el registro (B10): al menos 12 caracteres, no común, sin el email.",

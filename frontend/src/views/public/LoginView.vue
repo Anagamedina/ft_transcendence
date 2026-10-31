@@ -47,8 +47,12 @@
                   :type="showPassword ? 'text' : 'password'"
                   autocomplete="current-password"
                   required
-                  class="w-full px-4 py-3 pr-20 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-aqua-400"
+                  :aria-invalid="Boolean(passwordError)"
+                  :aria-describedby="passwordError ? 'password-error' : undefined"
+                  class="w-full px-4 py-3 pr-20 border rounded-lg focus:outline-none focus:ring-2 focus:ring-aqua-400"
+                  :class="passwordError ? 'border-danger' : 'border-slate-300'"
                   placeholder="Tu contraseña"
+                  @input="passwordError = null"
                 />
                 <!-- Show / hide the password, same as the trial sign-up form -->
                 <button
@@ -60,6 +64,13 @@
                   {{ showPassword ? "Ocultar" : "Mostrar" }}
                 </button>
               </div>
+              <p
+                v-if="passwordError"
+                id="password-error"
+                class="mt-1 text-sm text-danger-dark"
+              >
+                {{ passwordError }}
+              </p>
             </div>
 
             <!-- Error -->
@@ -103,6 +114,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "../../stores/auth.js";
 import PublicLayout from "../../layouts/PublicLayout.vue";
 import { FIELD_LIMITS } from "../../utils/limits.js";
+import { loginPasswordProblem } from "../../utils/passwords.js";
 
 const router = useRouter();
 const route = useRoute();
@@ -114,6 +126,7 @@ const form = reactive({
 });
 
 const showPassword = ref(false);
+const passwordError = ref(null);
 
 const isLoading = computed(() => authStore.status === "loading");
 
@@ -137,6 +150,11 @@ async function handleSubmit() {
   if (isLoading.value) return;
 
   authStore.clearError();
+
+  // Only "something was typed": the password goes to the API as typed,
+  // without trimming, so " clave" does not log in as "clave".
+  passwordError.value = loginPasswordProblem(form.password);
+  if (passwordError.value) return;
 
   try {
     await authStore.login({
