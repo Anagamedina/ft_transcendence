@@ -141,36 +141,38 @@ performs a fresh bootstrap.
 
 ### Run the stack
 
-The Compose stack declares six services on the `aquaguard` network. `database`,
-`backend`, `gateway`, `backup` and `mailpit` start by default; `simulator` sits behind the
-`sim` Compose profile, so a plain start never fails on it.
+Six services on the `aquaguard` network:
 
-`gateway` is the only service published to the host for the app (Mailpit's
-email viewer is also published, only on `127.0.0.1:8025`). It terminates TLS on 443,
-redirects 80 to 443, serves the compiled Vue SPA, and proxies `/api/` to
-`backend:8000` over the internal network. It adds the security headers (HSTS,
-`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`) to every HTTPS
-response and limits `/api/auth/login`, `/api/auth/register` and
-`/api/invitations/by-code/` to `PUBLIC_RATE_LIMIT` requests per IP, answering
-429 in the API error format beyond that. Each form has its own counter, so
-running out of login attempts does not block register or invitations. Login
-allows a burst of 10 extra requests and the other two a burst of 4, because
-everyone on the campus network shares one public IP. `client_max_body_size` is
-`MAX_UPLOAD_MB` plus 1 MB for the multipart overhead, so a file of exactly
-`MAX_UPLOAD_MB` is not rejected with 413; `gateway/18-upload-limit.envsh`
-computes it when the container starts. A bigger upload gets 413 with the
-same JSON as the API (`FILE_TOO_LARGE`), not the nginx HTML page. The Playwright suite logs in more
-often than that, so run it against a stack started with
-`PUBLIC_RATE_LIMIT=1000r/m make up`. `backend` and `database` are not
-reachable from the host at all. `backup` writes a compressed `pg_dump` to the
-`backups_data` volume on a schedule; see
-[Health checks, status page and backups](#health-checks-status-page-and-backups).
+| Service     | Role                                                                 | Reachable from the host |
+|-------------|----------------------------------------------------------------------|-------------------------|
+| `gateway`   | Nginx: TLS on 443, 80 → 443, Vue SPA, `/api/` → `backend:8000`        | Yes, 80 and 443         |
+| `backend`   | FastAPI                                                              | No                      |
+| `database`  | PostgreSQL                                                           | No                      |
+| `backup`    | Scheduled `pg_dump` to the `backups_data` volume ([details](#health-checks-status-page-and-backups)) | No |
+| `mailpit`   | Catches the emails                                                   | Only `127.0.0.1:8025`   |
+| `simulator` | Sends sensor readings; only with the `sim` profile                   | No                      |
 
-Services start in order and each one waits until the one it depends on is
-`healthy`, not just started: `database` first, then `backend` and `backup`,
-then `gateway` and `simulator`. The simulator never sends readings to an API
-that is not answering yet. Docker logs rotate: each service keeps at most
-3 files of 10 MB (about 30 MB), and the oldest one is deleted.
+**Gateway rules**
+
+- **Security headers** on every HTTPS response: HSTS, `X-Content-Type-Options`,
+  `X-Frame-Options`, `Referrer-Policy`.
+- **Rate limit** of `PUBLIC_RATE_LIMIT` requests per IP on `/api/auth/login`,
+  `/api/auth/register` and `/api/invitations/by-code/`, with a separate counter
+  for each. Login allows a burst of 10, the other two of 4, because the whole
+  campus shares one public IP. Beyond that: `429` in the API error format.
+  Playwright logs in more often, so run it on a stack started with
+  `PUBLIC_RATE_LIMIT=1000r/m make up`.
+- **Upload size**: `client_max_body_size` is `MAX_UPLOAD_MB` + 1 MB of
+  multipart overhead (computed at start by `gateway/18-upload-limit.envsh`), so
+  a file of exactly `MAX_UPLOAD_MB` passes. A bigger one gets `413
+  FILE_TOO_LARGE` in the API JSON format, not the Nginx HTML page.
+
+**Startup and logs**
+
+- Each service waits until the one it depends on is `healthy`: `database` →
+  `backend` and `backup` → `gateway` and `simulator`. The simulator never sends
+  readings to an API that is not answering yet.
+- Logs rotate: at most 3 files of 10 MB per service (about 30 MB).
 
 ```bash
 make up
@@ -425,12 +427,14 @@ docker stats --no-stream           # MEM USAGE / LIMIT for every service
 idempotent, its dates are relative to the moment it runs, and it refuses to run
 with `ENV=production` because these passwords are public.
 
-| Account                                          | Password          | Role                                                                |
-|--------------------------------------------------|-------------------|---------------------------------------------------------------------|
-| `admin@aquaguard.dev`                            | `dev-admin-only`  | Global admin                                                        |
-| `client@aquaguard.dev`                           | `dev-client-only` | Client of Residencias Collserola                                    |
-| `hotel@`, `comunidad@`, `poblenou@aquaguard.dev` | `dev-client-only` | One client per organization                                         |
-| `zonafranca@aquaguard.dev`                       | `dev-client-only` | Blocked while its organization is suspended; "Reactivar" lets it in |
+| Account                    | Password          | Name          | Role   | Organization                        | Note                                                         |
+|----------------------------|-------------------|---------------|--------|-------------------------------------|--------------------------------------------------------------|
+| `admin@aquaguard.dev`      | `dev-admin-only`  | Demo Admin    | Admin  | —                                   | Manages every organization                                   |
+| `client@aquaguard.dev`     | `dev-client-only` | Lucía Martín  | Client | Residencias Collserola (ACTIVE)     | Empresa plan                                                 |
+| `hotel@aquaguard.dev`      | `dev-client-only` | Javier Soler  | Client | Hotel Gòtic (TRIAL)                 | Try "Hazte cliente" here                                     |
+| `comunidad@aquaguard.dev`  | `dev-client-only` | Montse Puig   | Client | Comunidad Mallorca 401 (ACTIVE)     | Básico plan                                                  |
+| `poblenou@aquaguard.dev`   | `dev-client-only` | Jordi Vidal   | Client | Polideportivo Poblenou (ACTIVE)     | Profesional plan, yearly                                     |
+| `zonafranca@aquaguard.dev` | `dev-client-only` | Rocío Navarro | Client | Aigües Zona Franca (SUSPENDED)      | Cannot log in until the organization is reactivated          |
 
 - 5 organizations: Residencias Collserola, Hotel Gòtic (TRIAL), Comunidad
   Mallorca 401, Polideportivo Poblenou and Aigües Zona Franca (SUSPENDED).
