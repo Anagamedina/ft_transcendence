@@ -1,17 +1,17 @@
 # ROUTER — subscriptions
-# Capa HTTP fina: valida schemas → llama service → responde.
+# Thin HTTP layer: validates schemas → calls the service → answers.
 """
-«Hazte cliente» (B14, issue #150).
+"Hazte cliente" (become a client, B14, issue #150).
 
-    GET  /api/plans                      → catálogo, sin sesión
-    POST /api/me/organization/subscribe  → el cliente en prueba contrata un plan
+    GET  /api/plans                      → catalog, no session
+    POST /api/me/organization/subscribe  → the client on trial subscribes to a plan
 
-Sin `prefix`, como `users`: las dos rutas cuelgan de árboles distintos, y
-la segunda va bajo `/me` porque actúa sobre la organización de la sesión,
-no sobre una que se elige por id.
+No `prefix`, like `users`: the two routes hang from different trees, and
+the second goes under `/me` because it acts on the session organization,
+not on one chosen by id.
 
-`/plans` no pide sesión: son precios públicos, los mismos que puede
-enseñar la portada.
+`/plans` needs no session: they are public prices, the same the home page
+can show.
 """
 
 from __future__ import annotations
@@ -41,9 +41,9 @@ SubscriptionSvc = Annotated[SubscriptionService, Depends(get_subscription_servic
 @router.get(
     "/plans",
     response_model=list[PlanResponse],
-    summary="Planes disponibles",
+    summary="Available plans",
     description=(
-        "Catálogo fijo de planes con precio y límites. No necesita sesión."
+        "Fixed catalog of plans with price and limits. No session needed."
     ),
 )
 def list_plans(service: SubscriptionSvc) -> list[PlanResponse]:
@@ -53,34 +53,34 @@ def list_plans(service: SubscriptionSvc) -> list[PlanResponse]:
 @router.post(
     "/me/organization/subscribe",
     response_model=SubscriptionResponse,
-    summary="Contratar un plan",
+    summary="Subscribe to a plan",
     description=(
-        "El cliente en prueba pasa a cliente (`TRIAL` → `ACTIVE`) con los "
-        "edificios y sensores que contrata y sus datos fiscales. El plan y el "
-        "precio los calcula la API: base del plan más cada sensor. Vale "
-        "también con la prueba caducada.\n\n"
-        "El IBAN es obligatorio (se paga por domiciliación SEPA) y solo se "
-        "guarda enmascarado."
+        "The client on trial becomes a client (`TRIAL` → `ACTIVE`) with the "
+        "buildings and sensors it contracts and its tax data. The API "
+        "computes the plan and the price: plan base plus each sensor. It "
+        "also works with an expired trial.\n\n"
+        "The IBAN is mandatory (payment is by SEPA direct debit), must be "
+        "Spanish (`ES` + 22 digits) and is stored masked only."
     ),
     responses={
-        **error_response(status.HTTP_401_UNAUTHORIZED, "No hay sesión (`UNAUTHORIZED`)."),
+        **error_response(status.HTTP_401_UNAUTHORIZED, "No session (`UNAUTHORIZED`)."),
         **error_response(
             status.HTTP_403_FORBIDDEN,
-            "La sesión no es de un cliente (`FORBIDDEN`).",
+            "The session is not a client one (`FORBIDDEN`).",
         ),
         **error_response(
             status.HTTP_409_CONFLICT,
-            "La organización no está en prueba (`ORGANIZATION_NOT_IN_TRIAL`) o "
-            "contrata menos edificios o sensores de los que ya tiene "
+            "The organization is not on trial (`ORGANIZATION_NOT_IN_TRIAL`) or "
+            "it contracts fewer buildings or sensors than it already has "
             "(`CONTRACT_BELOW_CURRENT`).",
         ),
         **error_response(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            "Menos sensores que edificios (`SENSORS_BELOW_SITES`), "
-            "condiciones sin aceptar (`TERMS_NOT_ACCEPTED`), domiciliación sin "
-            "autorizar (`SEPA_NOT_ACCEPTED`), NIF mal escrito (`INVALID_TAX_ID`), "
-            "código postal incorrecto (`INVALID_POSTAL_CODE`), teléfono que no es "
-            "español (`INVALID_PHONE`) o IBAN incorrecto "
+            "Fewer sensors than buildings (`SENSORS_BELOW_SITES`), conditions "
+            "not accepted (`TERMS_NOT_ACCEPTED`), direct debit not authorized "
+            "(`SEPA_NOT_ACCEPTED`), malformed tax id (`INVALID_TAX_ID`), wrong "
+            "postal code (`INVALID_POSTAL_CODE`), phone that is not Spanish "
+            "(`INVALID_PHONE`) or wrong IBAN "
             "(`INVALID_IBAN`).",
         ),
     },

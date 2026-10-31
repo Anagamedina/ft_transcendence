@@ -1,1 +1,1 @@
-# Módulo alerts — AlertService: reglas, acknowledge, resolve (transacciones).
+# alerts module — AlertService: rules, acknowledge, resolve (transactions).

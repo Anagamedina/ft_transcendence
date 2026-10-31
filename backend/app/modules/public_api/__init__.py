@@ -1,4 +1,4 @@
-"""API pública del subject de ft_transcendence: lectura y escritura con API key."""
+"""Public API of the ft_transcendence subject: read and write with an API key."""
 
 from . import router
 

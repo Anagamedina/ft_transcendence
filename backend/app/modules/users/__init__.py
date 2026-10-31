@@ -1,1 +1,1 @@
-# Módulo users — Perfil y administración de usuarios.
+# users module — profile and user administration.

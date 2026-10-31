@@ -1,14 +1,14 @@
 # SERVICE — auth
-# Reglas de negocio y orquestación. No hablar HTTP aquí.
+# Business rules and orchestration. No HTTP here.
 """
-Lógica de autenticación.
+Authentication logic.
 
-Estructura de la issue #22 y contrato de la #23. La implementación es la
-issue #26, que además necesita de Daruny el modelo `User` (issue #13) y su
+Structure from issue #22 and contract from #23. The implementation is
+issue #26, which also needs Daruny's `User` model (issue #13) and its
 repository (issue #17).
 
-Se deja escrito aquí el orden de las operaciones porque dos de ellas son
-fáciles de hacer mal y difíciles de detectar después.
+The order of the operations is written down here because two of them are
+easy to get wrong and hard to notice later.
 """
 
 from __future__ import annotations
@@ -37,9 +37,9 @@ from app.shared.fields import person_name
 from app.shared.passwords import PASSWORD_MAX_LENGTH, check_password
 
 
-# Huella de una contraseña que no es de nadie. Se calcula una vez al cargar
-# el módulo y sirve para gastar el mismo tiempo cuando el email no existe
-# que cuando existe: ver `login`.
+# Hash of a password that belongs to nobody. It is computed once when the
+# module loads and is used to spend the same time when the email does not
+# exist as when it does: see `login`.
 _HUELLA_SENUELO = hash_password("una-contrasena-que-no-usa-nadie")
 
 
@@ -58,36 +58,34 @@ class AuthService:
         self, payload: RegisterRequest, ahora: datetime | None = None
     ) -> UserResponse:
         """
-        Registro público (B10, issue #140): crea la organización de quien
-        se registra, en prueba, y su usuario dentro.
+        Public sign-up (B10, issue #140): creates the organization of the
+        person signing up, on trial, and their user inside it.
 
-        Hasta la B10 esta ruta era el alta de un cliente por un admin: el
-        equipo había acordado el 26-09-2026 que no habría registro
-        público. El rediseño de pantallas (08-10-2026) lo cambió, y el
-        subject lo pide.
+        Until B10 this route was the creation of a client by an admin: the
+        team had agreed on 2026-09-26 that there would be no public
+        sign-up. The screen redesign (2026-10-08) changed that, and the
+        subject asks for it.
 
-        Orden:
+        Order:
 
-        1. Lo que se puede rechazar sin mirar la base de datos: términos
-           sin aceptar (`TERMS_NOT_ACCEPTED`), contraseña débil
-           (`WEAK_PASSWORD`) y nombre de la persona o de la organización
-           no válido (`INVALID_NAME`, con el campo en `details.field`).
-           Todo 422.
-        2. Email u organización ya dados de alta → 409.
-        3. Organización `TRIAL` (vence en `TRIAL_DAYS`) y usuario `client`
-           en la misma transacción: si falla el usuario, no queda una
-           organización sin nadie dentro.
-        4. Devolver el usuario. La sesión la abre el router, como en el
-           login.
+        1. What can be rejected without looking at the database: terms not
+           accepted (`TERMS_NOT_ACCEPTED`), weak password
+           (`WEAK_PASSWORD`) and an invalid person or organization name
+           (`INVALID_NAME`, with the field in `details.field`). All 422.
+        2. Email or organization already registered → 409.
+        3. `TRIAL` organization (expiring in `TRIAL_DAYS`) and `client`
+           user in the same transaction: if the user fails, no
+           organization is left with nobody inside.
+        4. Return the user. The router opens the session, as in login.
 
-        **Avisar de que el email ya existe** deja averiguar qué cuentas hay
-        dadas de alta, algo que el login evita con cuidado. Aquí se acepta
-        porque el formulario lo necesita para decir qué campo cambiar, y lo
-        pide la issue. Lo que lo frena es el límite de peticiones de Nginx
-        (I1, Eduardo).
+        **Saying the email already exists** lets someone find out which
+        accounts are registered, something login carefully avoids. It is
+        accepted here because the form needs it to say which field to
+        change, and the issue asks for it. What limits it is the Nginx
+        rate limit (I1, Eduardo).
 
-        `ahora` se puede pasar desde fuera para probarlo sin depender del
-        reloj.
+        `ahora` ("now") can be passed in to test it without depending on
+        the clock.
         """
         if not payload.accept_terms:
             raise DomainValidationError(
@@ -102,8 +100,9 @@ class AuthService:
         self._organizacion_libre(nombre_org)
 
         ahora = ahora or datetime.now(timezone.utc)
-        # Argon2 tarda a propósito (unos 100 ms): se calcula antes de abrir
-        # la transacción para que esta dure lo menos posible.
+        # Argon2 is slow on purpose (about 100 ms): it is computed before
+        # opening the transaction so the transaction lasts as little as
+        # possible.
         huella = hash_password(payload.password)
         try:
             with transaction(self.db):
@@ -111,8 +110,8 @@ class AuthService:
                     name=nombre_org,
                     status=OrganizationStatus.TRIAL.value,
                     trial_ends_at=ahora + timedelta(days=app_settings.TRIAL_DAYS),
-                    # Quien se registra es, de momento, el contacto del
-                    # cliente. El admin lo puede cambiar después (B1).
+                    # The person signing up is, for now, the client contact.
+                    # The admin can change it later (B1).
                     contact_email=normalize_email(payload.email),
                 )
                 usuario = self.users.create(
@@ -125,10 +124,9 @@ class AuthService:
                 usuario.terms_version = app_settings.TERMS_VERSION
                 usuario.terms_accepted_at = ahora
         except IntegrityError as exc:
-            # Dos registros iguales a la vez: los dos pasan las
-            # comprobaciones de arriba y el índice único para al segundo.
-            # Se repiten para responder el 409 que toca; si no es ninguno
-            # de los dos, el error sigue su camino.
+            # Two identical sign-ups at once: both pass the checks above and
+            # the unique index stops the second. They are repeated to answer
+            # the right 409; if it is neither, the error goes on.
             self._email_libre(payload.email, causa=exc)
             self._organizacion_libre(nombre_org, causa=exc)
             raise
@@ -137,8 +135,8 @@ class AuthService:
 
     def _email_libre(self, email: str, causa: Exception | None = None) -> None:
         if self.users.get_by_email(email) is not None:
-            # Mismo código que usa el frontend para pintar el error junto al
-            # campo del email.
+            # Same code the frontend uses to show the error next to the email
+            # field.
             raise ConflictError(
                 "Ese email ya está dado de alta.",
                 code="EMAIL_ALREADY_EXISTS",
@@ -153,50 +151,49 @@ class AuthService:
 
     def login(self, payload: LoginRequest) -> UserResponse:
         """
-        Verificación de credenciales.
+        Credential check.
 
-        Detalle que importa: si el email no existe hay que verificar de
-        todos modos contra un hash ficticio antes de responder. Si no, la
-        respuesta llega mucho más rápido cuando el email no está registrado
-        que cuando existe y la contraseña falla, y esa diferencia de
-        tiempos permite averiguar qué cuentas hay dadas de alta.
+        A detail that matters: if the email does not exist, it still has to
+        verify against a fake hash before answering. Otherwise the answer
+        arrives much faster when the email is not registered than when it
+        exists and the password fails, and that timing difference reveals
+        which accounts are registered.
 
-        El mensaje de error también debe ser el mismo en ambos casos:
-        «credenciales inválidas», nunca «ese email no existe».
+        The error message must also be the same in both cases: "invalid
+        credentials", never "that email does not exist".
 
-        La cookie de sesión la pone el router — es HTTP, no negocio.
+        The router sets the session cookie — it is HTTP, not business.
         """
-        # Ninguna contraseña guardada pasa de este largo (la regla de la
-        # B10 lo impide), así que una más larga no puede coincidir. Se
-        # responde sin pasar por Argon2, que tarda más cuanto más larga
-        # es: si no, un texto enorme dejaría el servidor ocupado.
+        # No stored password is longer than this (the B10 rule prevents
+        # it), so a longer one cannot match. It answers without going
+        # through Argon2, which takes longer the longer the password:
+        # otherwise a huge text would keep the server busy.
         if len(payload.password) > PASSWORD_MAX_LENGTH:
             raise UnauthorizedError("Email o contraseña incorrectos.")
 
         usuario = self.users.get_by_email(payload.email)
 
         if usuario is None:
-            # Se verifica igualmente contra una huella señuelo. Comprobar
-            # una contraseña con Argon2 tarda a propósito, así que si aquí
-            # respondiéramos directamente, un email inexistente contestaría
-            # mucho antes que uno real con la contraseña mal. Cronometrando
-            # respuestas se averiguaría qué cuentas existen.
+            # It still verifies against a decoy hash. Checking a password
+            # with Argon2 is slow on purpose, so answering directly here
+            # would make a missing email answer much sooner than a real one
+            # with the wrong password. Timing the answers would reveal
+            # which accounts exist.
             verify_password(payload.password, _HUELLA_SENUELO)
             raise UnauthorizedError("Email o contraseña incorrectos.")
 
         if not verify_password(payload.password, usuario.password_hash):
-            # Mismo mensaje que arriba, y a propósito: «ese email no
-            # existe» le regala a quien lo intenta media respuesta.
+            # Same message as above, on purpose: "that email does not exist"
+            # gives whoever is trying half the answer.
             raise UnauthorizedError("Email o contraseña incorrectos.")
 
-        # Después de comprobar la contraseña, no antes: «tu organización
-        # está suspendida» solo se le dice a quien ya ha demostrado ser el
-        # dueño de la cuenta (B1).
+        # After checking the password, not before: "your organization is
+        # suspended" is only told to whoever has already proved they own
+        # the account (B1).
         ensure_account_enabled(usuario)
 
-        # Único momento en que tenemos la contraseña en claro, y por tanto
-        # el único en que se puede rehacer la huella si los parámetros de
-        # Argon2 se han quedado flojos.
+        # The only moment we have the plain password, and so the only one
+        # when the hash can be redone if the Argon2 parameters became weak.
         with transaction(self.db):
             usuario.last_login_at = datetime.now(timezone.utc)
             if needs_rehash(usuario.password_hash):
@@ -206,32 +203,32 @@ class AuthService:
 
     def logout(self) -> None:
         """
-        Cierra la sesión del lado del servidor. Hoy no hay nada que hacer.
+        Closes the session on the server side. Today there is nothing to do.
 
-        Este método se escribió esperando poder marcar la sesión como no
-        válida, de modo que una cookie copiada antes del logout dejara de
-        servir. **Con la sesión que se ha implementado, eso no es posible**,
-        y conviene que quede dicho en vez de aparentar lo contrario.
+        This method was written hoping to mark the session as invalid, so
+        a cookie copied before logout would stop working. **With the
+        session that was implemented, that is not possible**, and it is
+        better said than pretending otherwise.
 
-        La sesión es una cookie firmada sin estado (ADR 0001): el servidor
-        no guarda ninguna lista de sesiones abiertas, solo comprueba la
-        firma y la fecha. No hay nada que tachar. Quien haya copiado una
-        cookie válida la puede seguir usando hasta que caduque, que es como
-        mucho `SESSION_MAX_AGE_SECONDS` (8 horas).
+        The session is a stateless signed cookie (ADR 0001): the server
+        keeps no list of open sessions, it only checks the signature and
+        the date. There is nothing to cross out. Whoever copied a valid
+        cookie can keep using it until it expires, which is at most
+        `SESSION_MAX_AGE_SECONDS` (8 hours).
 
-        Revocar de verdad exigiría guardar las sesiones —una tabla, o una
-        lista de tokens anulados— y consultarla en cada petición. Es la
-        contrapartida de no tener estado, y para el MVP se asume a
-        sabiendas.
+        Real revocation would require storing the sessions — a table, or a
+        list of revoked tokens — and checking it on every request. It is
+        the trade-off of being stateless, and it is knowingly accepted for
+        the MVP.
 
-        El método se mantiene, en lugar de borrarlo y que el router no
-        llame a nada, porque es el sitio donde entraría esa revocación el
-        día que haga falta. Cambiaría esta función y ni el router ni el
-        contrato se enterarían.
+        The method is kept, instead of deleting it and having the router
+        call nothing, because it is where that revocation would go the day
+        it is needed. This function would change and neither the router
+        nor the contract would notice.
         """
         return None
 
 
 def get_auth_service(db: DbSession) -> AuthService:
-    """Proveedor del service para `Depends`."""
+    """Service provider for `Depends`."""
     return AuthService(db)

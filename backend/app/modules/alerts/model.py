@@ -1,5 +1,5 @@
 # MODEL - alerts
-# Entidad/es SQLAlchemy de este dominio.
+# SQLAlchemy entity (or entities) of this domain.
 
 from __future__ import annotations
 
@@ -152,7 +152,7 @@ class Alert(Base):
         back_populates="alerts",
     )
 
-    # #275: avisos enviados al cliente, en orden. Se borran con la alerta.
+    # #275: notices sent to the client, in order. Deleted with the alert.
     notifications: Mapped[list["AlertNotification"]] = relationship(
         "AlertNotification",
         back_populates="alert",
@@ -164,13 +164,12 @@ class Alert(Base):
 
 class AlertNotification(Base):
     """
-    Un aviso enviado al cliente porque nadie se encargaba de la alerta (#275).
+    A notice sent to the client because nobody was handling the alert (#275).
 
-    PROVISIONAL: la tabla es de Daruny (#276). Está aquí para poder avanzar
-    con el envío; cuando haga la suya, se queda la de él y esta se adapta.
+    The table is created by migration `e3b8c1f5a7d9` (#276).
 
-    `UNIQUE (alert_id, attempt)`: el aviso se apunta ANTES de enviarlo, así
-    que un reinicio o dos vueltas a la vez no pueden mandar el mismo dos veces.
+    `UNIQUE (alert_id, attempt)`: the notice is recorded BEFORE it is sent,
+    so a restart or two rounds at once can never send the same one twice.
     """
 
     __tablename__ = "alert_notifications"
@@ -197,12 +196,12 @@ class AlertNotification(Base):
         ),
         nullable=False,
     )
-    # 1 = primer aviso, 2 = segundo…
+    # 1 = first notice, 2 = second…
     attempt: Mapped[int] = mapped_column(Integer, nullable=False)
     channel: Mapped[str] = mapped_column(
         String(20), nullable=False, default="EMAIL", server_default="EMAIL"
     )
-    # A quién se envió: uno o varios emails separados por ", "
+    # Who it was sent to: one or more emails separated by ", "
     recipient: Mapped[str] = mapped_column(Text, nullable=False)
     sent_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

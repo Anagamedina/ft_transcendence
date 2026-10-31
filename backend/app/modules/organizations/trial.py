@@ -1,20 +1,21 @@
 # TRIAL — organizations
-# Regla que decide si la prueba de una organización ha vencido (B12).
-# Sin base de datos.
+# Rule that decides whether an organization's trial has expired (B12).
+# No database.
 """
-Prueba vencida (B12, issue #146).
+Expired trial (B12, issue #146).
 
-Una organización tiene la prueba **vencida** si está en `TRIAL` y su
-`trial_ends_at` ya ha pasado. Con la prueba vencida la cuenta queda en
-solo lectura (`require_trial_not_expired` en `shared/dependencies.py`).
+An organization's trial is **expired** if it is in `TRIAL` and its
+`trial_ends_at` has passed. With the trial expired the account becomes
+read-only (`require_trial_not_expired` in `shared/dependencies.py`).
 
-- **Vence en el instante exacto de `trial_ends_at`**, el mismo criterio
-  que usa `extend-trial` para decidir si cuenta desde el fin o desde hoy.
-- **Se calcula, no se guarda.** No hay tarea periódica que pase la
-  organización a otro estado: ampliar la prueba (B1) o hacerse cliente
-  (B14) basta para que deje de estar vencida.
-- Una `SUSPENDED` que estaba en prueba conserva `trial_ends_at`, pero no
-  cuenta como vencida: a esa la corta `ACCOUNT_DISABLED` antes.
+- **It expires at the exact instant of `trial_ends_at`**, the same rule
+  `extend-trial` uses to decide whether to count from the end or from
+  today.
+- **It is computed, not stored.** No periodic task moves the organization
+  to another status: extending the trial (B1) or becoming a client (B14)
+  is enough for it to stop being expired.
+- A `SUSPENDED` organization that was on trial keeps `trial_ends_at`, but
+  does not count as expired: `ACCOUNT_DISABLED` stops it first.
 """
 
 from __future__ import annotations
@@ -29,14 +30,15 @@ def trial_expired(
     organization: Organization | None, ahora: datetime | None = None
 ) -> bool:
     """
-    `ahora` se puede pasar desde fuera para probarlo sin depender del reloj.
+    `ahora` ("now") can be passed in to test it without depending on the
+    clock.
     """
     if organization is None or organization.status != OrganizationStatus.TRIAL.value:
         return False
     fin = organization.trial_ends_at
     if fin is None:
         return False
-    # sqlite (tests) devuelve la fecha sin zona; se guarda en UTC.
+    # sqlite (tests) returns the date without a zone; it is stored in UTC.
     if fin.tzinfo is None:
         fin = fin.replace(tzinfo=timezone.utc)
     return fin <= (ahora or datetime.now(timezone.utc))

@@ -14,8 +14,8 @@ from app.shared.enums import InvitationStatus
 
 def _con_estado(query, estado: InvitationStatus, ahora: datetime):
     """
-    El estado no se guarda (ver `InvitationStatus`): se traduce a las
-    mismas condiciones sobre las fechas con las que se calcula.
+    The status is not stored (see `InvitationStatus`): it is translated
+    into the same date conditions it is computed with.
     """
     pendiente = (Invitation.accepted_at.is_(None), Invitation.revoked_at.is_(None))
     if estado is InvitationStatus.ACCEPTED:
@@ -38,10 +38,10 @@ class InvitationRepository:
         self, code_hash: str, for_update: bool = False
     ) -> Invitation | None:
         """
-        `for_update` bloquea la fila hasta el final de la transacción: es lo
-        que hace que el enlace sea de un solo uso aunque se acepte dos veces
-        a la vez. La segunda petición espera aquí y lee `accepted_at` ya
-        puesto. SQLite no tiene `FOR UPDATE` y lo ignora.
+        `for_update` locks the row until the end of the transaction: it is
+        what makes the link single-use even if it is accepted twice at the
+        same time. The second request waits here and reads `accepted_at`
+        already set. SQLite has no `FOR UPDATE` and ignores it.
         """
         query = select(Invitation).where(Invitation.code_hash == code_hash)
         if for_update:
@@ -50,8 +50,8 @@ class InvitationRepository:
 
     def get_pending(self, organization_id: UUID, email: str) -> Invitation | None:
         """
-        La invitación sin aceptar ni revocar de ese email en esa
-        organización, caducada o no. Solo puede haber una
+        The invitation of that email in that organization that is neither
+        accepted nor revoked, expired or not. There can only be one
         (`uq_invitations_pending_org_email`).
         """
         return self.db.scalar(
@@ -71,7 +71,7 @@ class InvitationRepository:
         organization_id: UUID | None = None,
         status: InvitationStatus | None = None,
     ) -> tuple[list[Invitation], int]:
-        """Las más recientes primero. Sin alcance: solo las lista el admin."""
+        """Newest first. No scope: only the admin lists them."""
         if offset < 0 or limit <= 0:
             raise ValueError("Invalid pagination")
 

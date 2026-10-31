@@ -19,23 +19,24 @@ from app.shared.utils import matches_text
 
 @dataclass(frozen=True)
 class OrganizationCounts:
-    """Contadores de una organización para `OrganizationResponse` (B1)."""
+    """Counters of an organization for `OrganizationResponse` (B1)."""
 
     sites: int = 0
     sensors: int = 0
     users: int = 0
     open_alerts: int = 0
     critical_alerts: int = 0
-    # Creación de la alerta abierta más antigua; None si no tiene ninguna.
+    # Creation of the oldest open alert; None if it has none.
     oldest_open_alert_at: datetime | None = None
 
 
 def _has_open_alerts():
     """
-    Condición «la organización tiene alguna alerta sin resolver».
+    Condition "the organization has some unresolved alert".
 
-    `EXISTS` y no un JOIN: solo importa si hay alguna, no cuántas, y así
-    una organización con 50 alertas no sale 50 veces en el listado.
+    `EXISTS` and not a JOIN: only whether there is one matters, not how
+    many, and so an organization with 50 alerts does not appear 50 times
+    in the list.
     """
     return exists(
         select(Alert.id)
@@ -47,11 +48,11 @@ def _has_open_alerts():
 
 def _sort_column(sort: str):
     """
-    La expresión por la que ordena `list()` cada valor de `OrganizationSort`.
+    The expression `list()` sorts by for each `OrganizationSort` value.
 
-    Los contadores son subconsultas correlacionadas y no un JOIN con
-    GROUP BY: así el filtro, el total y la paginación no cambian, y solo se
-    calculan para las filas que se ordenan.
+    The counters are correlated subqueries and not a JOIN with GROUP BY:
+    so the filter, the total and the pagination do not change, and they
+    are only computed for the rows being sorted.
     """
     if sort == "name":
         return Organization.name
@@ -86,18 +87,18 @@ class OrganizationRepository:
     def get_by_id(self, organization_id: UUID) -> Organization | None:
         return self.db.get(Organization, organization_id)
 
-    # Añadidos por Ana para la B1 (#139).
+    # Added by Ana for B1 (#139).
     def get_for_update(self, organization_id: UUID) -> Organization | None:
         """
-        La organización con su fila bloqueada (`SELECT … FOR UPDATE`) hasta
-        el commit o el rollback de la transacción en curso.
+        The organization with its row locked (`SELECT … FOR UPDATE`) until
+        the commit or rollback of the current transaction.
 
-        Es para los cambios de estado: otra petición que quiera cambiar la
-        misma organización espera aquí y, cuando entra, lee el estado ya
-        cambiado. `populate_existing` hace que el objeto se rellene con lo
-        que devuelve la consulta aunque la sesión ya lo tuviera cargado; si
-        no, se validaría con datos viejos. SQLite no tiene `FOR UPDATE` y
-        lo ignora.
+        It is for status changes: another request wanting to change the
+        same organization waits here and, when it gets in, reads the
+        already changed status. `populate_existing` fills the object with
+        what the query returns even if the session already had it loaded;
+        otherwise it would validate with old data. SQLite has no
+        `FOR UPDATE` and ignores it.
         """
         return self.db.scalar(
             select(Organization)
@@ -117,11 +118,11 @@ class OrganizationRepository:
         descending: bool = False,
     ) -> tuple[list[Organization], int]:
         """
-        Organizaciones ordenadas por `sort` (ver `_sort_column`). Sin alcance
-        por organización: solo las lista el admin, y eso lo comprueba el
-        router.
+        Organizations ordered by `sort` (see `_sort_column`). No
+        organization scope: only the admin lists them, and the router
+        checks that.
 
-        `q` busca en el nombre, la ciudad, la razón social y el NIF.
+        `q` searches the name, the city, the legal name and the tax id.
         """
         if offset < 0 or limit <= 0:
             raise ValueError("Invalid pagination")
@@ -147,14 +148,13 @@ class OrganizationRepository:
         total = self.db.scalar(select(func.count()).select_from(query.subquery()))
 
         column = _sort_column(sort)
-        # Sin fecha de fin de prueba (los clientes activos) van al final en
-        # los dos sentidos: no son «los que antes acaban».
+        # Those without a trial end date (active clients) go last in both
+        # directions: they are not "the ones ending soonest".
         primary = (column.desc() if descending else column.asc()).nulls_last()
         items = list(
             self.db.scalars(
-                # El nombre desempata, y el id después, como en sites y
-                # sensores, para que la paginación nunca repita ni salte una
-                # organización.
+                # The name breaks ties, then the id, as in sites and sensors,
+                # so pagination never repeats or skips an organization.
                 query.order_by(primary, Organization.name, Organization.id)
                 .offset(offset)
                 .limit(limit)
@@ -164,12 +164,12 @@ class OrganizationRepository:
 
     def counts(self, organization_ids: list[UUID]) -> dict[UUID, OrganizationCounts]:
         """
-        Contadores de varias organizaciones a la vez.
+        Counters of several organizations at once.
 
-        Una consulta `GROUP BY` por contador para toda la página, no una
-        por organización: con 20 organizaciones son 4 consultas, no 80. Las
-        organizaciones sin nada no salen en los resultados y se quedan con
-        los ceros por defecto.
+        One `GROUP BY` query per counter for the whole page, not one per
+        organization: with 20 organizations that is 4 queries, not 80.
+        Organizations with nothing do not show up in the results and keep
+        the default zeros.
         """
         if not organization_ids:
             return {}
@@ -235,9 +235,9 @@ class OrganizationRepository:
 
     def name_taken(self, name: str, exclude_id: UUID | None = None) -> bool:
         """
-        True si otra organización ya usa ese nombre, sin distinguir
-        mayúsculas: el mismo criterio que el índice único
-        `uq_organizations_name_lower` de la tabla (#120).
+        True if another organization already uses that name, ignoring
+        case: the same rule as the table's unique index
+        `uq_organizations_name_lower` (#120).
         """
         query = select(Organization.id).where(
             func.lower(Organization.name) == name.lower()

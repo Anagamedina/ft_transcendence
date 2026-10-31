@@ -1,1 +1,1 @@
-# Módulo subscriptions — planes y paso de la prueba a cliente (B14, issue #150).
+# subscriptions module — plans and going from trial to client (B14, issue #150).

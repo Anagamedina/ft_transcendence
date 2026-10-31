@@ -1,36 +1,36 @@
 # SERVICE — invitations
-# Reglas de negocio y orquestación. No hablar HTTP aquí.
+# Business rules and orchestration. No HTTP here.
 """
-Invitaciones para añadir usuarios a una organización que ya existe (B4,
-issue #141). El registro público, que crea una organización nueva, es la
-B10 y no pasa por aquí.
+Invitations to add users to an existing organization (B4, issue #141).
+The public sign-up, which creates a new organization, is B10 and does not
+go through here.
 
-    admin envía  → PENDING, con un código que solo sale en esa respuesta
-    admin reenvía → código nuevo y otros INVITATION_TTL_DAYS; el viejo deja de valer
-    admin revoca  → REVOKED
-    invitado acepta (sin sesión) → ACCEPTED, con su usuario `client` creado
+    admin sends    → PENDING, with a code that only shows in that response
+    admin resends  → new code and another INVITATION_TTL_DAYS; the old one stops working
+    admin revokes  → REVOKED
+    invitee accepts (no session) → ACCEPTED, with their `client` user created
 
-Decisiones:
+Decisions:
 
-- **Solo se guarda el hash del código** (SHA-256, D3). Con la tabla
-  robada no se puede aceptar ninguna invitación. SHA-256 y no Argon2
-  porque el código es aleatorio y largo (`secrets.token_urlsafe`), no una
-  contraseña que alguien elige: no hay diccionario que probar, y así se
-  puede buscar por el hash directamente.
-- **Caducada → 410 `INVITATION_EXPIRED`; aceptada, revocada o inexistente
-  → 404 `INVITATION_NOT_FOUND`.** El frontend dice «pide otra» en el
-  primer caso y «este enlace no vale» en el segundo. No se distingue
-  aceptada de inexistente: a quien tiene un enlace usado no le sirve
-  saberlo.
-- **Una invitación pendiente por email y organización.** Si ya hay una
-  vigente, 409 `INVITATION_ALREADY_PENDING` (para eso está reenviar); si
-  la que hay caducó, se revoca y se crea la nueva, porque el índice único
-  no puede saber qué ha caducado.
-- **No se invita a un email que ya tiene cuenta** (409
-  `EMAIL_ALREADY_EXISTS`): un usuario solo pertenece a una organización,
-  y moverlo es cosa del admin desde la gestión de usuarios (B6).
-- **No se envía ningún correo.** El admin recibe el enlace y lo hace
-  llegar; enviar correos queda fuera del proyecto.
+- **Only the hash of the code is stored** (SHA-256, D3). With the table
+  stolen, no invitation can be accepted. SHA-256 and not Argon2 because
+  the code is random and long (`secrets.token_urlsafe`), not a password
+  someone chooses: there is no dictionary to try, and so it can be looked
+  up by the hash directly.
+- **Expired → 410 `INVITATION_EXPIRED`; accepted, revoked or missing
+  → 404 `INVITATION_NOT_FOUND`.** The frontend says "ask for another" in
+  the first case and "this link is not valid" in the second. Accepted is
+  not told apart from missing: knowing it is useless to whoever holds a
+  used link.
+- **One pending invitation per email and organization.** If there is
+  already a valid one, 409 `INVITATION_ALREADY_PENDING` (that is what
+  resend is for); if the existing one expired, it is revoked and the new
+  one created, because the unique index cannot know what has expired.
+- **An email that already has an account is not invited** (409
+  `EMAIL_ALREADY_EXISTS`): a user only belongs to one organization, and
+  moving them is done by the admin from user management (B6).
+- **No email is sent for invitations.** The admin gets the link and
+  passes it on.
 """
 
 from __future__ import annotations
@@ -72,13 +72,13 @@ from app.shared.fields import person_name
 from app.shared.passwords import check_password
 from app.shared.schemas import Page
 
-# 18 bytes → 24 caracteres URL-safe: corto para un enlace y con 144 bits
-# de azar, imposible de adivinar aunque se prueben millones por segundo.
+# 18 bytes → 24 URL-safe characters: short for a link and with 144 bits of
+# randomness, impossible to guess even trying millions per second.
 _CODE_BYTES = 18
 
 
 def hash_code(code: str) -> str:
-    """Lo que se guarda en `code_hash`: SHA-256 en hexadecimal (64)."""
+    """What is stored in `code_hash`: SHA-256 in hexadecimal (64)."""
     return hashlib.sha256(code.encode()).hexdigest()
 
 
@@ -93,7 +93,7 @@ def invitation_status(invitation: Invitation, ahora: datetime) -> InvitationStat
 
 
 def _as_utc(moment: datetime) -> datetime:
-    # SQLite devuelve las fechas sin zona; PostgreSQL, en UTC.
+    # SQLite returns dates without a zone; PostgreSQL, in UTC.
     if moment.tzinfo is None:
         return moment.replace(tzinfo=timezone.utc)
     return moment
@@ -141,8 +141,8 @@ class InvitationService:
                             "Reenvíala para tener un enlace nuevo.",
                             code="INVITATION_ALREADY_PENDING",
                         )
-                    # Caducada: se revoca para dejar sitio a la nueva en el
-                    # índice único de pendientes.
+                    # Expired: it is revoked to make room for the new one in
+                    # the unique index of pending invitations.
                     anterior.revoked_at = ahora
                     self.db.flush()
                 invitacion = self.invitations.create(
@@ -154,8 +154,8 @@ class InvitationService:
                     created_at=ahora,
                 )
         except IntegrityError as exc:
-            # Dos invitaciones iguales a la vez: el índice único para a la
-            # segunda.
+            # Two identical invitations at once: the unique index stops the
+            # second.
             raise ConflictError(
                 "Ese email ya tiene una invitación pendiente.",
                 code="INVITATION_ALREADY_PENDING",
@@ -189,9 +189,9 @@ class InvitationService:
 
     def revoke(self, invitation_id: UUID, ahora: datetime | None = None) -> None:
         """
-        Revocar una invitación ya revocada no es un error: queda como se
-        pedía. Una aceptada no se revoca (409): el usuario ya existe, y
-        para quitarle el acceso está la gestión de usuarios (B6).
+        Revoking an already revoked invitation is not an error: it stays as
+        requested. An accepted one is not revoked (409): the user already
+        exists, and user management (B6) is there to remove their access.
         """
         ahora = ahora or datetime.now(timezone.utc)
         invitacion = self._existente(invitation_id)
@@ -208,9 +208,10 @@ class InvitationService:
         self, invitation_id: UUID, ahora: datetime | None = None
     ) -> InvitationSentResponse:
         """
-        Código nuevo y otros `INVITATION_TTL_DAYS` días, en la misma fila:
-        el enlace anterior deja de valer porque su hash ya no está. Vale
-        también para una invitación caducada, que es justo cuando se pide.
+        New code and another `INVITATION_TTL_DAYS` days, on the same row:
+        the previous link stops working because its hash is gone. It also
+        works for an expired invitation, which is exactly when it is
+        asked for.
         """
         ahora = ahora or datetime.now(timezone.utc)
         invitacion = self._existente(invitation_id)
@@ -228,7 +229,7 @@ class InvitationService:
         return self._enviada(invitacion, code, ahora)
 
     # ---------------------------------------------------------
-    # PÚBLICO (quien abre el enlace, sin sesión)
+    # PUBLIC (whoever opens the link, without a session)
     # ---------------------------------------------------------
     def get_by_code(
         self, code: str, ahora: datetime | None = None
@@ -245,14 +246,14 @@ class InvitationService:
         self, code: str, payload: InvitationAccept, ahora: datetime | None = None
     ) -> UserResponse:
         """
-        Crea el usuario `client` en la organización de la invitación y la
-        marca aceptada, en la misma transacción. La sesión la abre el
-        router, como en el registro.
+        Creates the `client` user in the invitation's organization and
+        marks it accepted, in the same transaction. The router opens the
+        session, as in the sign-up.
 
-        Casi el mismo orden que el registro (B10): primero lo que no
-        necesita la base (términos, 422), después la invitación
-        (404 o 410), la contraseña (422 `WEAK_PASSWORD`, que necesita el
-        email de la invitación) y por último el email (409).
+        Almost the same order as the sign-up (B10): first what does not
+        need the database (terms, 422), then the invitation (404 or 410),
+        the password (422 `WEAK_PASSWORD`, which needs the invitation
+        email) and finally the email (409).
         """
         ahora = ahora or datetime.now(timezone.utc)
         if not payload.accept_terms:
@@ -260,17 +261,17 @@ class InvitationService:
                 "Tienes que aceptar los términos de uso para registrarte.",
                 code="TERMS_NOT_ACCEPTED",
             )
-        # La misma regla que el registro y «Mi cuenta» (shared/fields.py).
+        # The same rule as the sign-up and "Mi cuenta" (shared/fields.py).
         nombre = person_name(payload.name)
-        # Argon2 tarda a propósito: fuera de la transacción, que bloquea
-        # la invitación.
+        # Argon2 is slow on purpose: outside the transaction, which locks
+        # the invitation.
         huella = hash_password(payload.password)
 
         try:
             usuario = self._crear_usuario(code, nombre, payload.password, huella, ahora)
         except IntegrityError as exc:
-            # El mismo email registrándose a la vez por otro camino (B10):
-            # el índice único para al segundo.
+            # The same email signing up at the same time another way (B10):
+            # the unique index stops the second.
             raise ConflictError(
                 "Ese email ya está dado de alta.", code="EMAIL_ALREADY_EXISTS"
             ) from exc
@@ -284,11 +285,11 @@ class InvitationService:
                 self.invitations.get_by_code_hash(hash_code(code), for_update=True),
                 ahora,
             )
-            # La regla de la B10, con el email de la invitación: hasta aquí
-            # no se sabe cuál es.
+            # The B10 rule, with the invitation email: until here it is not
+            # known which one it is.
             check_password(password, email=invitacion.email)
             if invitacion.organization.status == OrganizationStatus.SUSPENDED.value:
-                # Entraría y le respondería 403 en la primera petición.
+                # It would log in and get a 403 on the first request.
                 raise ForbiddenError(
                     "La organización está suspendida. Contacta con AquaGuard.",
                     code="ACCOUNT_DISABLED",
@@ -307,13 +308,13 @@ class InvitationService:
             )
             usuario.terms_version = app_settings.TERMS_VERSION
             usuario.terms_accepted_at = ahora
-            # Entra ya con la sesión abierta: cuenta como su primer acceso.
+            # It comes in with the session open: it counts as its first access.
             usuario.last_login_at = ahora
             invitacion.accepted_at = ahora
         return usuario
 
     # ---------------------------------------------------------
-    # AUXILIARES
+    # HELPERS
     # ---------------------------------------------------------
     def _existente(self, invitation_id: UUID) -> Invitation:
         invitacion = self.invitations.get(invitation_id)
@@ -374,5 +375,5 @@ def _to_response(
 
 
 def get_invitation_service(db: DbSession) -> InvitationService:
-    """Proveedor del service para `Depends`."""
+    """Service provider for `Depends`."""
     return InvitationService(db)

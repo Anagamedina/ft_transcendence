@@ -1,5 +1,5 @@
 # REPOSITORY — alerts
-# Acceso a datos (SQLAlchemy queries). Filtrar siempre por organización.
+# Data access (SQLAlchemy queries). Always filter by organization.
 from __future__ import annotations
 
 from datetime import datetime
@@ -17,7 +17,7 @@ from app.shared.utils import matches_text
 
 
 def _con_lectura():
-    """Ubicación y actores en bloque, también cuando hay usuarios distintos por fila."""
+    """Location and actors in bulk, also when each row has different users."""
     return (
         _con_jerarquia(),
         selectinload(Alert.acknowledged_by_user),
@@ -28,14 +28,15 @@ def _con_lectura():
 
 def _con_jerarquia():
     """
-    Lo que necesita `AlertService._to_response` para los campos de lectura
-    (B0): sensor, su site y la organización del site.
+    What `AlertService._to_response` needs for the read-only fields (B0):
+    the sensor, its site and the site's organization.
 
-    `selectinload` y no `joinedload` porque las consultas ya hacen
-    `join(Sensor).join(Site)` para filtrar; así no se duplican los JOIN y
-    cada nivel se carga con una sola consulta para toda la página. Es una
-    función y no una constante: construir la opción configura los mappers,
-    y al importar este módulo aún no están registrados todos los modelos.
+    `selectinload` and not `joinedload` because the queries already do
+    `join(Sensor).join(Site)` to filter; this way the JOINs are not
+    duplicated and each level is loaded with a single query for the whole
+    page. It is a function and not a constant: building the option
+    configures the mappers, and when this module is imported not every
+    model is registered yet.
     """
     return (
         selectinload(Alert.sensor)
@@ -77,8 +78,8 @@ class AlertRepository:
             *,
             for_update: bool = False,
     ) -> Alert | None:
-        # #27 (Ana): organization_id=None significa TODAS las organizaciones
-        # (admin). Lo decide `get_org_scope` en shared/dependencies.py.
+        # #27 (Ana): organization_id=None means ALL organizations (admin).
+        # `get_org_scope` in shared/dependencies.py decides it.
         query = (
             select(Alert).join(Sensor).join(Site)
             .where(Alert.id == alert_id)
@@ -86,8 +87,8 @@ class AlertRepository:
         if organization_id is not None:
             query = query.where(Site.organization_id == organization_id)
         if for_update:
-            # Solo la alerta: no bloquear sensor/site ni usar valores obsoletos
-            # del identity map después de esperar a otro operador.
+            # Only the alert: do not lock sensor/site nor use stale values
+            # from the identity map after waiting for another operator.
             query = query.with_for_update(of=Alert).execution_options(
                 populate_existing=True,
             )
@@ -108,8 +109,8 @@ class AlertRepository:
         if offset < 0 or limit <= 0:
             raise ValueError("Invalid pagination")
 
-        # #27 (Ana): organization_id=None significa TODAS las organizaciones
-        # (admin). Lo decide `get_org_scope` en shared/dependencies.py.
+        # #27 (Ana): organization_id=None means ALL organizations (admin).
+        # `get_org_scope` in shared/dependencies.py decides it.
         query = select(Alert).join(Sensor).join(Site)
         if organization_id is not None:
             query = query.where(Site.organization_id == organization_id)
@@ -117,14 +118,14 @@ class AlertRepository:
             query = query.where(Alert.status == status)
         if sensor_id is not None:
             query = query.where(Alert.sensor_id == sensor_id)
-        # B0 (Ana): filtros comunes. Se suman al alcance, no lo sustituyen.
+        # B0 (Ana): common filters. They add to the scope, they do not replace it.
         if organization_filter is not None:
             query = query.where(Site.organization_id == organization_filter)
         if site_id is not None:
             query = query.where(Sensor.site_id == site_id)
         if q is not None:
-            # #252: también por código del sensor, edificio y cliente
-            # («Buscar sensor, edificio o cliente» en la página del admin).
+            # #252: also by sensor code, building and client
+            # ("Buscar sensor, edificio o cliente" on the admin page).
             clientes = select(Organization.id).where(matches_text(q, Organization.name))
             query = query.where(
                 matches_text(q, Alert.message, Sensor.name, Sensor.external_id, Site.name)
@@ -155,7 +156,7 @@ class AlertRepository:
     def acknowledge(
         self, alert_id: UUID, when: datetime, actor_id: UUID | None = None,
     ) -> Alert | None:
-        """El service bloquea la fila antes de escribir fecha y actor juntos."""
+        """The service locks the row before writing date and actor together."""
         alert = self.db.get(Alert, alert_id)
         if alert is None:
             return None
@@ -168,7 +169,7 @@ class AlertRepository:
     def resolve(
         self, alert_id: UUID, when: datetime, actor_id: UUID | None = None,
     ) -> Alert | None:
-        """El service comprueba el estado con la fila bloqueada antes de cerrar."""
+        """The service checks the state with the row locked before closing."""
         alert = self.db.get(Alert, alert_id)
         if alert is None:
             return None
@@ -178,13 +179,12 @@ class AlertRepository:
         self.db.expire(alert, ["resolved_by_user"])
         return alert
 
-    # Añadidos por Ana para las reglas de la #28. Sin filtro por
-    # organización a propósito: los llama `ReadingService.create()`, que
-    # recibe lecturas del simulador, sin sesión, y ya ha comprobado que el
-    # sensor existe.
+    # Added by Ana for the #28 rules. No organization filter on purpose:
+    # `ReadingService.create()` calls them, receiving readings from the
+    # simulator, without a session, after checking that the sensor exists.
     def get_active(self, sensor_id: UUID, alert_type: str) -> Alert | None:
-        # La más reciente, por si ya hubiera dos abiertas: nada en la
-        # tabla lo impide todavía.
+        # The newest one, in case two were already open: nothing in the
+        # table prevents it yet.
         query = (
             select(Alert)
             .where(

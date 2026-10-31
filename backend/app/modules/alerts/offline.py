@@ -1,26 +1,27 @@
 # OFFLINE — alerts
-# Detección de sensores que han dejado de mandar lecturas (SENSOR_OFFLINE).
+# Detection of sensors that stopped sending readings (SENSOR_OFFLINE).
 """
-Alerta SENSOR_OFFLINE (issue #28, segunda parte).
+SENSOR_OFFLINE alert (issue #28, second part).
 
-LOW_PRESSURE y HIGH_PRESSURE saltan cuando **llega** una lectura. Un sensor
-desconectado es justo el que **no** manda nada, así que no hay ningún
-momento en el que el código «se entere». Por eso esta función la llama cada
-minuto `alerts/vigilante.py`, que corre en segundo plano.
+LOW_PRESSURE and HIGH_PRESSURE fire when a reading **arrives**. A
+disconnected sensor is exactly the one that sends **nothing**, so there is
+no moment when the code "finds out". That is why `alerts/vigilante.py`,
+running in the background, calls this function every minute.
 
-Decidido por Ana el 04-10-2026:
+Decided by Ana on 2026-10-04:
 
-- Un sensor está mudo si su última lectura llegó hace **más de 5 minutos**.
-  Es `OFFLINE_TRAS` de `sensors/status.py`, el mismo que decide su estado
-  en `GET /api/sensors`: así el estado del sensor y su alerta nunca se
-  contradicen.
-- Solo cuenta si el sensor **está activo** (los inactivos los ha apagado
-  alguien a propósito) y **ha mandado alguna vez** una lectura (uno recién
-  dado de alta todavía no se ha conectado, no se ha perdido).
-- Una sola alerta abierta por sensor, como en las de presión. Si la
-  anterior está resuelta y el sensor sigue mudo, se abre otra.
-- Severidad **CRITICAL**: un sensor caído es ceguera total.
-- No se resuelve sola cuando el sensor vuelve: la resuelve una persona.
+- A sensor is silent if its last reading arrived **more than 5 minutes
+  ago**. It is `OFFLINE_TRAS` from `sensors/status.py`, the same value
+  that decides its status in `GET /api/sensors`: so the sensor status and
+  its alert never contradict each other.
+- It only counts if the sensor **is active** (inactive ones were turned
+  off on purpose) and **has ever sent** a reading (a newly added one has
+  not connected yet, it is not lost).
+- A single open alert per sensor, as with pressure. If the previous one
+  is resolved and the sensor is still silent, another one is opened.
+- Severity **CRITICAL**: a sensor down is total blindness.
+- It closes on its own after the sensor has been sending again for 15
+  minutes (`alerts/autoclose.py`, #277), or by hand.
 """
 
 from __future__ import annotations
@@ -41,17 +42,18 @@ from app.modules.sensors.status import OFFLINE_TRAS
 
 def detectar_sensores_mudos(db: Session, ahora: datetime | None = None) -> int:
     """
-    Abre una alerta SENSOR_OFFLINE por cada sensor mudo que no tenga ya una
-    abierta. Devuelve cuántas ha abierto.
+    Opens a SENSOR_OFFLINE alert for each silent sensor that does not
+    already have one open. Returns how many it opened.
 
-    `ahora` se puede pasar desde fuera para probarlo sin depender del reloj.
+    `ahora` ("now") can be passed in to test it without depending on the
+    clock.
     """
     ahora = ahora or datetime.now(timezone.utc)
     limite = ahora - OFFLINE_TRAS
 
-    # D5: un max() por sensor y no un GROUP BY de toda la tabla, para que
-    # PostgreSQL lea solo la última entrada de ix_readings_sensor_created_at
-    # (de 1,6 s a 20 ms con 1,6 M de lecturas).
+    # D5: one max() per sensor and not a GROUP BY over the whole table, so
+    # PostgreSQL only reads the last entry of ix_readings_sensor_created_at
+    # (from 1.6 s to 20 ms with 1.6 M readings).
     ultima = (
         select(func.max(Reading.created_at))
         .where(Reading.sensor_id == Sensor.id)
@@ -63,17 +65,17 @@ def detectar_sensores_mudos(db: Session, ahora: datetime | None = None) -> int:
         Alert.alert_type == AlertType.SENSOR_OFFLINE.value,
         Alert.status == "ACTIVE",
     )
-    # Una fila por sensor activo que no tenga ya la alerta abierta. Los que
-    # no han mandado nunca nada salen con `ultima` a NULL y se saltan abajo.
+    # One row per active sensor without the alert already open. Those that
+    # never sent anything come with `ultima` NULL and are skipped below.
     candidatos = db.execute(
         select(Sensor.id, ultima.label("ultima"))
         .where(Sensor.is_active.is_(True), ~ya_abierta)
     ).all()
 
-    # La comparación de fechas se hace aquí y no en SQL: algunos motores
-    # (sqlite en los tests) guardan las fechas sin zona horaria, y comparar
-    # dentro de la consulta con una fecha con zona da resultados falsos sin
-    # avisar. Se guardan en UTC, así que una fecha sin zona es UTC.
+    # The date comparison is done here and not in SQL: some engines
+    # (sqlite in the tests) store dates without a time zone, and comparing
+    # inside the query with a zoned date silently gives wrong results.
+    # They are stored in UTC, so a date without a zone is UTC.
     mudos = []
     for sensor_id, ultima_lectura in candidatos:
         if ultima_lectura is None:

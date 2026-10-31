@@ -1,23 +1,22 @@
 # ROUTER — sensors
-# Capa HTTP fina: valida schemas → llama service → responde.
-# Sensores, umbrales y estado (vía site → organization).
+# Thin HTTP layer: validates schemas → calls the service → answers.
+# Sensors, thresholds and status (via site → organization).
 """
-Endpoints de sensores (`/api/sensors/...`).
+Sensor endpoints (`/api/sensors/...`).
 
-Implementados en dos issues; los filtros comunes son de la B0 (#138), y
-la planta, `health`, `last_value` y `?health=`, de la B3 (#139):
+Implemented in two issues; the common filters come from B0 (#138), and
+the floor, `health`, `last_value` and `?health=`, from B3 (#139):
 
     GET   /api/sensors              → issue #25 (PR #113)
     GET   /api/sensors/{id}         → issue #25 (PR #113)
     POST  /api/sensors              → issue #29 (PR #115)
-    POST  /api/sensors/import       → importar un CSV («Data export and import»)
+    POST  /api/sensors/import       → import a CSV ("Data export and import")
     PATCH /api/sensors/{id}         → issue #29 (PR #115)
 
-`GET /api/sensors/{id}/readings` no está aquí aunque su ruta empiece por
-`/sensors`: pertenece al router de readings, que es quien tiene el
-service y los schemas de lecturas. La ruta se compone igual desde
-cualquiera de los dos; lo que decide dónde ponerla es de qué módulo es la
-lógica.
+`GET /api/sensors/{id}/readings` is not here even though its route starts
+with `/sensors`: it belongs to the readings router, which has the reading
+service and schemas. The route is built the same from either; what
+decides where it goes is which module owns the logic.
 """
 
 from __future__ import annotations
@@ -52,16 +51,16 @@ SensorSvc = Annotated[SensorService, Depends(get_sensor_service)]
 
 HealthFilter = Annotated[
     SensorHealth | None,
-    Query(description="Deja solo los sensores con esa salud (`health`)."),
+    Query(description="Keeps only the sensors with that health (`health`)."),
 ]
 
 _NO_AUTORIZADO = {
     **error_response(
-        status.HTTP_401_UNAUTHORIZED, "No hay sesión (`UNAUTHORIZED`)."
+        status.HTTP_401_UNAUTHORIZED, "No session (`UNAUTHORIZED`)."
     ),
     **error_response(
         status.HTTP_403_FORBIDDEN,
-        "Cuenta de cliente sin organización (`FORBIDDEN`).",
+        "Client account without an organization (`FORBIDDEN`).",
     ),
 }
 
@@ -69,17 +68,18 @@ _NO_AUTORIZADO = {
 @router.get(
     "",
     response_model=Page[SensorResponse],
-    summary="Listar sensores",
+    summary="List sensors",
     description=(
-        "Sensores de tu organización, paginados y ordenados por nombre. Un "
-        "admin ve los de todas las organizaciones.\n\n"
-        "`status`, `last_seen_at` y `last_value` se calculan a partir de las "
-        "lecturas: un sensor está `OFFLINE` si lleva más de 5 minutos sin "
-        "mandar ninguna o no ha mandado nunca. `health` añade sus alertas "
-        "sin resolver: `OFFLINE`, si no `CRITICAL` o `WARNING`, y si no `OK`.\n\n"
-        "`q` busca en el nombre, la etiqueta (`external_id`) y la ubicación. "
-        "`organization_id` y `site_id` dejan solo los de un cliente o un "
-        "edificio, y `health` los que tienen esa salud."
+        "Sensors of your organization, paginated and ordered by name. An "
+        "admin sees those of every organization.\n\n"
+        "`status`, `last_seen_at` and `last_value` are computed from the "
+        "readings: a sensor is `OFFLINE` if it has gone more than 5 minutes "
+        "without sending any or has never sent one. `health` adds its "
+        "unresolved alerts: `OFFLINE`, otherwise `CRITICAL` or `WARNING`, "
+        "and otherwise `OK`.\n\n"
+        "`q` searches the name, the label (`external_id`) and the location. "
+        "`organization_id` and `site_id` keep only those of one client or "
+        "one building, and `health` those with that health."
     ),
     responses={**_NO_AUTORIZADO},
 )
@@ -92,8 +92,8 @@ def list_sensors(
     site_id: SiteIdFilter = None,
     health: HealthFilter = None,
 ) -> Page[SensorResponse]:
-    # El alcance sale de la sesión (`OrgScope`), nunca de la query.
-    # `organization_id`, `site_id` y `health` solo lo estrechan.
+    # The scope comes from the session (`OrgScope`), never from the query.
+    # `organization_id`, `site_id` and `health` only narrow it.
     return service.list(
         organization_id=scope,
         offset=pagination.offset,
@@ -108,12 +108,12 @@ def list_sensors(
 @router.get(
     "/{sensor_id}",
     response_model=SensorResponse,
-    summary="Ver un sensor",
+    summary="Get a sensor",
     responses={
         **_NO_AUTORIZADO,
         **error_response(
             status.HTTP_404_NOT_FOUND,
-            "El sensor no existe, o no es de tu organización "
+            "The sensor does not exist, or is not from your organization "
             "(`SENSOR_NOT_FOUND`).",
         ),
     },
@@ -123,8 +123,8 @@ def get_sensor(sensor_id: UUID, service: SensorSvc, scope: OrgScope) -> SensorRe
 
 
 _SOLO_ADMIN = {
-    **error_response(status.HTTP_401_UNAUTHORIZED, "No hay sesión (`UNAUTHORIZED`)."),
-    **error_response(status.HTTP_403_FORBIDDEN, "La sesión no es de un admin (`FORBIDDEN`)."),
+    **error_response(status.HTTP_401_UNAUTHORIZED, "No session (`UNAUTHORIZED`)."),
+    **error_response(status.HTTP_403_FORBIDDEN, "The session is not an admin one (`FORBIDDEN`)."),
 }
 
 
@@ -132,27 +132,27 @@ _SOLO_ADMIN = {
     "",
     response_model=SensorResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Dar de alta un sensor",
+    summary="Create a sensor",
     description=(
-        "Solo admin. `external_id` es la etiqueta del aparato físico y no se "
-        "puede repetir en el mismo site. `unit` vale `bar` si no se envía. "
-        "`floor` (0 si no se envía) tiene que existir en el edificio: de "
-        "`-basements` a `floors - 1`. "
-        "El sensor nace `OFFLINE`: todavía no ha mandado lecturas."
+        "Admin only. `external_id` is the label of the physical device and "
+        "cannot repeat in the same site. `unit` is `bar` if not sent. "
+        "`floor` (0 if not sent) must exist in the building: from "
+        "`-basements` to `floors - 1`. "
+        "The sensor starts `OFFLINE`: it has not sent readings yet."
     ),
     dependencies=[Depends(require_role("admin"))],
     responses={
         **_SOLO_ADMIN,
-        **error_response(status.HTTP_404_NOT_FOUND, "El site no existe (`SITE_NOT_FOUND`)."),
+        **error_response(status.HTTP_404_NOT_FOUND, "The site does not exist (`SITE_NOT_FOUND`)."),
         **error_response(
             status.HTTP_409_CONFLICT,
-            "Ese `external_id` ya existe en el site (`SENSOR_EXTERNAL_ID_TAKEN`) "
-            "o el cliente ya tiene todos sus sensores contratados "
+            "That `external_id` already exists in the site (`SENSOR_EXTERNAL_ID_TAKEN`) "
+            "or the client already has all its contracted sensors "
             "(`SENSOR_LIMIT_REACHED`).",
         ),
         **error_response(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            "La planta no existe en el edificio (`FLOOR_OUT_OF_SITE`).",
+            "The floor does not exist in the building (`FLOOR_OUT_OF_SITE`).",
         ),
     },
 )
@@ -164,49 +164,50 @@ def create_sensor(payload: SensorCreate, service: SensorSvc) -> SensorResponse:
     "/import",
     response_model=SensorImportResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Importar sensores desde un CSV",
+    summary="Import sensors from a CSV",
     description=(
-        "Solo admin. Da de alta todos los sensores de un CSV en un edificio, "
-        "con las mismas reglas que `POST /api/sensors`. **Todo o nada**: si "
-        "una fila falla no se crea ninguno, y `details` lista cada error con "
-        "su línea (`row`, la cabecera es la 1), su `field` y su `message`.\n\n"
-        "Columnas obligatorias: `external_id`, `name`, `min_pressure` y "
-        "`max_pressure`; opcionales: `location` y `floor` (0 si falta). "
-        "Separador `;` o `,`, UTF-8 o Windows-1252, decimales con coma o "
-        f"punto. Como mucho {MAX_IMPORT_ROWS} sensores por archivo.\n\n"
-        "Con `dry_run=true` valida igual y no crea nada (200): es la vista "
-        "previa antes de confirmar."
+        "Admin only. Creates every sensor of a CSV in a building, with the "
+        "same rules as `POST /api/sensors`. **All or nothing**: if one row "
+        "fails none is created, and `details` lists each error with its "
+        "line (`row`, the header is line 1), its `field` and its "
+        "`message`.\n\n"
+        "Required columns: `external_id`, `name`, `min_pressure` and "
+        "`max_pressure`; optional: `location` and `floor` (0 if missing). "
+        "`;` or `,` separator, UTF-8 or Windows-1252, decimals with a comma "
+        f"or a point. At most {MAX_IMPORT_ROWS} sensors per file.\n\n"
+        "With `dry_run=true` it validates the same and creates nothing "
+        "(200): it is the preview before confirming."
     ),
     dependencies=[Depends(require_role("admin"))],
     responses={
         **_SOLO_ADMIN,
-        **error_response(status.HTTP_404_NOT_FOUND, "El site no existe (`SITE_NOT_FOUND`)."),
+        **error_response(status.HTTP_404_NOT_FOUND, "The site does not exist (`SITE_NOT_FOUND`)."),
         **error_response(
             status.HTTP_409_CONFLICT,
-            "Con estos sensores pasaría de los contratados (`SENSOR_LIMIT_REACHED`), "
-            "u otra alta ha usado a la vez una de las etiquetas "
+            "These sensors would go over the contracted ones (`SENSOR_LIMIT_REACHED`), "
+            "or another creation used one of the labels at the same time "
             "(`SENSOR_EXTERNAL_ID_TAKEN`).",
         ),
         **error_response(
-            status.HTTP_413_CONTENT_TOO_LARGE, "El archivo es demasiado grande (`FILE_TOO_LARGE`)."
+            status.HTTP_413_CONTENT_TOO_LARGE, "The file is too large (`FILE_TOO_LARGE`)."
         ),
         **error_response(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            "Filas con errores (`IMPORT_INVALID_ROWS`, uno por fila y campo en "
-            "`details`), o el archivo entero no vale: vacío (`EMPTY_FILE`), "
-            "no es texto (`UNSUPPORTED_FILE_TYPE`), le faltan columnas "
-            "(`IMPORT_MISSING_COLUMNS`), no tiene filas (`IMPORT_NO_ROWS`) o "
-            f"tiene más de {MAX_IMPORT_ROWS} (`IMPORT_TOO_MANY_ROWS`).",
+            "Rows with errors (`IMPORT_INVALID_ROWS`, one per row and field in "
+            "`details`), or the whole file is not valid: empty (`EMPTY_FILE`), "
+            "not text (`UNSUPPORTED_FILE_TYPE`), missing columns "
+            "(`IMPORT_MISSING_COLUMNS`), no rows (`IMPORT_NO_ROWS`) or "
+            f"more than {MAX_IMPORT_ROWS} (`IMPORT_TOO_MANY_ROWS`).",
         ),
     },
 )
 def import_sensors(
     service: SensorSvc,
     response: Response,
-    file: Annotated[UploadFile, File(description="El CSV con los sensores.")],
-    site_id: Annotated[UUID, Form(description="Edificio donde se instalan.")],
+    file: Annotated[UploadFile, File(description="The CSV with the sensors.")],
+    site_id: Annotated[UUID, Form(description="Building where they are installed.")],
     dry_run: Annotated[
-        bool, Form(description="true: solo valida y devuelve la vista previa.")
+        bool, Form(description="true: only validates and returns the preview.")
     ] = False,
 ) -> SensorImportResponse:
     resultado = service.import_csv(site_id=site_id, source=file.file, dry_run=dry_run)
@@ -218,20 +219,21 @@ def import_sensors(
 @router.patch(
     "/{sensor_id}",
     response_model=SensorResponse,
-    summary="Modificar un sensor",
+    summary="Update a sensor",
     description=(
-        "Solo admin. Cambia solo los campos enviados: nombre, ubicación, "
-        "umbrales y planta. Si llega un solo umbral, se compara con el "
-        "guardado. La planta tiene que existir en el edificio."
+        "Admin only. Changes only the fields sent: name, location, "
+        "thresholds and floor. If only one threshold arrives, it is "
+        "compared with the stored one. The floor must exist in the "
+        "building."
     ),
     dependencies=[Depends(require_role("admin"))],
     responses={
         **_SOLO_ADMIN,
-        **error_response(status.HTTP_404_NOT_FOUND, "El sensor no existe (`SENSOR_NOT_FOUND`)."),
+        **error_response(status.HTTP_404_NOT_FOUND, "The sensor does not exist (`SENSOR_NOT_FOUND`)."),
         **error_response(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            "Umbrales incoherentes o vacíos (`INVALID_THRESHOLDS`), nombre o "
-            "planta vacíos, o planta que no existe en el edificio "
+            "Inconsistent or empty thresholds (`INVALID_THRESHOLDS`), empty "
+            "name or floor, or a floor that does not exist in the building "
             "(`FLOOR_OUT_OF_SITE`).",
         ),
     },

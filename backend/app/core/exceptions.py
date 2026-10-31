@@ -1,27 +1,28 @@
-# EXCEPTIONS — errores de dominio y formato JSON fijo:
+# EXCEPTIONS — domain errors and one fixed JSON format:
 # {"error": {"code", "message", "details"}}
 """
-Manejo global de errores.
+Global error handling.
 
-Este archivo tiene dos mitades:
+This file has two halves:
 
-1. Las EXCEPCIONES de dominio (`AppError` y sus hijas). Las lanzan los
-   services cuando ocurre algo que el negocio ya sabe que puede pasar:
-   un sensor que no existe, un email repetido, un usuario sin permiso.
+1. The domain EXCEPTIONS (`AppError` and its children). Services raise
+   them when something happens that the business already knows can
+   happen: a sensor that does not exist, a repeated email, a user without
+   permission.
 
-2. Los HANDLERS que traducen esas excepciones (y las inesperadas) a una
-   respuesta HTTP. Se registran una sola vez en `main.py`.
+2. The HANDLERS that turn those exceptions (and unexpected ones) into an
+   HTTP response. They are registered once in `main.py`.
 
-La regla que justifica esta separación:
+The rule behind this split:
 
-    el service NO sabe qué es HTTP — solo lanza `NotFoundError`;
-    el handler NO sabe qué es negocio — solo sabe mapear a 404.
+    the service does NOT know what HTTP is — it only raises `NotFoundError`;
+    the handler does NOT know the business — it only maps it to 404.
 
-Así el mismo service se puede reutilizar desde un comando de consola o un
-test sin arrastrar FastAPI, y el día que cambiemos el formato de error se
-cambia en un único sitio.
+So the same service can be reused from a console command or a test
+without pulling in FastAPI, and the day the error format changes it
+changes in a single place.
 
-Formato de error único para TODA la API:
+One error format for the WHOLE API:
 
     {
       "error": {
@@ -31,8 +32,8 @@ Formato de error único para TODA la API:
       }
     }
 
-`details` es SIEMPRE una lista o `null`, nunca un objeto. Así el frontend
-puede hacer `for (const d of error.details ?? [])` sin comprobar el tipo.
+`details` is ALWAYS a list or `null`, never an object. So the frontend
+can do `for (const d of error.details ?? [])` without checking the type.
 """
 
 from __future__ import annotations
@@ -49,36 +50,36 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------
-# EXCEPCIONES DE DOMINIO
+# DOMAIN EXCEPTIONS
 # ---------------------------------------------------------
 class AppError(Exception):
     """
-    Raíz de todos los errores conocidos de AquaGuard.
+    Root of every known AquaGuard error.
 
-    `status_code` y `code` son atributos DE CLASE: cada subclase ya sabe
-    qué HTTP le corresponde, así que en el caso corriente quien la lanza
-    solo escribe el mensaje.
+    `status_code` and `code` are CLASS attributes: each subclass already
+    knows its HTTP status, so in the usual case the caller only writes the
+    message.
 
         raise NotFoundError("El sensor no existe")
         # → 404  {"error": {"code": "NOT_FOUND", ...}}
 
-    Pero `code` se puede afinar al lanzarla, y conviene hacerlo:
+    But `code` can be refined when raising, and it should be:
 
         raise NotFoundError("Sensor no encontrado", code="SENSOR_NOT_FOUND")
         # → 404  {"error": {"code": "SENSOR_NOT_FOUND", ...}}
 
-    El motivo está en el lado del frontend. El interceptor de Axios de
-    Lylia ramifica por `code`, no por el texto del mensaje:
+    The reason is on the frontend side. Lylia's Axios interceptor branches
+    on `code`, not on the message text:
 
         if (e?.code === "UNAUTHORIZED")     router.push("/login")
         if (e?.code === "SENSOR_NOT_FOUND") store.markMissing()
 
-    Con un `NOT_FOUND` genérico no puede distinguir «este sensor no
-    existe» de «esta alerta no existe», y las dos cosas se atienden de
-    forma distinta. El código específico es parte del contrato.
+    With a generic `NOT_FOUND` it cannot tell "this sensor does not exist"
+    from "this alert does not exist", and the two are handled differently.
+    The specific code is part of the contract.
 
-    `details` sirve para acompañar el error con información estructurada
-    (qué campos fallaron). Se normaliza a lista para no romper al cliente.
+    `details` adds structured information to the error (which fields
+    failed). It is normalized to a list so the client does not break.
     """
 
     status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -92,13 +93,13 @@ class AppError(Exception):
     ) -> None:
         super().__init__(message)
         self.message = message
-        # Sin `code` explícito se usa el de la clase. Asignarlo a la
-        # instancia no toca el atributo de clase: la siguiente excepción
-        # del mismo tipo vuelve a partir del valor por defecto.
+        # Without an explicit `code`, the class one is used. Setting it on
+        # the instance does not touch the class attribute: the next
+        # exception of the same type starts again from the default.
         if code is not None:
             self.code = code
-        # Aceptamos un dict suelto por comodidad, pero hacia fuera siempre
-        # sale una lista: el contrato con el frontend no debe variar.
+        # A single dict is accepted for convenience, but a list always goes
+        # out: the contract with the frontend must not vary.
         if details is None:
             self.details: list[dict[str, Any]] | None = None
         elif isinstance(details, dict):
@@ -107,7 +108,7 @@ class AppError(Exception):
             self.details = list(details)
 
     def to_payload(self) -> dict[str, Any]:
-        """Cuerpo JSON de la respuesta de error."""
+        """JSON body of the error response."""
         return {
             "error": {
                 "code": self.code,
@@ -118,35 +119,35 @@ class AppError(Exception):
 
 
 class BadRequestError(AppError):
-    """Petición mal formada a nivel de negocio (no de tipos)."""
+    """Request malformed at the business level (not at the type level)."""
 
     status_code = status.HTTP_400_BAD_REQUEST
     code = "BAD_REQUEST"
 
 
 class UnauthorizedError(AppError):
-    """No hay sesión válida. El cliente debe autenticarse."""
+    """No valid session. The client must authenticate."""
 
     status_code = status.HTTP_401_UNAUTHORIZED
     code = "UNAUTHORIZED"
 
 
 class ForbiddenError(AppError):
-    """Hay sesión, pero el rol o la organización no permiten la acción."""
+    """There is a session, but the role or organization does not allow it."""
 
     status_code = status.HTTP_403_FORBIDDEN
     code = "FORBIDDEN"
 
 
 class NotFoundError(AppError):
-    """El recurso no existe, o no es visible para esta organización."""
+    """The resource does not exist, or this organization cannot see it."""
 
     status_code = status.HTTP_404_NOT_FOUND
     code = "NOT_FOUND"
 
 
 class ConflictError(AppError):
-    """Choque con el estado actual: email duplicado, alerta ya resuelta."""
+    """Clash with the current state: duplicate email, alert already resolved."""
 
     status_code = status.HTTP_409_CONFLICT
     code = "CONFLICT"
@@ -154,9 +155,9 @@ class ConflictError(AppError):
 
 class GoneError(AppError):
     """
-    Existió pero ya no vale, y no va a volver: una invitación caducada
-    (B4). Distinto de 404 para que el frontend diga «pide otra» en vez de
-    «este enlace no existe».
+    It existed but is no longer valid, and will not come back: an expired
+    invitation (B4). Different from 404 so the frontend says "ask for
+    another one" instead of "this link does not exist".
     """
 
     status_code = status.HTTP_410_GONE
@@ -165,11 +166,11 @@ class GoneError(AppError):
 
 class DomainValidationError(AppError):
     """
-    Regla de negocio incumplida con datos sintácticamente correctos.
+    A business rule is broken with syntactically correct data.
 
-    Se llama `DomainValidationError` y no `ValidationError` a propósito:
-    Pydantic ya exporta `ValidationError` y mezclar los dos nombres en los
-    imports es una fuente segura de confusión.
+    It is called `DomainValidationError` and not `ValidationError` on
+    purpose: Pydantic already exports `ValidationError`, and mixing both
+    names in the imports is a sure source of confusion.
     """
 
     status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
@@ -177,7 +178,7 @@ class DomainValidationError(AppError):
 
 
 class PayloadTooLargeError(AppError):
-    """El cuerpo de la petición pasa del tamaño permitido (un documento, B11)."""
+    """The request body is bigger than allowed (a document, B11)."""
 
     status_code = status.HTTP_413_CONTENT_TOO_LARGE
     code = "PAYLOAD_TOO_LARGE"
@@ -185,11 +186,11 @@ class PayloadTooLargeError(AppError):
 
 class NotImplementedYetError(AppError):
     """
-    La ruta existe y su contrato está publicado en OpenAPI, pero la lógica
-    todavía pertenece a una issue que no se ha hecho.
+    The route exists and its contract is published in OpenAPI, but its
+    logic still belongs to an issue that has not been done.
 
-    Es deliberado: el frontend necesita el contrato desde la semana 1, y un
-    501 que dice qué issue falta es más honesto que devolver datos falsos.
+    This is deliberate: the frontend needs the contract from week 1, and a
+    501 that says which issue is missing is more honest than fake data.
     """
 
     status_code = status.HTTP_501_NOT_IMPLEMENTED
@@ -203,21 +204,21 @@ class NotImplementedYetError(AppError):
 
 
 # ---------------------------------------------------------
-# TRADUCCIÓN DE ERRORES DE PYDANTIC
+# PYDANTIC ERROR TRANSLATION
 # ---------------------------------------------------------
 def _format_validation_details(errors: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
-    Convierte los errores de Pydantic al formato `details` del contrato.
+    Turns Pydantic errors into the `details` format of the contract.
 
-    Pydantic entrega la ruta del campo como tupla, empezando por dónde
-    venía el dato:
+    Pydantic gives the field path as a tuple, starting with where the data
+    came from:
 
         ("body", "pressure")        → "pressure"
         ("query", "page")           → "page"
         ("body", "items", 0, "id")  → "items.0.id"
 
-    Quitamos ese primer segmento porque al frontend no le aporta nada y
-    el nombre resultante coincide con el del formulario.
+    That first segment is dropped because it is useless to the frontend,
+    and the resulting name matches the form field.
     """
     formatted: list[dict[str, Any]] = []
     for err in errors:
@@ -238,7 +239,7 @@ def _format_validation_details(errors: list[dict[str, Any]]) -> list[dict[str, A
 # HANDLERS
 # ---------------------------------------------------------
 async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
-    """Errores de dominio: son esperados, así que se registran como warning."""
+    """Domain errors: they are expected, so they are logged as warnings."""
     logger.warning(
         "AppError %s en %s %s: %s",
         exc.code,
@@ -253,11 +254,11 @@ async def validation_error_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
     """
-    422 cuando el JSON no encaja con el schema.
+    422 when the JSON does not fit the schema.
 
-    FastAPI trae su propio handler, pero devuelve `{"detail": [...]}`, que
-    es un formato distinto al nuestro. Lo sustituimos para que el cliente
-    solo tenga que entender una forma de error.
+    FastAPI has its own handler, but it returns `{"detail": [...]}`, a
+    different format from ours. It is replaced so the client only has to
+    understand one error shape.
     """
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -275,10 +276,10 @@ async def http_exception_handler(
     request: Request, exc: StarletteHTTPException
 ) -> JSONResponse:
     """
-    Reenvuelve los errores que genera el propio framework.
+    Re-wraps the errors produced by the framework itself.
 
-    Sin esto, una ruta inexistente devolvería `{"detail": "Not Found"}` y
-    tendríamos dos formatos de error conviviendo en la misma API.
+    Without this, a missing route would return `{"detail": "Not Found"}`
+    and two error formats would live side by side in the same API.
     """
     codes = {
         status.HTTP_401_UNAUTHORIZED: "UNAUTHORIZED",
@@ -303,11 +304,11 @@ async def unhandled_exception_handler(
     request: Request, exc: Exception
 ) -> JSONResponse:
     """
-    Red de seguridad: cualquier excepción que no hayamos previsto.
+    Safety net: any exception nobody expected.
 
-    Se registra con traza completa (`exc_info=True`) para poder depurar,
-    pero al cliente solo le llega un mensaje genérico. Devolver el texto
-    de la excepción filtraría rutas internas, SQL o credenciales.
+    It is logged with the full trace (`exc_info=True`) for debugging, but
+    the client only gets a generic message. Returning the exception text
+    would leak internal paths, SQL or credentials.
     """
     logger.exception(
         "Error no controlado en %s %s", request.method, request.url.path, exc_info=exc
@@ -326,10 +327,10 @@ async def unhandled_exception_handler(
 
 def register_exception_handlers(app: FastAPI) -> None:
     """
-    Engancha los handlers a la aplicación.
+    Hooks the handlers into the application.
 
-    Se llama desde `create_app()`. El orden no importa porque Starlette
-    resuelve por tipo, de la clase más específica a la más general.
+    Called from `create_app()`. Order does not matter because Starlette
+    resolves by type, from the most specific class to the most general.
     """
     app.add_exception_handler(AppError, app_error_handler)
     app.add_exception_handler(RequestValidationError, validation_error_handler)

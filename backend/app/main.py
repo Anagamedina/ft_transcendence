@@ -1,26 +1,26 @@
-# MAIN — punto de entrada FastAPI
-# Montar CORS, handlers de error, routers de modules/* bajo /api.
-# Exponer GET /api/health y OpenAPI en /api/docs.
+# MAIN — FastAPI entry point
+# Mounts CORS, error handlers and the modules/* routers under /api.
+# Exposes GET /api/health and OpenAPI at /api/docs.
 """
-Composición de la aplicación (issue #22).
+Application composition (issue #22).
 
-Este archivo **compone**, no implementa. No hay aquí ni una consulta, ni
-una regla de negocio, ni un import de un módulo de dominio: crea la
-aplicación, le engancha middlewares y handlers, incluye `api_router` y
-devuelve el resultado.
+This file **composes**, it does not implement. There is no query here, no
+business rule, no import of a domain module: it creates the application,
+hooks middlewares and handlers into it, includes `api_router` and returns
+the result.
 
-La consecuencia buscada es que `main.py` deje de cambiar después de la
-primera semana. Añadir un módulo se hace en `api.py`.
+The intended consequence is that `main.py` stops changing after the first
+week. Adding a module is done in `api.py`.
 
-Se expone mediante una **factory**, `create_app()`, en lugar de construir
-la app en el ámbito del módulo. Así un test puede crear una instancia
-limpia con otra configuración, en vez de heredar la global con lo que le
-hayan hecho otros tests.
+It is exposed through a **factory**, `create_app()`, instead of building
+the app at module level. That way a test can create a clean instance with
+another configuration, instead of inheriting the global one with whatever
+other tests did to it.
 
-Uvicorn necesita de todos modos un objeto al que apuntar:
+Uvicorn still needs an object to point to:
 
     uvicorn app.main:app --host 0.0.0.0 --port 8000
-                    ^^^^ el módulo   ^^^ la variable de abajo
+                    ^^^^ the module  ^^^ the variable below
 """
 
 from __future__ import annotations
@@ -35,11 +35,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import api_router
 from app.core import health, status
 
-# Se importa por su efecto, no por lo que exporta: registra los modelos ORM
-# en SQLAlchemy. Sin esta línea, las relaciones que se declaran por nombre
-# (`Mapped[list["Alert"]]`) no se pueden resolver y CUALQUIER consulta de la
-# aplicación falla con un 500. Los tests no lo detectan porque cada uno
-# importa los modelos que necesita.
+# Imported for its side effect, not for what it exports: it registers the
+# ORM models in SQLAlchemy. Without this line, relationships declared by
+# name (`Mapped[list["Alert"]]`) cannot be resolved and ANY query of the
+# application fails with a 500. The tests do not catch it because each one
+# imports the models it needs.
 from app.core import models  # noqa: F401
 from app.core.app_config import APP_NAME, APP_VERSION, app_settings
 from app.core.exceptions import register_exception_handlers
@@ -51,112 +51,113 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
 )
 
-# La identidad de la API y las variables de aplicación viven en
-# `core/app_config.py`, no en `core/config.py`: ese último es de Daruny y
-# guarda lo de PostgreSQL. Cada archivo tiene un dueño y así no coinciden
-# dos personas editando el mismo sitio. El razonamiento está en la
-# cabecera de `app_config.py`.
+# The API identity and the application variables live in
+# `core/app_config.py`, not in `core/config.py`: the latter belongs to
+# Daruny and holds the PostgreSQL settings. Each file has one owner, so two
+# people never edit the same place. The reasoning is in the header of
+# `app_config.py`.
 
-# Descripciones de los grupos de Swagger. Sin esto, los tags aparecen como
-# meros títulos; con esto, cada sección explica de qué va y en qué estado
-# está, que es lo primero que mira quien va a integrar.
+# Descriptions of the Swagger groups. Without this, tags show up as bare
+# titles; with it, each section explains what it is about and its state,
+# which is the first thing an integrator looks at.
 TAGS_METADATA = [
-    {"name": "Health", "description": "Liveness y readiness del servicio."},
+    {"name": "Health", "description": "Service liveness and readiness."},
     {
         "name": "Readings",
         "description": (
-            "Recepción y consulta de mediciones. `POST /api/readings` es el "
-            "endpoint que usa el simulador. **Issue #24.**"
+            "Receiving and querying measurements. `POST /api/readings` is the "
+            "endpoint used by the simulator. **Issue #24.**"
         ),
     },
-    {"name": "Auth", "description": "Registro, login y cierre de sesión. **Issue #26.**"},
-    {"name": "Users", "description": "Perfil del usuario autenticado. **Issue #26.**"},
+    {"name": "Auth", "description": "Sign-up, login and logout. **Issue #26.**"},
+    {"name": "Users", "description": "Profile of the authenticated user. **Issue #26.**"},
     {
         "name": "Organizations",
-        "description": "Clientes de AquaGuard. Nivel Intermedio (§9.2).",
+        "description": "AquaGuard clients. Intermediate level (§9.2).",
     },
-    {"name": "Sites", "description": "Edificios y su localización. **Issue #29.**"},
+    {"name": "Sites", "description": "Buildings and their location. **Issue #29.**"},
     {
         "name": "Sensors",
-        "description": "Sensores, umbrales y estado. **Issues #25 y #29.**",
+        "description": "Sensors, thresholds and status. **Issues #25 and #29.**",
     },
-    {"name": "Alerts", "description": "Reglas, reconocimiento y resolución. **Issue #28.**"},
-    {"name": "Analytics", "description": "KPIs y agregaciones. Nivel Intermedio (§9.2)."},
+    {"name": "Alerts", "description": "Rules, acknowledgement and resolution. **Issue #28.**"},
+    {"name": "Analytics", "description": "KPIs and aggregations. Intermediate level (§9.2)."},
     {
         "name": "Public API",
         "description": (
-            "API para integraciones externas: lee datos y crea, reemplaza o "
-            "borra edificios. Requiere X-API-Key (de lectura o de escritura), "
-            "tiene rate limiting y queda limitada a una organización."
+            "API for external integrations: reads data and creates, replaces or "
+            "deletes buildings. Requires X-API-Key (read or write), has rate "
+            "limiting and is limited to one organization."
         ),
     },
 ]
 
 DESCRIPTION = """
-API de **AquaGuard**, plataforma de monitorización de instalaciones
-internas de agua.
+API of **AquaGuard**, a monitoring platform for indoor water
+installations.
 
-Este documento es el **contrato** entre backend y frontend (issue #23).
-Los nombres de campo, tipos y códigos de error que aparecen aquí son la
-fuente de verdad: el `MockAdapter` del frontend debe copiar sus ejemplos
-de aquí, no inventarlos.
+This document is the **contract** between backend and frontend (issue #23).
+The field names, types and error codes shown here are the source of
+truth: the frontend `MockAdapter` must copy its examples from here, not
+make them up.
 
-### Convenios
+### Conventions
 
-* Campos en `snake_case`.
-* Fechas en ISO-8601 UTC terminadas en `Z`.
-* Valores de enum en `UPPER_SNAKE_CASE`.
-* Listados paginados con `?page=&page_size=`, envueltos en
+* Fields in `snake_case`.
+* Dates in ISO-8601 UTC ending in `Z`.
+* Enum values in `UPPER_SNAKE_CASE`.
+* Paginated lists with `?page=&page_size=`, wrapped in
   `{items, total, page, page_size, pages}`.
 
-### Contrato común (B0, issue #138)
+### Common contract (B0, issue #138)
 
-* **Enums compartidos** (sección *Schemas*): `OrganizationStatus`
+* **Shared enums** (*Schemas* section): `OrganizationStatus`
   (TRIAL / ACTIVE / SUSPENDED), `BuildingType`, `SensorStatus`
   (ONLINE / OFFLINE), `SensorHealth` (OK / WARNING / CRITICAL / OFFLINE),
-  `AlertStatus` (el guardado: ACTIVE / RESOLVED) y `AlertState` (el de las
-  pantallas: ACTIVE / ACKNOWLEDGED / RESOLVED). La excepción es el rol del
-  usuario, que va en minúsculas: `admin` / `client`.
-* **Filtros comunes** en los listados: `?q=` busca texto sin distinguir
-  mayúsculas (vacío = sin filtro); `organization_id`, `site_id` y
-  `sensor_id` dejan solo lo de ese recurso. Estrechan lo que la sesión ya
-  permite ver, nunca lo amplían: un cliente que pida otra organización
-  recibe una lista vacía.
-* **Campos de lectura**: junto a cada id llega su nombre
-  (`organization_name`, `site_name`, `sensor_name`) y, en sensores y
-  alertas, la planta (`floor`: 0 es la baja, negativo es sótano). Son solo
-  de lectura: no se envían al crear ni al editar.
+  `AlertStatus` (the stored one: ACTIVE / RESOLVED) and `AlertState` (the
+  one shown on screens: ACTIVE / ACKNOWLEDGED / RESOLVED). The exception is
+  the user role, in lowercase: `admin` / `client`.
+* **Common filters** on lists: `?q=` searches text ignoring case (empty =
+  no filter); `organization_id`, `site_id` and `sensor_id` keep only what
+  belongs to that resource. They narrow what the session can already see,
+  never widen it: a client asking for another organization gets an empty
+  list.
+* **Read-only fields**: next to each id comes its name
+  (`organization_name`, `site_name`, `sensor_name`) and, for sensors and
+  alerts, the floor (`floor`: 0 is the ground floor, negative is a
+  basement). They are read-only: they are not sent when creating or
+  editing.
 
-### Formato de error
+### Error format
 
-Todos los errores, sin excepción, tienen esta forma:
+Every error, without exception, has this shape:
 
 ```json
 {"error": {"code": "SENSOR_NOT_FOUND", "message": "…", "details": null}}
 ```
 
-`code` es un identificador estable pensado para que el cliente ramifique
-con él. `message` es para personas y puede reescribirse o traducirse sin
-romper nada. `details` es una lista de fallos por campo, o `null`.
+`code` is a stable identifier meant for the client to branch on.
+`message` is for people and can be rewritten or translated without
+breaking anything. `details` is a list of per-field failures, or `null`.
 
-### Contratos pendientes
+### Pending contracts
 
-Los schemas de rutas existentes se generan directamente desde esas rutas.
-Solo los contratos de funcionalidades aún no publicadas (B4, B6, B8 y B9)
-se mantienen explícitamente en **Schemas** hasta que sus endpoints estén
-disponibles. Así el documento no contiene versiones manuales de modelos que
-ya podrían quedarse desfasadas respecto a la API.
+The schemas of existing routes are generated directly from those routes.
+Only the contracts of features not yet published (B4, B6, B8 and B9) are
+kept explicitly in **Schemas** until their endpoints are available. So the
+document holds no hand-written versions of models that could drift from
+the API.
 """
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """
-    Lo que corre mientras la aplicación está viva (issue #28): la búsqueda
-    de sensores mudos cada minuto. Se cancela al apagar.
+    What runs while the application is alive (issue #28): the search for
+    silent sensors every minute. It is cancelled on shutdown.
 
-    Los tests no lo arrancan: `TestClient(app)` solo ejecuta el `lifespan`
-    si se usa con `with`, así que no aparecen alertas por su cuenta.
+    The tests do not start it: `TestClient(app)` only runs the `lifespan`
+    when used with `with`, so no alerts appear on their own.
     """
     tarea = asyncio.create_task(vigilar())
     try:
@@ -168,26 +169,26 @@ async def lifespan(_app: FastAPI):
 
 
 def create_app() -> FastAPI:
-    """Construye y configura la aplicación."""
+    """Builds and configures the application."""
     app = FastAPI(
         lifespan=lifespan,
         title=APP_NAME,
         version=APP_VERSION,
         description=DESCRIPTION,
         openapi_tags=TAGS_METADATA,
-        # Swagger y el contrato se sirven bajo /api porque Nginx solo
-        # reenvía al backend lo que empieza por /api/ (apartado 6.2). En
-        # las rutas por defecto (/docs) quedarían inalcanzables detrás del
+        # Swagger and the contract are served under /api because Nginx only
+        # forwards to the backend what starts with /api/ (section 6.2). On
+        # the default routes (/docs) they would be unreachable behind the
         # gateway.
         docs_url="/api/docs",
         redoc_url="/api/redoc",
         openapi_url="/api/openapi.json",
     )
 
-    # El navegador bloquea las llamadas del frontend si su origen no está
-    # permitido. `allow_credentials=True` es imprescindible con la cookie
-    # de sesión: sin él el navegador no la envía. Y con credenciales, el
-    # estándar prohíbe usar "*" como origen — hay que listarlos.
+    # The browser blocks frontend calls if their origin is not allowed.
+    # `allow_credentials=True` is required with the session cookie: without
+    # it the browser does not send it. And with credentials, the standard
+    # forbids "*" as the origin — they have to be listed.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=app_settings.cors_origins_list,
@@ -198,15 +199,15 @@ def create_app() -> FastAPI:
 
     register_exception_handlers(app)
 
-    # Health va aparte de api_router: no es un módulo de negocio, y su
-    # ruta debe seguir estable aunque la API cambie de versión.
+    # Health is kept apart from api_router: it is not a business module,
+    # and its route must stay stable even if the API changes version.
     app.include_router(health.router, prefix="/api")
     app.include_router(status.router, prefix="/api")
     app.include_router(api_router, prefix="/api")
 
-    # Publica en OpenAPI solo los contratos aún sin ruta y el vocabulario
-    # común. Los modelos usados por endpoints los genera FastAPI. Ver
-    # `app/openapi.py`.
+    # Publishes in OpenAPI only the contracts that have no route yet and
+    # the shared vocabulary. FastAPI generates the models used by
+    # endpoints. See `app/openapi.py`.
     register_contract_schemas(app)
 
     return app

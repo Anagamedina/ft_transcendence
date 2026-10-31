@@ -1,19 +1,19 @@
 # SERVICE — search
-# Reglas de negocio y orquestación. No hablar HTTP aquí.
+# Business rules and orchestration. No HTTP here.
 """
-Búsqueda global del panel (B17, issue #150).
+Global search of the panel (B17, issue #150).
 
-No tiene consultas propias: reutiliza los listados de organizaciones,
-edificios y sensores, que ya buscan con `?q=` (B0) y ya aplican el
-alcance por organización. Así la búsqueda global encuentra exactamente
-lo mismo que el buscador de cada lista, y no hay un segundo sitio donde
-olvidarse del alcance.
+It has no queries of its own: it reuses the lists of organizations,
+buildings and sensors, which already search with `?q=` (B0) and already
+apply the organization scope. So the global search finds exactly the same
+as the search box of each list, and there is no second place to forget
+the scope.
 
-Dónde busca cada tipo (lo decide su repository):
+Where each type searches (its repository decides):
 
-- organizaciones: nombre, ciudad, razón social y NIF. Solo para el admin.
-- edificios: nombre y dirección.
-- sensores: nombre, identificador externo y ubicación.
+- organizations: name, city, legal name and tax id. Admin only.
+- buildings: name and address.
+- sensors: name, external id and location.
 """
 
 from __future__ import annotations
@@ -41,8 +41,8 @@ class SearchService:
 
     def search(self, q: str, scope: UUID | None, limit: int) -> SearchResponse:
         """
-        `scope` es el de `get_org_scope`: `None` para el admin (todo) y el
-        id de su organización para un cliente.
+        `scope` is the one from `get_org_scope`: `None` for the admin
+        (everything) and the id of its organization for a client.
         """
         if scope is None:
             orgs, total_orgs = OrganizationRepository(self.db).list(limit=limit, q=q)
@@ -94,5 +94,5 @@ class SearchService:
 
 
 def get_search_service(db: DbSession) -> SearchService:
-    """Proveedor del service para `Depends`."""
+    """Service provider for `Depends`."""
     return SearchService(db)

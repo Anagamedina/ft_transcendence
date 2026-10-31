@@ -1,1 +1,1 @@
-# Módulo sites — Hoteles/edificios con organization_id obligatorio.
+# sites module — hotels/buildings with a mandatory organization_id.

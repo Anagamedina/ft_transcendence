@@ -1,9 +1,9 @@
 # SCHEMAS — alerts
-# Pydantic request/response (contrato OpenAPI). No devolver model ORM crudo.
+# Pydantic request/response (OpenAPI contract). Never return a raw ORM model.
 """
-Contrato de alertas (issue #23).
+Alerts contract (issue #23).
 
-Campos según el modelo de dominio del documento (apartado 5):
+Fields according to the domain model of the document (section 5):
 
     alerts: id, sensor_id, type, severity, message, status,
             created_at, resolved_at
@@ -12,29 +12,29 @@ Campos según el modelo de dominio del documento (apartado 5):
     status   → ACTIVE | RESOLVED
     severity → WARNING | CRITICAL
 
-Las alertas las **crea el backend**, nunca el cliente: el documento es
-explícito en que el simulador solo genera mediciones y que la detección
-de anomalías es lógica de negocio (apartado 1.3). Por eso no existe un
-`AlertCreate` en este contrato — no hay `POST /api/alerts`. Solo se
-listan y se cambia su estado.
+Alerts are **created by the backend**, never by the client: the
+document is explicit that the simulator only generates measurements and
+that anomaly detection is business logic (section 1.3). That is why there
+is no `AlertCreate` in this contract — there is no `POST /api/alerts`.
+They are only listed and their state changed.
 
 --------------------------------------------------------------------
-"Acknowledge": estado guardado frente a estado calculado
+"Acknowledge": stored state versus computed state
 --------------------------------------------------------------------
-El apartado 9.1 define dos endpoints distintos:
+Section 9.1 defines two different endpoints:
 
     PATCH /api/alerts/{id}/acknowledge
     PATCH /api/alerts/{id}/resolve
 
-La tabla solo guarda `status` ACTIVE / RESOLVED, más `acknowledged_at`
-(decidido con Daruny antes de la migración). Reconocer y resolver son
-hechos independientes, no fases de una misma escala: con un enum de tres
-valores en la tabla se perdería cuándo se reconoció una alerta en cuanto
-alguien la resuelve.
+The table only stores `status` ACTIVE / RESOLVED, plus
+`acknowledged_at` (decided with Daruny before the migration).
+Acknowledging and resolving are independent facts, not stages of one
+scale: with a three-value enum in the table, when an alert was
+acknowledged would be lost as soon as someone resolves it.
 
-Las pantallas sí quieren un único estado de tres valores. Por eso la
-respuesta trae `state` (`AlertState`, B0), calculado a partir de los dos
-campos guardados. Ver `shared/enums.py`.
+The screens do want a single three-value state. That is why the response
+brings `state` (`AlertState`, B0), computed from the two stored fields.
+See `shared/enums.py`.
 """
 
 from __future__ import annotations
@@ -44,107 +44,109 @@ from uuid import UUID
 
 from pydantic import Field
 
-# Los enums viven en shared/enums.py (B0); se reexportan desde aquí
-# porque reglas, service y tests ya los importan de este módulo.
+# The enums live in shared/enums.py (B0); they are re-exported from here
+# because the rules, the service and the tests already import them from
+# this module.
 from app.shared.enums import AlertSeverity, AlertState, AlertStatus, AlertType
 from app.shared.schemas import ApiModel
 
 
 class AlertNotificationResponse(ApiModel):
-    """Un aviso enviado al cliente porque nadie se encargaba (#275)."""
+    """A notice sent to the client because nobody was handling it (#275)."""
 
-    attempt: int = Field(description="1 = primer aviso, 2 = segundo…")
-    channel: str = Field(description="Por dónde se envió. Hoy solo EMAIL.")
-    recipient: str = Field(description="A quién: uno o varios emails separados por «, ».")
-    sent_at: datetime = Field(description="Cuándo, en UTC.")
+    attempt: int = Field(description="1 = first notice, 2 = second…")
+    channel: str = Field(description="How it was sent. Only EMAIL today.")
+    recipient: str = Field(description="Who to: one or more emails separated by \", \".")
+    sent_at: datetime = Field(description="When, in UTC.")
 
 
 class AlertResponse(ApiModel):
     id: UUID
-    sensor_id: UUID = Field(description="Sensor que originó la alerta.")
-    # Campos de lectura (B0): para pintar «Hotel Sol · Planta 2 · Sensor
-    # bombas» sin pedir el sensor, el site y la organización por separado.
-    sensor_name: str = Field(description="Nombre del sensor.")
-    site_id: UUID = Field(description="Edificio del sensor.")
-    site_name: str = Field(description="Nombre del edificio.")
-    organization_id: UUID = Field(description="Organización del edificio.")
-    organization_name: str = Field(description="Nombre de la organización.")
+    sensor_id: UUID = Field(description="Sensor that raised the alert.")
+    # Read-only fields (B0): to show "Hotel Sol · Planta 2 · Sensor bombas"
+    # without asking for the sensor, the site and the organization
+    # separately.
+    sensor_name: str = Field(description="Sensor name.")
+    site_id: UUID = Field(description="Building of the sensor.")
+    site_name: str = Field(description="Building name.")
+    organization_id: UUID = Field(description="Organization of the building.")
+    organization_name: str = Field(description="Organization name.")
     floor: int = Field(
-        description="Planta del sensor. 0 es la baja; negativo, sótano."
+        description="Floor of the sensor. 0 is the ground floor; negative, a basement."
     )
     type: AlertType
     severity: AlertSeverity
     message: str = Field(
-        description="Descripción legible del problema.",
+        description="Readable description of the problem.",
         examples=["Presión por debajo del umbral: 0.8 bar (mínimo 1.5)"],
     )
     threshold: float | None = Field(
         default=None,
         description=(
-            "El límite del sensor que se ha cruzado, en bar: el mínimo para "
-            "LOW_PRESSURE y el máximo para HIGH_PRESSURE. Nulo en "
-            "SENSOR_OFFLINE. Es el límite actual del sensor: si se cambia "
-            "después, aquí sale el nuevo."
+            "The sensor limit that was crossed, in bar: the minimum for "
+            "LOW_PRESSURE and the maximum for HIGH_PRESSURE. Null for "
+            "SENSOR_OFFLINE. It is the current sensor limit: if it changes "
+            "later, the new one shows here."
         ),
         examples=[1.5],
     )
     status: AlertStatus = Field(
-        description="Estado guardado: ACTIVE o RESOLVED. Ver también `state`."
+        description="Stored status: ACTIVE or RESOLVED. See also `state`."
     )
     state: AlertState = Field(
         description=(
-            "Estado para las pantallas, calculado: RESOLVED si está "
-            "resuelta, ACKNOWLEDGED si sigue activa pero alguien la ha "
-            "reconocido, ACTIVE si nadie la ha reconocido."
+            "State for the screens, computed: RESOLVED if resolved, "
+            "ACKNOWLEDGED if still active but someone has acknowledged it, "
+            "ACTIVE if nobody has acknowledged it."
         )
     )
-    created_at: datetime = Field(description="Cuándo se generó, en UTC.")
+    created_at: datetime = Field(description="When it was generated, in UTC.")
     acknowledged_at: datetime | None = Field(
         default=None,
         description=(
-            "Cuándo se reconoció la alerta, en UTC. Nulo si nadie la ha "
-            "reconocido todavía."
+            "When the alert was acknowledged, in UTC. Null if nobody has "
+            "acknowledged it yet."
         ),
     )
     resolved_at: datetime | None = Field(
         default=None,
-        description="Cuándo se resolvió, en UTC. Nulo mientras siga activa.",
+        description="When it was resolved, in UTC. Null while still active.",
     )
     acknowledged_by_name: str | None = Field(
-        default=None, description="Nombre de quien reconoció; nulo si no consta o fue eliminado."
+        default=None, description="Name of who acknowledged it; null if unknown or deleted."
     )
     resolved_by_name: str | None = Field(
-        default=None, description="Nombre de quien resolvió; nulo si no consta o fue eliminado."
+        default=None, description="Name of who resolved it; null if unknown or deleted."
     )
     notifications: list[AlertNotificationResponse] = Field(
         default_factory=list,
         description=(
-            "Avisos enviados al cliente mientras la alerta seguía sin atender "
-            "(#275), en orden. Vacía si no se ha enviado ninguno."
+            "Notices sent to the client while the alert was still unhandled "
+            "(#275), in order. Empty if none has been sent."
         ),
     )
     next_notification_at: datetime | None = Field(
         default=None,
         description=(
-            "Cuándo toca el próximo email, en UTC. Nulo si ya no toca ninguno: "
-            "enviados todos, alguien se encarga o está cerrada."
+            "When the next email is due, in UTC. Null if none is due any more: "
+            "all sent, someone is handling it or it is closed."
         ),
     )
     normal_since: datetime | None = Field(
         default=None,
         description=(
-            "Desde cuándo las lecturas vuelven a ser normales, en UTC, si la "
-            "alerta sigue abierta (#277). Nulo si no lo son o ya está cerrada."
+            "Since when the readings are normal again, in UTC, if the alert "
+            "is still open (#277). Null if they are not or it is closed."
         ),
     )
     closes_at: datetime | None = Field(
         default=None,
         description=(
-            "Cuándo se cerrará sola si siguen normales: `normal_since` + 15 min. "
-            "Al cerrarse, `resolved_at` será `normal_since`."
+            "When it will close on its own if they stay normal: `normal_since` + 15 min. "
+            "When closed, `resolved_at` will be `normal_since`."
         ),
     )
     resolution_minutes: float | None = Field(
         default=None,
-        description="Minutos desde creación hasta resolución, con decimales; nulo si sigue abierta o falta la fecha de cierre.",
+        description="Minutes from creation to resolution, with decimals; null if still open or the closing date is missing.",
     )

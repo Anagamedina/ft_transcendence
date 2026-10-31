@@ -1,1 +1,1 @@
-# Paquete raíz de la aplicación FastAPI.
+# Root package of the FastAPI application.

@@ -34,22 +34,22 @@ class UserRepository:
 
     def get(self, user_id: UUID) -> User | None:
         """
-        Busca un usuario solo por su id, SIN filtrar por organización.
+        Looks a user up by id alone, WITHOUT filtering by organization.
 
-        Es la excepción de este módulo y conviene saber por qué existe. La
-        usa la resolución de sesión (`get_current_user`, issue #26): la
-        cookie solo lleva el id, y la organización del usuario es
-        precisamente el dato que se quiere averiguar — no se puede exigir
-        como filtro lo que todavía no se sabe.
+        It is the exception of this module and worth knowing why it exists.
+        The session resolution uses it (`get_current_user`, issue #26): the
+        cookie only holds the id, and the user's organization is exactly
+        what we want to find out — what is not known yet cannot be
+        required as a filter.
 
-        No sustituye a `get_by_id`: para lo que pida un usuario con sesión
-        sobre OTRO usuario se sigue usando aquel, que sí aísla por
-        organización.
+        It does not replace `get_by_id`: whatever a user with a session
+        asks about ANOTHER user still uses that one, which does isolate by
+        organization.
         """
         return self.db.scalar(select(User).where(User.id == user_id))
 
-    # Añadidos para la gestión de usuarios de la B6 (#141). Sin alcance por
-    # organización: solo los usa el admin, y eso lo comprueba el router.
+    # Added for the B6 user management (#141). No organization scope: only
+    # the admin uses them, and the router checks that.
     def list(
         self,
         offset: int = 0,
@@ -58,7 +58,7 @@ class UserRepository:
         q: str | None = None,
         active: bool | None = None,
     ) -> tuple[list[User], int]:
-        """Usuarios por nombre. `q` busca en el nombre y el email."""
+        """Users by name. `q` searches the name and the email."""
         if offset < 0 or limit <= 0:
             raise ValueError("Invalid pagination")
 
@@ -73,7 +73,7 @@ class UserRepository:
         total = self.db.scalar(select(func.count()).select_from(query.subquery()))
         items = list(
             self.db.scalars(
-                # El id desempata para que la paginación no repita ni salte.
+                # The id breaks ties so pagination never repeats or skips.
                 query.order_by(User.name, User.id).offset(offset).limit(limit)
             ).all()
         )

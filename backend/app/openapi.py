@@ -1,44 +1,43 @@
-# OPENAPI — publica los contratos que todavía no usa ninguna ruta.
+# OPENAPI — publishes the contracts that no route uses yet.
 """
-Contratos sin ruta (issue #23, ampliado en la B0 #138).
+Contracts without a route (issue #23, extended in B0 #138).
 
 --------------------------------------------------------------------
-EL PROBLEMA
+THE PROBLEM
 --------------------------------------------------------------------
-FastAPI genera el documento OpenAPI **a partir de las rutas**: recorre los
-endpoints registrados y publica los schemas que aparecen en sus
-`response_model` y sus cuerpos. Un schema que no use ninguna ruta no sale
-en el documento.
+FastAPI builds the OpenAPI document **from the routes**: it walks the
+registered endpoints and publishes the schemas found in their
+`response_model` and bodies. A schema no route uses does not appear in the
+document.
 
-Eso chocaba con cómo trabaja el equipo: el contrato se fija antes que el
-endpoint, para que el frontend construya sus mocks sin esperar. Pasó con
-la issue #23, cuando Auth, Sensors, Sites y Alerts aún no tenían rutas
-(llegaron en las #25 a #29), y vuelve a pasar con el rediseño: por
-ejemplo `OrganizationResponse` antes de la B1, o `SensorHealth` antes de
-la B3.
+That clashed with how the team works: the contract is fixed before the
+endpoint, so the frontend can build its mocks without waiting. It happened
+with issue #23, when Auth, Sensors, Sites and Alerts had no routes yet
+(they arrived in #25 to #29), and it happens again with the redesign: for
+example `OrganizationResponse` before B1, or `SensorHealth` before B3.
 
-Sin esto habría que elegir entre dos cosas malas:
+Without this there would be two bad choices:
 
-  a) Publicar rutas que no funcionan, solo para que salgan sus schemas.
-  b) Dejar al frontend sin contrato e inventarse el `MockAdapter` — que
-     es exactamente el fallo que el documento avisa en el apartado 10:
-     si el mock devuelve `data` y la API devuelve `items`, todo funciona
-     tres semanas y se rompe el día de integrar.
+  a) Publish routes that do not work, just so their schemas show up.
+  b) Leave the frontend without a contract and have it make up the
+     `MockAdapter` — exactly the failure the document warns about in
+     section 10: if the mock returns `data` and the API returns `items`,
+     everything works for three weeks and breaks on integration day.
 
 --------------------------------------------------------------------
-LA SOLUCIÓN
+THE SOLUTION
 --------------------------------------------------------------------
-Se inyectan los schemas (y los enums de la B0) directamente en
-`components.schemas` del documento OpenAPI, sin declarar ninguna ruta.
-Resultado:
+The schemas (and the B0 enums) are injected directly into
+`components.schemas` of the OpenAPI document, without declaring any route.
+Result:
 
-  - Swagger muestra **solo** las rutas que de verdad existen.
-  - La sección **Schemas** de esa misma página lista el contrato
-    completo, del que el frontend puede copiar los ejemplos.
+  - Swagger shows **only** the routes that really exist.
+  - The **Schemas** section of that same page lists the full contract,
+    and the frontend can copy the examples from it.
 
-Cuando una ruta nueva usa uno de estos schemas, no cambia de forma: solo
-pasa a tener una ruta que lo use, y FastAPI lo publica por su cuenta (ver
-el `setdefault` de `register_contract_schemas`).
+When a new route uses one of these schemas, its shape does not change: it
+just gets a route that uses it, and FastAPI publishes it on its own (see
+the `setdefault` in `register_contract_schemas`).
 """
 
 from __future__ import annotations
@@ -73,50 +72,50 @@ from app.shared.enums import (
 )
 from app.shared.schemas import Page
 
-# Solo se inyectan contratos que todavía no usa ninguna ruta. Los modelos de
-# endpoints reales los genera FastAPI desde sus decoradores; mantenerlos
-# también aquí ocultaba si el contrato documentado coincidía con la ruta.
+# Only contracts no route uses yet are injected. FastAPI generates the
+# models of real endpoints from their decorators; keeping them here too hid
+# whether the documented contract matched the route.
 #
-# Los `Page[...]` se listan explícitamente porque `Page` es genérico:
-# `Page[SensorResponse]` y `Page[AlertResponse]` son dos schemas distintos
-# en OpenAPI, y solo existen si se nombran.
+# The `Page[...]` are listed explicitly because `Page` is generic:
+# `Page[SensorResponse]` and `Page[AlertResponse]` are two different
+# schemas in OpenAPI, and they only exist if they are named.
 CONTRACT_MODELS: list[type] = [
-    # Invitaciones — contrato de la B4 (#141)
+    # Invitations — B4 contract (#141)
     InvitationCreate,
     InvitationResponse,
     Page[InvitationResponse],
     InvitationSentResponse,
     InvitationPublicResponse,
     InvitationAccept,
-    # Usuarios — contrato de la B6 (#141)
+    # Users — B6 contract (#141)
     UserUpdate,
     UserAdminResponse,
     Page[UserAdminResponse],
-    # Mi cuenta — contrato de la B8 (#144)
+    # My account — B8 contract (#144)
     MeResponse,
     MeUpdate,
     PasswordChange,
-    # Panel y KPIs — contrato de la B9 (#144)
+    # Dashboard and KPIs — B9 contract (#144)
     OverviewResponse,
     WeeklyAlertsResponse,
     TopSensorsResponse,
 ]
 
 
-# Vocabulario común de la B0 (issue #138). Los enums usados por una ruta
-# aparecen automáticamente junto al modelo que los referencia.
-# `InvitationStatus` ya lo usan las rutas de la B4 (#141); sigue aquí
-# porque el `setdefault` de abajo lo deja igual si ya está.
+# Shared vocabulary of B0 (issue #138). Enums used by a route appear
+# automatically next to the model that references them.
+# `InvitationStatus` is already used by the B4 routes (#141); it stays here
+# because the `setdefault` below leaves it as is if it is already there.
 CONTRACT_ENUMS: list[type] = [
     InvitationStatus,
 ]
 
 
-# Ejemplos completos, no solo de campos aislados. Se mantienen aquí para
-# que el documento publicado sea la fuente que consume el frontend y para
-# que los UUID y fechas de demostración sean iguales en requests y responses.
-# Los ejemplos parciales de `Field(examples=...)` siguen siendo útiles en
-# los campos, pero no permiten copiar una respuesta completa desde Swagger.
+# Complete examples, not just of single fields. They are kept here so the
+# published document is the source the frontend uses, and so the demo
+# UUIDs and dates are the same in requests and responses. The partial
+# `Field(examples=...)` examples are still useful on fields, but they do
+# not let you copy a whole response from Swagger.
 _SCHEMA_EXAMPLES: dict[str, dict[str, Any]] = {
     "HealthResponse": {
         "status": "ok",
@@ -423,7 +422,7 @@ _SCHEMA_EXAMPLES: dict[str, dict[str, Any]] = {
         "trial_ends_at": "2026-10-21T10:00:00Z",
     },
     "MeUpdate": {"name": "Ana Medina"},
-    # B15 — exportar mis datos y pedir la baja (#149)
+    # B15 — export my data and request deletion (#149)
     "MyDataExport": {
         "exported_at": "2026-10-15T10:00:00Z",
         "current_terms_version": "2026-10",
@@ -588,7 +587,7 @@ _SCHEMA_EXAMPLES: dict[str, dict[str, Any]] = {
         "password": "agua-que-no-se-escapa",
         "accept_terms": True,
     },
-    # B14 — «Hazte cliente» (#150)
+    # B14 — "Hazte cliente" (become a client, #150)
     "PlanResponse": {
         "id": "PRO",
         "name": "Profesional",
@@ -639,7 +638,7 @@ _SCHEMA_EXAMPLES: dict[str, dict[str, Any]] = {
         "iban_masked": "ES** **** **** **** **** 1332",
         "sepa_accepted_at": "2026-10-08T09:30:00Z",
     },
-    # B17 — búsqueda global (#150)
+    # B17 — global search (#150)
     "SearchResponse": {
         "q": "diag",
         "organizations": {
@@ -696,14 +695,14 @@ _PAGE_EXAMPLES: dict[str, dict[str, Any]] = {
 
 
 def _add_schema_examples(schemas: dict[str, Any]) -> None:
-    """Añade ejemplos completos a los schemas generados por FastAPI."""
+    """Adds complete examples to the schemas generated by FastAPI."""
     for name, example in {**_SCHEMA_EXAMPLES, **_PAGE_EXAMPLES}.items():
         if name in schemas:
             schemas[name]["examples"] = [example]
 
 
 def _normalize_validation_responses(schema: dict[str, Any]) -> None:
-    """Documenta el 422 automático con el envelope real de la API."""
+    """Documents the automatic 422 with the real API envelope."""
     validation_example = {
         "error": {
             "code": "VALIDATION_ERROR",
@@ -726,15 +725,15 @@ def _normalize_validation_responses(schema: dict[str, Any]) -> None:
                 continue
             existing_content = response.get("content", {}).get("application/json", {})
             existing_schema = existing_content.get("schema", {}).get("$ref", "")
-            # Los 422 declarados con `error_response` ya llevan el código
-            # de negocio (por ejemplo EMPTY_FILE o FLOOR_OUT_OF_SITE).
-            # Solo sustituimos el 422 genérico que FastAPI añade por
-            # validación de Pydantic.
+            # The 422s declared with `error_response` already carry the
+            # business code (for example EMPTY_FILE or FLOOR_OUT_OF_SITE).
+            # Only the generic 422 FastAPI adds for Pydantic validation is
+            # replaced.
             if existing_content.get("example") or not existing_schema.endswith(
                 "/HTTPValidationError"
             ):
                 continue
-            response["description"] = "Los datos enviados no son válidos (`VALIDATION_ERROR`)."
+            response["description"] = "The data sent is not valid (`VALIDATION_ERROR`)."
             response["content"] = {
                 "application/json": {
                     "schema": {"$ref": "#/components/schemas/ErrorResponse"},
@@ -745,16 +744,16 @@ def _normalize_validation_responses(schema: dict[str, Any]) -> None:
 
 def _contract_schemas() -> dict[str, Any]:
     """
-    Genera las definiciones JSON Schema de los modelos de arriba.
+    Generates the JSON Schema definitions of the models above.
 
-    `models_json_schema` resuelve de una vez todo el grupo, de modo que
-    las referencias entre ellos (`SessionResponse` → `UserResponse`)
-    apunten al mismo sitio en lugar de duplicar la definición.
+    `models_json_schema` resolves the whole group at once, so references
+    between them (`SessionResponse` → `UserResponse`) point to the same
+    place instead of duplicating the definition.
 
-    `ref_template` es lo que hace que las referencias internas apunten a
-    `#/components/schemas/...`, que es donde OpenAPI las espera. Por
-    defecto Pydantic las pondría en `#/$defs/...` y Swagger las mostraría
-    rotas.
+    `ref_template` makes the internal references point to
+    `#/components/schemas/...`, where OpenAPI expects them. By default
+    Pydantic would put them in `#/$defs/...` and Swagger would show them
+    broken.
     """
     _, top_level = models_json_schema(
         [(model, "validation") for model in CONTRACT_MODELS],
@@ -768,11 +767,11 @@ def _contract_schemas() -> dict[str, Any]:
 
 def register_contract_schemas(app: FastAPI) -> None:
     """
-    Sustituye `app.openapi` por una versión que añade los contratos.
+    Replaces `app.openapi` with a version that adds the contracts.
 
-    Se envuelve la función original en lugar de reescribir la generación
-    entera: así todo lo que FastAPI deduce de las rutas sigue igual, y
-    esto solo añade.
+    The original function is wrapped instead of rewriting the whole
+    generation: everything FastAPI derives from the routes stays the same,
+    and this only adds.
     """
     original: Callable[[], dict[str, Any]] = app.openapi
 
@@ -780,16 +779,16 @@ def register_contract_schemas(app: FastAPI) -> None:
         schema = original()
         schemas = schema.setdefault("components", {}).setdefault("schemas", {})
         for name, definition in _contract_schemas().items():
-            # `setdefault` y no asignación directa: si un modelo ya salió
-            # por una ruta real, manda esa versión. Aquí solo se rellenan
-            # los que faltan.
+            # `setdefault`, not a plain assignment: if a model already came
+            # from a real route, that version wins. Only the missing ones
+            # are filled in here.
             schemas.setdefault(name, definition)
         _add_schema_examples(schemas)
         _normalize_validation_responses(schema)
 
-        # FastAPI genera el multipart de documentos a partir de la firma de
-        # la ruta. El schema tiene un nombre interno, por lo que el ejemplo
-        # se fija en el operation para que Swagger lo muestre siempre.
+        # FastAPI builds the documents multipart from the route signature.
+        # The schema has an internal name, so the example is set on the
+        # operation for Swagger to always show it.
         upload = schema.get("paths", {}).get("/api/documents", {}).get("post")
         if upload:
             multipart = upload.get("requestBody", {}).get("content", {}).get(
@@ -802,8 +801,8 @@ def register_contract_schemas(app: FastAPI) -> None:
                     "kind": "PLAN",
                 }
 
-        # La exportación ofrece dos representaciones. El CSV no puede usar
-        # un schema JSON, así que se documenta con una fila real de ejemplo.
+        # The export offers two representations. CSV cannot use a JSON
+        # schema, so it is documented with a real example row.
         export = schema.get("paths", {}).get("/api/analytics/export", {}).get("get")
         if export:
             content = export.get("responses", {}).get("200", {}).get("content", {})
@@ -837,8 +836,8 @@ def register_contract_schemas(app: FastAPI) -> None:
                     "44444444-4444-4444-8444-444444444444,SENS-001,"
                     "Presión entrada,bar,96,2.8,3.4,4.1,1,0,1\n"
                 )
-        # FastAPI cachea el documento en este atributo; se actualiza para
-        # que la siguiente petición a /api/openapi.json no lo regenere.
+        # FastAPI caches the document in this attribute; it is updated so
+        # the next request to /api/openapi.json does not regenerate it.
         app.openapi_schema = schema
         return schema
 

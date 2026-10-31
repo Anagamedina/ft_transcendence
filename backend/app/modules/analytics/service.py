@@ -1,12 +1,12 @@
 # SERVICE — analytics
-# Reglas de negocio y orquestación. No hablar HTTP aquí.
-# KPIs, agregaciones, rangos y exportación.
+# Business rules and orchestration. No HTTP here.
+# KPIs, aggregations, date ranges and export.
 """
-Exportación CSV de la analítica (issue #134, B18).
+CSV export of the analytics (issue #134, B18).
 
-Una fila por sensor y día con lecturas o alertas en el periodo. Junta las
-dos cosas en la misma tabla para que se abra tal cual en una hoja de
-cálculo. Las columnas están en `EXPORT_COLUMNS` y en el README.
+One row per sensor and day with readings or alerts in the period. It
+joins both in the same table so it opens as is in a spreadsheet. The
+columns are in `EXPORT_COLUMNS` and in the README.
 """
 
 from __future__ import annotations
@@ -126,5 +126,5 @@ class AnalyticsService:
 
 
 def get_analytics_service(db: DbSession) -> AnalyticsService:
-    """Proveedor del service para `Depends`."""
+    """Service provider for `Depends`."""
     return AnalyticsService(db)

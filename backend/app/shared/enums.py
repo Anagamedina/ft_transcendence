@@ -1,30 +1,31 @@
-# ENUMS — vocabulario común de la API (issue #138, B0).
-# Un único sitio para los valores que comparten varios módulos.
+# ENUMS — shared vocabulary of the API (issue #138, B0).
+# One single place for the values several modules share.
 """
-Valores cerrados de la API (issue #138, B0).
+Closed values of the API (issue #138, B0).
 
-Antes de la B0 cada módulo declaraba los suyos. Con el rediseño, las
-mismas palabras aparecen en varias pantallas y en varios endpoints: el
-estado de una organización sale en la lista de clientes, en su ficha y en
-Mi cuenta. Si cada módulo lo escribe por su cuenta, tarde o temprano uno
-dice `TRIAL` y otro `TRIALING`. Por eso viven todos aquí.
+Before B0 each module declared its own. With the redesign, the same words
+appear on several screens and in several endpoints: the status of an
+organization shows up in the client list, on its page and in My account.
+If each module writes it on its own, sooner or later one says `TRIAL` and
+another `TRIALING`. That is why they all live here.
 
-Convenio: valores en `UPPER_SNAKE_CASE`, iguales al nombre. Los módulos
-los importan desde aquí y no los redefinen; se pueden seguir importando
-desde `modules/*/schemas.py`, que los reexportan.
+Convention: values in `UPPER_SNAKE_CASE`, equal to the name. Modules
+import them from here and do not redefine them; they can still be
+imported from `modules/*/schemas.py`, which re-export them.
 
-La única excepción es `UserRole` (`admin` / `client`, en minúsculas), que
-se queda en `users/schemas.py`: así se guarda en la tabla y así lo usan ya
-el frontend y la cookie. Cambiarlo no aporta nada y rompe a todos.
+The only exception is `UserRole` (`admin` / `client`, lowercase), which
+stays in `users/schemas.py`: that is how it is stored in the table and how
+the frontend and the cookie already use it. Changing it adds nothing and
+breaks everyone.
 
-Estados **guardados** frente a estados **calculados**:
+**Stored** states versus **computed** states:
 
-- Guardados (la tabla tiene un CHECK con los mismos valores):
+- Stored (the table has a CHECK with the same values):
   `OrganizationStatus`, `SubscriptionPlan`, `BuildingType`, `SensorType`,
-  `DocumentKind`, `AlertType`, `AlertSeverity`, `AlertStatus`. Si se cambia uno, hay que cambiar su
-  CHECK con una migración (Daruny).
-- Calculados al responder, nunca se guardan: `SiteStatus`,
-  `SensorStatus`, `SensorHealth`, `AlertState`, `InvitationStatus`.
+  `DocumentKind`, `AlertType`, `AlertSeverity`, `AlertStatus`. Changing
+  one means changing its CHECK with a migration (Daruny).
+- Computed when answering, never stored: `SiteStatus`, `SensorStatus`,
+  `SensorHealth`, `AlertState`, `InvitationStatus`.
 """
 
 from __future__ import annotations
@@ -33,15 +34,15 @@ from enum import Enum
 
 
 # ---------------------------------------------------------
-# ORGANIZACIONES
+# ORGANIZATIONS
 # ---------------------------------------------------------
 class OrganizationStatus(str, Enum):
     """
-    Situación comercial del cliente. CHECK `ck_organizations_status`.
+    Commercial situation of the client. CHECK `ck_organizations_status`.
 
-    - `TRIAL`     → prueba de 7 días del registro público (B10).
-    - `ACTIVE`    → cliente de pago. Las organizaciones antiguas lo son.
-    - `SUSPENDED` → sus usuarios no pueden entrar (B1).
+    - `TRIAL`     → 7-day trial of the public sign-up (B10).
+    - `ACTIVE`    → paying client. Older organizations are this.
+    - `SUSPENDED` → its users cannot log in (B1).
     """
 
     TRIAL = "TRIAL"
@@ -51,8 +52,8 @@ class OrganizationStatus(str, Enum):
 
 class SubscriptionPlan(str, Enum):
     """
-    Plan contratado al pasar de la prueba a cliente (B14). CHECK
-    `ck_organizations_plan`. El catálogo con precios y límites está en
+    Plan chosen when going from trial to client (B14). CHECK
+    `ck_organizations_plan`. The catalog with prices and limits is in
     `modules/subscriptions/plans.py`.
     """
 
@@ -63,10 +64,10 @@ class SubscriptionPlan(str, Enum):
 
 class BillingPeriod(str, Enum):
     """
-    Cada cuánto se cobra el plan (B14). CHECK `ck_organizations_billing_period`.
+    How often the plan is charged (B14). CHECK `ck_organizations_billing_period`.
 
-    - `MONTHLY` → el precio del plan cada mes, sin permanencia.
-    - `YEARLY`  → diez meses por adelantado: dos meses gratis.
+    - `MONTHLY` → the plan price every month, no commitment.
+    - `YEARLY`  → ten months in advance: two months free.
     """
 
     MONTHLY = "MONTHLY"
@@ -74,10 +75,10 @@ class BillingPeriod(str, Enum):
 
 
 # ---------------------------------------------------------
-# EDIFICIOS
+# BUILDINGS
 # ---------------------------------------------------------
 class BuildingType(str, Enum):
-    """Tipo de edificio. CHECK `ck_sites_building_type`. B2."""
+    """Building type. CHECK `ck_sites_building_type`. B2."""
 
     HOTEL = "HOTEL"
     COMMUNITY = "COMMUNITY"
@@ -90,15 +91,15 @@ class BuildingType(str, Enum):
 
 class SiteStatus(str, Enum):
     """
-    Estado de un edificio, calculado con sus alertas abiertas (B2).
+    Status of a building, computed from its open alerts (B2).
 
-    - `CRITICAL` → algún sensor tiene una alerta CRITICAL sin resolver.
-    - `WARNING`  → solo tiene alertas WARNING sin resolver.
-    - `OK`       → ninguna alerta abierta.
+    - `CRITICAL` → some sensor has an unresolved CRITICAL alert.
+    - `WARNING`  → it only has unresolved WARNING alerts.
+    - `OK`       → no open alert.
 
-    Decidido por Ana el 10-10-2026. Es el mismo criterio con el que el mapa
-    colorea los marcadores. Un sensor desconectado ya abre una alerta
-    `SENSOR_OFFLINE` CRITICAL, así que también cuenta.
+    Decided by Ana on 2026-10-10. It is the same rule the map uses to
+    color its markers. A disconnected sensor already opens a CRITICAL
+    `SENSOR_OFFLINE` alert, so it counts too.
     """
 
     OK = "OK"
@@ -107,15 +108,15 @@ class SiteStatus(str, Enum):
 
 
 # ---------------------------------------------------------
-# SENSORES
+# SENSORS
 # ---------------------------------------------------------
 class SensorType(str, Enum):
     """
-    Magnitud que mide el sensor.
+    Quantity the sensor measures.
 
-    El documento fija la presión como medición principal y el caudal como
-    opcional (apartado 1.2). El MVP y el simulador trabajan con PRESSURE;
-    FLOW queda declarado para no tener que cambiar el contrato después.
+    The document sets pressure as the main measurement and flow as
+    optional (section 1.2). The MVP and the simulator work with PRESSURE;
+    FLOW is declared so the contract does not have to change later.
     """
 
     PRESSURE = "PRESSURE"
@@ -124,13 +125,13 @@ class SensorType(str, Enum):
 
 class SensorStatus(str, Enum):
     """
-    Estado operativo del sensor: ¿está mandando lecturas?
+    Operational status of the sensor: is it sending readings?
 
-    - `ONLINE`   → ha enviado lecturas dentro de la ventana esperada.
-    - `OFFLINE`  → lleva demasiado tiempo sin enviar (issue #28).
+    - `ONLINE`   → it has sent readings within the expected window.
+    - `OFFLINE`  → it has gone too long without sending (issue #28).
 
-    Lo calcula el backend a partir de `last_seen_at` (`sensors/status.py`);
-    no es un campo que el cliente pueda escribir.
+    The backend computes it from `last_seen_at` (`sensors/status.py`); the
+    client cannot write it.
     """
 
     ONLINE = "ONLINE"
@@ -139,20 +140,21 @@ class SensorStatus(str, Enum):
 
 class SensorHealth(str, Enum):
     """
-    Salud del sensor tal y como la pintan las pantallas: el color del
-    punto en la planta del edificio. Calculada, no se guarda.
+    Health of the sensor as the screens paint it: the color of the dot on
+    the building floor. Computed, never stored.
 
-    Junta las dos preguntas que le importan a quien mira el panel:
-    ¿manda datos? y ¿lo que manda está bien? Por orden de prioridad:
+    It joins the two questions that matter to whoever looks at the panel:
+    is it sending data? and is what it sends fine? In order of priority:
 
-    - `OFFLINE`  → más de 5 minutos sin lecturas (misma regla que
-      `SensorStatus`, en `sensors/status.py`).
-    - `CRITICAL` → tiene una alerta activa de gravedad CRITICAL.
-    - `WARNING`  → tiene una alerta activa de gravedad WARNING.
-    - `OK`       → todo lo demás.
+    - `OFFLINE`  → more than 5 minutes without readings (same rule as
+      `SensorStatus`, in `sensors/status.py`).
+    - `CRITICAL` → it has an active alert of CRITICAL severity.
+    - `WARNING`  → it has an active alert of WARNING severity.
+    - `OK`       → everything else.
 
-    No sustituye a `SensorStatus`: el frontend ya usa `status` y se
-    mantiene. El cálculo y el campo `health` en la respuesta son de la B3.
+    It does not replace `SensorStatus`: the frontend already uses `status`
+    and it stays. The computation and the `health` field in the response
+    come from B3.
     """
 
     OK = "OK"
@@ -162,10 +164,10 @@ class SensorHealth(str, Enum):
 
 
 # ---------------------------------------------------------
-# DOCUMENTOS
+# DOCUMENTS
 # ---------------------------------------------------------
 class DocumentKind(str, Enum):
-    """Tipo de documento de un edificio. CHECK `ck_documents_kind`. B11."""
+    """Type of a building document. CHECK `ck_documents_kind`. B11."""
 
     PLAN = "PLAN"
     REPORT = "REPORT"
@@ -175,10 +177,10 @@ class DocumentKind(str, Enum):
 
 
 # ---------------------------------------------------------
-# ALERTAS
+# ALERTS
 # ---------------------------------------------------------
 class AlertType(str, Enum):
-    """Regla que disparó la alerta. Los tres casos del apartado 1.2."""
+    """Rule that fired the alert. The three cases of section 1.2."""
 
     LOW_PRESSURE = "LOW_PRESSURE"
     HIGH_PRESSURE = "HIGH_PRESSURE"
@@ -187,10 +189,10 @@ class AlertType(str, Enum):
 
 class AlertSeverity(str, Enum):
     """
-    Gravedad.
+    Severity.
 
-    Es distinta del tipo: una presión baja puede ser WARNING si roza el
-    umbral y CRITICAL si se desploma (issue #28).
+    It is different from the type: low pressure can be WARNING if it
+    grazes the threshold and CRITICAL if it collapses (issue #28).
     """
 
     WARNING = "WARNING"
@@ -199,10 +201,10 @@ class AlertSeverity(str, Enum):
 
 class AlertStatus(str, Enum):
     """
-    Ciclo de vida **guardado** en la tabla. CHECK `ck_alerts_status`.
+    Life cycle **stored** in the table. CHECK `ck_alerts_status`.
 
-    Solo dos valores: reconocer una alerta no cambia su `status`, rellena
-    `acknowledged_at`. Lo que ve la pantalla es `AlertState`.
+    Only two values: acknowledging an alert does not change its `status`,
+    it fills `acknowledged_at`. What the screen shows is `AlertState`.
     """
 
     ACTIVE = "ACTIVE"
@@ -211,15 +213,15 @@ class AlertStatus(str, Enum):
 
 class AlertState(str, Enum):
     """
-    Estado de la alerta tal y como lo ven las pantallas. Calculado.
+    State of the alert as the screens show it. Computed.
 
-    - `RESOLVED`     → `status` es RESOLVED.
-    - `ACKNOWLEDGED` → sigue activa, pero alguien la ha reconocido.
-    - `ACTIVE`       → sigue activa y nadie la ha reconocido.
+    - `RESOLVED`     → `status` is RESOLVED.
+    - `ACKNOWLEDGED` → still active, but someone has acknowledged it.
+    - `ACTIVE`       → still active and nobody has acknowledged it.
 
-    Se deriva de `status` + `acknowledged_at` en vez de añadir un tercer
-    valor a la tabla: así no se toca el CHECK y no se pierde cuándo se
-    reconoció una alerta que luego se resolvió.
+    It is derived from `status` + `acknowledged_at` instead of adding a
+    third value to the table: the CHECK stays untouched and we do not lose
+    when an alert that was later resolved had been acknowledged.
     """
 
     ACTIVE = "ACTIVE"
@@ -228,7 +230,7 @@ class AlertState(str, Enum):
 
     @classmethod
     def derive(cls, status: str, acknowledged_at: object | None) -> "AlertState":
-        """`status` es el de la tabla; `acknowledged_at`, su columna."""
+        """`status` is the table one; `acknowledged_at`, its column."""
         if status == AlertStatus.RESOLVED.value:
             return cls.RESOLVED
         if acknowledged_at is not None:
@@ -237,17 +239,17 @@ class AlertState(str, Enum):
 
 
 # ---------------------------------------------------------
-# INVITACIONES — contrato de la B4 (#141)
+# INVITATIONS — B4 contract (#141)
 # ---------------------------------------------------------
 class InvitationStatus(str, Enum):
     """
-    Estado de una invitación. Calculado: la tabla (D3, Daruny) guarda
-    fechas, no un estado.
+    Status of an invitation. Computed: the table (D3, Daruny) stores
+    dates, not a status.
 
-    - `ACCEPTED` → `accepted_at` tiene fecha.
-    - `REVOKED`  → `revoked_at` tiene fecha.
-    - `EXPIRED`  → ni aceptada ni revocada, y `expires_at` ya pasó.
-    - `PENDING`  → ni aceptada ni revocada, y todavía no ha caducado.
+    - `ACCEPTED` → `accepted_at` has a date.
+    - `REVOKED`  → `revoked_at` has a date.
+    - `EXPIRED`  → neither accepted nor revoked, and `expires_at` has passed.
+    - `PENDING`  → neither accepted nor revoked, and not expired yet.
     """
 
     PENDING = "PENDING"

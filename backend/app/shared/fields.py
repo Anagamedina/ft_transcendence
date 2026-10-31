@@ -1,19 +1,20 @@
 """
-Reglas comunes de los campos de personas y organizaciones.
+Shared rules for the fields of people and organizations.
 
-Igual que `shared/passwords.py`: una sola regla por dato, la usan todas las
-rutas donde ese dato se escribe (alta, edición, registro, invitación,
-"Hazte cliente"). Antes cada ruta tenía la suya y un mismo teléfono o NIF
-se aceptaba en un sitio y se rechazaba en otro.
+Like `shared/passwords.py`: one rule per piece of data, used by every
+route where that data is written (create, edit, sign-up, invitation,
+"Hazte cliente"). Before, each route had its own, and the same phone
+number or tax id was accepted in one place and rejected in another.
 
-Cada función devuelve el valor ya normalizado, que es lo que se guarda, o
-corta con 422 y un código propio (`INVALID_NAME`, `INVALID_PHONE`,
-`INVALID_TAX_ID`, `INVALID_POSTAL_CODE`, `INVALID_IBAN`) para que el
-formulario sepa qué campo marcar. Por eso viven en el service y no en el
-schema: el schema solo daría el genérico `VALIDATION_ERROR`.
+Each function returns the already normalized value, which is what gets
+stored, or stops with a 422 and its own code (`INVALID_NAME`,
+`INVALID_PHONE`, `INVALID_TAX_ID`, `INVALID_POSTAL_CODE`, `INVALID_IBAN`)
+so the form knows which field to mark. That is why they live in the
+service and not in the schema: the schema would only give the generic
+`VALIDATION_ERROR`.
 
-Las mismas reglas, con los mismos mensajes, están en
-`frontend/src/utils/validation.js`. Si cambias una, cambia las dos.
+The same rules, with the same messages, are in
+`frontend/src/utils/validation.js`. If you change one, change both.
 """
 
 from __future__ import annotations
@@ -24,24 +25,24 @@ import unicodedata
 from app.core.exceptions import DomainValidationError
 
 _ESPACIOS = re.compile(r"\s+")
-# Separadores que la gente escribe en NIF, IBAN y teléfonos.
+# Separators people type in tax ids, IBANs and phone numbers.
 _SEPARADORES = re.compile(r"[\s.\-]")
 _SEPARADORES_TELEFONO = re.compile(r"[\s.\-()]")
 
-# Teléfono español: 9 cifras que empiezan por 6 o 7 (móvil) o por 8 o 9
-# (fijo), con el prefijo +34 o 0034 opcional.
+# Spanish phone: 9 digits starting with 6 or 7 (mobile) or 8 or 9
+# (landline), with an optional +34 or 0034 prefix.
 _TELEFONO = re.compile(r"^[6789][0-9]{8}$")
-# NIF, NIE, CIF o el identificador fiscal de otro país, ya sin separadores.
+# NIF, NIE, CIF or another country's tax id, without separators.
 _TAX_ID = re.compile(r"^[A-Z0-9]{8,15}$")
-# IBAN español: ES y 22 cifras. Los dígitos de control no se comprueban.
+# Spanish IBAN: ES and 22 digits. The check digits are not verified.
 _IBAN = re.compile(r"^ES[0-9]{22}$")
-# Código postal español: cinco cifras.
+# Spanish postal code: five digits.
 _POSTAL_CODE = re.compile(r"^[0-9]{5}$")
-# Además de letras y espacios, un nombre de persona puede tener
-# apóstrofos (O'Neill), guiones (Pérez-Gil) y puntos (Laura P.).
+# Besides letters and spaces, a person's name can have apostrophes
+# (O'Neill), hyphens (Pérez-Gil) and periods (Laura P.).
 _SIGNOS_NOMBRE = frozenset("'’-.")
-# Y el de una organización, además de números, los signos de los nombres
-# de empresa: «Hotel Mar, S.L.», «Ca n'Oller», «Mar & Sol (Gràcia)».
+# And an organization's name, besides numbers, the signs used in company
+# names: "Hotel Mar, S.L.", "Ca n'Oller", "Mar & Sol (Gràcia)".
 _SIGNOS_ORGANIZACION = frozenset(".,'’-&()")
 
 
@@ -52,10 +53,10 @@ MENSAJE_NOMBRE_ORGANIZACION = (
 
 def clean_text(valor: str | None) -> str | None:
     """
-    '  Hotel   Mar ' → 'Hotel Mar'. Un texto vacío pasa a `None`.
+    '  Hotel   Mar ' → 'Hotel Mar'. An empty text becomes `None`.
 
-    NFC junta la letra y su acento en un solo carácter: «ò» escrito como
-    «o» + «̀» y «ò» de un solo carácter son el mismo nombre.
+    NFC joins a letter and its accent into one character: "ò" typed as
+    "o" + "̀" and a single-character "ò" are the same name.
     """
     if valor is None:
         return None
@@ -64,12 +65,12 @@ def clean_text(valor: str | None) -> str | None:
 
 
 def normalize_email(valor: str) -> str:
-    """' Ana@X.com ' → 'ana@x.com': el mismo email, escrito como sea."""
+    """' Ana@X.com ' → 'ana@x.com': the same email, however it is typed."""
     return valor.strip().lower()
 
 
 def person_name(valor: str | None) -> str:
-    """Nombre de una persona: letras, espacios, `'`, `-` y `.`."""
+    """Name of a person: letters, spaces, `'`, `-` and `.`."""
     nombre = clean_text(valor)
     if nombre is None:
         _invalido("name", "El nombre no puede estar vacío.", "INVALID_NAME")
@@ -86,10 +87,10 @@ def person_name(valor: str | None) -> str:
 
 def organization_name(valor: str | None, campo: str = "name") -> str:
     """
-    Nombre de una organización: letras (con acentos, «ñ» y «ç»), números,
-    espacios y los signos `. , ' ’ - & ( )`, con al menos una letra o un
-    número. Fuera quedan `@`, `#`, `/`, `<`, `!`… que no forman parte del
-    nombre de una empresa.
+    Name of an organization: letters (with accents, "ñ" and "ç"), numbers,
+    spaces and the signs `. , ' ’ - & ( )`, with at least one letter or
+    number. `@`, `#`, `/`, `<`, `!`… are left out: they are not part of a
+    company name.
     """
     nombre = clean_text(valor)
     if nombre is None:
@@ -145,13 +146,13 @@ def check_postal_code(valor: str) -> str:
 
 def mask_iban(valor: str) -> str:
     """
-    IBAN español enmascarado, o 422 `INVALID_IBAN`.
+    Masked Spanish IBAN, or 422 `INVALID_IBAN`.
 
         'ES91 2100 0418 4502 0005 1332' → 'ES** **** **** **** **** 1332'
 
-    Solo se comprueba la forma (`ES` y 22 cifras), no los dígitos de
-    control: no hay cobro real, y una regla más estricta solo frenaría el
-    alta por un dígito mal copiado.
+    Only the shape is checked (`ES` and 22 digits), not the check digits:
+    there is no real charge, and a stricter rule would only block a
+    subscription over one mistyped digit.
     """
     iban = _SEPARADORES.sub("", valor).upper()
     if not _IBAN.match(iban):

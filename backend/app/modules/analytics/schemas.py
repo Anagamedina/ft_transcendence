@@ -1,6 +1,6 @@
 # SCHEMAS — analytics
-# Pydantic request/response (contrato OpenAPI). No devolver model ORM crudo.
-"""Contrato de la exportación CSV (issue #134, B18) y del panel de KPIs (B9, #144)."""
+# Pydantic request/response (OpenAPI contract). Never return a raw ORM model.
+"""Contract of the CSV export (issue #134, B18) and of the KPI panel (B9, #144)."""
 
 from __future__ import annotations
 
@@ -15,8 +15,8 @@ from app.shared.schemas import ApiModel
 
 class ExportFormat(str, Enum):
     """
-    `csv` descarga el archivo. `json` devuelve las mismas filas para que el
-    panel (F19) dibuje los gráficos sin parsear CSV. El PDF queda fuera.
+    `csv` downloads the file. `json` returns the same rows so the panel
+    (F19) draws the charts without parsing CSV. PDF is out of scope.
     """
 
     CSV = "csv"
@@ -24,7 +24,7 @@ class ExportFormat(str, Enum):
 
 
 class DailyRow(BaseModel):
-    """Una fila de la exportación en JSON: mismas columnas que el CSV."""
+    """One row of the export in JSON: the same columns as the CSV."""
 
     date: str
     organization: str
@@ -43,19 +43,19 @@ class DailyRow(BaseModel):
     alerts_resolved: int
 
 
-# Columnas del CSV, en orden. Son parte del contrato con el frontend (F19):
-# cambiarlas es un cambio de API. Documentadas también en el README.
+# CSV columns, in order. They are part of the contract with the frontend
+# (F19): changing them is an API change. Also documented in the README.
 #
-#   date                YYYY-MM-DD, en UTC
-#   organization, site  nombres actuales
-#   sensor_id           UUID del sensor
-#   sensor_external_id  identificador del fabricante
-#   sensor_name, unit   unidad de las tres columnas de presión
-#   readings_count      lecturas recibidas ese día
-#   pressure_min/avg/max  presión mínima, media y máxima (3 decimales; vacías sin lecturas)
-#   alerts_total        alertas creadas ese día
-#   alerts_critical     de ellas, CRITICAL
-#   alerts_resolved     de ellas, ya resueltas
+#   date                YYYY-MM-DD, in UTC
+#   organization, site  current names
+#   sensor_id           sensor UUID
+#   sensor_external_id  manufacturer identifier
+#   sensor_name, unit   unit of the three pressure columns
+#   readings_count      readings received that day
+#   pressure_min/avg/max  minimum, average and maximum pressure (3 decimals; empty without readings)
+#   alerts_total        alerts created that day
+#   alerts_critical     of them, CRITICAL
+#   alerts_resolved     of them, already resolved
 EXPORT_COLUMNS = [
     "date",
     "organization",
@@ -75,11 +75,11 @@ EXPORT_COLUMNS = [
 
 
 # ---------------------------------------------------------
-# CONTRATO DE LA B9 — panel y KPIs (Ana, #144)
+# B9 CONTRACT — panel and KPIs (Ana, #144)
 # ---------------------------------------------------------
-# Se publica antes que las rutas, como en la #23, para que el panel (F12,
-# Eduardo) se monte con mocks. Rutas previstas, todas con sesión; un
-# cliente solo ve su organización (OrgScope):
+# Published before the routes, as in #23, so the panel (F12, Eduardo)
+# could be built with mocks. Routes, all with a session; a client only
+# sees its organization (OrgScope):
 #
 #   GET /api/analytics/overview                               → OverviewResponse
 #   GET /api/analytics/alerts/weekly?site_id=&week_start=     → WeeklyAlertsResponse
@@ -88,70 +88,69 @@ EXPORT_COLUMNS = [
 
 class OverviewResponse(ApiModel):
     """
-    Las tarjetas de KPI del panel. Los dos campos de organizaciones solo
-    tienen valor para el admin; para un cliente salen `null`.
+    The KPI cards of the panel. The two organization fields only have a
+    value for the admin; for a client they are `null`.
     """
 
     organizations_total: int | None = Field(
-        default=None, description="Clientes (solo admin).", examples=[5]
+        default=None, description="Clients (admin only).", examples=[5]
     )
     organizations_needing_attention: int | None = Field(
         default=None,
-        description="Clientes con alguna alerta sin resolver (solo admin).",
+        description="Clients with some unresolved alert (admin only).",
         examples=[2],
     )
     sites_total: int = Field(examples=[6])
     sensors_total: int = Field(examples=[8])
     sensors_online: int = Field(
-        description="Sensores que han mandado una lectura en los últimos 5 minutos.",
+        description="Sensors that sent a reading in the last 5 minutes.",
         examples=[6],
     )
-    open_alerts: int = Field(description="Alertas sin resolver.", examples=[3])
+    open_alerts: int = Field(description="Unresolved alerts.", examples=[3])
     critical_open_alerts: int = Field(
-        description="De ellas, CRITICAL.", examples=[1]
+        description="Of them, CRITICAL.", examples=[1]
     )
     median_resolution_minutes: float | None = Field(
         default=None,
         description=(
-            "Mediana de lo que tardaron en resolverse las alertas resueltas "
-            "en los últimos 30 días (`percentile_cont` de PostgreSQL). Nula "
-            "si no se resolvió ninguna."
+            "Median time to resolve the alerts resolved in the last 30 days "
+            "(PostgreSQL `percentile_cont`). Null if none was resolved."
         ),
         examples=[42.5],
     )
 
 
 class WeeklyAlertsRow(ApiModel):
-    """Una fila del mapa de calor: un sensor y sus alertas de cada día."""
+    """One row of the heat map: a sensor and its alerts on each day."""
 
     sensor_id: UUID
     sensor_name: str = Field(examples=["Presión entrada"])
     floor: int = Field(examples=[0])
     counts: list[int] = Field(
-        description="Alertas creadas cada día, en el orden de `days` (7 números).",
+        description="Alerts created each day, in the order of `days` (7 numbers).",
         examples=[[0, 2, 0, 1, 0, 0, 3]],
     )
 
 
 class WeeklyAlertsResponse(ApiModel):
-    """Alertas de una semana por sensor y día, de un edificio."""
+    """Alerts of one week per sensor and day, of one building."""
 
     site_id: UUID
     site_name: str = Field(examples=["Residencia Sant Gervasi"])
     week_start: date = Field(
-        description="Lunes de la semana. Por defecto, el de la semana actual.",
+        description="Monday of the week. By default, the current week's.",
         examples=["2026-10-05"],
     )
     days: list[date] = Field(
-        description="Los 7 días de la semana, de lunes a domingo, en UTC.",
+        description="The 7 days of the week, Monday to Sunday, in UTC.",
     )
     rows: list[WeeklyAlertsRow] = Field(
-        description="Un sensor por fila, también los que no tuvieron alertas."
+        description="One sensor per row, also those without alerts."
     )
 
 
 class TopSensorItem(ApiModel):
-    """Un sensor del ranking de los que más alertas dan."""
+    """A sensor of the ranking of those with the most alerts."""
 
     sensor_id: UUID
     sensor_name: str = Field(examples=["Presión vestuarios"])
@@ -164,9 +163,9 @@ class TopSensorItem(ApiModel):
 
 
 class TopSensorsResponse(ApiModel):
-    """Los sensores con más alertas en los últimos `days` días (30 por defecto)."""
+    """The sensors with the most alerts in the last `days` days (30 by default)."""
 
     days: int = Field(examples=[30])
     items: list[TopSensorItem] = Field(
-        description="De más a menos alertas; como mucho 10."
+        description="From most to fewest alerts; 10 at most."
     )

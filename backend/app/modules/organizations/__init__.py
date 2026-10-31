@@ -1,1 +1,1 @@
-# Módulo organizations — CRUD organizaciones y miembros (multi-tenant).
+# organizations module — CRUD of organizations and members (multi-tenant).

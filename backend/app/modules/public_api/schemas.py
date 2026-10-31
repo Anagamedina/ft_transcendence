@@ -1,4 +1,4 @@
-"""Contratos de escritura de la API pública."""
+"""Write contracts of the public API."""
 
 from __future__ import annotations
 
@@ -7,11 +7,11 @@ from app.modules.sites.schemas import SiteBase
 
 class PublicSiteWrite(SiteBase):
     """
-    Edificio que crea (POST) o reemplaza (PUT) la API pública.
+    Building the public API creates (POST) or replaces (PUT).
 
-    Son los campos del alta del admin sin `organization_id`: la organización
-    sale siempre de la API key, así que no se puede crear ni mover un
-    edificio a otro cliente. En un PUT, un campo opcional que no se envía
-    vuelve a su valor por defecto, porque el PUT reemplaza el edificio
-    entero; para cambiar un solo campo está el PATCH de la app.
+    They are the fields of the admin creation without `organization_id`:
+    the organization always comes from the API key, so a building cannot
+    be created in or moved to another client. In a PUT, an optional field
+    that is not sent goes back to its default, because the PUT replaces
+    the whole building; to change a single field there is the app PATCH.
     """

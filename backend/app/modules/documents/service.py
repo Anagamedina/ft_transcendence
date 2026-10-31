@@ -1,27 +1,28 @@
 # SERVICE — documents
-# Reglas de negocio y orquestación. No hablar HTTP aquí.
+# Business rules and orchestration. No HTTP here.
 """
-Documentos de cada edificio (B11, issue #147).
+Documents of each building (B11, issue #147).
 
-Reglas:
+Rules:
 
-- **Alcance.** Un cliente sube, lista, descarga y borra solo en los
-  edificios de su organización; un admin, en todos. Un documento o un
-  edificio de otra organización responde 404, igual que uno que no existe.
-- **El cliente no borra lo que sube un admin** (403
-  `DOCUMENT_UPLOADED_BY_ADMIN`). Si el autor ya no existe no se sabe quién
-  lo subió, así que tampoco: lo borra un admin.
-- **El tipo se decide por el contenido**, nunca por la extensión ni por el
-  `Content-Type` que manda el navegador: PDF, JPG y PNG por su firma, CSV
-  por ser texto. Es lo que se guarda en `content_type` y con lo que se
-  sirve la descarga.
-- **Hasta `MAX_UPLOAD_MB`** (413 `FILE_TOO_LARGE`). El gateway ya corta
-  antes, pero el backend no se fía de que haya un gateway delante.
+- **Scope.** A client uploads, lists, downloads and deletes only in the
+  buildings of their organization; an admin, in all of them. A document
+  or a building from another organization answers 404, like one that does
+  not exist.
+- **The client does not delete what an admin uploads** (403
+  `DOCUMENT_UPLOADED_BY_ADMIN`). If the author no longer exists, nobody
+  knows who uploaded it, so neither: an admin deletes it.
+- **The type is decided by the content**, never by the extension nor by
+  the `Content-Type` the browser sends: PDF, JPG and PNG by their
+  signature, CSV by being text. It is what is stored in `content_type` and
+  what the download is served with.
+- **Up to `MAX_UPLOAD_MB`** (413 `FILE_TOO_LARGE`). The gateway already
+  cuts earlier, but the backend does not trust that a gateway is in front.
 
-Archivo y fila no comparten transacción: el archivo se escribe antes del
-INSERT y se borra si el INSERT falla; al borrar, primero se borra la fila y
-después del commit el archivo. Así nunca queda una fila sin archivo; como
-mucho, un archivo huérfano si el proceso muere justo en medio.
+File and row do not share a transaction: the file is written before the
+INSERT and deleted if the INSERT fails; on delete, the row goes first and
+the file after the commit. So there is never a row without a file; at
+most, an orphan file if the process dies right in between.
 """
 
 from __future__ import annotations
@@ -52,14 +53,14 @@ from app.shared.dependencies import DbSession
 from app.shared.enums import DocumentKind
 from app.shared.schemas import Page
 
-# Firmas de los formatos binarios admitidos (los primeros bytes del archivo).
+# Signatures of the accepted binary formats (the first bytes of the file).
 _FIRMAS = (
     (b"%PDF-", "application/pdf"),
     (b"\xff\xd8\xff", "image/jpeg"),
     (b"\x89PNG\r\n\x1a\n", "image/png"),
 )
-# Un CSV es texto: fuera de tabuladores y saltos de línea, ningún carácter
-# de control. Un binario cualquiera (un .exe renombrado a .csv) los tiene.
+# A CSV is text: apart from tabs and line breaks, no control characters. Any
+# binary (an .exe renamed to .csv) has them.
 _CONTROL = re.compile(r"[\x00-\x08\x0b\x0e-\x1f\x7f]")
 
 FILENAME_MAX = 255
@@ -70,7 +71,7 @@ class DocumentService:
         self.db = db
         self.documents = DocumentRepository(db)
         self.sites = SiteRepository(db)
-        # Carpeta de los archivos; los tests la cambian por una temporal.
+        # Folder of the files; the tests replace it with a temporary one.
         self.root = root
 
     def list(
@@ -107,23 +108,24 @@ class DocumentService:
         filename: str | None,
         source: BinaryIO,
     ) -> DocumentResponse:
-        # El edificio tiene que ser visible para quien sube; la organización
-        # del documento sale de él, nunca de la petición.
+        # The building must be visible to the uploader; the organization of
+        # the document comes from it, never from the request.
         if self.sites.get_by_id(site_id, organization_id) is None:
             raise NotFoundError("El site indicado no existe.", code="SITE_NOT_FOUND")
 
         size = _size(source)
         content_type = detect_content_type(source)
 
-        # Lo genera el backend: dos «plano.pdf» no chocan y el nombre del
-        # usuario nunca llega a ser una ruta del disco.
+        # The backend generates it: two "plano.pdf" do not clash and the
+        # user's file name never becomes a path on disk.
         storage_key = uuid.uuid4().hex
         storage.save_file(source, storage_key, root=self.root)
         try:
             with transaction(self.db):
-                # Bloquea el edificio como su borrado (B2): si se está
-                # borrando a la vez, uno espera al otro y no queda un
-                # documento colgando de un edificio que ya no existe.
+                # Locks the building like its deletion does (B2): if it is
+                # being deleted at the same time, one waits for the other
+                # and no document is left hanging from a building that no
+                # longer exists.
                 site = self.sites.get_for_update(site_id)
                 if site is None:
                     raise NotFoundError(
@@ -147,7 +149,7 @@ class DocumentService:
     def download(
         self, document_id: UUID, organization_id: UUID | None
     ) -> tuple[Document, Path]:
-        """El documento y su archivo, si quien pregunta puede verlo."""
+        """The document and its file, if the caller can see it."""
         fila = self._visible(document_id, organization_id)
         path = storage.file_path(fila.document.storage_key, root=self.root)
         if path is None:
@@ -167,7 +169,7 @@ class DocumentService:
                 )
             storage_key = fila.document.storage_key
             self.documents.delete(fila.document)
-        # Después del commit: si la transacción falla, el archivo sigue ahí.
+        # After the commit: if the transaction fails, the file is still there.
         storage.delete_files([storage_key], root=self.root)
 
     def _visible(self, document_id: UUID, organization_id: UUID | None) -> DocumentRow:
@@ -180,7 +182,7 @@ class DocumentService:
 
 
 def _size(source: BinaryIO) -> int:
-    """Tamaño del archivo subido, o 413 si pasa de `MAX_UPLOAD_MB`."""
+    """Size of the uploaded file, or 413 if it is over `MAX_UPLOAD_MB`."""
     source.seek(0, 2)
     size = source.tell()
     source.seek(0)
@@ -196,11 +198,11 @@ def _size(source: BinaryIO) -> int:
 
 def detect_content_type(source: BinaryIO) -> str:
     """
-    El tipo del archivo según su contenido, o 422 `UNSUPPORTED_FILE_TYPE`.
+    The file type according to its content, or 422 `UNSUPPORTED_FILE_TYPE`.
 
-    PDF, JPG y PNG se reconocen por su firma. Lo demás solo se acepta como
-    CSV si es texto: UTF-8 (con o sin BOM) o, si no lo es, Windows-1252,
-    que es como guarda Excel en español.
+    PDF, JPG and PNG are recognized by their signature. Anything else is
+    only accepted as CSV if it is text: UTF-8 (with or without BOM) or,
+    otherwise, Windows-1252, which is how Excel saves in Spanish.
     """
     source.seek(0)
     inicio = source.read(16)
@@ -232,9 +234,9 @@ def _es_texto(datos: bytes) -> bool:
 
 def clean_filename(filename: str | None) -> str:
     """
-    El nombre que se guarda y se propone al descargar: sin carpetas (un
-    navegador antiguo manda `C:\\Users\\...\\plano.pdf`), sin caracteres de
-    control y de 255 caracteres como mucho, conservando la extensión.
+    The name stored and offered on download: without folders (an old
+    browser sends `C:\\Users\\...\\plano.pdf`), without control characters
+    and 255 characters at most, keeping the extension.
     """
     nombre = re.split(r"[\\/]", filename or "")[-1]
     nombre = _CONTROL.sub("", nombre).strip()
@@ -250,7 +252,7 @@ def clean_filename(filename: str | None) -> str:
 
 
 def _can_delete(user: User, uploader_role: str | None) -> bool:
-    """El admin borra cualquiera; el cliente, solo los que subió un cliente."""
+    """The admin deletes any; the client, only those a client uploaded."""
     return user.role == "admin" or uploader_role == "client"
 
 
@@ -272,5 +274,5 @@ def _to_response(fila: DocumentRow, user: User) -> DocumentResponse:
 
 
 def get_document_service(db: DbSession) -> DocumentService:
-    """Proveedor del service para `Depends`."""
+    """Service provider for `Depends`."""
     return DocumentService(db)

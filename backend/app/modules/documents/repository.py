@@ -1,14 +1,14 @@
 # REPOSITORY — documents
-# Acceso a datos (SQLAlchemy queries). Filtrar siempre por organización.
+# Data access (SQLAlchemy queries). Always filter by organization.
 """
-Consultas de documentos (B11, issue #147).
+Document queries (B11, issue #147).
 
-`organization_id=None` significa TODAS las organizaciones (admin), como en
-el resto de repositories. Lo decide `get_org_scope`.
+`organization_id=None` means ALL organizations (admin), as in the rest of
+the repositories. `get_org_scope` decides it.
 
-Cada fila sale con el nombre de su edificio y el rol de quien la subió:
-la respuesta los necesita (`site_name`, `can_delete`) y así no hace falta
-una consulta por documento.
+Each row comes with the name of its building and the role of its
+uploader: the response needs them (`site_name`, `can_delete`) and this
+way no query per document is needed.
 """
 
 from __future__ import annotations
@@ -55,9 +55,8 @@ class DocumentRepository:
         organization_filter: UUID | None = None,
     ) -> tuple[list[DocumentRow], int]:
         """
-        `organization_id` es el alcance de la sesión; el resto, filtros que
-        lo estrechan. Del más nuevo al más antiguo (índice
-        `ix_documents_site_created_at`).
+        `organization_id` is the session scope; the rest, filters that
+        narrow it. Newest first (index `ix_documents_site_created_at`).
         """
         if offset < 0 or limit <= 0:
             raise ValueError("Invalid pagination")

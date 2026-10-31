@@ -1,37 +1,37 @@
 # SERVICE — subscriptions
-# Reglas de negocio y orquestación. No hablar HTTP aquí.
+# Business rules and orchestration. No HTTP here.
 """
-Suscripción de un cliente en prueba (B14, issue #150).
+Subscription of a client on trial (B14, issue #150).
 
-    TRIAL --subscribe--> ACTIVE (con lo contratado, plan, precio, periodo,
-                                 datos fiscales, cuenta y fin de prueba borrado)
+    TRIAL --subscribe--> ACTIVE (with the contracted amounts, plan, price,
+                                 period, tax data, account and trial end cleared)
 
-Es la única forma de pasar de la prueba a cliente: el admin ya no tiene
-`activate` (B1), porque dejaba clientes activos sin contrato, sin precio y
-sin límites. Borra también `trial_ends_at`: así `reactivate` sabe que ya
-no estaba en prueba.
+It is the only way to go from trial to client: the admin no longer has
+`activate` (B1), because it left active clients without a contract, a
+price or limits. It also clears `trial_ends_at`: so `reactivate` knows it
+was no longer on trial.
 
-Decisiones:
+Decisions:
 
-- **Una prueba caducada también puede suscribirse.** Sigue en `TRIAL`
-  (la caducidad se calcula, no se guarda), y es justo el momento en que
-  el cliente quiere pagar.
-- **El IBAN nunca se guarda entero.** Solo se comprueba la forma (`ES` y
-  22 cifras), y se guarda solo enmascarado: el país y los cuatro últimos dígitos. No hay pasarela de
-  pago; cobrar queda fuera del proyecto.
-- **El IBAN es obligatorio**, igual que la autorización SEPA: el pago
-  es por domiciliación. La autorización queda en `sepa_accepted_at`.
-- **Aceptar las condiciones queda registrado en el usuario** que
-  suscribe, con la misma `TERMS_VERSION` que el registro (B10).
-- **El cliente elige edificios y sensores, no el plan.** El plan y el
-  precio salen de ahí (`plan_for`, `monthly_price`) y se guarda el precio
-  de ese momento, aunque luego cambien las tarifas.
-- **Lo contratado no puede ser menos de lo que ya tiene** (409
-  `CONTRACT_BELOW_CURRENT`), ni menos de un sensor por edificio (422
-  `SENSORS_BELOW_SITES`): luego es su límite.
+- **An expired trial can also subscribe.** It is still `TRIAL` (expiry
+  is computed, not stored), and it is exactly when the client wants to
+  pay.
+- **The IBAN is never stored whole.** Only the shape is checked (`ES` and
+  22 digits), and it is stored masked only: the country and the last four
+  digits. There is no payment gateway; charging is outside the project.
+- **The IBAN is mandatory**, like the SEPA authorization: payment is by
+  direct debit. The authorization is recorded in `sepa_accepted_at`.
+- **Accepting the conditions is recorded on the user** who subscribes,
+  with the same `TERMS_VERSION` as the sign-up (B10).
+- **The client chooses buildings and sensors, not the plan.** The plan
+  and the price come from there (`plan_for`, `monthly_price`) and the
+  price of that moment is stored, even if the rates change later.
+- **What is contracted cannot be less than what it already has** (409
+  `CONTRACT_BELOW_CURRENT`), nor less than one sensor per building (422
+  `SENSORS_BELOW_SITES`): it becomes its limit.
 
-La organización se lee bloqueada (`FOR UPDATE`), como en los cambios de
-estado de la B1: dos suscripciones a la vez no pueden pasar las dos.
+The organization is read locked (`FOR UPDATE`), as in the B1 status
+changes: two subscriptions at once cannot both pass.
 """
 
 from __future__ import annotations
@@ -100,12 +100,12 @@ class SubscriptionService:
         ahora: datetime | None = None,
     ) -> SubscriptionResponse:
         """
-        Primero lo que se puede rechazar sin mirar la base (422), después
-        el estado de la organización (409) y, en la misma transacción,
-        guardar.
+        First what can be rejected without looking at the database (422),
+        then the organization status (409) and, in the same transaction,
+        save.
 
-        `ahora` se puede pasar desde fuera para probarlo sin depender del
-        reloj.
+        `ahora` ("now") can be passed in to test it without depending on
+        the clock.
         """
         if not payload.accept_terms:
             raise DomainValidationError(
@@ -123,8 +123,8 @@ class SubscriptionService:
                 details={"field": "sensors", "min": payload.sites},
                 code="SENSORS_BELOW_SITES",
             )
-        # Las mismas reglas que el alta y la edición de clientes
-        # (shared/fields.py). El schema ya rechaza los textos vacíos.
+        # The same rules as client creation and editing (shared/fields.py).
+        # The schema already rejects empty texts.
         legal_name = clean_text(payload.legal_name)
         tax_id = normalize_tax_id(payload.tax_id)
         billing_address = clean_text(payload.billing_address)
@@ -174,7 +174,7 @@ class SubscriptionService:
                 "iban_masked": iban_masked,
                 "sepa_accepted_at": ahora,
             }
-            # El email de contacto es opcional: si no llega, se queda el que había.
+            # The contact email is optional: if it does not come, the old one stays.
             if payload.contact_email is not None:
                 cambios["contact_email"] = normalize_email(str(payload.contact_email))
             self.organizations.update(organizacion, **cambios)
@@ -213,7 +213,7 @@ class SubscriptionService:
 
 
 def _no_menos_de_lo_que_tiene(campo: str, contratados: int, tiene: int, que: str) -> None:
-    """409 `CONTRACT_BELOW_CURRENT` si contrata menos de los que ya tiene."""
+    """409 `CONTRACT_BELOW_CURRENT` if it contracts fewer than it already has."""
     if contratados < tiene:
         raise ConflictError(
             f"Ya tienes {tiene} {que}: contrata al menos {tiene}.",
@@ -223,5 +223,5 @@ def _no_menos_de_lo_que_tiene(campo: str, contratados: int, tiene: int, que: str
 
 
 def get_subscription_service(db: DbSession) -> SubscriptionService:
-    """Proveedor del service para `Depends`."""
+    """Service provider for `Depends`."""
     return SubscriptionService(db)

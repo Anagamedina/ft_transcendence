@@ -1,2 +1,2 @@
 # MODEL — auth
-# Entidad/es SQLAlchemy de este dominio.
+# SQLAlchemy entity (or entities) of this domain.

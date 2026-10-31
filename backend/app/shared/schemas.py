@@ -1,20 +1,19 @@
-# SCHEMAS COMUNES — piezas que reutilizan todos los módulos:
-# envelope de error, paginación y respuesta de health.
+# SHARED SCHEMAS — pieces every module reuses:
+# error envelope, pagination and health response.
 """
-Contrato transversal de la API (issue 02).
+Cross-cutting API contract (issue 02).
 
-Aquí vive lo que NO pertenece a un dominio concreto pero aparece en casi
-todas las respuestas. Tenerlo en un solo archivo evita que cada módulo
-invente su propia forma de paginar o de devolver errores.
+What does NOT belong to a specific domain but shows up in almost every
+response lives here. Keeping it in one file stops each module from
+inventing its own way of paginating or returning errors.
 
-Tres bloques:
+Three blocks:
 
-- `ErrorResponse`  — la forma única de error. Es el espejo en Pydantic de
-  lo que construyen los handlers de `core/exceptions.py`. Su función es
-  documental: hace que Swagger muestre cómo es un error sin tener que
-  provocarlo.
-- `Page[T]`        — sobre de paginación genérico.
-- `HealthResponse` — salida de `/api/health`.
+- `ErrorResponse`  — the single error shape. It mirrors in Pydantic what
+  the handlers of `core/exceptions.py` build. Its role is documentation:
+  it makes Swagger show what an error looks like without triggering one.
+- `Page[T]`        — generic pagination envelope.
+- `HealthResponse` — output of `/api/health`.
 """
 
 from __future__ import annotations
@@ -37,13 +36,13 @@ from pydantic import (
 # ---------------------------------------------------------
 class ApiModel(BaseModel):
     """
-    Base de todos los schemas de SALIDA.
+    Base of every OUTPUT schema.
 
-    `from_attributes=True` permite construir la respuesta desde una entidad
-    SQLAlchemy con `SensorResponse.model_validate(entidad)`, leyendo sus
-    atributos. Es lo que nos deja devolver objetos del ORM sin exponerlos:
-    solo se copian los campos que el schema declara, de modo que un
-    `password_hash` en el modelo nunca puede escaparse a la respuesta.
+    `from_attributes=True` lets the response be built from a SQLAlchemy
+    entity with `SensorResponse.model_validate(entity)`, reading its
+    attributes. That is what lets us return ORM objects without exposing
+    them: only the fields the schema declares are copied, so a
+    `password_hash` on the model can never leak into the response.
     """
 
     model_config = ConfigDict(from_attributes=True)
@@ -51,15 +50,15 @@ class ApiModel(BaseModel):
 
 class ApiRequest(BaseModel):
     """
-    Base de todos los schemas de ENTRADA.
+    Base of every INPUT schema.
 
-    `extra="forbid"` rechaza campos que no estén declarados. Es una decisión
-    deliberada: si el frontend manda `pressure_bar` cuando el contrato dice
-    `pressure`, preferimos un 422 inmediato a guardar la lectura ignorando
-    el campo en silencio y descubrirlo en la demo.
+    `extra="forbid"` rejects undeclared fields. This is deliberate: if the
+    frontend sends `pressure_bar` when the contract says `pressure`, an
+    immediate 422 is better than storing the reading while silently
+    ignoring the field and finding out in the demo.
 
-    `str_strip_whitespace=True` recorta espacios: " ana@x.com " y
-    "ana@x.com" no deben ser dos emails distintos.
+    `str_strip_whitespace=True` trims spaces: " ana@x.com " and
+    "ana@x.com" must not be two different emails.
     """
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
@@ -75,56 +74,56 @@ def _validate_password_whitespace(value: object) -> object:
 
 Password = Annotated[str, BeforeValidator(_validate_password_whitespace)]
 
-# Contraseña que se COMPRUEBA, no que se elige: login y contraseña actual.
-# Anula el `str_strip_whitespace` de `ApiRequest` para compararla tal cual
-# se tecleó. Si se recortara, " clave" entraría como "clave".
+# A password that is CHECKED, not chosen: login and current password.
+# It overrides the `str_strip_whitespace` of `ApiRequest` to compare it
+# exactly as typed. If it were trimmed, " clave" would log in as "clave".
 RawPassword = Annotated[str, StringConstraints(strip_whitespace=False)]
 
 # ---------------------------------------------------------
-# ERRORES
+# ERRORS
 # ---------------------------------------------------------
 class ErrorDetail(ApiModel):
-    """Un fallo concreto. En validación hay uno por campo inválido."""
+    """One specific failure. In validation there is one per invalid field."""
 
     field: str | None = Field(
         default=None,
-        description="Campo afectado en notación de punto ('items.0.id'). "
-        "Nulo si el error no pertenece a ningún campo.",
+        description="Affected field in dot notation ('items.0.id'). "
+        "Null if the error does not belong to any field.",
         examples=["pressure"],
     )
     message: str = Field(
-        description="Explicación legible del fallo.",
+        description="Readable explanation of the failure.",
         examples=["Input should be less than or equal to 20"],
     )
     type: str = Field(
-        description="Identificador de la regla incumplida.",
+        description="Identifier of the broken rule.",
         examples=["less_than_equal"],
     )
 
 
 class ErrorBody(ApiModel):
     code: str = Field(
-        description="Código estable, pensado para que el cliente ramifique "
-        "con él en lugar de comparar mensajes de texto.",
+        description="Stable code, meant for the client to branch on "
+        "instead of comparing text messages.",
         examples=["VALIDATION_ERROR"],
     )
     message: str = Field(
-        description="Mensaje legible. Puede cambiar sin previo aviso; no "
-        "conviene usarlo en condicionales.",
+        description="Readable message. It can change without notice; do "
+        "not use it in conditionals.",
         examples=["Los datos enviados no son válidos."],
     )
     details: list[ErrorDetail] | None = Field(
         default=None,
-        description="Lista de fallos concretos, o nulo. Nunca un objeto.",
+        description="List of specific failures, or null. Never an object.",
     )
 
 
 class ErrorResponse(ApiModel):
     """
-    Envelope de error de toda la API.
+    Error envelope of the whole API.
 
-    Se referencia desde el argumento `responses` de cada ruta para que
-    Swagger enseñe el formato en cada endpoint.
+    It is referenced from the `responses` argument of each route so
+    Swagger shows the format on every endpoint.
     """
 
     error: ErrorBody
@@ -185,22 +184,22 @@ def error_response(
     message: str | None = None,
 ) -> dict[int, dict[str, object]]:
     """
-    Genera la entrada de `responses=` que documenta un error en OpenAPI.
+    Builds the `responses=` entry that documents an error in OpenAPI.
 
-    FastAPI solo documenta por defecto el código de éxito. Sin esto,
-    Swagger mostraría un endpoint que aparenta no fallar nunca, y quien
-    integra tendría que descubrir a base de pruebas qué errores devuelve.
+    By default FastAPI only documents the success code. Without this,
+    Swagger would show an endpoint that seems to never fail, and an
+    integrator would have to find out by trial which errors it returns.
 
-    Se usa desempaquetando, para poder encadenar varios:
+    It is used unpacked, so several can be chained:
 
         responses={
-            **error_response(404, "El sensor no existe."),
-            **error_response(422, "Presión fuera de rango."),
+            **error_response(404, "The sensor does not exist."),
+            **error_response(422, "Pressure out of range."),
         }
     """
-    # Las descripciones de los routers ya contienen el código estable entre
-    # backticks. Reutilizarlo evita que el ejemplo diga VALIDATION_ERROR
-    # cuando el endpoint realmente documenta, por ejemplo, SITE_NOT_FOUND.
+    # The router descriptions already hold the stable code in backticks.
+    # Reusing it stops the example from saying VALIDATION_ERROR when the
+    # endpoint really documents, for example, SITE_NOT_FOUND.
     match = _ERROR_CODE_RE.search(description)
     resolved_code = code or (match.group(1) if match else None)
     resolved_code = resolved_code or _DEFAULT_ERROR_CODES.get(status_code, "API_ERROR")
@@ -223,45 +222,45 @@ def error_response(
 
 
 # ---------------------------------------------------------
-# PAGINACIÓN
+# PAGINATION
 # ---------------------------------------------------------
 ItemT = TypeVar("ItemT")
 
 
 class Page(ApiModel, Generic[ItemT]):
     """
-    Sobre de paginación.
+    Pagination envelope.
 
-    Genérico para que `Page[SensorResponse]` genere en OpenAPI un schema
-    propio con los items tipados, en lugar de una lista de `object`.
+    Generic so `Page[SensorResponse]` produces its own OpenAPI schema with
+    typed items, instead of a list of `object`.
 
-    Devolvemos `total` aunque cueste un COUNT extra porque el frontend lo
-    necesita para pintar el paginador; sin él solo puede saber si hay más
-    página, no cuántas.
+    `total` is returned even though it costs an extra COUNT because the
+    frontend needs it to draw the paginator; without it, it can only know
+    whether there is another page, not how many.
     """
 
-    items: list[ItemT] = Field(description="Elementos de la página actual.")
-    total: int = Field(description="Total de elementos que cumplen el filtro.", ge=0)
-    page: int = Field(description="Página actual, empezando en 1.", ge=1)
-    page_size: int = Field(description="Tamaño de página solicitado.", ge=1)
+    items: list[ItemT] = Field(description="Items of the current page.")
+    total: int = Field(description="Total items matching the filter.", ge=0)
+    page: int = Field(description="Current page, starting at 1.", ge=1)
+    page_size: int = Field(description="Requested page size.", ge=1)
 
     @computed_field(
-        description="Número total de páginas. Derivado de total y page_size."
+        description="Total number of pages. Derived from total and page_size."
     )
     @property
     def pages(self) -> int:
         """
-        Cuántas páginas hay en total.
+        How many pages there are in total.
 
-        `computed_field` hace que Pydantic lo incluya en el JSON y en
-        OpenAPI aunque no sea un campo almacenado. Sin ese decorador sería
-        una property normal de Python: accesible desde el código pero
-        ausente de la respuesta, y el paginador del frontend tendría que
-        recalcularla.
+        `computed_field` makes Pydantic include it in the JSON and in
+        OpenAPI even though it is not a stored field. Without that
+        decorator it would be a plain Python property: reachable from code
+        but missing from the response, and the frontend paginator would
+        have to recompute it.
 
-        La división es un techo entero: `-(-7 // 3)` da 3, no 2. Con 7
-        elementos y páginas de 3 hacen falta tres páginas, y la última va
-        incompleta.
+        The division is an integer ceiling: `-(-7 // 3)` gives 3, not 2.
+        With 7 items and pages of 3, three pages are needed, and the last
+        one is incomplete.
         """
         if self.page_size <= 0:
             return 0
@@ -272,21 +271,21 @@ class Page(ApiModel, Generic[ItemT]):
 # HEALTH
 # ---------------------------------------------------------
 class HealthResponse(ApiModel):
-    """Respuesta de `/api/health` (liveness)."""
+    """Response of `/api/health` (liveness)."""
 
-    status: str = Field(description="'ok' si el proceso responde.", examples=["ok"])
-    service: str = Field(description="Nombre del servicio.", examples=["aquaguard-api"])
-    version: str = Field(description="Versión de la API.", examples=["0.1.0"])
+    status: str = Field(description="'ok' if the process answers.", examples=["ok"])
+    service: str = Field(description="Service name.", examples=["aquaguard-api"])
+    version: str = Field(description="API version.", examples=["0.1.0"])
 
 
 class DatabaseHealthResponse(ApiModel):
-    """Respuesta de `/api/health/db` (readiness)."""
+    """Response of `/api/health/db` (readiness)."""
 
     status: str = Field(
-        description="'ok' si la consulta de prueba respondió.", examples=["ok"]
+        description="'ok' if the test query answered.", examples=["ok"]
     )
     database: str = Field(
-        description="Estado de la conexión con PostgreSQL.",
+        description="State of the connection to PostgreSQL.",
         examples=["connected"],
     )
-    checked_at: datetime = Field(description="Momento UTC de la comprobación.")
+    checked_at: datetime = Field(description="UTC time of the check.")

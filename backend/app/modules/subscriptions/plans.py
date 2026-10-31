@@ -1,33 +1,35 @@
-# PLANS — catálogo estático de planes (B14).
+# PLANS — static catalog of plans (B14).
 """
-Planes y precios de «Hazte cliente» (B14, issue #150).
+Plans and prices of "Hazte cliente" (become a client, B14, issue #150).
 
-Es una lista fija en el código y no una tabla: los planes cambian con
-una versión nueva de la aplicación, no desde un panel, y así no hace
-falta migración ni seed para tenerlos. La columna `organizations.plan`
-guarda solo el código (`SubscriptionPlan`), con su CHECK.
+It is a fixed list in the code and not a table: plans change with a new
+version of the application, not from a panel, so no migration or seed is
+needed to have them. The `organizations.plan` column only stores the
+code (`SubscriptionPlan`), with its CHECK. The names, descriptions and
+features are shown to clients, so they stay in Spanish.
 
-El cliente no elige el plan: elige cuántos edificios y sensores quiere, y
-el plan sale de los edificios (`plan_for`): Básico hasta 5, Profesional
-hasta 10 y Empresa hasta `MAX_SITES`. Los sensores no cambian el plan, se
-pagan aparte. El precio al mes es la base del plan más cada sensor
-(`monthly_price`):
+The client does not choose the plan: they choose how many buildings and
+sensors they want, and the plan comes from the buildings (`plan_for`):
+Básico up to 5, Profesional up to 10 and Empresa up to `MAX_SITES`.
+Sensors do not change the plan, they are paid separately. The monthly
+price is the plan base plus each sensor (`monthly_price`):
 
-    Hotel de 8 plantas, 8 sensores      → Básico        29 +   8 × 10 =  109 €
-    Comunidad con 3 bloques, 18         → Básico        29 +  18 × 10 =  209 €
-    Cadena con 10 edificios, 80         → Profesional   79 +  80 × 10 =  879 €
-    Cartera de 15 edificios, 120        → Empresa      199 + 120 × 10 = 1399 €
+    Hotel with 8 floors, 8 sensors      → Básico        29 +   8 × 10 =  109 €
+    Community with 3 blocks, 18         → Básico        29 +  18 × 10 =  209 €
+    Chain with 10 buildings, 80         → Profesional   79 +  80 × 10 =  879 €
+    Portfolio of 15 buildings, 120      → Empresa      199 + 120 × 10 = 1399 €
 
-Más de `MAX_SITES` edificios no se contratan desde la app: es un
-presupuesto a medida.
+More than `MAX_SITES` buildings are not subscribed from the app: it is a
+custom quote.
 
-El pago anual son `YEARLY_MONTHS` meses: dos meses gratis.
+The yearly payment is `YEARLY_MONTHS` months: two months free.
 
-Lo contratado (`contracted_sites`, `contracted_sensors`) es también el
-límite: el admin no puede dar de alta más edificios ni sensores
-(`max_sites_for`, `max_sensors_for`). En prueba caben `TRIAL_MAX_SITES`
-edificios y los sensores no se limitan; un cliente activo sin contrato
-(lo creó un admin antes de la B14) no tiene límite. `None` es «sin límite».
+What is contracted (`contracted_sites`, `contracted_sensors`) is also the
+limit: the admin cannot create more buildings or sensors
+(`max_sites_for`, `max_sensors_for`). On trial `TRIAL_MAX_SITES`
+buildings fit and sensors are not limited; an active client without a
+contract (created by an admin before B14) has no limit. `None` means "no
+limit".
 """
 
 from __future__ import annotations
@@ -43,7 +45,7 @@ if TYPE_CHECKING:
 SENSOR_PRICE_EUR = 10
 YEARLY_MONTHS = 10
 TRIAL_MAX_SITES = 1
-# Lo más que se contrata desde la app: el máximo del plan Empresa.
+# The most that can be subscribed from the app: the Empresa plan maximum.
 MAX_SITES = 20
 
 
@@ -103,32 +105,32 @@ PLANS: tuple[Plan, ...] = (
 
 
 def get_plan(plan_id: SubscriptionPlan) -> Plan:
-    """El plan con ese código. Todos los valores del enum están en `PLANS`."""
+    """The plan with that code. Every enum value is in `PLANS`."""
     return next(plan for plan in PLANS if plan.id == plan_id)
 
 
 def plan_for(sites: int, sensors: int) -> Plan:
     """
-    El plan más pequeño que cubre esos edificios. El schema no deja pasar
-    de `MAX_SITES`, así que siempre hay uno.
+    The smallest plan that covers those buildings. The schema does not let
+    `MAX_SITES` be exceeded, so there is always one.
     """
     return next(plan for plan in PLANS if plan.covers(sites, sensors))
 
 
 def monthly_price(plan: Plan, sensors: int) -> int:
-    """Euros al mes, IVA no incluido: la base del plan y cada sensor."""
+    """Euros per month, VAT not included: the plan base and each sensor."""
     return plan.monthly_price_eur + sensors * SENSOR_PRICE_EUR
 
 
 def max_sites_for(organization: Organization) -> int | None:
-    """Edificios que puede tener ahora. `None`: sin límite."""
+    """Buildings it can have now. `None`: no limit."""
     if organization.status == OrganizationStatus.TRIAL.value:
         return TRIAL_MAX_SITES
     return organization.contracted_sites
 
 
 def max_sensors_for(organization: Organization) -> int | None:
-    """Sensores que puede tener ahora. `None`: sin límite (también en prueba)."""
+    """Sensors it can have now. `None`: no limit (also on trial)."""
     if organization.status == OrganizationStatus.TRIAL.value:
         return None
     return organization.contracted_sensors

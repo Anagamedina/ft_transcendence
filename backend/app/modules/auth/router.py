@@ -1,25 +1,25 @@
 # ROUTER — auth
-# Capa HTTP fina: valida schemas → llama service → responde.
+# Thin HTTP layer: validates schemas → calls the service → answers.
 """
-Endpoints de autenticación (`/api/auth/...`).
+Authentication endpoints (`/api/auth/...`).
 
-El router se registra desde la issue #22. Los endpoints son de la
-issue #26, los tres implementados:
+The router is registered since issue #22. The endpoints are from issue
+#26, all three implemented:
 
-    POST /api/auth/login      → abre la sesión (cookie)
-    POST /api/auth/logout     → la cierra
-    POST /api/auth/register   → registro público con prueba de 7 días
-                                 (B10, #140); abre la sesión como el login
+    POST /api/auth/login      → opens the session (cookie)
+    POST /api/auth/logout     → closes it
+    POST /api/auth/register   → public sign-up with a 7-day trial
+                                 (B10, #140); opens the session like login
 
-Un reparto que conviene respetar: **la cookie de sesión la pone el
-router, no el service**. Una cookie es una cabecera HTTP, y el service
-por definición no habla HTTP.
+A split worth keeping: **the router sets the session cookie, not the
+service**. A cookie is an HTTP header, and the service by definition does
+not speak HTTP.
 
-    service → comprueba las credenciales y devuelve el usuario
-    router  → traduce eso a un `Set-Cookie`
+    service → checks the credentials and returns the user
+    router  → turns that into a `Set-Cookie`
 
-Ver `docs/decisions/0001-auth-cookie.md`: la sesión viaja en una cookie
-httpOnly, no en un JWT dentro del JSON.
+See `docs/decisions/0001-auth-cookie.md`: the session travels in an
+httpOnly cookie, not in a JWT inside the JSON.
 """
 
 from __future__ import annotations
@@ -52,24 +52,24 @@ AuthSvc = Annotated[AuthService, Depends(get_auth_service)]
     "/logout",
     response_model=MessageResponse,
     status_code=status.HTTP_200_OK,
-    summary="Cerrar sesión",
+    summary="Log out",
     description=(
-        "Borra la cookie de sesión del navegador.\n\n"
-        "**No exige estar autenticado a propósito.** Salir tiene que "
-        "funcionar siempre: con la sesión caducada, con una cookie "
-        "estropeada o sin ninguna. Si pidiera sesión válida, quien más "
-        "necesita salir —alguien con una sesión en mal estado— sería "
-        "justo quien no podría."
+        "Deletes the session cookie from the browser.\n\n"
+        "**It does not require being authenticated, on purpose.** Logging "
+        "out must always work: with an expired session, a broken cookie "
+        "or none at all. If it required a valid session, whoever most "
+        "needs to log out — someone with a session in a bad state — would "
+        "be exactly who could not."
     ),
 )
 def logout(response: Response, service: AuthSvc) -> MessageResponse:
-    # Del lado del servidor no hay nada que invalidar: la sesión es una
-    # cookie firmada sin estado. Se llama igual porque es el sitio donde
-    # entraría la revocación el día que exista (ver el service).
+    # On the server side there is nothing to invalidate: the session is a
+    # stateless signed cookie. It is called anyway because it is where
+    # revocation would go the day it exists (see the service).
     service.logout()
 
-    # Los atributos tienen que ser los mismos con los que se puso, o el
-    # navegador la trataría como otra cookie distinta y no la borraría.
+    # The attributes must be the same it was set with, or the browser would
+    # treat it as a different cookie and not delete it.
     response.delete_cookie(SESSION_COOKIE, **session_cookie_kwargs())
 
     return MessageResponse(message="Sesión cerrada.")
@@ -79,20 +79,20 @@ def logout(response: Response, service: AuthSvc) -> MessageResponse:
     "/login",
     response_model=SessionResponse,
     status_code=status.HTTP_200_OK,
-    summary="Iniciar sesión",
+    summary="Log in",
     description=(
-        "Comprueba las credenciales y deja la sesión abierta en una cookie "
-        "`httpOnly`.\n\n"
-        "Devuelve el usuario, **no un token**: el token va en la cookie, "
-        "donde JavaScript no lo puede leer (ADR 0001).\n\n"
-        "Un email que no existe y una contraseña incorrecta responden lo "
-        "mismo, y tardan lo mismo: distinguirlos permitiría averiguar qué "
-        "cuentas hay dadas de alta."
+        "Checks the credentials and leaves the session open in an "
+        "`httpOnly` cookie.\n\n"
+        "It returns the user, **not a token**: the token goes in the "
+        "cookie, where JavaScript cannot read it (ADR 0001).\n\n"
+        "A missing email and a wrong password answer the same, and take "
+        "the same time: telling them apart would reveal which accounts are "
+        "registered."
     ),
     responses={
         **error_response(
             status.HTTP_401_UNAUTHORIZED,
-            "Email o contraseña incorrectos (`UNAUTHORIZED`).",
+            "Wrong email or password (`UNAUTHORIZED`).",
         ),
     },
 )
@@ -103,8 +103,8 @@ def login(
 ) -> SessionResponse:
     usuario = service.login(payload)
 
-    # La cookie la pone el router, no el service: una cookie es una
-    # cabecera HTTP, y el service no habla HTTP.
+    # The router sets the cookie, not the service: a cookie is an HTTP
+    # header, and the service does not speak HTTP.
     response.set_cookie(
         SESSION_COOKIE,
         create_session_token(usuario.id),
@@ -119,28 +119,28 @@ def login(
     "/register",
     response_model=SessionResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Registrarse",
+    summary="Sign up",
     description=(
-        "Registro público: crea la organización `organization_name` **en "
-        "prueba** (`TRIAL`, vence a los `TRIAL_DAYS` días, 7 por defecto) y "
-        "la cuenta de cliente dentro.\n\n"
-        "**No pide sesión y deja la sesión abierta**, como el login: quien "
-        "se registra entra directamente a su panel.\n\n"
-        "La contraseña necesita al menos 12 caracteres, no puede ser una "
-        "contraseña común ni contener el email."
+        "Public sign-up: creates the organization `organization_name` **on "
+        "trial** (`TRIAL`, expiring after `TRIAL_DAYS` days, 7 by default) "
+        "and the client account inside it.\n\n"
+        "**It needs no session and leaves the session open**, like login: "
+        "whoever signs up goes straight to their panel.\n\n"
+        "The password needs at least 12 characters, cannot be a common "
+        "password nor contain the email."
     ),
     responses={
         **error_response(
             status.HTTP_409_CONFLICT,
-            "Ese email ya existe (`EMAIL_ALREADY_EXISTS`) o ya hay una "
-            "organización con ese nombre (`ORGANIZATION_NAME_TAKEN`).",
+            "That email already exists (`EMAIL_ALREADY_EXISTS`) or there is "
+            "already an organization with that name (`ORGANIZATION_NAME_TAKEN`).",
         ),
         **error_response(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            "Términos sin aceptar (`TERMS_NOT_ACCEPTED`), contraseña débil "
-            "(`WEAK_PASSWORD`), nombre de la persona o de la organización "
-            "no válido (`INVALID_NAME`, campo en `details.field`) o campos "
-            "mal escritos (`VALIDATION_ERROR`).",
+            "Terms not accepted (`TERMS_NOT_ACCEPTED`), weak password "
+            "(`WEAK_PASSWORD`), invalid person or organization name "
+            "(`INVALID_NAME`, field in `details.field`) or malformed "
+            "fields (`VALIDATION_ERROR`).",
         ),
     },
 )
@@ -151,7 +151,7 @@ def register(
 ) -> SessionResponse:
     creado = service.register(payload)
 
-    # Igual que en el login: la cookie la pone el router.
+    # Same as login: the router sets the cookie.
     response.set_cookie(
         SESSION_COOKIE,
         create_session_token(creado.id),

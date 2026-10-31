@@ -1,15 +1,15 @@
 # SERVICE — sites
-# Reglas de negocio y orquestación. No hablar HTTP aquí.
+# Business rules and orchestration. No HTTP here.
 """
-Lógica de emplazamientos.
+Site logic.
 
-El site es el nivel donde se ancla el aislamiento por organización: tiene
-`organization_id` propio, y de él cuelgan los sensores. Toda consulta de
-esta capa recibe el alcance que calcula `get_org_scope` (issue #27):
-`None` para un admin, que ve todas, o la organización de un cliente.
+The site is the level where the isolation by organization is anchored: it
+has its own `organization_id`, and the sensors hang from it. Every query
+of this layer gets the scope `get_org_scope` computes (issue #27): `None`
+for an admin, who sees all, or a client's organization.
 
-Implementación: issue #29 (`list`, `get` y `list_sensors`); filtros y
-`organization_name` de la B0 (#138). Alta, edición y borrado: B2 (#139).
+Implementation: issue #29 (`list`, `get` and `list_sensors`); filters and
+`organization_name` from B0 (#138). Create, edit and delete: B2 (#139).
 """
 
 from __future__ import annotations
@@ -50,11 +50,11 @@ class SiteService:
         organization_filter: UUID | None = None,
     ) -> Page[SiteResponse]:
         """
-        Sites que puede ver quien pregunta, paginados y ordenados por nombre.
+        Sites the caller can see, paginated and ordered by name.
 
-        `organization_id` sale siempre de `get_org_scope`: `None` (admin)
-        significa todas las organizaciones. `q` busca en nombre y dirección
-        y `organization_filter` es el `?organization_id=` de la B0.
+        `organization_id` always comes from `get_org_scope`: `None` (admin)
+        means every organization. `q` searches name and address and
+        `organization_filter` is the B0 `?organization_id=`.
         """
         filas, total = self.sites.list_by_organization(
             organization_id=organization_id,
@@ -73,12 +73,12 @@ class SiteService:
 
     def get(self, site_id: UUID, organization_id: UUID | None) -> SiteResponse:
         """
-        Un site por id.
+        One site by id.
 
-        Un site de otra organización responde lo mismo que uno que no
-        existe: decir «existe pero no es tuyo» ya confirma que ese id es
-        real. El código `SITE_NOT_FOUND` es el que ya usa el mock del
-        frontend.
+        A site from another organization answers the same as one that does
+        not exist: saying "it exists but it is not yours" already confirms
+        that id is real. The `SITE_NOT_FOUND` code is the one the frontend
+        mock already uses.
         """
         return self._respuesta(self._visible(site_id, organization_id))
 
@@ -86,18 +86,18 @@ class SiteService:
         self, site_id: UUID, organization_id: UUID | None, offset: int, limit: int
     ) -> Page[SensorResponse]:
         """
-        Sensores instalados en un site.
+        Sensors installed in a site.
 
-        Existe como ruta propia en vez de un campo dentro de
-        `SiteResponse` porque un site puede tener muchos sensores y el
-        mapa solo necesita los marcadores. Devolverlos siempre anidados
-        obligaría a cargarlos aunque nadie los mire.
+        It is its own route instead of a field inside `SiteResponse`
+        because a site can have many sensors and the map only needs the
+        markers. Always returning them nested would force loading them
+        even if nobody looks.
 
-        Primero se comprueba que el site sea visible para quien pregunta
-        (`organization_id` de `get_org_scope`); si no, 404 `SITE_NOT_FOUND`,
-        como en `get`. Los sensores salen con el mismo formato que en
-        `GET /api/sensors`: se reutiliza su conversión y su cálculo de
-        estado, con la última lectura de toda la página en una consulta.
+        It first checks that the site is visible to the caller
+        (`organization_id` from `get_org_scope`); otherwise, 404
+        `SITE_NOT_FOUND`, as in `get`. The sensors come out in the same
+        format as `GET /api/sensors`: its conversion and status computation
+        are reused, with the last reading of the whole page in one query.
         """
         self._visible(site_id, organization_id)
 
@@ -113,20 +113,21 @@ class SiteService:
         )
 
     # ---------------------------------------------------------
-    # ALTA, EDICIÓN Y BORRADO — solo admin (B2). Lo exige el router.
+    # CREATE, EDIT AND DELETE — admin only (B2). The router requires it.
     # ---------------------------------------------------------
     def create(self, payload: SiteCreate) -> SiteResponse:
         """
-        Alta de edificio en un cliente.
+        Creates a building in a client.
 
-        El nombre no se repite dentro del mismo cliente (restricción
-        `uq_sites_organization_name`): se mira antes para dar un 409 claro,
-        y la restricción lo garantiza aunque dos altas lleguen a la vez.
+        The name does not repeat within the same client
+        (`uq_sites_organization_name` constraint): it is checked first to
+        give a clear 409, and the constraint guarantees it even if two
+        creations arrive at once.
 
-        **No se pasa del límite de edificios** (B14): 1 en prueba, los
-        contratados si es cliente. 409 `SITE_LIMIT_REACHED`, con `max_sites` en
-        `details`. La organización se lee bloqueada para que dos altas a
-        la vez no cuenten los mismos edificios y pasen las dos.
+        **The building limit is never exceeded** (B14): 1 on trial, the
+        contracted ones for a client. 409 `SITE_LIMIT_REACHED`, with
+        `max_sites` in `details`. The organization is read locked so two
+        creations at once do not count the same buildings and both pass.
         """
         organizaciones = OrganizationRepository(self.db)
         if organizaciones.get_by_id(payload.organization_id) is None:
@@ -148,7 +149,7 @@ class SiteService:
         return self._respuesta(site)
 
     def _cabe_otro_edificio(self, organizacion) -> None:
-        """409 `SITE_LIMIT_REACHED` si ya tiene todos los edificios que puede."""
+        """409 `SITE_LIMIT_REACHED` if it already has all the buildings it can."""
         limite = max_sites_for(organizacion)
         if limite is None or self.sites.count_by_organization(organizacion.id) < limite:
             return
@@ -170,15 +171,15 @@ class SiteService:
 
     def update(self, site_id: UUID, payload: SiteUpdate) -> SiteResponse:
         """
-        Modificación parcial (`exclude_unset`).
+        Partial update (`exclude_unset`).
 
-        **Quitar plantas no puede dejar sensores fuera del edificio.** Si un
-        sensor está en la planta 5 y el edificio pasa a tener 3 plantas, se
-        responde 422 `FLOOR_OUT_OF_SITE`: hay que mover antes el sensor.
+        **Removing floors cannot leave sensors outside the building.** If a
+        sensor is on floor 5 and the building goes down to 3 floors, it
+        answers 422 `FLOOR_OUT_OF_SITE`: the sensor has to be moved first.
 
-        El site se lee bloqueado (B3): mientras se comprueban las plantas,
-        ningún sensor puede darse de alta ni moverse en este edificio, porque
-        esas operaciones también bloquean el site.
+        The site is read locked (B3): while the floors are checked, no
+        sensor can be created or moved in this building, because those
+        operations lock the site too.
         """
         cambios = payload.model_dump(exclude_unset=True)
         for campo, codigo in (("name", "INVALID_NAME"), ("floors", "INVALID_FLOORS"),
@@ -226,17 +227,19 @@ class SiteService:
 
     def delete(self, site_id: UUID) -> None:
         """
-        Borra un edificio **solo si está vacío**. Se perdería algo si no:
+        Deletes a building **only if it is empty**. Otherwise something
+        would be lost:
 
-        - Con sensores, sus lecturas y alertas: 409 `SITE_HAS_SENSORS`.
-        - Con documentos, los documentos y sus ficheros: 409
-          `SITE_HAS_DOCUMENTS` (revisión de la PR #194). La tabla los
-          borraría en cascada sin avisar.
+        - With sensors, their readings and alerts: 409 `SITE_HAS_SENSORS`.
+        - With documents, the documents and their files: 409
+          `SITE_HAS_DOCUMENTS` (review of PR #194). The table would delete
+          them in cascade without warning.
 
-        Borrar un cliente entero con todo lo suyo es la B16.
+        Deleting a whole client with everything it owns is B16.
 
-        Bloquea el site (B3): un alta de sensor que llegue a la vez espera,
-        y cuando entra ve que el edificio ya no existe (404).
+        It locks the site (B3): a sensor creation arriving at the same time
+        waits, and when it gets in it sees the building no longer exists
+        (404).
         """
         with transaction(self.db):
             site = self._bloqueado(site_id)
@@ -253,16 +256,16 @@ class SiteService:
             self.sites.delete(site)
 
     # ---------------------------------------------------------
-    # AUXILIARES
+    # HELPERS
     # ---------------------------------------------------------
     def _visible(self, site_id: UUID, organization_id: UUID | None) -> Site:
         """
-        El site, si existe y es visible para quien pregunta.
+        The site, if it exists and is visible to the caller.
 
-        Un site de otra organización responde lo mismo que uno que no
-        existe: decir «existe pero no es tuyo» ya confirma que ese id es
-        real. El código `SITE_NOT_FOUND` es el que ya usa el mock del
-        frontend.
+        A site from another organization answers the same as one that does
+        not exist: saying "it exists but it is not yours" already confirms
+        that id is real. The `SITE_NOT_FOUND` code is the one the frontend
+        mock already uses.
         """
         site = self.sites.get_by_id(site_id, organization_id)
         if site is None:
@@ -270,7 +273,7 @@ class SiteService:
         return site
 
     def _bloqueado(self, site_id: UUID) -> Site:
-        """El site bloqueado hasta el final de la transacción, o 404."""
+        """The site, locked until the end of the transaction, or 404."""
         site = self.sites.get_for_update(site_id)
         if site is None:
             raise NotFoundError("El site indicado no existe.", code="SITE_NOT_FOUND")
@@ -295,9 +298,9 @@ class SiteService:
 
 def site_campos(datos) -> dict:
     """
-    Columnas de un site a partir de un `SiteBase` (alta de site y
-    `first_site` del alta de organización). Las coordenadas pasan a
-    `Decimal` (`Numeric(9, 6)`) y el tipo de edificio, a su valor.
+    Columns of a site from a `SiteBase` (site creation and `first_site` of
+    the organization creation). The coordinates become `Decimal`
+    (`Numeric(9, 6)`) and the building type, its value.
     """
     return {
         "name": datos.name,
@@ -316,13 +319,14 @@ def _decimal(valor: float | None) -> Decimal | None:
 
 def _to_response(site: Site, contadores: SiteCounts) -> SiteResponse:
     """
-    La tabla guarda latitud y longitud como `Numeric(9, 6)`, que llegan
-    como `Decimal`; el contrato y el mapa las esperan como número JSON.
-    Se convierten aquí, respetando el `None` de un site sin coordenadas.
+    The table stores latitude and longitude as `Numeric(9, 6)`, which
+    arrive as `Decimal`; the contract and the map expect them as JSON
+    numbers. They are converted here, keeping the `None` of a site without
+    coordinates.
 
-    `organization_name` (B0) llega ya cargado en los listados: el
-    repository usa `selectinload(Site.organization)`. `sensor_count` y
-    `status` (B2) salen de `SiteRepository.counts`.
+    `organization_name` (B0) comes already loaded in lists: the repository
+    uses `selectinload(Site.organization)`. `sensor_count` and `status`
+    (B2) come from `SiteRepository.counts`.
     """
     return SiteResponse(
         id=site.id,
@@ -342,5 +346,5 @@ def _to_response(site: Site, contadores: SiteCounts) -> SiteResponse:
 
 
 def get_site_service(db: DbSession) -> SiteService:
-    """Proveedor del service para `Depends`."""
+    """Service provider for `Depends`."""
     return SiteService(db)

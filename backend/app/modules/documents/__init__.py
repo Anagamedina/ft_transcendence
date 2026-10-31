@@ -1,2 +1,2 @@
-# Módulo documents — documentos de cada edificio: metadatos (#132, D4) y
-# subida, listado, descarga y borrado (#147, B11).
+# documents module — documents of each building: metadata (#132, D4) and
+# upload, list, download and delete (#147, B11).

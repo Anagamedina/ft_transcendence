@@ -1,44 +1,44 @@
 # RULES — alerts
-# Reglas que deciden si una lectura abre una alerta. Sin base de datos.
+# Rules that decide whether a reading opens an alert. No database.
 """
-Reglas de presión: LOW_PRESSURE y HIGH_PRESSURE (issue #28).
+Pressure rules: LOW_PRESSURE and HIGH_PRESSURE (issue #28).
 
-Este archivo solo **decide**: recibe un valor y los umbrales del sensor y
-contesta qué alerta correspondería, o `None`. No consulta la base, no
-sabe si ya hay una alerta abierta y no guarda nada. Eso lo hace
-`ReadingService.create()`, que es quien tiene la transacción.
+This file only **decides**: it gets a value and the sensor thresholds and
+answers which alert would apply, or `None`. It does not query the
+database, does not know whether an alert is already open and stores
+nothing. `ReadingService.create()` does that, being the one holding the
+transaction.
 
-Que sea una función pura es lo que permite probar cada caso de la regla
-sin PostgreSQL, y reutilizarla el día que las lecturas lleguen por
-WebSocket.
-
---------------------------------------------------------------------
-LA REGLA
---------------------------------------------------------------------
-    valor < umbral inferior  → LOW_PRESSURE
-    valor > umbral superior  → HIGH_PRESSURE
-    justo en el umbral       → normal, sin alerta
-
-Si el sensor no tiene uno de los dos umbrales, esa mitad de la regla no
-se aplica: sin frontera no hay nada con qué comparar. La tabla todavía
-los permite nulos; la issue #97 los hace obligatorios.
+Being a pure function is what lets every case of the rule be tested
+without PostgreSQL, and reused the day readings arrive over WebSocket.
 
 --------------------------------------------------------------------
-LA SEVERIDAD — provisional
+THE RULE
 --------------------------------------------------------------------
-WARNING si la lectura se sale del umbral, CRITICAL si se sale **más de
-un 20 %**:
+    value < lower threshold  → LOW_PRESSURE
+    value > upper threshold  → HIGH_PRESSURE
+    exactly on the threshold → normal, no alert
 
-    mínimo 1.5 bar  → por debajo de 1.2 es CRITICAL
-    máximo 10 bar   → por encima de 12 es CRITICAL
+If a threshold were missing, that half of the rule would not apply:
+without a boundary there is nothing to compare with. Since issue #97 both
+columns are mandatory, so in practice both halves always apply.
 
-El 20 % lo fijó Ana el 28-09-2026 a falta de un criterio en el documento
-del proyecto. Es un número de negocio, no técnico: si el equipo acuerda
-otro, se cambia `MARGEN_CRITICO` y nada más.
+--------------------------------------------------------------------
+SEVERITY — provisional
+--------------------------------------------------------------------
+WARNING if the reading goes past the threshold, CRITICAL if it goes past
+it **by more than 20 %**:
 
-Se calcula con `Decimal` y no con `float`: en coma flotante
-`1.5 * 0.8` da `1.2000000000000002`, y una lectura de exactamente 1.2
-caería del lado equivocado de la frontera.
+    minimum 1.5 bar  → below 1.2 is CRITICAL
+    maximum 10 bar   → above 12 is CRITICAL
+
+Ana set the 20 % on 2026-09-28, as the project document gives no
+criterion. It is a business number, not a technical one: if the team
+agrees on another, change `MARGEN_CRITICO` and nothing else.
+
+It is computed with `Decimal` and not `float`: in floating point
+`1.5 * 0.8` gives `1.2000000000000002`, and a reading of exactly 1.2
+would fall on the wrong side of the boundary.
 """
 
 from __future__ import annotations
@@ -53,7 +53,7 @@ MARGEN_CRITICO = Decimal("0.20")
 
 @dataclass(frozen=True)
 class AlertaPropuesta:
-    """Lo que la regla propone abrir. Todavía no es una fila."""
+    """What the rule proposes to open. Not a row yet."""
 
     tipo: AlertType
     severidad: AlertSeverity
@@ -67,11 +67,11 @@ def evaluar_presion(
     unidad: str,
 ) -> AlertaPropuesta | None:
     """
-    Compara una lectura con los umbrales de su sensor.
+    Compares a reading with the thresholds of its sensor.
 
-    Devuelve la alerta que correspondería, o `None` si la lectura es
-    normal. Si un sensor mal configurado tuviera el inferior por encima
-    del superior, gana LOW_PRESSURE: se evalúa primero.
+    Returns the alert that would apply, or `None` if the reading is
+    normal. If a misconfigured sensor had the lower threshold above the
+    upper one, LOW_PRESSURE wins: it is evaluated first.
     """
     presion = Decimal(str(valor))
 

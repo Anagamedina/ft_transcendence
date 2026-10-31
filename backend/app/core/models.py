@@ -1,69 +1,69 @@
-# MODELS — importa los modelos para que SQLAlchemy los conozca.
+# MODELS — imports the models so SQLAlchemy knows them.
 """
-Registro de modelos ORM.
+ORM model registry.
 
-Este módulo no define nada. Solo importa, y ese es todo su trabajo.
+This module defines nothing. It only imports, and that is its whole job.
 
 --------------------------------------------------------------------
-QUÉ PROBLEMA RESUELVE
+WHAT PROBLEM IT SOLVES
 --------------------------------------------------------------------
-Los modelos se referencian entre sí **por nombre, en una cadena de
-texto**:
+Models refer to each other **by name, in a string**:
 
     class Sensor(Base):
         alerts: Mapped[list["Alert"]] = relationship(...)
 
-SQLAlchemy no resuelve ese `"Alert"` al leer el archivo: lo deja pendiente
-y lo busca más tarde, la primera vez que alguien consulta, en un registro
-donde solo están **las clases que se hayan importado**. Si nadie importó
-`Alert`, no lo encuentra y revienta:
+SQLAlchemy does not resolve that `"Alert"` when it reads the file: it
+leaves it pending and looks it up later, on the first query, in a
+registry that only holds **the classes that have been imported**. If
+nobody imported `Alert`, it does not find it and blows up:
 
     InvalidRequestError: When initializing mapper Mapper[Sensor(sensors)],
     expression 'Alert' failed to locate a name ('Alert')
 
-Y no falla solo la tabla que falte: SQLAlchemy configura todos los mapas de
-golpe, así que un modelo sin importar tumba **cualquier** consulta de la
-aplicación, no solo las de su tabla.
+And it is not only the missing table that fails: SQLAlchemy configures
+all the mappers at once, so one model that is not imported breaks **any**
+query of the application, not only those on its table.
 
 --------------------------------------------------------------------
-POR QUÉ NO PASABA EN LOS TESTS
+WHY IT DID NOT HAPPEN IN THE TESTS
 --------------------------------------------------------------------
-Porque cada archivo de tests se monta el registro a mano:
+Because each test file builds the registry by hand:
 
     from app.modules.alerts.model import Alert  # noqa: F401
 
-Con esa línea el test pasa, y la aplicación —que no la tiene— falla. Es la
-peor combinación posible: verde en local y 500 al levantar el stack.
+With that line the test passes, and the application, which does not have
+it, fails. The worst possible combination: green locally and 500 when the
+stack starts.
 
 --------------------------------------------------------------------
-POR QUÉ AQUÍ Y NO EN CADA SITIO
+WHY HERE AND NOT IN EACH PLACE
 --------------------------------------------------------------------
-`migrations/env.py` ya tenía esta misma lista, porque Alembic la necesita
-para comparar el esquema. Repetirla en un segundo sitio garantiza que
-alguien añada un modelo, actualice una copia y se olvide de la otra.
+`migrations/env.py` already had this same list, because Alembic needs it
+to compare the schema. Repeating it in a second place guarantees that
+someone adds a model, updates one copy and forgets the other.
 
-Con un único módulo, quien añada un modelo nuevo lo añade **aquí**, y lo
-reciben a la vez la aplicación y las migraciones.
+With a single module, whoever adds a new model adds it **here**, and the
+application and the migrations get it at the same time.
 
 --------------------------------------------------------------------
-CÓMO SE USA
+HOW TO USE IT
 --------------------------------------------------------------------
-Se importa por su efecto, no por lo que exporta:
+It is imported for its side effect, not for what it exports:
 
     from app.core import models  # noqa: F401
 
-Está en `main.py`, antes de construir la aplicación, y en
+It is in `main.py`, before the application is built, and in
 `migrations/env.py`.
 """
 
 from __future__ import annotations
 
-# El orden no importa: SQLAlchemy resuelve las referencias cuando ya están
-# todas registradas, no según se van leyendo.
+# Order does not matter: SQLAlchemy resolves the references once they are
+# all registered, not as they are read.
 #
-# `auth` no aparece porque su `model.py` no define ninguna tabla: la
-# autenticación usa `User`, que vive en `users`. Si algún día añade una
-# (sesiones persistentes, por ejemplo), se importa aquí.
+# `auth` is missing because its `model.py` defines no table:
+# authentication uses `User`, which lives in `users`. If it ever adds one
+# (persistent sessions, for example), import it here.
 from app.modules.alerts.model import Alert, AlertNotification
 from app.modules.documents.model import Document
 from app.modules.invitations.model import Invitation
@@ -73,8 +73,8 @@ from app.modules.sensors.model import Sensor
 from app.modules.sites.model import Site
 from app.modules.users.model import User
 
-# Se exporta la lista para que sea explícito qué se está registrando, y para
-# que un test pueda comprobar que no falta ninguno.
+# The list is exported so it is explicit what gets registered, and so a
+# test can check that none is missing.
 __all__ = [
     "Alert",
     "AlertNotification",

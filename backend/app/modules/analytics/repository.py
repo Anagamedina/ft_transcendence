@@ -1,16 +1,17 @@
 # REPOSITORY — analytics
-# Acceso a datos (SQLAlchemy queries). Filtrar siempre por organización.
+# Data access (SQLAlchemy queries). Always filter by organization.
 """
-Agregados por sensor y día para la exportación (issue #134, B18).
+Aggregates per sensor and day for the export (issue #134, B18), and the
+KPIs of the panel (B9).
 
-Todo se agrega en la base de datos (GROUP BY): nunca se cargan las
-lecturas una a una, que en un año pueden ser millones.
+Everything is aggregated in the database (GROUP BY): readings are never
+loaded one by one, as in a year they can be millions.
 
-Los días van en UTC: `date()` usa la zona horaria de la sesión, que en el
-contenedor de PostgreSQL es UTC.
+Days are in UTC: `date()` uses the session time zone, which is UTC in the
+PostgreSQL container.
 
-`organization_id=None` significa TODAS las organizaciones (admin), como en
-el resto de repositories. Lo decide `get_org_scope`.
+`organization_id=None` means ALL organizations (admin), as in the rest of
+the repositories. `get_org_scope` decides it.
 """
 
 from __future__ import annotations

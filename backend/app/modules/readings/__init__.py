@@ -1,1 +1,1 @@
-# Módulo readings — Ingesta y consulta de mediciones; dispara evaluación de alertas.
+# readings module — ingestion and query of measurements; triggers alert evaluation.

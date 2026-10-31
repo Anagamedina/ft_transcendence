@@ -1,7 +1,7 @@
-"""Endpoints para integraciones externas (subject Web major).
+"""Endpoints for external integrations (subject Web major).
 
-Los GET valen con cualquiera de las dos claves; crear, reemplazar y borrar
-edificios necesita la de escritura (ver `auth.py`).
+The GETs work with either key; creating, replacing and deleting buildings
+needs the write key (see `auth.py`).
 """
 
 from __future__ import annotations
@@ -36,43 +36,43 @@ AlertSvc = Annotated[AlertService, Depends(get_alert_service)]
 _PUBLIC_ERRORS = {
     **error_response(
         status.HTTP_401_UNAUTHORIZED,
-        "Falta la cabecera X-API-Key o la clave no es válida (`UNAUTHORIZED`).",
+        "The X-API-Key header is missing or the key is not valid (`UNAUTHORIZED`).",
     ),
     **error_response(
         status.HTTP_400_BAD_REQUEST,
-        "La API pública no está configurada correctamente (`PUBLIC_API_NOT_CONFIGURED`).",
+        "The public API is not configured correctly (`PUBLIC_API_NOT_CONFIGURED`).",
     ),
     **error_response(
         status.HTTP_403_FORBIDDEN,
-        "La organización está suspendida (`ACCOUNT_DISABLED`).",
+        "The organization is suspended (`ACCOUNT_DISABLED`).",
     ),
     **error_response(
         status.HTTP_429_TOO_MANY_REQUESTS,
-        "El límite de peticiones del gateway se ha superado (`TOO_MANY_REQUESTS`).",
+        "The gateway rate limit was exceeded (`TOO_MANY_REQUESTS`).",
     ),
 }
 _WRITE_ERRORS = {
     **_PUBLIC_ERRORS,
     **error_response(
         status.HTTP_403_FORBIDDEN,
-        "La API key es de solo lectura (`PUBLIC_API_READ_ONLY`), la "
-        "organización está suspendida (`ACCOUNT_DISABLED`) o su prueba ha "
-        "vencido (`TRIAL_EXPIRED`).",
+        "The API key is read-only (`PUBLIC_API_READ_ONLY`), the "
+        "organization is suspended (`ACCOUNT_DISABLED`) or its trial is "
+        "over (`TRIAL_EXPIRED`).",
     ),
 }
 _SITE_NOT_FOUND = error_response(
     status.HTTP_404_NOT_FOUND,
-    "El edificio no existe o es de otra organización (`SITE_NOT_FOUND`).",
+    "The building does not exist or belongs to another organization (`SITE_NOT_FOUND`).",
 )
 
 
 @router.get(
     "/overview",
     response_model=OverviewResponse,
-    summary="Resumen de la organización",
+    summary="Organization overview",
     description=(
-        "KPIs de la organización asociada a la API key. No requiere "
-        "cookie de sesión y nunca amplía el scope configurado."
+        "KPIs of the organization tied to the API key. It needs no session "
+        "cookie and never widens the configured scope."
     ),
     responses=_PUBLIC_ERRORS,
 )
@@ -85,8 +85,8 @@ def public_overview(
 @router.get(
     "/sites",
     response_model=Page[SiteResponse],
-    summary="Listar edificios",
-    description="Lista paginada de edificios de la organización asociada a la API key.",
+    summary="List buildings",
+    description="Paginated list of buildings of the organization tied to the API key.",
     responses=_PUBLIC_ERRORS,
 )
 def public_sites(
@@ -106,8 +106,8 @@ def public_sites(
 @router.get(
     "/sites/{site_id}",
     response_model=SiteResponse,
-    summary="Ver un edificio",
-    description="Un edificio de la organización de la API key.",
+    summary="Get a building",
+    description="A building of the API key organization.",
     responses={**_PUBLIC_ERRORS, **_SITE_NOT_FOUND},
 )
 def public_site(
@@ -120,18 +120,18 @@ def public_site(
     "/sites",
     response_model=SiteResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Crear un edificio",
+    summary="Create a building",
     description=(
-        "Crea un edificio en la organización de la API key. Requiere "
-        "`PUBLIC_API_WRITE_KEY`. Respeta el límite de edificios del contrato "
-        "o de la prueba (`SITE_LIMIT_REACHED`)."
+        "Creates a building in the API key organization. Requires "
+        "`PUBLIC_API_WRITE_KEY`. It respects the building limit of the "
+        "contract or the trial (`SITE_LIMIT_REACHED`)."
     ),
     responses={
         **_WRITE_ERRORS,
         **error_response(
             status.HTTP_409_CONFLICT,
-            "Ya hay un edificio con ese nombre (`SITE_NAME_TAKEN`) o se ha "
-            "llegado al límite de edificios (`SITE_LIMIT_REACHED`).",
+            "There is already a building with that name (`SITE_NAME_TAKEN`) or "
+            "the building limit was reached (`SITE_LIMIT_REACHED`).",
         ),
     },
 )
@@ -148,19 +148,19 @@ def public_create_site(
 @router.put(
     "/sites/{site_id}",
     response_model=SiteResponse,
-    summary="Reemplazar un edificio",
+    summary="Replace a building",
     description=(
-        "Reemplaza todos los datos editables de un edificio de la "
-        "organización de la API key: un campo opcional que no se envía vuelve "
-        "a su valor por defecto. Requiere `PUBLIC_API_WRITE_KEY`. Quitar "
-        "plantas con sensores responde 422 `FLOOR_OUT_OF_SITE`."
+        "Replaces all the editable data of a building of the API key "
+        "organization: an optional field that is not sent goes back to its "
+        "default. Requires `PUBLIC_API_WRITE_KEY`. Removing floors with "
+        "sensors answers 422 `FLOOR_OUT_OF_SITE`."
     ),
     responses={
         **_WRITE_ERRORS,
         **_SITE_NOT_FOUND,
         **error_response(
             status.HTTP_409_CONFLICT,
-            "Ya hay un edificio con ese nombre (`SITE_NAME_TAKEN`).",
+            "There is already a building with that name (`SITE_NAME_TAKEN`).",
         ),
     },
 )
@@ -170,8 +170,9 @@ def public_replace_site(
     service: SiteSvc,
     organization_id: PublicWriteOrganizationId,
 ) -> SiteResponse:
-    # El servicio del admin no mira la organización: antes de tocar nada se
-    # comprueba que el edificio es de la de la clave (404 si no).
+    # The admin service does not look at the organization: before touching
+    # anything it checks that the building belongs to the key's one (404 if
+    # not).
     service.get(site_id, organization_id)
     return service.update(site_id, SiteUpdate(**payload.model_dump()))
 
@@ -179,17 +180,17 @@ def public_replace_site(
 @router.delete(
     "/sites/{site_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Borrar un edificio",
+    summary="Delete a building",
     description=(
-        "Borra un edificio vacío de la organización de la API key. Requiere "
-        "`PUBLIC_API_WRITE_KEY`. Con sensores o documentos responde 409."
+        "Deletes an empty building of the API key organization. Requires "
+        "`PUBLIC_API_WRITE_KEY`. With sensors or documents it answers 409."
     ),
     responses={
         **_WRITE_ERRORS,
         **_SITE_NOT_FOUND,
         **error_response(
             status.HTTP_409_CONFLICT,
-            "El edificio tiene sensores (`SITE_HAS_SENSORS`) o documentos "
+            "The building has sensors (`SITE_HAS_SENSORS`) or documents "
             "(`SITE_HAS_DOCUMENTS`).",
         ),
     },
@@ -205,10 +206,10 @@ def public_delete_site(
 @router.get(
     "/sensors",
     response_model=Page[SensorResponse],
-    summary="Listar sensores",
+    summary="List sensors",
     description=(
-        "Lista paginada de sensores, con salud y última lectura, limitada a "
-        "la organización de la API key."
+        "Paginated list of sensors, with health and last reading, limited to "
+        "the API key organization."
     ),
     responses=_PUBLIC_ERRORS,
 )
@@ -233,10 +234,10 @@ def public_sensors(
 @router.get(
     "/alerts",
     response_model=Page[AlertResponse],
-    summary="Listar alertas",
+    summary="List alerts",
     description=(
-        "Lista paginada de alertas de la organización asociada a la API key. "
-        "La API pública no expone acciones de reconocimiento ni resolución."
+        "Paginated list of alerts of the organization tied to the API key. "
+        "The public API exposes no acknowledge or resolve actions."
     ),
     responses=_PUBLIC_ERRORS,
 )
@@ -247,7 +248,7 @@ def public_alerts(
     q: Search,
     status_filter: Annotated[
         AlertStatus | None,
-        Query(alias="status", description="ACTIVE o RESOLVED."),
+        Query(alias="status", description="ACTIVE or RESOLVED."),
     ] = None,
     severity: AlertSeverity | None = Query(default=None),
     state: AlertState | None = Query(default=None),
@@ -268,10 +269,11 @@ def public_alerts(
 @router.get(
     "/analytics/export",
     response_model=list[DailyRow],
-    summary="Exportar analítica en JSON",
+    summary="Export analytics in JSON",
     description=(
-        "Devuelve una fila por sensor y día con lecturas y alertas. El rango "
-        "máximo es de 366 días y solo incluye la organización de la API key."
+        "Returns one row per sensor and day with readings and alerts. The "
+        "maximum range is 366 days and it only includes the API key "
+        "organization."
     ),
     responses=_PUBLIC_ERRORS,
 )

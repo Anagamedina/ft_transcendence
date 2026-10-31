@@ -1,43 +1,44 @@
 # SCHEMAS — readings
-# Pydantic request/response (contrato OpenAPI). No devolver model ORM crudo.
+# Pydantic request/response (OpenAPI contract). Never return a raw ORM model.
 """
-Contrato de lecturas (issue #23).
+Readings contract (issue #23).
 
-Es el contrato más importante del proyecto: `POST /api/readings` es el
-primer eslabón del flujo vertical que el documento marca como primera
-funcionalidad obligatoria (apartado 8.5).
+It is the most important contract of the project: `POST /api/readings` is
+the first link of the vertical flow the document sets as the first
+mandatory feature (section 8.5).
 
     Simulator → POST /api/readings → FastAPI → Service → Repository → PostgreSQL
 
 --------------------------------------------------------------------
-LOS DOS TIEMPOS DE UNA LECTURA
+THE TWO TIMES OF A READING
 --------------------------------------------------------------------
-El apartado 5 del documento declara la columna como `created_at`, pero la
-regla 5.1 pide «Índice en readings (sensor_id, measured_at)». No es una
-errata: son dos momentos distintos y el contrato necesita los dos.
+Section 5 of the document declares the column as `created_at`, but rule
+5.1 asks for an "index on readings (sensor_id, measured_at)". It is not a
+typo: they are two different moments and the contract needs both.
 
-    measured_at → cuándo el sensor tomó la medida.  Lo pone quien mide.
-    created_at  → cuándo el backend la registró.    Lo pone el servidor.
+    measured_at → when the sensor took the measurement. Set by the sender.
+    created_at  → when the backend stored it.           Set by the server.
 
-Con el simulador dentro de la misma red de Docker los dos valores se
-diferencian en milisegundos, y por eso es fácil creer que sobra uno. Con
-sensores reales no: una pasarela sin cobertura puede acumular lecturas y
-enviarlas media hora después. Si solo se guarda el instante de inserción,
-la gráfica del histórico dibuja esas lecturas apiladas en el momento en
-que llegaron, no cuando ocurrieron, y el pico de presión aparece a la
-hora equivocada.
+With the simulator inside the same Docker network both values differ by
+milliseconds, which makes it easy to think one is redundant. With real
+sensors it is not: a gateway without coverage can pile up readings and
+send them half an hour later. If only the insertion time were stored, the
+history chart would draw those readings stacked at the moment they
+arrived, not when they happened, and the pressure peak would show up at
+the wrong time.
 
-`measured_at` es **opcional en la entrada**: si el emisor no lo manda, el
-servidor usa el momento de recepción. Así el simulador puede empezar sin
-él y añadirlo después sin romper nada.
+`measured_at` is **optional on input**: if the sender does not send it,
+the server uses the time it was received. So the simulator could start
+without it and add it later without breaking anything.
 
-El índice `(sensor_id, measured_at)` de la regla 5.1 es exactamente lo que
-necesita la consulta del histórico —filtrar por sensor y ordenar por
-fecha, esas dos columnas y en ese orden—, lo que confirma que la ordenación
-del histórico va por `measured_at`, no por `created_at`.
+The `(sensor_id, measured_at)` index of rule 5.1 is exactly what the
+history query needs — filter by sensor and order by date, those two
+columns in that order — which confirms the history is ordered by
+`measured_at`, not by `created_at`.
 
-Pendiente: que Daruny incluya ambas columnas en el modelo `Reading`
-(issue #13) antes de la primera migración de Alembic.
+The `Reading` model (issue #13) stores both: `measured_at` in the
+`recorded_at` column, with the `(sensor_id, recorded_at)` index, and
+`created_at`.
 """
 
 from __future__ import annotations
@@ -54,58 +55,58 @@ from app.shared.schemas import ApiModel, ApiRequest
 
 class ReadingCreate(ApiRequest):
     """
-    Lectura entrante. Es lo que envía el simulador (issue #16, Daruny).
+    Incoming reading. It is what the simulator sends (issue #16, Daruny).
 
-    El rango de `pressure` se comparte con `sensors` importando las
-    constantes en vez de repetir los números: si mañana se decide que el
-    máximo es 16 bar, se cambia en un sitio y no quedan dos validaciones
-    discrepando entre el sensor y sus lecturas.
+    The `pressure` range is shared with `sensors` by importing the
+    constants instead of repeating the numbers: if the maximum becomes 16
+    bar tomorrow, it changes in one place and no two validations disagree
+    between the sensor and its readings.
 
-    Ojo con la diferencia entre este rango y los umbrales del sensor:
+    Mind the difference between this range and the sensor thresholds:
 
-    - Fuera de 0–25 bar  → la lectura es **inválida**, se rechaza con 422.
-      Ningún sensor de instalación interna mide eso; es un fallo de envío.
-    - Fuera de min/max del sensor → la lectura es **válida y se guarda**,
-      y además genera una alerta (issue #28).
+    - Outside 0–25 bar → the reading is **invalid** and rejected with 422.
+      No indoor installation sensor measures that; it is a sending error.
+    - Outside the sensor min/max → the reading is **valid and stored**,
+      and it also raises an alert (issue #28).
 
-    Confundirlos haría que las lecturas anómalas —justo las que interesan—
-    se descarten en lugar de alertar.
+    Mixing them up would discard the anomalous readings — exactly the
+    interesting ones — instead of alerting.
 
-    Como hereda de `ApiRequest`, un campo de más se rechaza. Si el
-    simulador manda `sensorId` en vez de `sensor_id`, la respuesta es 422
-    y no se guarda nada: es preferible a aceptarlo y perder el dato en
-    silencio.
+    Since it inherits from `ApiRequest`, an extra field is rejected. If
+    the simulator sends `sensorId` instead of `sensor_id`, the answer is
+    422 and nothing is stored: better than accepting it and silently
+    losing the data.
     """
 
     id: UUID | None = Field(
         default=None,
         description=(
-            "Identificador de la lectura generado por el emisor. "
-            "**Opcional**: si no se envía, lo genera la base. El simulador "
-            "lo manda y lo reutiliza en los reintentos."
+            "Reading id generated by the sender. **Optional**: if not sent, "
+            "the database generates it. The simulator sends it and reuses "
+            "it on retries."
         ),
         examples=["0b7e5d3a-9d4b-4f9a-9c21-6f1c8a2e6b3d"],
     )
     sensor_id: UUID = Field(
-        description="Sensor que emite la lectura.",
+        description="Sensor that sends the reading.",
         examples=["6f1c8a2e-6b3d-4f9a-9c21-0b7e5d3a9d4b"],
     )
     pressure: float = Field(
         ge=PRESSURE_MIN_BAR,
         le=PRESSURE_MAX_BAR,
         description=(
-            f"Presión medida en bar. Rango aceptado: "
-            f"{PRESSURE_MIN_BAR}–{PRESSURE_MAX_BAR}. Fuera de rango es un "
-            f"error de envío (422), no una anomalía."
+            f"Measured pressure in bar. Accepted range: "
+            f"{PRESSURE_MIN_BAR}–{PRESSURE_MAX_BAR}. Out of range is a "
+            f"sending error (422), not an anomaly."
         ),
         examples=[3.42],
     )
     measured_at: datetime | None = Field(
         default=None,
         description=(
-            "Cuándo tomó la medida el sensor, en ISO-8601 UTC terminado en "
-            "`Z`. **Opcional**: si no se envía, el servidor usa el momento "
-            "de recepción."
+            "When the sensor took the measurement, in ISO-8601 UTC ending "
+            "in `Z`. **Optional**: if not sent, the server uses the time it "
+            "was received."
         ),
         examples=["2026-08-21T09:15:00Z"],
     )
@@ -113,35 +114,34 @@ class ReadingCreate(ApiRequest):
 
 class ReadingResponse(ApiModel):
     """
-    Lectura tal y como se devuelve, en `POST /api/readings` (issue #24) y
-    en `GET /api/sensors/{id}/readings` (issue #25).
+    Reading as it is returned, in `POST /api/readings` (issue #24) and in
+    `GET /api/sensors/{id}/readings` (issue #25).
 
-    En el diagrama de arquitectura este schema aparece como
-    `ReadingPublic`. Aquí se llama `ReadingResponse` para que todos los
-    módulos usen el mismo sufijo (`UserResponse`, `SensorResponse`,
-    `ErrorResponse`). Solo cambia el nombre del schema en OpenAPI; los
-    campos del JSON son idénticos.
+    In the architecture diagram this schema appears as `ReadingPublic`.
+    Here it is called `ReadingResponse` so every module uses the same
+    suffix (`UserResponse`, `SensorResponse`, `ErrorResponse`). Only the
+    OpenAPI schema name changes; the JSON fields are identical.
     """
 
-    id: UUID = Field(description="Identificador de la lectura. Lo genera la base.")
+    id: UUID = Field(description="Reading id. Generated by the database.")
     sensor_id: UUID
-    pressure: float = Field(description="Presión medida en bar.")
+    pressure: float = Field(description="Measured pressure in bar.")
     measured_at: datetime = Field(
         description=(
-            "Cuándo se tomó la medida, en UTC. Siempre presente en la "
-            "respuesta: si no se envió, es igual a `created_at`."
+            "When the measurement was taken, in UTC. Always present in the "
+            "response: if it was not sent, it equals `created_at`."
         )
     )
     created_at: datetime = Field(
-        description="Cuándo se registró en el backend, en UTC."
+        description="When the backend stored it, in UTC."
     )
 
 
 # ---------------------------------------------------------
-# SERIE PARA GRÁFICAS — B7 (#143)
+# SERIES FOR CHARTS — B7 (#143)
 # ---------------------------------------------------------
 class SeriesBucket(str, Enum):
-    """Tamaño de cada tramo de la serie. Lista cerrada: cada valor es un `?bucket=`."""
+    """Size of each slot of the series. Closed list: each value is a `?bucket=`."""
 
     M15 = "15m"
     M30 = "30m"
@@ -159,26 +159,26 @@ class SeriesBucket(str, Enum):
 
 
 class SeriesPoint(ApiModel):
-    """Un tramo de la serie: cuándo empieza y la presión media, mínima y máxima."""
+    """One slot of the series: when it starts and its average, minimum and maximum pressure."""
 
-    t: datetime = Field(description="Inicio del tramo, en UTC.")
-    avg: float = Field(description="Presión media del tramo, en bar.")
-    min: float = Field(description="Presión mínima del tramo, en bar.")
-    max: float = Field(description="Presión máxima del tramo, en bar.")
+    t: datetime = Field(description="Start of the slot, in UTC.")
+    avg: float = Field(description="Average pressure of the slot, in bar.")
+    min: float = Field(description="Minimum pressure of the slot, in bar.")
+    max: float = Field(description="Maximum pressure of the slot, in bar.")
 
 
 class ReadingSeriesResponse(ApiModel):
     """
-    Serie de presión de un sensor para la gráfica (B7). Trae los umbrales
-    del sensor para dibujar la banda permitida. Los tramos sin lecturas no
-    salen: la gráfica los deja como hueco.
+    Pressure series of a sensor for the chart (B7). It brings the sensor
+    thresholds to draw the allowed band. Slots without readings are left
+    out: the chart shows them as a gap.
     """
 
     sensor_id: UUID
-    unit: str = Field(description="Unidad de las presiones (`bar`).")
-    min_pressure: float = Field(description="Umbral inferior del sensor.")
-    max_pressure: float = Field(description="Umbral superior del sensor.")
+    unit: str = Field(description="Unit of the pressures (`bar`).")
+    min_pressure: float = Field(description="Lower threshold of the sensor.")
+    max_pressure: float = Field(description="Upper threshold of the sensor.")
     bucket: SeriesBucket
-    from_: datetime = Field(alias="from", description="Inicio del periodo, en UTC.")
-    to: datetime = Field(description="Fin del periodo (sin incluir), en UTC.")
+    from_: datetime = Field(alias="from", description="Start of the period, in UTC.")
+    to: datetime = Field(description="End of the period (excluded), in UTC.")
     points: list[SeriesPoint]
