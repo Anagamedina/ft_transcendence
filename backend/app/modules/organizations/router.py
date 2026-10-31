@@ -130,7 +130,8 @@ def list_organizations(
     status_code=status.HTTP_201_CREATED,
     summary="Dar de alta una organización",
     description=(
-        "Crea un cliente `ACTIVE`. Con `first_site`, crea también su primer "
+        "Crea un cliente en prueba (`TRIAL`, vence en `TRIAL_DAYS`). Con "
+        "`first_site`, crea también su primer "
         "edificio en la misma operación.\n\n"
         "Los usuarios no se crean aquí: llegan por invitación (B4)."
     ),

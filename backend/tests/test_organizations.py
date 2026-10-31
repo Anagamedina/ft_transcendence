@@ -329,7 +329,7 @@ def test_alta_y_aparece_en_la_lista(admin, datos):
     respuesta = admin.post("/api/organizations", json={"name": "Residencia Mar", "phone": TELEFONO})
 
     assert respuesta.status_code == 201
-    assert respuesta.json()["status"] == "ACTIVE"
+    assert respuesta.json()["status"] == "TRIAL"
     nombres = [o["name"] for o in admin.get("/api/organizations").json()["items"]]
     assert "Residencia Mar" in nombres
 
@@ -435,6 +435,18 @@ def test_editar_aplica_las_mismas_reglas(admin, datos, cambios, codigo):
     respuesta = admin.patch(f"/api/organizations/{datos['sol'].id}", json=cambios)
     assert respuesta.status_code == 422
     assert _codigo(respuesta) == codigo
+
+
+def test_el_alta_nace_en_prueba_de_trial_days(admin, datos):
+    antes = datetime.now(timezone.utc)
+    cuerpo = admin.post(
+        "/api/organizations", json={"name": "Residencia Mar", "phone": TELEFONO}
+    ).json()
+
+    fin = datetime.fromisoformat(cuerpo["trial_ends_at"])
+    assert cuerpo["status"] == "TRIAL"
+    assert antes + timedelta(days=app_settings.TRIAL_DAYS) <= fin
+    assert fin <= datetime.now(timezone.utc) + timedelta(days=app_settings.TRIAL_DAYS)
 
 
 def test_un_nombre_de_121_caracteres_da_422(admin, datos):

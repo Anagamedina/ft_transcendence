@@ -72,8 +72,9 @@ class OrganizationContact(ApiRequest):
 
 class OrganizationCreate(OrganizationContact):
     """
-    Alta de una organización (solo admin). Nace `ACTIVE`: las organizaciones
-    en prueba las crea el registro público (B10).
+    Alta de una organización (solo admin). Nace en prueba (`TRIAL`, vence
+    en `TRIAL_DAYS`), como la del registro público (B10): pasa a `ACTIVE`
+    cuando el cliente contrata desde «Hazte cliente» (B14).
 
     El nombre vacío o de solo espacios no lo rechaza el schema sino el
     service, para responder con el código `INVALID_NAME` que pide la #121

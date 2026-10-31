@@ -79,6 +79,7 @@ from app.shared.fields import (
 )
 from app.shared.schemas import Page
 
+
 _CONTACTO = (
     "city", "contact_email", "phone", "legal_name", "tax_id", "billing_email",
     "billing_address",
@@ -131,7 +132,9 @@ class OrganizationService:
     # ---------------------------------------------------------
     def create(self, payload: OrganizationCreate) -> OrganizationResponse:
         """
-        Alta de organización, `ACTIVE`, con su primer edificio si llega.
+        Alta de organización con su primer edificio si llega. Nace en
+        prueba (`TRIAL`, vence en `TRIAL_DAYS`), igual que el registro
+        público: pasa a `ACTIVE` cuando el cliente contrata (B14).
 
         La organización y el edificio van en la misma transacción: si el
         edificio falla, no queda una organización a medias.
@@ -143,7 +146,11 @@ class OrganizationService:
         try:
             with transaction(self.db):
                 organizacion = self.organizations.create(
-                    name=nombre, status=OrganizationStatus.ACTIVE.value, **datos
+                    name=nombre,
+                    status=OrganizationStatus.TRIAL.value,
+                    trial_ends_at=datetime.now(timezone.utc)
+                    + timedelta(days=app_settings.TRIAL_DAYS),
+                    **datos,
                 )
                 if payload.first_site is not None:
                     SiteRepository(self.db).create(
