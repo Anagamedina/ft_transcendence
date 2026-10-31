@@ -6,8 +6,8 @@ Contrato de usuarios (issue #23).
 El punto importante de este archivo es la separación entre lo que entra y
 lo que sale:
 
-    UserCreate   → password    (entra, nunca sale)
-    UserResponse → sin password ni hash
+    PasswordChange → contraseñas    (entran, nunca salen)
+    UserResponse   → sin password ni hash
 
 Es tentador declarar un único `User` y reutilizarlo en las dos
 direcciones. No se hace porque el día que el modelo gane un campo
@@ -30,7 +30,7 @@ from app.shared.enums import (
     OrganizationStatus,
     SubscriptionPlan,
 )
-from app.shared.schemas import ApiModel, ApiRequest, Password
+from app.shared.schemas import ApiModel, ApiRequest, Password, RawPassword
 
 
 class UserRole(str, Enum):
@@ -48,35 +48,6 @@ class UserRole(str, Enum):
 
     ADMIN = "admin"
     CLIENT = "client"
-
-
-class UserBase(ApiRequest):
-    email: EmailStr = Field(
-        description="Email del usuario. Único en todo el sistema.",
-        examples=["admin@hotel.com"],
-    )
-    name: str = Field(
-        min_length=1,
-        max_length=120,
-        description="Nombre para mostrar.",
-        examples=["Ana Medina"],
-    )
-
-
-
-class UserCreate(UserBase):
-    """Alta de usuario. La contraseña entra por aquí y no sale nunca."""
-
-    password: str = Field(
-        min_length=8,
-        max_length=128,
-        description=(
-            "Contraseña en claro. Se envía solo por HTTPS y se guarda "
-            "hasheada (issue #26). El mínimo de 8 se valida aquí para no "
-            "llegar al service con algo que ya se sabe inválido."
-        ),
-        examples=["una-contrasena-larga"],
-    )
 
 
 class UserUpdate(ApiRequest):
@@ -216,7 +187,8 @@ class PasswordChange(ApiRequest):
     una columna que no existe).
     """
 
-    current_password: str = Field(min_length=1, max_length=128)
+    # Se compara tal cual, sin recortar: igual que en el login.
+    current_password: RawPassword = Field(min_length=1, max_length=128)
     new_password: Password = Field(
         max_length=128,
         description="Misma regla que el registro (B10): al menos 12 caracteres, no común, sin el email.",

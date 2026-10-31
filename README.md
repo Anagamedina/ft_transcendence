@@ -902,6 +902,7 @@ users in [Demo data](#demo-data). Backend rules are covered by
 | Backend        | Common contract and OpenAPI docs: shared enums, filters, examples (B0, B13)                                      | Ana, Daruny            | `/api/docs`                                  |
 | Backend        | Auth: register, login, logout and `GET /api/me` with an httpOnly session cookie (#26)                            | Ana                    | `make test-backend`                          |
 | Backend        | `GET /api/me/session`: the app checks the session on start without a 401 in the browser console                  | Daruny                 | DevTools console on `/` and `/login`         |
+| Backend        | Login and current password compared exactly as typed: `" clave"` gets 401                                        | Daruny                 | `make test-backend` · `/login`               |
 | Backend        | Permissions: admin sees every organization, client only its own (#27)                                            | Ana                    | `make test-backend`                          |
 | Backend        | Organizations: list, create, edit, suspend, reactivate and trial (B1)                                            | Ana                    | `/admin/clients`                             |
 | Backend        | Expired trial is read-only: client writes answer `403 TRIAL_EXPIRED` (B12)                                       | Daruny                 | `make test-backend`                          |
@@ -1364,6 +1365,7 @@ Issues #130 to #134 were reviewed and merged together in #182.
 | #135  | F19 admin analytics panel: Chart.js charts, date presets, CSV export, 30 s refresh               | #186          | Implemented |
 | #148  | B13 complete OpenAPI documentation: examples, error codes, multipart upload and CSV export       | #228          | Implemented |
 | #150  | "Hazte cliente": price from buildings and sensors, contract stored and enforced as the limit     | —             | Implemented |
+| —     | Login and current password compared as typed (no trimming); unused `UserCreate` removed          | —             | In review   |
 
 ### Florinda (`flperez-`)
 

@@ -28,6 +28,7 @@ from pydantic import (
     BeforeValidator,
     ConfigDict,
     Field,
+    StringConstraints,
     computed_field,
 )
 
@@ -73,6 +74,11 @@ def _validate_password_whitespace(value: object) -> object:
 
 
 Password = Annotated[str, BeforeValidator(_validate_password_whitespace)]
+
+# Contraseña que se COMPRUEBA, no que se elige: login y contraseña actual.
+# Anula el `str_strip_whitespace` de `ApiRequest` para compararla tal cual
+# se tecleó. Si se recortara, " clave" entraría como "clave".
+RawPassword = Annotated[str, StringConstraints(strip_whitespace=False)]
 
 # ---------------------------------------------------------
 # ERRORES

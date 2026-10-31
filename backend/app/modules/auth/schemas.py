@@ -23,7 +23,7 @@ from pydantic import EmailStr, Field
 
 from app.modules.users.schemas import UserResponse
 from app.shared.passwords import PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH
-from app.shared.schemas import ApiModel, ApiRequest, Password
+from app.shared.schemas import ApiModel, ApiRequest, Password, RawPassword
 
 
 class RegisterRequest(ApiRequest):
@@ -31,8 +31,9 @@ class RegisterRequest(ApiRequest):
     Registro público (B10, issue #140): cualquiera crea su cuenta y, con
     ella, su organización en prueba.
 
-    Ya no hereda de `UserCreate`. Hasta la B10 el registro era el alta de
-    un cliente por un admin, con `organization_id`; ahora quien se
+    Ya no hereda del antiguo `UserCreate`, que se eliminó. Hasta la B10
+    el registro era el alta de un cliente por un admin, con
+    `organization_id`; ahora quien se
     registra no tiene organización todavía: la crea con
     `organization_name`. Los usuarios de una organización que ya existe
     llegarán por invitación (B4).
@@ -83,13 +84,15 @@ class LoginRequest(ApiRequest):
     email: EmailStr = Field(
         description="Email de la cuenta.", examples=["ana@aquaguard.dev"]
     )
-    password: str = Field(
+    password: RawPassword = Field(
         min_length=1,
         description=(
             "Contraseña. Aquí NO se aplica la regla de contraseñas: al "
             "entrar hay que aceptar lo que el usuario teclee y responder "
             "401 si no coincide. Rechazarlo con un 422 por longitud "
-            "revelaría qué contraseñas no existen en el sistema."
+            "revelaría qué contraseñas no existen en el sistema. Se "
+            "compara tal cual, sin recortar espacios, y una de más de "
+            f"{PASSWORD_MAX_LENGTH} caracteres es 401 sin llegar a Argon2."
         ),
         examples=["una-contrasena-larga"],
     )

@@ -66,7 +66,6 @@ from app.modules.users.schemas import (
     MeUpdate,
     PasswordChange,
     UserAdminResponse,
-    UserCreate,
     UserUpdate,
 )
 from app.shared.enums import (
@@ -82,8 +81,6 @@ from app.shared.schemas import Page
 # `Page[SensorResponse]` y `Page[AlertResponse]` son dos schemas distintos
 # en OpenAPI, y solo existen si se nombran.
 CONTRACT_MODELS: list[type] = [
-    # Usuarios — alta prevista para B6, todavía sin ruta en esta rama.
-    UserCreate,
     # Invitaciones — contrato de la B4 (#141)
     InvitationCreate,
     InvitationResponse,
@@ -91,7 +88,7 @@ CONTRACT_MODELS: list[type] = [
     InvitationSentResponse,
     InvitationPublicResponse,
     InvitationAccept,
-    # Usuarios — contrato de la B6 (#141), aún sin rutas en esta rama.
+    # Usuarios — contrato de la B6 (#141)
     UserUpdate,
     UserAdminResponse,
     Page[UserAdminResponse],
@@ -149,11 +146,6 @@ _SCHEMA_EXAMPLES: dict[str, dict[str, Any]] = {
     "LoginRequest": {
         "email": "ana@aquaguard.dev",
         "password": "una-contrasena-larga",
-    },
-    "UserCreate": {
-        "email": "nuevo.gestor@hotelmar.com",
-        "name": "Laura Puig",
-        "password": "agua-que-no-se-escapa",
     },
     "SessionResponse": {
         "user": {
