@@ -612,7 +612,8 @@ const BARCELONA_POSTAL_CODE = /^080(0[1-9]|[1-3]\d|4[0-2])$/;
 const BARCELONA = "Barcelona";
 const SEPARATORS = /[\s.-]/g;
 const TAX_ID_PATTERN = /^[A-Z0-9]{8,15}$/;
-const IBAN_PATTERN = /^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/;
+// Spanish IBAN: ES + 22 digits (same rule as the backend)
+const IBAN_PATTERN = /^ES[0-9]{22}$/;
 
 const CARD_CLASS = "rounded-2xl border border-slate-200 bg-white p-6";
 const TITLE_CLASS = "mb-4 font-bold text-slate-900";
@@ -751,7 +752,7 @@ const MESSAGE_BY_FIELD = {
   postal_code: "Escribe un código postal de 5 cifras.",
   city: "Escribe la ciudad y la provincia (máximo 120 caracteres).",
   billing_email: "Escribe un email válido, por ejemplo facturas@empresa.com.",
-  iban: "Revisa el IBAN: empieza por el país (ES) y tiene 24 caracteres en España.",
+  iban: "Revisa el IBAN: tiene que ser español, empieza por ES y tiene 24 caracteres.",
   accept_terms:
     "Tienes que aceptar las condiciones y la política de privacidad.",
   accept_sepa: "Tienes que autorizar la domiciliación para pagar por SEPA.",

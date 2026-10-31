@@ -66,8 +66,8 @@ from app.shared.enums import BillingPeriod, OrganizationStatus
 
 # NIF, NIE, CIF o el identificador fiscal de otro país, ya sin separadores.
 _TAX_ID = re.compile(r"^[A-Z0-9]{8,15}$")
-# País (2 letras), dígitos de control (2) y la cuenta (11 a 30 caracteres).
-_IBAN = re.compile(r"^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$")
+# IBAN español: ES, dígitos de control (2) y la cuenta (20 cifras).
+_IBAN = re.compile(r"^ES[0-9]{22}$")
 # Código postal español: cinco cifras.
 _POSTAL_CODE = re.compile(r"^[0-9]{5}$")
 _SEPARADORES = re.compile(r"[\s.\-]")

@@ -300,6 +300,8 @@ def test_el_admin_ve_lo_contratado_en_la_ficha(client, datos):
         ({"postal_code": "08O01"}, "INVALID_POSTAL_CODE"),
         ({"iban": "ES00 2100 0418 4502 0005 1332"}, "INVALID_IBAN"),
         ({"iban": "1234"}, "INVALID_IBAN"),
+        # Válido en Alemania, pero solo se aceptan IBAN españoles
+        ({"iban": "DE89 3704 0044 0532 0130 00"}, "INVALID_IBAN"),
         ({"sites": 0}, "VALIDATION_ERROR"),
         ({"sensors": 0}, "VALIDATION_ERROR"),
         # Más de 20 edificios es un presupuesto a medida
@@ -356,11 +358,13 @@ def test_no_se_contrata_menos_de_lo_que_ya_tiene(client, datos, engine, cambios,
 
 
 def test_mask_iban_y_normalize_tax_id():
-    assert mask_iban("de89370400440532013000") == "DE** **** **** **** **30 00"
+    assert mask_iban("es91-2100.0418 4502 0005 1332") == "ES** **** **** **** **** 1332"
     assert normalize_tax_id(" x-1234567.l ") == "X1234567L"
     assert check_postal_code(" 08002 ") == "08002"
     with pytest.raises(DomainValidationError):
         mask_iban("ES91 2100 0418 4502 0005 1333")
+    with pytest.raises(DomainValidationError):
+        mask_iban("de89370400440532013000")
 
 
 # ---------------------------------------------------------
