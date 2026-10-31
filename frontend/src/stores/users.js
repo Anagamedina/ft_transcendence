@@ -75,6 +75,32 @@ export const useUsersStore = defineStore("users", () => {
     }
   }
 
+  // POST /api/users/{id}/activate or /deactivate. A deactivated user cannot
+  // log in, and an open session stops working on the next request
+  async function setUserActive(id, active) {
+    error.value = null;
+
+    try {
+      const response = active
+        ? await usersService.activateUser(id)
+        : await usersService.deactivateUser(id);
+      const updated = response.data;
+
+      items.value = items.value.map((item) =>
+        item.id === id ? updated : item,
+      );
+
+      if (currentUser.value?.id === id) {
+        currentUser.value = updated;
+      }
+
+      return updated;
+    } catch (err) {
+      error.value = err.message ?? "Unable to change the user state.";
+      throw err;
+    }
+  }
+
   async function deleteUser(id) {
     error.value = null;
 
@@ -114,6 +140,7 @@ export const useUsersStore = defineStore("users", () => {
     fetchUsers,
     fetchUser,
     updateUser,
+    setUserActive,
     deleteUser,
     reset,
   };

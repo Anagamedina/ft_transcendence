@@ -1,9 +1,12 @@
 <!--
   CLIENT USER ROW
   One user in the "Usuarios" tab of the admin client detail (F23), as in the
-  client design: initials, name, email, role and state, with two actions:
+  client design: initials, name, email, role and state, with three actions:
     - Editar: the name inline (PATCH /api/users/{id}). The role is shown but
       not editable: a client user stays a client.
+    - Activar / Desactivar: a deactivated user cannot log in
+      (POST /api/users/{id}/activate or /deactivate). Independent of the
+      organization: a suspended organization blocks the login on its own.
     - Quitar acceso: inline confirmation, same pattern as "Eliminar cliente" in
       ClientActions (DELETE /api/users/{id}).
   The API errors of these actions (409, 422) are shown under the row.
@@ -52,6 +55,16 @@
             @click="openEdit"
           >
             Editar
+          </button>
+          <button
+            type="button"
+            :class="TEXT_BUTTON"
+            :disabled="toggling"
+            :aria-busy="toggling"
+            :aria-label="`${user.is_active ? 'Desactivar' : 'Activar'} a ${user.name}`"
+            @click="toggleActive"
+          >
+            {{ user.is_active ? "Desactivar" : "Activar" }}
           </button>
           <button
             ref="removeButton"
@@ -181,6 +194,7 @@ const ROLE_LABELS = { client: "Cliente", admin: "Admin" };
 // Our own text for the errors this row can get; anything else keeps the API message
 const ERROR_TEXTS = {
   CANNOT_DELETE_SELF: "No puedes quitarte el acceso a ti mismo.",
+  CANNOT_DEACTIVATE_SELF: "No puedes desactivar tu propia cuenta.",
   ORGANIZATION_REQUIRED: "Un cliente tiene que pertenecer a una organización.",
   USER_NOT_FOUND: "Este usuario ya no existe. Recarga la página.",
 };
@@ -276,6 +290,33 @@ async function saveEdit() {
     );
   } finally {
     saving.value = false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Activar / Desactivar
+// ---------------------------------------------------------------------------
+const toggling = ref(false);
+
+async function toggleActive() {
+  if (toggling.value) return;
+  toggling.value = true;
+  error.value = "";
+  try {
+    // The store replaces the user with the answer, so the badge and the
+    // button text change; the focus stays on the button
+    const updated = await usersStore.setUserActive(
+      props.user.id,
+      !props.user.is_active,
+    );
+    emit("updated", updated);
+  } catch (err) {
+    error.value = errorText(
+      err,
+      "No se ha podido cambiar el estado del usuario. Inténtalo de nuevo.",
+    );
+  } finally {
+    toggling.value = false;
   }
 }
 
