@@ -1359,11 +1359,11 @@ roles the subject requires:
 - **Work breakdown:** Small, reviewable issues linked to pull requests.
 - **Code review:** Every pull request needs the approval of a team member
   other than its author before it can be merged (see branching below).
-- **Meetings:** One team meeting every week with all members, to review
+- **Meetings:** One video call every week with all members, to review
   what was done, split the next issues and agree on decisions that affect
   more than one part of the stack.
-- **Communication:** The weekly meeting, plus GitHub issues and pull
-  request comments for day-to-day questions and reviews, so every
+- **Communication:** Slack for day-to-day questions, the weekly video
+  call, and GitHub issues and pull request comments for reviews, so every
   decision stays written next to the code it changes.
 - **Branching and commits:**
   - `develop` is the working branch: all development is integrated there.
@@ -1385,6 +1385,21 @@ roles the subject requires:
 Important architectural decisions are recorded in [`docs/decisions`](docs/decisions).
 
 ## Individual contributions
+
+### Shared challenges
+
+- **Working as a team:** five people on one codebase. Small issues, pull
+  requests reviewed by someone else and the weekly call kept the work
+  split without stepping on each other.
+- **Understanding the backend architecture:** routers, services and
+  repositories per module. Writing down the boundaries (comments, the
+  OpenAPI contract) let everyone follow the same pattern.
+- **Designing coherent tables:** a normalized schema where every table
+  hangs from the organization. Alembic migrations, foreign keys and
+  `CHECK` constraints keep it consistent.
+- **Making everything fit:** shared enums, one error format and common
+  validation rules, so the frontend and the backend speak the same
+  language.
 
 ### Ana (`anamedin`)
 
