@@ -3,7 +3,7 @@
 # AquaGuard
 
 > **Status:** Functional. The full stack runs with `make all`, with demo data;
-> 14 of the 15 planned module points are implemented (see
+> 21 of the 22 claimed module points are implemented (see
 > [Modules and point tracking](#modules-and-point-tracking)).
 
 ## Description
@@ -52,9 +52,13 @@ Each feature, with who built it and how to verify it, is listed in
 ### Prerequisites
 
 - Git.
-- Docker Engine with Docker Compose v2.
-- Node.js and npm for running the frontend outside Docker.
-- Python 3.12 for running backend or simulator components outside Docker.
+- Docker Engine with Docker Compose v2 (`docker compose`).
+- Make and : `make setup` checks both, and `make env` uses OpenSSL
+  to generate the keys.
+- Node.js 24 and npm 11 or newer (`engines` in `frontend/package.json`), only
+  for running the frontend or the E2E tests outside Docker.
+- Python 3.12, only for running backend or simulator components outside Docker.
+- Google Chrome (latest stable); Firefox and Brave are also supported.
 
 ### Configuration
 
@@ -109,8 +113,9 @@ older `.env` without them still starts:
 | `BACKUP_INTERVAL_HOURS` | `24`                 | Hours between automatic backups                 |
 | `BACKUP_KEEP`           | `7`                  | Number of backups kept                          |
 
-The backend receives these values but does not use them yet: the features that
-read them are tracked in their own issues.
+All of them are in use: the backend reads the invitation, trial and document
+values, the gateway applies `MAX_UPLOAD_MB` and `PUBLIC_RATE_LIMIT`, and the
+`backup` service uses `BACKUP_INTERVAL_HOURS` and `BACKUP_KEEP`.
 
 Frontend-only configuration is documented in
 [`frontend/.env.example`](frontend/.env.example).
@@ -420,25 +425,25 @@ docker stats --no-stream           # MEM USAGE / LIMIT for every service
 idempotent, its dates are relative to the moment it runs, and it refuses to run
 with `ENV=production` because these passwords are public.
 
-| Account                                          | Password          | Role                              |
-|--------------------------------------------------|-------------------|-----------------------------------|
-| `admin@aquaguard.dev`                            | `dev-admin-only`  | Global admin                      |
-| `client@aquaguard.dev`                           | `dev-client-only` | Client of Residencias Collserola  |
-| `hotel@`, `comunidad@`, `poblenou@aquaguard.dev` | `dev-client-only` | One client per organization       |
-| `zonafranca@aquaguard.dev`                       | `dev-client-only` | Disabled (suspended organization) |
+| Account                                          | Password          | Role                                                                |
+|--------------------------------------------------|-------------------|---------------------------------------------------------------------|
+| `admin@aquaguard.dev`                            | `dev-admin-only`  | Global admin                                                        |
+| `client@aquaguard.dev`                           | `dev-client-only` | Client of Residencias Collserola                                    |
+| `hotel@`, `comunidad@`, `poblenou@aquaguard.dev` | `dev-client-only` | One client per organization                                         |
+| `zonafranca@aquaguard.dev`                       | `dev-client-only` | Blocked while its organization is suspended; "Reactivar" lets it in |
 
 - 5 organizations: Residencias Collserola, Hotel Gòtic (TRIAL), Comunidad
   Mallorca 401, Polideportivo Poblenou and Aigües Zona Franca (SUSPENDED).
   Every client out of the trial has the contract "Hazte cliente" would have
   saved (plan and price from `plans.py`), each at a different point of it:
 
-  | Client                 | Plan        | Payment | Buildings | Sensors  | Price     | To try                                              |
-  |------------------------|-------------|---------|-----------|----------|-----------|-----------------------------------------------------|
+  | Client                 | Plan        | Payment | Buildings | Sensors  | Price     | To try                                                               |
+  |------------------------|-------------|---------|-----------|----------|-----------|----------------------------------------------------------------------|
   | Residencias Collserola | Empresa     | Monthly | 15 of 16  | 45 of 45 | 649 €/mes | One building left for the public API demo; one more sensor gives 409 |
-  | Polideportivo Poblenou | Profesional | Yearly  | 6 of 6    | 12 of 15 | 229 €/mes | A CSV import of 3 sensors fits, 4 do not            |
-  | Comunidad Mallorca 401 | Básico      | Monthly | 2 of 2    | 4 of 6   | 89 €/mes  | Room for 2 sensors                                  |
-  | Aigües Zona Franca     | Básico      | Monthly | 2 of 2    | 2 of 4   | 69 €/mes  | Suspended: kept its contract                        |
-  | Hotel Gòtic            | —           | Trial   | 1 of 1    | 2        | —         | "Hazte cliente" (`hotel@aquaguard.dev`)             |
+  | Polideportivo Poblenou | Profesional | Yearly  | 6 of 6    | 12 of 15 | 229 €/mes | A CSV import of 3 sensors fits, 4 do not                             |
+  | Comunidad Mallorca 401 | Básico      | Monthly | 2 of 2    | 4 of 6   | 89 €/mes  | Room for 2 sensors                                                   |
+  | Aigües Zona Franca     | Básico      | Monthly | 2 of 2    | 2 of 4   | 69 €/mes  | Suspended: kept its contract                                         |
+  | Hotel Gòtic            | —           | Trial   | 1 of 1    | 2        | —         | "Hazte cliente" (`hotel@aquaguard.dev`)                              |
 
   `make seed` writes these contracts again and puts Hotel Gòtic back on the
   trial, undoing a "Hazte cliente".
@@ -552,16 +557,16 @@ user, invite) and when it is updated through the API. The rules live in
 `backend/app/shared/fields.py` and `frontend/src/utils/validation.js`;
 passwords keep theirs in `shared/passwords.py` and `utils/passwords.js`.
 
-| Field                         | Rule                                                              | Stored as                     | Error code            |
-|-------------------------------|-------------------------------------------------------------------|-------------------------------|-----------------------|
-| Organization name             | Required; letters (accents, ñ, ç), numbers, spaces and `. , ' ’ - & ( )`, with at least one letter or number; ≤ 120 | Spaces collapsed: `Hotel Mar, S.L.` | `INVALID_NAME` |
-| Person name                   | Required; letters, spaces, `'`, `-` and `.`, with at least one letter; ≤ 120 | Spaces collapsed  | `INVALID_NAME`        |
-| Phone                         | Required; Spanish, 9 digits starting with 6, 7, 8 or 9; `+34`/`0034` optional | `+34 612 345 678`  | `INVALID_PHONE`       |
-| Email                         | Valid email, ≤ 320                                                | Lowercase                     | `VALIDATION_ERROR`    |
-| NIF / CIF                     | 8 to 15 letters or numbers, separators ignored                    | `B12345678`                   | `INVALID_TAX_ID`      |
-| Postal code                   | Five digits                                                       | `08002`                       | `INVALID_POSTAL_CODE` |
-| IBAN                          | Spanish: `ES` + 22 digits (check digits not verified)             | Masked                        | `INVALID_IBAN`        |
-| Legal name, address and city  | Required where the form asks for them; length of their column     | Spaces collapsed              | `VALIDATION_ERROR`    |
+| Field                        | Rule                                                                                                                | Stored as                           | Error code            |
+|------------------------------|---------------------------------------------------------------------------------------------------------------------|-------------------------------------|-----------------------|
+| Organization name            | Required; letters (accents, ñ, ç), numbers, spaces and `. , ' ’ - & ( )`, with at least one letter or number; ≤ 120 | Spaces collapsed: `Hotel Mar, S.L.` | `INVALID_NAME`        |
+| Person name                  | Required; letters, spaces, `'`, `-` and `.`, with at least one letter; ≤ 120                                        | Spaces collapsed                    | `INVALID_NAME`        |
+| Phone                        | Required; Spanish, 9 digits starting with 6, 7, 8 or 9; `+34`/`0034` optional                                       | `+34 612 345 678`                   | `INVALID_PHONE`       |
+| Email                        | Valid email, ≤ 320                                                                                                  | Lowercase                           | `VALIDATION_ERROR`    |
+| NIF / CIF                    | 8 to 15 letters or numbers, separators ignored                                                                      | `B12345678`                         | `INVALID_TAX_ID`      |
+| Postal code                  | Five digits                                                                                                         | `08002`                             | `INVALID_POSTAL_CODE` |
+| IBAN                         | Spanish: `ES` + 22 digits (check digits not verified)                                                               | Masked                              | `INVALID_IBAN`        |
+| Legal name, address and city | Required where the form asks for them; length of their column                                                       | Spaces collapsed                    | `VALIDATION_ERROR`    |
 
 The phone is required when an admin creates a client and in "Hazte
 cliente". An edit can change it but not delete it. `INVALID_NAME` says in
@@ -876,6 +881,28 @@ See [`docs/architecture.md`](docs/architecture.md) for the detailed design.
 | Code quality    | ESLint, Prettier                        | Frontend linting and formatting              |
 | Deployment      | Docker Compose, Nginx                   | Container orchestration and HTTPS gateway    |
 
+Why these choices:
+
+- **Vue 3 + Vite:** a full frontend framework (router, state with Pinia,
+  single-file components), with fast builds and hot reload from Vite.
+- **FastAPI + Pydantic:** request and response validation from typed schemas,
+  and the OpenAPI documentation generated from the same code, which the public
+  API module needs.
+- **PostgreSQL:** the data is relational (organizations → buildings → sensors
+  → readings and alerts) and the rules must hold for every client, so the
+  database enforces them with foreign keys, `CHECK` constraints and unique
+  indexes; transactions keep multi-step operations (purge, CSV import) all or
+  nothing; and `numeric` and `timestamptz` store pressure values and reading
+  times without rounding or time-zone errors.
+- **SQLAlchemy + Alembic:** one model per table, repositories that always
+  filter by organization, and versioned migrations that `make migration-check`
+  compares with the models.
+- **Tailwind CSS + DaisyUI:** utility classes built from one shared palette,
+  so the design system has a single source of colours.
+- **Docker Compose + Nginx:** the whole stack starts with one command, and
+  Nginx terminates HTTPS, serves the SPA and applies rate limits in front of
+  the API.
+
 The main technical decisions and their reasons are recorded as ADRs in
 [`docs/decisions`](docs/decisions):
 
@@ -973,10 +1000,10 @@ users in [Demo data](#demo-data). Backend rules are covered by
 | Frontend       | Auth UI: login, logout, route guards and role-based redirects (#99, #174)                                        | Lylia                  | `/login` · `/admin` as a client              |
 | Frontend       | Admin dashboard: KPI cards, active alerts and the Barcelona sites map (#156)                                     | Florinda, Eduardo, Ana | `/admin`                                     |
 | Frontend       | Admin clients: status filters, detail tabs, status actions and new-client wizard (F7)                            | Florinda, Lylia        | `/admin/clients`                             |
-| Frontend       | Admin client users: list, edit name, remove access, invitations (F23)                                            | Daruny                 | `/admin/clients/:id` → Usuarios              |
+| Frontend       | Admin client users: list, edit name, activate / deactivate, remove access, invitations (F23)                     | Daruny                 | `/admin/clients/:id` → Usuarios              |
 | Frontend       | Admin client documents: list, filter, download, preview and delete (#293)                                        | Florinda               | `/admin/clients/:id` → Documentos            |
 | Frontend       | "Hazte cliente": buildings and sensors, live price, monthly/yearly, fiscal data                                  | Daruny                 | `/app/subscribe` · `hotel@aquaguard.dev`     |
-| Other          | One validation rule per field in every form and in the API, and one way to show errors (`useFieldErrors`)       | Daruny                 | `make test-backend` · `make test-frontend`   |
+| Other          | One validation rule per field in every form and in the API, and one way to show errors (`useFieldErrors`)        | Daruny                 | `make test-backend` · `make test-frontend`   |
 | Frontend       | Admin buildings and sensors floor by floor, pressure chart and forms (F4, F5, F10)                               | Florinda               | `/admin/sites` · `/admin/sensors`            |
 | Frontend       | Admin alerts: client, state and severity filters, counters and sensor ranking (#153)                             | Lylia, Eduardo         | `/admin/alerts`                              |
 | Frontend       | Client home "Mis edificios": alert banner, KPIs, buildings by urgency (F8, F24)                                  | Daruny, Florinda       | `/app` · `client@aquaguard.dev`              |
@@ -998,8 +1025,8 @@ contributors, and a reproducible verification method.
 ## Modules and point tracking
 
 The project must reach at least 14 validated points. The following selection is
-the team's current AquaGuard plan, based on the product architecture document
-and the modules of the official subject
+based on the product architecture document and the modules of the official
+subject
 ([`docs/subject/en.subject_ft_transcendence.pdf`](docs/subject/en.subject_ft_transcendence.pdf)).
 The selection adds up to 22: the real-time module (WebSockets, 2 points) was dropped from
 the plan, the GDPR minor module (B19) brings the missing point, the file
@@ -1031,10 +1058,10 @@ Barcelona map with the building drawn floor by floor (minor); see
 | Data and Analytics | Data export and import                          | Minor |      1 | Implemented                      | Ana, Daruny, Florinda, Lylia          |
 | Modules of choice  | Sensor simulator and alert engine               | Major |      2 | Implemented                      | Ana, Daruny, Eduardo                  |
 | Modules of choice  | Barcelona map and building drawing              | Minor |      1 | Implemented                      | Florinda                              |
-|                    | **Planned total**                               |       | **22** |                                  |                                       |
-|                    | **Implemented so far**                          |       | **21** |                                  |                                       |
+|                    | **Claimed total**                               |       | **22** |                                  |                                       |
+|                    | **Implemented**                                 |       | **21** |                                  |                                       |
 
-### Module implementation plan
+### Module implementation
 
 - **Frontend and backend frameworks:** Vue 3/Vite and FastAPI/Pydantic provide
   the SPA and modular backend foundations.
@@ -1042,11 +1069,17 @@ Barcelona map with the building drawn floor by floor (minor); see
   access behind repositories.
 - **Advanced permissions:** demonstrated with `make all` and the demo users.
   - *View, edit and delete users:* `admin@aquaguard.dev` → Clientes → a
-    client → Usuarios lists its users; "Editar" changes the name and
-    "Quitar acceso" deletes the user, who can no longer log in (F23, B6).
-  - *Roles management:* every user has a fixed role: invitations create
-    `client` users and only the seed creates `admin`. "Editar" changes the
-    name, not the role. An admin cannot delete themself (409).
+    client → Usuarios lists its users; "Editar" changes the name,
+    "Desactivar" / "Activar" blocks and restores the login without deleting
+    anything, and "Quitar acceso" deletes the user, who can no longer log in
+    (F23, B6).
+  - *Roles management:* two roles, `admin` and `client`. Invitations create
+    `client` users and the seed creates the `admin`. `PATCH /api/users/{id}`
+    (admin only) changes the role, name and organization; a `client` must
+    belong to an organization. In the UI, "Editar" only changes the name. An
+    admin cannot remove their own admin role, deactivate themself or delete
+    themself (409 `CANNOT_DEMOTE_SELF`, `CANNOT_DEACTIVATE_SELF`,
+    `CANNOT_DELETE_SELF`).
   - *Different views and actions per role:* an admin works in `/admin` across
     every organization; a client only sees `/app` with its own data, and
     opening `/admin` redirects it (route guards, `require_role` and
@@ -1135,9 +1168,10 @@ Barcelona map with the building drawn floor by floor (minor); see
     Tailwind builds its classes from it (`aqua-50`…`aqua-900` and `success`,
     `warning`, `danger`, `info` with `light`/`dark` pairs that reach WCAG AA
     contrast), and the charts and the map import the same values.
-  - *Typography:* the system font stack, declared in
-    `frontend/tailwind.config.js` (nothing to download, native on every OS),
-    and one type scale: page titles `text-2xl`/`text-3xl` bold, section
+  - *Typography:* Inter Variable, bundled with the app
+    (`@fontsource-variable/inter`, no request to an external font service)
+    and declared in `frontend/tailwind.config.js` with the system fonts as
+    fallback, and one type scale: page titles `text-2xl`/`text-3xl` bold, section
     titles `text-lg` bold, body `text-sm`, labels and table details
     `text-xs`.
   - *Icons:* `AppIcon` is a shared SVG set (building, droplet, wifi,
@@ -1292,7 +1326,7 @@ sees which floor of its building needs someone.
 The DevOps health/status system (health checks, status page, automated backups
 and disaster recovery, 1 point) is implemented and described in
 [Health checks, status page and backups](#health-checks-status-page-and-backups).
-It counts towards the planned total above. Major modules are worth 2 points and
+It counts towards the total above. Major modules are worth 2 points and
 minor modules are worth 1 point.
 
 ## Team information
@@ -1354,34 +1388,24 @@ Important architectural decisions are recorded in [`docs/decisions`](docs/decisi
 
 ### Ana (`anamedin`)
 
-| Issue      | Contribution                                                                                                                                                                                                                                                                                                                              | Pull requests  | Status      |
-|------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|-------------|
-| #22        | FastAPI modular architecture (8 routers), unified error format and health checks                                                                                                                                                                                                                                                          | #46            | Implemented |
-| #23        | Pydantic schemas and OpenAPI contract, including schemas published before their routes                                                                                                                                                                                                                                                    | #46            | Implemented |
-| #24        | `POST /api/readings`: stores the reading, idempotent by `id`, evaluates alert rules                                                                                                                                                                                                                                                       | #72            | Implemented |
-| #25        | `GET /api/sensors`, `GET /api/sensors/{id}` and reading history; `OFFLINE` after 5 minutes                                                                                                                                                                                                                                                | #77, #113      | Implemented |
-| #26        | Register, login, logout and `GET /api/me`: Argon2 hashing, signed httpOnly session cookie                                                                                                                                                                                                                                                 | #75, #79       | Implemented |
-| #27        | Roles and per-organization isolation (`require_role`, `get_org_scope`)                                                                                                                                                                                                                                                                    | #105           | Implemented |
-| #28        | Alerts: list, acknowledge, resolve; `LOW_PRESSURE`/`HIGH_PRESSURE` and `SENSOR_OFFLINE` rules                                                                                                                                                                                                                                             | #78, #98, #118 | Implemented |
-| #29        | Sites, sensors of a site, sensor create and edit                                                                                                                                                                                                                                                                                          | #108, #115     | Implemented |
-| #30        | Pytest coverage of critical routes                                                                                                                                                                                                                                                                                                        | #109, #114     | Implemented |
-| #106       | `POST /api/readings` requires the simulator key (`X-Ingest-Key`)                                                                                                                                                                                                                                                                          | #116           | Implemented |
-| #138       | B0 common contract: shared enums, `q`/`organization_id`/`site_id` filters, `*_name` fields                                                                                                                                                                                                                                                | #180           | Implemented |
-| #139       | B1 organizations: list with counters, create with first site, edit, suspend/reactivate, trial                                                                                                                                                                                                                                             | #191           | Implemented |
-| #139       | B2 buildings: create, edit and delete sites, floors and building type, sensor count and status                                                                                                                                                                                                                                            | #194           | Implemented |
-| #139       | B3 sensors: floor on create and edit, health, last value and health filter                                                                                                                                                                                                                                                                | #197           | Implemented |
-| #140       | B10 public register: own organization on a 7-day trial, session opened, common password rule                                                                                                                                                                                                                                              | #205           | Implemented |
-| —          | List of the redesign issues (B0–B18) and their mocks                                                                                                                                                                                                                                                                                      | #124           | Implemented |
-| —          | Cleanup: outdated comments, dead 501 code, notes in `docs/ana/` brought up to date                                                                                                                                                                                                                                                        | #181           | Implemented |
-| #141, #144 | Contract and routes of B4, B6, B8 and B9: invitations, users, my account and KPIs                                                                                                                                                                                                                                                         | —              | Implemented |
-| #150       | B14 subscription (plans, fiscal data, masked IBAN) and B17 global search (optional)                                                                                                                                                                                                                                                       | —              | Implemented |
-| #252       | Admin alerts page, backend: only admins close alerts, crossed `threshold`, oldest open alert per client                                                                                                                                                                                                                                   | —              | In review   |
-| #252       | One alert vocabulary in `useLabels`: Sin atender · En curso · Arreglada, Leve · Crítica, «Fuera de rango» for sensors                                                                                                                                                                                                                     | —              | In review   |
-| #252       | New admin alerts page: clients with open alerts, state tabs with server counts, filters in the URL, side detail panel, refresh every 60 s; turquoise admin menu; alert search also by sensor code, building and client                                                                                                                    | —              | In review   |
-| #275       | Client notices: emails when nobody takes an alert (critical 5 and 20 min, leve 60 min), `notifications` and `next_notification_at` in alerts, provisional `alert_notifications` table; «Avisos al cliente» column and timeline in the alert panel; admin alerts page review (cards, tabs, filters, table)                                 | #276           | In progress |
-| #252       | Same alert words everywhere: the admin sites map says Leve / Crítica (from `useLabels`, no more «Aviso»); the «Arregladas» tab says «Detectadas en los últimos 7 días», which is what it filters                                                                                                                                          | #286           | In review   |
-| #277       | Alerts close by themselves after 15 min of normal readings (`resolved_at` = first normal reading), no client notices meanwhile; «Cerrar a mano…» only for exceptions                                                                                                                                                                      | #275           | In progress |
-| #283       | Admin sensors page for maintenance: tab cards «Sin conexión» (grouped by building, «Avisar al cliente»), «Plantas sin sensor» and «Sensores» (clients that need attention on the left, the chosen client's buildings and every floor on the right, how many sensors work), side panel with 24 h / 7 / 30 days chart and threshold editing | #277           | In progress |
+| Issue            | Contribution                                                                                                                                          | Pull requests          | Status      |
+|------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------|-------------|
+| #22, #23         | FastAPI modular architecture (8 routers), unified error format, Pydantic schemas and OpenAPI contract; every ORM model registered in `core/models.py` | #46, #73               | Implemented |
+| #24, #106        | `POST /api/readings`: idempotent by `id`, evaluates the alert rules, requires the simulator key (`X-Ingest-Key`)                                      | #72, #116              | Implemented |
+| #25              | Sensors API and reading history; `OFFLINE` after 5 minutes                                                                                            | #77, #113              | Implemented |
+| #26              | Register, login, logout and `GET /api/me`: Argon2 hashing, signed httpOnly session cookie                                                             | #75, #79               | Implemented |
+| #27              | Roles and per-organization isolation (`require_role`, `get_org_scope`)                                                                                | #105                   | Implemented |
+| #28              | Alerts: list, acknowledge, resolve; low/high pressure and offline rules                                                                               | #78, #98, #118         | Implemented |
+| #29, #139        | B2, B3 buildings and sensors: create, edit, floors, building type, health and last value                                                              | #108, #115, #194, #197 | Implemented |
+| #30              | Pytest coverage of the critical routes                                                                                                                | #109, #114, #278       | Implemented |
+| #138             | B0 common contract: shared enums, filters and `*_name` fields                                                                                         | #180                   | Implemented |
+| #139             | B1 organizations: list with counters, create, edit, suspend, reactivate and trial                                                                     | #191, #288             | Implemented |
+| #140             | B10 public register: own organization on a 7-day trial, common password rule                                                                          | #205, #209             | Implemented |
+| #141, #144, #150 | Contracts published before their routes: B4, B6, B8, B9, B14 and B17                                                                                  | #208                   | Implemented |
+| #252             | Admin alerts page: only admins close alerts, state tabs, filters in the URL, side panel, one alert vocabulary                                         | #279, #286, #289       | Implemented |
+| #275, #277       | Client notices by email when nobody takes an alert, and automatic closing after 15 min of normal readings                                             | #286                   | Implemented |
+| #283             | Admin sensors page for maintenance: offline sensors, floors without sensors, chart and thresholds                                                     | #285, #287             | Implemented |
+| —                | Design notes: redesign issues B0–B18 with mocks, UML diagrams of #24–#27, `docs/ana/`                                                                 | #124, #181, #190       | Implemented |
 
 Notes for each issue, with diagrams and the decisions taken, are in [`docs/ana/`](docs/ana/).
 
@@ -1390,43 +1414,45 @@ Notes for each issue, with diagrams and the decisions taken, are in [`docs/ana/`
 
 Issues #130 to #134 were reviewed and merged together in #182.
 
-| Issue | Contribution                                                                                     | Pull requests | Status      |
-|-------|--------------------------------------------------------------------------------------------------|---------------|-------------|
-| #11   | PostgreSQL + SQLAlchemy: shared `Engine`, per-request `Session` via `get_db()`, env-based config | #43           | Implemented |
-| #12   | Alembic configured against the app's `Settings` and metadata, first revision                     | #44           | Implemented |
-| #13   | Domain models `Organization`, `User`, `Site`, `Sensor`, `Reading`, `Alert` with FKs and indexes  | #48           | Implemented |
-| #14   | `SensorRepository` and `ReadingRepository`: tenant-isolated queries and stable pagination        | #55           | Implemented |
-| #15   | Development seed: 1 organization, Admin + Client users, 2 sites, 3 sensors                       | #59           | Implemented |
-| #17   | User and organization repositories: normalized email, isolated lookup and creation               | #65, #76      | Implemented |
-| #18   | `Alert` model and repository                                                                     | #66           | Implemented |
-| #97   | `sensors` table aligned with the API contract: type, required thresholds and range CHECKs        | #112          | Implemented |
-| —     | `organizations.name` widened to 120 with a case-insensitive unique index on `lower(name)`        | #123          | Implemented |
-| #129  | Migration rules (ADR 0004) and new columns: organization status, trial, floors, user state       | #172          | Implemented |
-| #130  | D3 `invitations` table: unique `code_hash`, one pending invitation per organization and email    | #182          | Implemented |
-| #131  | D6 demo seed: 5 clients, 6 buildings, 8 sensors, 30 days of alerts; blocked in production        | #182          | Implemented |
-| #132  | D4 `documents` table: metadata of each building's files, CASCADE from `sites`                    | #182          | Implemented |
-| #133  | D9 `purge_organization`: deletes an organization and all its data in one transaction             | #182          | Implemented |
-| #134  | B18 analytics: shared `DateRange` (`from`/`to`) and `GET /api/analytics/export` in CSV           | #182          | Implemented |
-| #135  | F19 admin analytics panel: Chart.js charts, date presets, CSV export, 30 s refresh               | #186          | Implemented |
-| #148  | B13 complete OpenAPI documentation: examples, error codes, multipart upload and CSV export       | #228          | Implemented |
-| #150  | "Hazte cliente": price from buildings and sensors, contract stored and enforced as the limit     | —             | Implemented |
-| —     | Login and current password compared as typed (no trimming); unused `UserCreate` removed          | #314          | Implemented |
-| —     | Shared field rules (`shared/fields.py`, `utils/validation.js`): required Spanish phone, company names with `. , ' - & ( )`, normalized data; one error pattern in every form (`useFieldErrors`, `FieldError`, `FormError`) | — | In review |
+| Issue            | Contribution                                                                                                        | Pull requests    | Status      |
+|------------------|---------------------------------------------------------------------------------------------------------------------|------------------|-------------|
+| #11, #12         | PostgreSQL + SQLAlchemy (shared `Engine`, `Session` per request) and Alembic                                        | #43, #44         | Implemented |
+| #13, #18, #97    | Domain models with FKs, CHECKs and indexes, aligned with the API contract                                           | #48, #66, #112   | Implemented |
+| #14, #17         | Repositories with per-organization queries and stable pagination                                                    | #55, #65, #76    | Implemented |
+| #129, #130, #132 | Migration rules (ADR 0004), `invitations` and `documents` tables                                                    | #172, #182       | Implemented |
+| #15, #131, #136  | Demo seed: 5 clients, 26 buildings, 65 sensors, contracts, 30 days of alerts; simulator scenarios per sensor        | #59, #182, #201  | Implemented |
+| #133, #145       | Purge: delete an organization and all its data in one transaction, from the API and the admin area                  | #182, #218       | Implemented |
+| #134, #135, #143 | Analytics: date range, CSV/JSON export, 7-day series and the admin panel with Chart.js                              | #182, #186, #215 | Implemented |
+| #141             | B4, B6 invitations (invite, revoke, resend, accept) and user management                                             | #232             | Implemented |
+| #146, #150       | Expired trial read-only (B12) and "Hazte cliente": plan and price from buildings and sensors, contract as the limit | #231, #230, #274 | Implemented |
+| #147             | B11 building documents: upload, list, download, delete, type checked by content                                     | #223             | Implemented |
+| #149, #242       | GDPR: export my data, request deletion and confirmation emails (B15, B19)                                           | #233, #260       | Implemented |
+| #148             | B13 complete OpenAPI documentation: examples and error codes                                                        | #228             | Implemented |
+| —                | Public API: read and write keys, 9 endpoints, OpenAPI and rate limit                                                | #302             | Implemented |
+| #161, #162, #262 | Frontend: client "Mis edificios", client alerts and admin client users (F8, F9-C, F23)                              | #237, #238, #272 | Implemented |
+| —                | Firefox and Brave support, session check without a 401, E2E specs in three browsers                                 | #297, #307       | Implemented |
+| —                | One validation rule per field in the API and the forms, and activate / deactivate client users                      | —                | In review   |
 
 ### Florinda (`flperez-`)
 
-| Issue    | Contribution                                                                                              | Pull requests | Status      |
-|----------|-----------------------------------------------------------------------------------------------------------|---------------|-------------|
-| #2       | Vue, Vite, Router, Tailwind and DaisyUI frontend setup                                                    | #42           | Implemented |
-| #3       | Shared layouts and visual components                                                                      | #47           | Implemented |
-| #4       | `SensorCard` and basic sensor detail view                                                                 | #56           | Implemented |
-| #5       | Public landing page: hero, value proposition, links to login/register; `Header`/`Footer`/`Card` slots     | #63           | Implemented |
-| #6       | Privacy Policy and Terms of Service: semantic sections, sticky index, linked from the footer              | #70           | Implemented |
-| #7       | Admin dashboard structure: `AdminLayout`, `KPICard`, shared `AppIcon` set, sites/sensors/alerts summaries | #96           | Implemented |
-| #8, #107 | Admin sites map: MapLibre GL + OpenFreeMap, Barcelona boundary, markers by alert, lazy-loaded modal       | #104, #117    | Implemented |
-| #9       | Admin clients and sites views: `ClientsList`, client detail, router-based `Sidebar` with active entry     | #128          | Implemented |
-| #37      | Shared async states `LoadingState`, `ErrorState` (retry + focus restore) and `EmptyState`                 | #125          | Implemented |
-| #309     | Gateway resolves the backend on each request: no 502 when `make all` recreates the backend                | #310          | In review   |
+| Issue            | Contribution                                                                                        | Pull requests          | Status      |
+|------------------|-----------------------------------------------------------------------------------------------------|------------------------|-------------|
+| #2, #3           | Frontend setup (Vue, Vite, Router, Tailwind, DaisyUI) and shared layouts                            | #42, #47               | Implemented |
+| #5, #171, #267   | Landing page: hero, how an alert works and who can do what (F28)                                    | #63, #193, #300, #301  | Implemented |
+| #6, #195         | Privacy Policy and Terms of Service, linked from the footer                                         | #70, #236              | Implemented |
+| #7               | Admin dashboard structure: `AdminLayout`, `KPICard`, shared `AppIcon` set                           | #96                    | Implemented |
+| #8, #107         | Admin sites map: MapLibre GL, Barcelona boundary, markers by alert                                  | #104, #117             | Implemented |
+| #9, #168, #204   | Admin clients: list, detail tabs, status actions and new-client wizard (F7)                         | #128, #202, #224       | Implemented |
+| #37, #188        | UI components: async states, `StatusPill`, `AlertRow`, `Tabs`, `DataTable` (F3)                     | #125, #203, #210, #211 | Implemented |
+| #169             | Admin buildings and sensors floor by floor, with their forms (F4, F5, F10)                          | #219                   | Implemented |
+| #165, #166, #167 | Public layout, trial sign-up and invitation acceptance (F15-P, F6)                                  | #185, #222, #225       | Implemented |
+| #170             | Shared palette and new design (F18–F20), Spanish formats, keyboard focus, responsive down to 375 px | #229, #256, #258, #259 | Implemented |
+| #163, #266       | Account and documents pages: privacy card, upload modal, Baja solicitada (F13-C, F27)               | #239, #299             | Implemented |
+| —                | Client alerts tabs and client home "Mis edificios" (F21, F24)                                       | #270, #271             | Implemented |
+| #160             | Client building page: building drawing, "Plantas y sensores" and pressure chart (F25, F26)          | #212, #290, #292       | Implemented |
+| #293             | Admin client documents: list, filter, download, preview and delete                                  | #296                   | Implemented |
+| #298, #303       | Visual identity (one logo, Inter font) and coherent sensor counters (F29, F30)                      | #306, #312             | Implemented |
+| #309             | Gateway resolves the backend on each request: no 502 after a backend restart                        | #310                   | Implemented |
 
 ### Lylia (`lylfergu`)
 
@@ -1447,7 +1473,7 @@ Issues #130 to #134 were reviewed and merged together in #182.
 | #250  | Admin dashboard reorganized: summaries removed, map height and icons refined             | #255          | Implemented |
 | #253  | New client wizard: required fields, phone format and address validation                  | #257          | Implemented |
 | #284  | Password validation, consistent field length limits and English code comments            | #304          | Implemented |
-| #305  | Subscription plans and pricing section implemented in homepage                           | #307          | Implemented |
+| #305  | Subscription plans and pricing section implemented in homepage                           | #308          | Implemented |
 
 
 ### Eduardo (`egalindo`)
@@ -1469,6 +1495,7 @@ Issues #130 to #134 were reviewed and merged together in #182.
 | #245     | Docker log rotation: `json-file` driver, 10 MB × 3 files per service                                 | #261          | Implemented |
 | #244     | `make backup-verify`: restores a backup into a temporary database and compares every table           | #269          | Implemented |
 | #246     | Container hardening: non-root users, no capabilities, read-only filesystem, memory and CPU limits    | #273          | Implemented |
+| —        | README: team roles, project management, AI usage and license                                         | #313          | Implemented |
 
 ## Resources
 
@@ -1570,7 +1597,7 @@ Browser-specific limitations:
   internet connection.
 - The gateway serves a production build of the SPA, so frontend changes need
   `make dev` (Vite with HMR) or a rebuild of the gateway to show up.
-- By default, emails (GDPR confirmations) are caught by Mailpit at
+- By default, emails (GDPR confirmations and alert notices) are caught by Mailpit at
   <http://localhost:8025> and never reach a real mailbox. Sending them for real
   only needs the `SMTP_*` variables in `.env` (see
   [Confirmation emails (GDPR)](#confirmation-emails-gdpr)).
@@ -1579,13 +1606,15 @@ Browser-specific limitations:
   checked and stored masked only, so a real charge would need a payment
   provider. A client cannot extend its contract from the app either; it has to
   write to support.
-- Data export is CSV/JSON only; there is no import.
+- Export covers readings and alerts as CSV or JSON; import covers sensors
+  only, from a CSV.
 - The admin alerts page sorts the open alerts in the browser and loads at most
   100 of them (a notice says so when there are more). Its «Arregladas» tab
   shows the alerts detected in the last 7 days, because the API cannot filter
   by `resolved_at` yet.
-- There is no notification system yet: alerts are only seen by opening the
-  admin or client area.
+- The notification system is partial: the client gets an email when nobody
+  takes an alert, but creating, updating or deleting data does not notify
+  anyone, so the module is not counted in the implemented points.
 - Backups live in a Docker volume on the same host as the database. They
   survive the loss of the database volume, but not the loss of the host or
   `make fclean`; `docs/disaster-recovery.md` explains how to copy them out.
