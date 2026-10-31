@@ -31,8 +31,9 @@ class RegisterRequest(ApiRequest):
     Registro público (B10, issue #140): cualquiera crea su cuenta y, con
     ella, su organización en prueba.
 
-    Ya no hereda de `UserCreate`. Hasta la B10 el registro era el alta de
-    un cliente por un admin, con `organization_id`; ahora quien se
+    Ya no hereda del antiguo `UserCreate`, que se eliminó. Hasta la B10
+    el registro era el alta de un cliente por un admin, con
+    `organization_id`; ahora quien se
     registra no tiene organización todavía: la crea con
     `organization_name`. Los usuarios de una organización que ya existe
     llegarán por invitación (B4).
