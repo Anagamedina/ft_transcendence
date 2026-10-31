@@ -32,12 +32,12 @@ from app.modules.subscriptions.plans import (
     monthly_price,
     plan_for,
 )
-from app.modules.subscriptions.service import (
+from app.modules.users.model import User
+from app.shared.fields import (
     check_postal_code,
     mask_iban,
     normalize_tax_id,
 )
-from app.modules.users.model import User
 
 IBAN = "ES91 2100 0418 4502 0005 1332"
 URL = "/api/me/organization/subscribe"
@@ -114,6 +114,7 @@ def _cuerpo(**cambios):
         "postal_code": "08001",
         "city": "Barcelona",
         "billing_email": "facturas@luna.dev",
+        "phone": "612 345 678",
         "iban": IBAN,
         "accept_terms": True,
         "accept_sepa": True,
@@ -327,7 +328,7 @@ def test_datos_incorrectos_dan_422_y_no_cambian_nada(client, datos, engine, camb
 @pytest.mark.parametrize(
     "campo",
     ["sites", "sensors", "legal_name", "billing_period", "postal_code", "city",
-     "iban", "accept_sepa"],
+     "phone", "iban", "accept_sepa"],
 )
 def test_faltan_datos_obligatorios(client, datos, campo):
     _entrar(client, datos["u_luna"])

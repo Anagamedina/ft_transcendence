@@ -42,9 +42,11 @@ class OrganizationContact(ApiRequest):
     """
     Datos de contacto y de facturación (B1, columnas de la D1).
 
-    Todos opcionales: el admin da de alta un cliente con el nombre y va
-    completando lo demás. Los emails se validan como email; el resto es
-    texto libre con el mismo largo que su columna.
+    Todos opcionales menos el teléfono del alta: el admin da de alta un
+    cliente y va completando lo demás. Aquí solo se comprueban el tipo y el
+    largo de cada columna; el service los normaliza con las reglas comunes
+    de `app/shared/fields.py` (espacios, emails en minúsculas, teléfono
+    español, NIF sin separadores).
     """
 
     city: str | None = Field(default=None, max_length=120, examples=["Barcelona"])
@@ -80,8 +82,20 @@ class OrganizationCreate(OrganizationContact):
 
     name: str = Field(
         max_length=NAME_MAX,
-        description="Nombre de la organización. No puede estar vacío ni repetirse (sin distinguir mayúsculas).",
+        description=(
+            "Nombre de la organización: letras, números, espacios y "
+            "`. , ' ’ - & ( )`. No puede estar vacío ni repetirse (sin "
+            "distinguir mayúsculas)."
+        ),
         examples=["Hotel Diagonal Mar"],
+    )
+    phone: str = Field(
+        max_length=30,
+        description=(
+            "Teléfono español, obligatorio. Se guarda como `+34 612 345 678`; "
+            "si no es válido, 422 `INVALID_PHONE`."
+        ),
+        examples=["612 345 678"],
     )
     first_site: SiteBase | None = Field(
         default=None,

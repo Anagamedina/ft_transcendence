@@ -79,7 +79,8 @@ def list_plans(service: SubscriptionSvc) -> list[PlanResponse]:
             "Menos sensores que edificios (`SENSORS_BELOW_SITES`), "
             "condiciones sin aceptar (`TERMS_NOT_ACCEPTED`), domiciliación sin "
             "autorizar (`SEPA_NOT_ACCEPTED`), NIF mal escrito (`INVALID_TAX_ID`), "
-            "código postal incorrecto (`INVALID_POSTAL_CODE`) o IBAN incorrecto "
+            "código postal incorrecto (`INVALID_POSTAL_CODE`), teléfono que no es "
+            "español (`INVALID_PHONE`) o IBAN incorrecto "
             "(`INVALID_IBAN`).",
         ),
     },

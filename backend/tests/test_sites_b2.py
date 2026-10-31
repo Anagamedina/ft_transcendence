@@ -267,6 +267,7 @@ def test_el_primer_edificio_del_alta_de_organizacion_guarda_plantas_y_tipo(admin
     """El `first_site` de la B1 usa los mismos campos que el alta de site."""
     respuesta = admin.post("/api/organizations", json={
         "name": "Residencia Mar",
+        "phone": "612 345 678",
         "first_site": {"name": "Edificio A", "floors": 4, "basements": 1,
                        "building_type": "RESIDENCE"},
     })

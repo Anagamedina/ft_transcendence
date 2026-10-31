@@ -47,6 +47,7 @@ from app.modules.users.schemas import (
     UserUpdate,
 )
 from app.shared.dependencies import DbSession
+from app.shared.fields import person_name
 from app.shared.passwords import check_password
 from app.shared.schemas import Page
 
@@ -98,12 +99,7 @@ class UserService:
 
     def update_me(self, usuario: "User", payload: MeUpdate) -> MeResponse:
         """Actualiza únicamente los datos editables de la propia cuenta."""
-        usuario.name = payload.name.strip()
-        if not usuario.name:
-            raise DomainValidationError(
-                "El nombre no puede estar vacío.",
-                code="INVALID_NAME",
-            )
+        usuario.name = person_name(payload.name)
 
         with transaction(self.db):
             self.db.add(usuario)
@@ -173,12 +169,7 @@ class UserService:
         cambios = payload.model_dump(exclude_unset=True)
 
         if "name" in cambios:
-            nombre = (cambios["name"] or "").strip()
-            if not nombre:
-                raise DomainValidationError(
-                    "El nombre no puede estar vacío.", code="INVALID_NAME"
-                )
-            cambios["name"] = nombre
+            cambios["name"] = person_name(cambios["name"])
 
         if "role" in cambios:
             if cambios["role"] is None:

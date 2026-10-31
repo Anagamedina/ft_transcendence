@@ -138,8 +138,9 @@ def login(
         **error_response(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             "Términos sin aceptar (`TERMS_NOT_ACCEPTED`), contraseña débil "
-            "(`WEAK_PASSWORD`), nombre de organización vacío "
-            "(`INVALID_NAME`) o campos mal escritos (`VALIDATION_ERROR`).",
+            "(`WEAK_PASSWORD`), nombre de la persona o de la organización "
+            "no válido (`INVALID_NAME`, campo en `details.field`) o campos "
+            "mal escritos (`VALIDATION_ERROR`).",
         ),
     },
 )

@@ -6,10 +6,11 @@ Contrato de la suscripción (B14, issue #150).
     GET  /api/plans                      → list[PlanResponse]
     POST /api/me/organization/subscribe  → SubscriptionRequest → SubscriptionResponse
 
-El NIF, el código postal y el IBAN no se validan en el schema sino en el
-service, para responder con su código propio (`INVALID_TAX_ID`,
-`INVALID_POSTAL_CODE`, `INVALID_IBAN`) en lugar del genérico
-`VALIDATION_ERROR`, como el `INVALID_NAME` de la B1.
+El NIF, el código postal, el teléfono y el IBAN no se validan en el schema
+sino en el service (`app/shared/fields.py`), para responder con su código
+propio (`INVALID_TAX_ID`, `INVALID_POSTAL_CODE`, `INVALID_PHONE`,
+`INVALID_IBAN`) en lugar del genérico `VALIDATION_ERROR`, como el
+`INVALID_NAME` de la B1.
 """
 
 from __future__ import annotations
@@ -98,7 +99,14 @@ class SubscriptionRequest(ApiRequest):
     )
     billing_email: EmailStr = Field(description="Email al que se envían las facturas.")
     contact_email: EmailStr | None = Field(default=None)
-    phone: str | None = Field(default=None, max_length=30, examples=["+34 600 000 000"])
+    phone: str = Field(
+        max_length=30,
+        description=(
+            "Teléfono español, obligatorio. Se guarda como `+34 612 345 678`; "
+            "si no es válido, 422 `INVALID_PHONE`."
+        ),
+        examples=["612 345 678"],
+    )
     iban: str = Field(
         min_length=1,
         max_length=42,

@@ -37,7 +37,6 @@ estado de la B1: dos suscripciones a la vez no pueden pasar las dos.
 
 from __future__ import annotations
 
-import re
 from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
@@ -63,15 +62,14 @@ from app.modules.subscriptions.schemas import (
 from app.modules.users.model import User
 from app.shared.dependencies import DbSession
 from app.shared.enums import BillingPeriod, OrganizationStatus
-
-# NIF, NIE, CIF o el identificador fiscal de otro país, ya sin separadores.
-_TAX_ID = re.compile(r"^[A-Z0-9]{8,15}$")
-# IBAN español: ES, dígitos de control (2) y la cuenta (20 cifras).
-_IBAN = re.compile(r"^ES[0-9]{22}$")
-# Código postal español: cinco cifras.
-_POSTAL_CODE = re.compile(r"^[0-9]{5}$")
-_SEPARADORES = re.compile(r"[\s.\-]")
-
+from app.shared.fields import (
+    check_postal_code,
+    clean_text,
+    mask_iban,
+    normalize_email,
+    normalize_phone,
+    normalize_tax_id,
+)
 
 class SubscriptionService:
     def __init__(
@@ -126,8 +124,14 @@ class SubscriptionService:
                 details={"field": "sensors", "min": payload.sites},
                 code="SENSORS_BELOW_SITES",
             )
+        # Las mismas reglas que el alta y la edición de clientes
+        # (shared/fields.py). El schema ya rechaza los textos vacíos.
+        legal_name = clean_text(payload.legal_name)
         tax_id = normalize_tax_id(payload.tax_id)
+        billing_address = clean_text(payload.billing_address)
         postal_code = check_postal_code(payload.postal_code)
+        city = clean_text(payload.city)
+        phone = normalize_phone(payload.phone)
         iban_masked = mask_iban(payload.iban)
         if usuario.organization_id is None:
             raise ForbiddenError("Esta cuenta no pertenece a ninguna organización.")
@@ -161,20 +165,19 @@ class SubscriptionService:
                 "contracted_sensors": payload.sensors,
                 "monthly_price_eur": precio,
                 "subscribed_at": ahora,
-                "legal_name": payload.legal_name,
+                "legal_name": legal_name,
                 "tax_id": tax_id,
-                "billing_address": payload.billing_address,
+                "billing_address": billing_address,
                 "postal_code": postal_code,
-                "city": payload.city,
-                "billing_email": str(payload.billing_email),
+                "city": city,
+                "billing_email": normalize_email(str(payload.billing_email)),
+                "phone": phone,
                 "iban_masked": iban_masked,
                 "sepa_accepted_at": ahora,
             }
-            # El contacto es opcional: si no llega, se queda el que había.
-            for campo in ("contact_email", "phone"):
-                valor = getattr(payload, campo)
-                if valor is not None:
-                    cambios[campo] = str(valor)
+            # El email de contacto es opcional: si no llega, se queda el que había.
+            if payload.contact_email is not None:
+                cambios["contact_email"] = normalize_email(str(payload.contact_email))
             self.organizations.update(organizacion, **cambios)
 
             usuario.terms_version = app_settings.TERMS_VERSION
@@ -218,55 +221,6 @@ def _no_menos_de_lo_que_tiene(campo: str, contratados: int, tiene: int, que: str
             details={"field": campo, "min": tiene},
             code="CONTRACT_BELOW_CURRENT",
         )
-
-
-def normalize_tax_id(valor: str) -> str:
-    """'b-1234 5678' → 'B12345678', o 422 `INVALID_TAX_ID`."""
-    tax_id = _SEPARADORES.sub("", valor).upper()
-    if not _TAX_ID.match(tax_id):
-        raise DomainValidationError(
-            "El NIF o CIF no es válido.",
-            details={"field": "tax_id", "message": "Entre 8 y 15 letras o números."},
-            code="INVALID_TAX_ID",
-        )
-    return tax_id
-
-
-def check_postal_code(valor: str) -> str:
-    """'08002' → '08002', o 422 `INVALID_POSTAL_CODE`."""
-    postal_code = valor.strip()
-    if not _POSTAL_CODE.match(postal_code):
-        raise DomainValidationError(
-            "El código postal no es válido.",
-            details={"field": "postal_code", "message": "Cinco cifras."},
-            code="INVALID_POSTAL_CODE",
-        )
-    return postal_code
-
-
-def mask_iban(valor: str) -> str:
-    """
-    IBAN comprobado y enmascarado, o 422 `INVALID_IBAN`.
-
-        'ES91 2100 0418 4502 0005 1332' → 'ES** **** **** **** **** 1332'
-
-    La comprobación es la de ISO 13616: se pasan los cuatro primeros
-    caracteres al final, cada letra se cambia por un número (A=10 … Z=35)
-    y el resultado módulo 97 tiene que dar 1.
-    """
-    iban = _SEPARADORES.sub("", valor).upper()
-    valido = bool(_IBAN.match(iban))
-    if valido:
-        reordenado = iban[4:] + iban[:4]
-        valido = int("".join(str(int(c, 36)) for c in reordenado)) % 97 == 1
-    if not valido:
-        raise DomainValidationError(
-            "El IBAN no es válido.",
-            details={"field": "iban", "message": "Revisa los dígitos de la cuenta."},
-            code="INVALID_IBAN",
-        )
-    oculto = iban[:2] + "*" * (len(iban) - 6) + iban[-4:]
-    return " ".join(oculto[i : i + 4] for i in range(0, len(oculto), 4))
 
 
 def get_subscription_service(db: DbSession) -> SubscriptionService:

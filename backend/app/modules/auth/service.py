@@ -33,6 +33,7 @@ from app.modules.users.repository import UserRepository, normalize_email
 from app.modules.users.schemas import UserResponse, UserRole
 from app.shared.dependencies import DbSession, ensure_account_enabled
 from app.shared.enums import OrganizationStatus
+from app.shared.fields import person_name
 from app.shared.passwords import PASSWORD_MAX_LENGTH, check_password
 
 
@@ -69,8 +70,9 @@ class AuthService:
 
         1. Lo que se puede rechazar sin mirar la base de datos: términos
            sin aceptar (`TERMS_NOT_ACCEPTED`), contraseña débil
-           (`WEAK_PASSWORD`) y nombre de organización vacío
-           (`INVALID_NAME`). Todo 422.
+           (`WEAK_PASSWORD`) y nombre de la persona o de la organización
+           no válido (`INVALID_NAME`, con el campo en `details.field`).
+           Todo 422.
         2. Email u organización ya dados de alta → 409.
         3. Organización `TRIAL` (vence en `TRIAL_DAYS`) y usuario `client`
            en la misma transacción: si falla el usuario, no queda una
@@ -93,7 +95,8 @@ class AuthService:
                 code="TERMS_NOT_ACCEPTED",
             )
         check_password(payload.password, email=payload.email)
-        nombre_org = nombre_valido(payload.organization_name)
+        nombre = person_name(payload.name)
+        nombre_org = nombre_valido(payload.organization_name, "organization_name")
 
         self._email_libre(payload.email)
         self._organizacion_libre(nombre_org)
@@ -115,7 +118,7 @@ class AuthService:
                 usuario = self.users.create(
                     organization_id=organizacion.id,
                     email=payload.email,
-                    name=payload.name,
+                    name=nombre,
                     password_hash=huella,
                     role=UserRole.CLIENT.value,
                 )

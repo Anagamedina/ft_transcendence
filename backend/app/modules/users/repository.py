@@ -9,11 +9,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.modules.users.model import User
+from app.shared.fields import normalize_email
 from app.shared.utils import matches_text
 
 
-def normalize_email(email: str) -> str:
-    return email.strip().lower()
 
 
 class UserRepository:

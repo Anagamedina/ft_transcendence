@@ -70,6 +70,13 @@ from app.modules.sites.repository import SiteRepository
 from app.modules.sites.service import site_campos
 from app.shared.dependencies import DbSession
 from app.shared.enums import OrganizationStatus
+from app.shared.fields import (
+    clean_text,
+    normalize_email,
+    normalize_phone,
+    normalize_tax_id,
+    organization_name,
+)
 from app.shared.schemas import Page
 
 _CONTACTO = (
@@ -132,7 +139,7 @@ class OrganizationService:
         nombre = nombre_valido(payload.name)
         self._nombre_libre(nombre)
 
-        datos = payload.model_dump(include=set(_CONTACTO))
+        datos = _contacto(payload.model_dump(include=set(_CONTACTO)))
         try:
             with transaction(self.db):
                 organizacion = self.organizations.create(
@@ -158,6 +165,7 @@ class OrganizationService:
         """Cambia solo los campos enviados (`exclude_unset`)."""
         organizacion = self._existente(organization_id)
         cambios = payload.model_dump(exclude_unset=True)
+        cambios.update(_contacto({k: v for k, v in cambios.items() if k in _CONTACTO}))
 
         if "name" in cambios:
             if cambios["name"] is None:
@@ -315,18 +323,38 @@ class OrganizationService:
         return _to_response(organizacion, contadores[organizacion.id])
 
 
-def nombre_valido(nombre: str) -> str:
+def nombre_valido(nombre: str, campo: str = "name") -> str:
     """
-    El nombre ya llega recortado (`ApiRequest`); aquí se rechaza el vacío
-    con el código `INVALID_NAME` de la #121. La usa también el registro
-    público (B10), que crea la organización de quien se registra.
+    Nombre normalizado, o 422 `INVALID_NAME` (#121) si está vacío o tiene
+    un signo que no es de nombre de empresa (`shared/fields.py`). La usa
+    también el registro público (B10), que crea la organización de quien
+    se registra.
     """
-    nombre = nombre.strip()
-    if not nombre:
-        raise DomainValidationError(
-            "El nombre no puede estar vacío.", code="INVALID_NAME"
-        )
-    return nombre
+    return organization_name(nombre, campo)
+
+
+def _contacto(datos: dict) -> dict:
+    """
+    Datos de contacto con las reglas comunes (`shared/fields.py`): textos
+    sin espacios de más, emails en minúsculas, teléfono español y NIF sin
+    separadores. Un texto vacío se guarda como `NULL`.
+
+    El teléfono es obligatorio: en el alta lo exige el schema, y al editar
+    se puede cambiar pero no borrar.
+    """
+    limpios = {}
+    for campo, valor in datos.items():
+        if campo == "phone":
+            limpios[campo] = normalize_phone(valor)
+        elif valor is None:
+            limpios[campo] = None
+        elif campo in ("contact_email", "billing_email"):
+            limpios[campo] = normalize_email(str(valor))
+        elif campo == "tax_id":
+            limpios[campo] = normalize_tax_id(valor) if clean_text(valor) else None
+        else:
+            limpios[campo] = clean_text(valor)
+    return limpios
 
 
 def _comprobar_en_prueba(organizacion: Organization) -> None:

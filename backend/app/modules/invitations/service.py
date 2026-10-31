@@ -68,6 +68,7 @@ from app.modules.users.repository import UserRepository, normalize_email
 from app.modules.users.schemas import UserResponse, UserRole
 from app.shared.dependencies import DbSession
 from app.shared.enums import InvitationStatus, OrganizationStatus
+from app.shared.fields import person_name
 from app.shared.passwords import check_password
 from app.shared.schemas import Page
 
@@ -259,8 +260,8 @@ class InvitationService:
                 "Tienes que aceptar los términos de uso para registrarte.",
                 code="TERMS_NOT_ACCEPTED",
             )
-        # El schema ya recorta espacios y rechaza un nombre vacío.
-        nombre = payload.name
+        # La misma regla que el registro y «Mi cuenta» (shared/fields.py).
+        nombre = person_name(payload.name)
         # Argon2 tarda a propósito: fuera de la transacción, que bloquea
         # la invitación.
         huella = hash_password(payload.password)

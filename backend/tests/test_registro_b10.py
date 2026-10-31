@@ -17,7 +17,7 @@ from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
@@ -301,6 +301,33 @@ def test_una_organizacion_sin_nombre_da_422(client, existente, nombre):
 
     assert respuesta.status_code == 422
     assert _codigo(respuesta) == "INVALID_NAME"
+
+
+@pytest.mark.parametrize(
+    ("campo", "valor"),
+    [("organization_name", "Hotel Mar!"), ("organization_name", "Hotel <Spa>"),
+     ("name", "Ana 2"), ("name", "ana@hotelmar.dev")],
+)
+def test_un_nombre_con_signos_da_422_en_su_campo(client, existente, campo, valor):
+    respuesta = _registrar(client, **{campo: valor})
+
+    assert respuesta.status_code == 422
+    assert _codigo(respuesta) == "INVALID_NAME"
+    assert respuesta.json()["error"]["details"][0]["field"] == campo
+
+
+def test_los_nombres_se_guardan_sin_espacios_de_mas(client, engine, existente):
+    respuesta = _registrar(
+        client, name="  Ana   Medina ", organization_name=" Ca n'Oller,   S.L. "
+    )
+
+    assert respuesta.status_code == 201
+    with Session(engine) as s:
+        organizacion = s.scalar(
+            select(Organization).where(Organization.name == "Ca n'Oller, S.L.")
+        )
+        assert organizacion is not None
+        assert s.scalar(select(User).where(User.email == "ana@hotelmar.dev")).name == "Ana Medina"
 
 
 @pytest.mark.parametrize("falta", ["name", "email", "password", "organization_name", "accept_terms"])

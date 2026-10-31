@@ -71,8 +71,9 @@ _NOMBRE = {
     ),
     **error_response(
         status.HTTP_422_UNPROCESSABLE_CONTENT,
-        "Nombre vacío (`INVALID_NAME`), demasiado largo o email mal escrito "
-        "(`VALIDATION_ERROR`).",
+        "Nombre vacío o con signos no permitidos (`INVALID_NAME`), teléfono que no es "
+        "español (`INVALID_PHONE`), NIF no válido (`INVALID_TAX_ID`), "
+        "texto demasiado largo o email mal escrito (`VALIDATION_ERROR`).",
     ),
 }
 
