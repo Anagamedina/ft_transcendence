@@ -525,8 +525,9 @@ support.
   `frontend/src/utils/pricing.js` to show it while the client types.
 - What was contracted is also the limit: on the trial an organization has one
   building, and as a client an admin cannot add more buildings or sensors than
-  it pays for (`409 SITE_LIMIT_REACHED`, `409 SENSOR_LIMIT_REACHED`). Clients
-  created by an admin, without a contract, have no limit.
+  it pays for (`409 SITE_LIMIT_REACHED`, `409 SENSOR_LIMIT_REACHED`). A
+  client created by an admin also starts on the 7-day trial, with the same
+  one-building limit, until it subscribes.
 - A client cannot contract fewer buildings or sensors than it already has
   (`409 CONTRACT_BELOW_CURRENT`), nor fewer sensors than buildings.
 - Subscribing is the only way out of the trial: an admin can extend a trial
@@ -541,6 +542,49 @@ support.
 To try it: log in as `hotel@aquaguard.dev`, click "Hazte cliente", subscribe
 with the IBAN `ES91 2100 0418 4502 0005 1332`, then log in as the admin and
 open Hotel Gòtic → Datos. `make seed` puts it back on the trial.
+
+### Form validation
+
+Every field with people or organization data follows one rule, the same in
+the browser and in the API, in every form where it is typed (register,
+accept an invitation, new client wizard, "Hazte cliente", Mi cuenta, edit a
+user, invite) and when it is updated through the API. The rules live in
+`backend/app/shared/fields.py` and `frontend/src/utils/validation.js`;
+passwords keep theirs in `shared/passwords.py` and `utils/passwords.js`.
+
+| Field                         | Rule                                                              | Stored as                     | Error code            |
+|-------------------------------|-------------------------------------------------------------------|-------------------------------|-----------------------|
+| Organization name             | Required; letters (accents, ñ, ç), numbers, spaces and `. , ' ’ - & ( )`, with at least one letter or number; ≤ 120 | Spaces collapsed: `Hotel Mar, S.L.` | `INVALID_NAME` |
+| Person name                   | Required; letters, spaces, `'`, `-` and `.`, with at least one letter; ≤ 120 | Spaces collapsed  | `INVALID_NAME`        |
+| Phone                         | Required; Spanish, 9 digits starting with 6, 7, 8 or 9; `+34`/`0034` optional | `+34 612 345 678`  | `INVALID_PHONE`       |
+| Email                         | Valid email, ≤ 320                                                | Lowercase                     | `VALIDATION_ERROR`    |
+| NIF / CIF                     | 8 to 15 letters or numbers, separators ignored                    | `B12345678`                   | `INVALID_TAX_ID`      |
+| Postal code                   | Five digits                                                       | `08002`                       | `INVALID_POSTAL_CODE` |
+| IBAN                          | Spanish (`ES` + 22 digits) with valid check digits                | Masked                        | `INVALID_IBAN`        |
+| Legal name, address and city  | Required where the form asks for them; length of their column     | Spaces collapsed              | `VALIDATION_ERROR`    |
+
+The phone is required when an admin creates a client and in "Hazte
+cliente". An edit can change it but not delete it. `INVALID_NAME` says in
+`details[0].field` whether it is the person's name or the company's (the
+register form has both). `backend/tests/test_fields.py` and
+`frontend/src/utils/validation.test.js` test the same cases.
+
+Errors look and behave the same in every form (login, register,
+invitation, new client wizard, buildings, sensors, "Hazte cliente", Mi
+cuenta, users, invitations, documents and sensor import):
+
+- `composables/useFieldErrors.js` keeps the errors of a form: the same input
+  style (red border and light red background on error, the same focus
+  ring), `aria-invalid` and `aria-describedby`, the focus on the first wrong
+  field, and the error gone as soon as the field is edited. Its
+  `applyApiError` puts an API error under its field, by code or by
+  `details[0].field`.
+- `components/FieldError.vue` is the message under a field, and
+  `components/FormError.vue` the box of an error of the whole form
+  (`role="alert"`), whose text comes from `utils/apiError.js` (network, rate
+  limit or the backend message).
+- The forms use `novalidate`: the browser bubbles are replaced by these
+  Spanish messages.
 
 ### Analytics export
 
@@ -932,6 +976,7 @@ users in [Demo data](#demo-data). Backend rules are covered by
 | Frontend       | Admin client users: list, edit name, remove access, invitations (F23)                                            | Daruny                 | `/admin/clients/:id` → Usuarios              |
 | Frontend       | Admin client documents: list, filter, download, preview and delete (#293)                                        | Florinda               | `/admin/clients/:id` → Documentos            |
 | Frontend       | "Hazte cliente": buildings and sensors, live price, monthly/yearly, fiscal data                                  | Daruny                 | `/app/subscribe` · `hotel@aquaguard.dev`     |
+| Other          | One validation rule per field in every form and in the API, and one way to show errors (`useFieldErrors`)       | Daruny                 | `make test-backend` · `make test-frontend`   |
 | Frontend       | Admin buildings and sensors floor by floor, pressure chart and forms (F4, F5, F10)                               | Florinda               | `/admin/sites` · `/admin/sensors`            |
 | Frontend       | Admin alerts: client, state and severity filters, counters and sensor ranking (#153)                             | Lylia, Eduardo         | `/admin/alerts`                              |
 | Frontend       | Client home "Mis edificios": alert banner, KPIs, buildings by urgency (F8, F24)                                  | Daruny, Florinda       | `/app` · `client@aquaguard.dev`              |
@@ -1365,7 +1410,8 @@ Issues #130 to #134 were reviewed and merged together in #182.
 | #135  | F19 admin analytics panel: Chart.js charts, date presets, CSV export, 30 s refresh               | #186          | Implemented |
 | #148  | B13 complete OpenAPI documentation: examples, error codes, multipart upload and CSV export       | #228          | Implemented |
 | #150  | "Hazte cliente": price from buildings and sensors, contract stored and enforced as the limit     | —             | Implemented |
-| —     | Login and current password compared as typed (no trimming); unused `UserCreate` removed          | —             | In review   |
+| —     | Login and current password compared as typed (no trimming); unused `UserCreate` removed          | #314          | Implemented |
+| —     | Shared field rules (`shared/fields.py`, `utils/validation.js`): required Spanish phone, company names with `. , ' - & ( )`, normalized data; one error pattern in every form (`useFieldErrors`, `FieldError`, `FormError`) | — | In review |
 
 ### Florinda (`flperez-`)
 
