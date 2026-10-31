@@ -10,6 +10,6 @@ export const FIELD_LIMITS = {
   businessName: 200,
   fiscalAddress: 200,
   city: 120,
-  sensorExternalId: 120,
+  sensorExternalId: 100,
   buildingFloors: 200,
 };
