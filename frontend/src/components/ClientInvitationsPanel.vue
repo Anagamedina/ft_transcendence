@@ -1,0 +1,243 @@
+<!--
+  CLIENT INVITATIONS PANEL
+  "Invitaciones" block of the admin client detail, as in the client design: the
+  pending invitations of one organization and the "Invitar" form, which creates
+  an invitation (POST /api/invitations, B4) and shows the link to send.
+  The person writes their name and password when accepting the link.
+  Data: organizations store (fetchInvitations, createInvitation). Reloads the
+  pending list when it is mounted, so an accepted invitation is gone when the tab opens again.
+  Usage:
+    <ClientInvitationsPanel :organization-id="client.id" />
+-->
+
+<template>
+  <section
+    class="rounded-xl border border-slate-200 bg-white p-5"
+    aria-labelledby="client-invitations-title"
+  >
+    <header class="mb-2 flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h2 id="client-invitations-title" class="font-bold text-slate-900">
+          Invitaciones
+          <span class="font-normal text-slate-600">({{ pendingText }})</span>
+        </h2>
+        <p class="text-sm text-slate-600">Accesos pendientes de aceptar.</p>
+      </div>
+      <button
+        v-if="!formOpen"
+        ref="openButton"
+        type="button"
+        :class="BUTTON_PRIMARY"
+        @click="openForm"
+      >
+        Invitar
+      </button>
+    </header>
+
+    <ul v-if="invitations.length > 0">
+      <li
+        v-for="invitation in invitations"
+        :key="invitation.id"
+        class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 py-4 first:border-t-0"
+      >
+        <div class="min-w-0">
+          <p class="break-all font-semibold text-slate-900">
+            {{ invitation.email }}
+          </p>
+          <p class="text-sm text-slate-600">
+            Caduca el {{ formatDate(invitation.expires_at) }} · Sin aceptar
+          </p>
+        </div>
+        <span
+          class="whitespace-nowrap rounded-md bg-warning-light px-2 py-0.5 text-xs font-semibold text-warning-dark"
+        >
+          Pendiente
+        </span>
+      </li>
+    </ul>
+    <p v-else class="text-sm text-slate-600">No hay invitaciones pendientes.</p>
+
+    <!-- New invitation -->
+    <div v-if="formOpen" class="mt-4 space-y-3 rounded-lg bg-slate-50 p-4">
+      <h3 class="font-semibold text-slate-900">Nueva invitación</h3>
+      <form
+        novalidate
+        class="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end"
+        @submit.prevent="onInvite"
+        @keydown.esc="closeForm"
+      >
+        <div class="flex flex-col gap-1">
+          <label for="invite-email" class="text-sm font-semibold text-slate-700">
+            Email de la persona invitada <span aria-hidden="true">*</span>
+          </label>
+          <input
+            id="invite-email"
+            :ref="setRef('email')"
+            v-model="email"
+            type="email"
+            :maxlength="FIELD_LIMITS.email"
+            required
+            autocomplete="email"
+            placeholder="persona@empresa.com"
+            :class="inputClass('email')"
+            v-bind="fieldAttrs('email', 'invite-email-hint')"
+          />
+        </div>
+        <button
+          type="submit"
+          :class="BUTTON_PRIMARY"
+          :disabled="inviting"
+          :aria-busy="inviting"
+        >
+          {{ inviting ? "Creando…" : "Crear invitación" }}
+        </button>
+        <p id="invite-email-hint" class="text-xs text-slate-600 sm:col-span-2">
+          Acceso de cliente a esta organización. La persona creará su cuenta al
+          aceptar.
+        </p>
+        <div class="sm:col-span-2">
+          <FieldError :id="errorId('email')" :message="errors.email" />
+          <FormError :message="error" />
+        </div>
+      </form>
+      <button type="button" :class="TEXT_BUTTON" @click="closeForm">
+        Cancelar
+      </button>
+    </div>
+
+    <!-- The link is only available right after creating it (InvitationSentResponse) -->
+    <div
+      v-if="lastInvitation"
+      class="mt-4 space-y-2 border-t border-slate-200 pt-4"
+    >
+      <p class="text-sm text-slate-700" role="status">
+        Envía este enlace a {{ lastInvitation.email }} para que active su
+        cuenta.
+      </p>
+      <InviteLinkCopy
+        :link="lastInvitation.url"
+        :expires-at="lastInvitation.expires_at"
+      />
+    </div>
+  </section>
+</template>
+
+<script setup>
+import { ref, computed, nextTick, watch } from "vue";
+import InviteLinkCopy from "./InviteLinkCopy.vue";
+import { useOrganizationsStore } from "../stores/organizations";
+import { formatDate } from "../composables/useFormat";
+import { apiErrorMessage } from "../utils/apiError";
+import { FIELD_LIMITS } from "../utils/limits.js";
+import { emailProblem } from "../utils/validation.js";
+import FieldError from "./FieldError.vue";
+import FormError from "./FormError.vue";
+import { useFieldErrors } from "../composables/useFieldErrors.js";
+
+const props = defineProps({
+  // Organization the invitations belong to
+  organizationId: { type: String, required: true },
+});
+
+const organizationsStore = useOrganizationsStore();
+
+const BUTTON_PRIMARY =
+  "min-h-10 rounded-lg border border-aqua-600 bg-aqua-600 px-4 text-sm font-semibold text-white hover:bg-aqua-700 disabled:cursor-wait disabled:opacity-60";
+const TEXT_BUTTON =
+  "min-h-10 px-1 text-sm font-semibold text-aqua-700 hover:underline";
+
+// The store keeps the pending invitations of the open client
+const invitations = computed(() => organizationsStore.invitations);
+const pendingText = computed(() =>
+  invitations.value.length === 1
+    ? "1 pendiente"
+    : `${invitations.value.length} pendientes`,
+);
+
+const formOpen = ref(false);
+const email = ref("");
+const error = ref("");
+const inviting = ref(false);
+// InvitationSentResponse: the only answer with the link (url)
+const lastInvitation = ref(null);
+const {
+  errors,
+  inputs,
+  errorId,
+  setRef,
+  inputClass,
+  fieldAttrs,
+  clear,
+  check,
+  focusFirstError,
+  clearOnEdit,
+  applyApiError,
+} = useFieldErrors(["email"]);
+clearOnEdit({ email: () => email.value });
+const openButton = ref(null);
+
+function openForm() {
+  formOpen.value = true;
+  error.value = "";
+  clear();
+  nextTick(() => inputs.email?.focus());
+}
+
+function closeForm() {
+  formOpen.value = false;
+  email.value = "";
+  error.value = "";
+  nextTick(() => openButton.value?.focus());
+}
+
+async function onInvite() {
+  const value = email.value.trim();
+  error.value = "";
+  if (!check({ email: () => emailProblem(value) })) {
+    focusFirstError();
+    return;
+  }
+  inviting.value = true;
+  try {
+    // The store also adds it to the pending list
+    lastInvitation.value = await organizationsStore.createInvitation({
+      email: value,
+      organization_id: props.organizationId,
+    });
+    email.value = "";
+    formOpen.value = false;
+    nextTick(() => openButton.value?.focus());
+  } catch (err) {
+    // Email with an account or a pending invitation: under the field
+    const isField = applyApiError(err, {
+      codes: {
+        EMAIL_ALREADY_EXISTS: "email",
+        INVITATION_ALREADY_PENDING: "email",
+      },
+      messages: {
+        email: "Escribe un email válido, por ejemplo nombre@empresa.com.",
+      },
+    });
+    if (!isField) {
+      error.value = apiErrorMessage(
+        err,
+        "No se ha podido crear la invitación. Inténtalo de nuevo.",
+      );
+    }
+    focusFirstError();
+  } finally {
+    inviting.value = false;
+  }
+}
+
+// On open, and again if the page moves to another client
+watch(
+  () => props.organizationId,
+  (id) => {
+    formOpen.value = false;
+    lastInvitation.value = null;
+    organizationsStore.fetchInvitations(id);
+  },
+  { immediate: true },
+);
+</script>

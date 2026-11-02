@@ -1,0 +1,535 @@
+import hashlib
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from decimal import Decimal
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, func
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from app.core import models  # noqa: F401
+from app.core.app_config import (
+    PUBLIC_API_DEMO_ORGANIZATION_ID,
+    AppSettings,
+    app_settings,
+)
+from app.core.database import Base, get_db
+from app.main import app
+from app.modules.alerts.model import Alert
+from app.modules.invitations.model import Invitation
+from app.modules.organizations.model import Organization
+from app.modules.readings.model import Reading
+from app.modules.sensors.model import Sensor
+from app.modules.sensors.status import OFFLINE_TRAS
+from app.modules.sites.model import Site
+from app.modules.subscriptions.plans import (
+    max_sensors_for,
+    max_sites_for,
+    monthly_price,
+    plan_for,
+)
+from app.modules.users.model import User
+from seeds import seed_demo
+
+DEMO_CREDENTIALS = {
+    "admin@aquaguard.dev": "dev-admin-only",
+    "client@aquaguard.dev": "dev-client-only",
+}
+
+# The ids that SIMULATOR_SENSOR_IDS and scripts/smoke.sh use.
+SIMULATOR_AND_SMOKE_IDS = {
+    "00000000-0000-4000-8000-000000000001",
+    "00000000-0000-4000-8000-000000000002",
+    "00000000-0000-4000-8000-000000000003",
+}
+
+ALL_MODELS = (Organization, User, Site, Sensor, Alert, Reading, Invitation)
+
+
+@pytest.fixture()
+def engine():
+    engine = create_engine(
+        "sqlite+pysqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    return engine
+
+
+@pytest.fixture(autouse=True)
+def _seed_against_test_engine(engine, monkeypatch):
+    monkeypatch.setattr(
+        seed_demo, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
+    )
+
+
+@pytest.fixture()
+def client(engine):
+    def _get_db():
+        db = Session(engine, expire_on_commit=False)
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = _get_db
+    yield TestClient(app)
+    app.dependency_overrides.clear()
+
+
+def _login(client, email):
+    return client.post(
+        "/api/auth/login", json={"email": email, "password": DEMO_CREDENTIALS[email]}
+    )
+
+
+def _now_naive():
+    # SQLite gives datetimes back without time zone.
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _naive(moment):
+    return moment.replace(tzinfo=None) if moment.tzinfo else moment
+
+
+def _counts(engine):
+    with Session(engine) as session:
+        return {model: session.query(model).count() for model in ALL_MODELS}
+
+
+def _seed_like_the_old_version(engine):
+    """What the previous seed left: one "Demo" organization and its sites."""
+    with Session(engine) as session:
+        organization = Organization(name=seed_demo.LEGACY_ORGANIZATION_NAME)
+        session.add(organization)
+        session.flush()
+        session.add(
+            User(
+                organization_id=organization.id,
+                email="admin@aquaguard.dev",
+                name="Demo Admin",
+                password_hash="seed-sha256$"
+                + hashlib.sha256(b"dev-admin-only").hexdigest(),
+                role="admin",
+            )
+        )
+        site = Site(organization_id=organization.id, name="Hotel Mediterráneo")
+        session.add(site)
+        session.flush()
+        session.add(
+            Sensor(
+                id=seed_demo._sensor_id(1),
+                site_id=site.id,
+                external_id="SENS-001",
+                name="Presión entrada",
+                low_threshold=Decimal("1.5"),
+                high_threshold=Decimal("6"),
+            )
+        )
+        session.commit()
+
+
+# ---------------------------------------------------------
+# Users
+# ---------------------------------------------------------
+@pytest.mark.parametrize("email", DEMO_CREDENTIALS)
+def test_demo_users_can_log_in_after_seeding(client, email):
+    seed_demo.seed()
+
+    response = _login(client, email)
+
+    assert response.status_code == 200
+    assert response.json()["user"]["email"] == email
+
+
+def test_demo_admin_is_global_and_client_belongs_to_an_organization(client):
+    seed_demo.seed()
+
+    admin = _login(client, "admin@aquaguard.dev").json()["user"]
+    demo_client = _login(client, "client@aquaguard.dev").json()["user"]
+
+    assert admin["organization_id"] is None
+    assert demo_client["organization_id"] is not None
+
+
+def test_seed_repairs_users_left_by_the_old_seed(client, engine):
+    _seed_like_the_old_version(engine)
+    assert _login(client, "admin@aquaguard.dev").status_code == 401
+
+    seed_demo.seed()
+
+    response = _login(client, "admin@aquaguard.dev")
+    assert response.status_code == 200
+    assert response.json()["user"]["organization_id"] is None
+
+
+# ---------------------------------------------------------
+# Organizations and sites
+# ---------------------------------------------------------
+def test_five_clients_in_different_states(engine):
+    seed_demo.seed()
+
+    with Session(engine) as session:
+        organizations = {o.name: o for o in session.query(Organization)}
+
+    assert set(organizations) == {
+        "Residencias Collserola",
+        "Hotel Gòtic",
+        "Comunidad Mallorca 401",
+        "Polideportivo Poblenou",
+        "Aigües Zona Franca",
+    }
+    assert {o.status for o in organizations.values()} == {"ACTIVE", "TRIAL", "SUSPENDED"}
+    gotic = organizations["Hotel Gòtic"]
+    assert gotic.status == "TRIAL"
+    assert _naive(gotic.trial_ends_at) > _now_naive()
+
+
+# Contracts (B14): the demo has a client at every point of its contract
+def _with_counts(session):
+    organizations = {o.name: o for o in session.query(Organization)}
+    sites = dict(
+        session.query(Site.organization_id, func.count(Site.id)).group_by(Site.organization_id)
+    )
+    sensors = dict(
+        session.query(Site.organization_id, func.count(Sensor.id))
+        .join(Sensor, Sensor.site_id == Site.id)
+        .group_by(Site.organization_id)
+    )
+    return {
+        name: (o, sites.get(o.id, 0), sensors.get(o.id, 0))
+        for name, o in organizations.items()
+    }
+
+
+def test_every_client_out_of_the_trial_has_a_contract_that_matches_the_plans(engine):
+    seed_demo.seed()
+
+    with Session(engine) as session:
+        for name, (o, sites, sensors) in _with_counts(session).items():
+            if o.status == "TRIAL":
+                assert o.plan is None and o.contracted_sites is None, name
+                continue
+            plan = plan_for(o.contracted_sites, o.contracted_sensors)
+            assert o.plan == plan.id.value, name
+            assert o.monthly_price_eur == monthly_price(plan, o.contracted_sensors), name
+            assert o.subscribed_at is not None and o.sepa_accepted_at is not None, name
+            assert o.iban_masked.startswith("ES**"), name
+            # Never more than contracted: the API would not have allowed it
+            assert sites <= o.contracted_sites and sensors <= o.contracted_sensors, name
+
+
+def test_the_biggest_client_has_one_building_left_and_no_sensors(engine):
+    """
+    Residencias Collserola: plan Empresa, 15 of its 16 buildings and its 45
+    sensors. The free building is for the public API demo.
+    """
+    seed_demo.seed()
+
+    with Session(engine) as session:
+        o, sites, sensors = _with_counts(session)["Residencias Collserola"]
+        assert (o.plan, o.billing_period) == ("ENTERPRISE", "MONTHLY")
+        assert (sites, sensors) == (15, 45)
+        assert (max_sites_for(o), max_sensors_for(o)) == (16, 45)
+        assert o.monthly_price_eur == 199 + 45 * 10
+
+
+# ---------------------------------------------------------
+# Public API: `make demo` serves it without editing .env
+# ---------------------------------------------------------
+def test_the_public_api_organization_has_the_fixed_demo_id(engine):
+    seed_demo.seed()
+    seed_demo.seed()  # idempotent: the id does not change on a second run
+
+    with Session(engine) as session:
+        collserola = session.query(Organization).filter_by(
+            name="Residencias Collserola"
+        ).one()
+    assert collserola.id == PUBLIC_API_DEMO_ORGANIZATION_ID
+    # Without PUBLIC_API_ORGANIZATION_ID in .env, the API is scoped to it
+    default = AppSettings.model_fields["PUBLIC_API_ORGANIZATION_ID"].default
+    assert default == PUBLIC_API_DEMO_ORGANIZATION_ID
+
+
+def test_env_example_points_the_public_api_to_the_demo_organization():
+    env_example = Path(__file__).resolve().parents[2] / ".env.example"
+    if not env_example.exists():
+        pytest.skip("make test-backend only mounts backend/")
+    assert (
+        f"PUBLIC_API_ORGANIZATION_ID={PUBLIC_API_DEMO_ORGANIZATION_ID}\n"
+        in env_example.read_text()
+    )
+
+
+def test_the_demo_public_api_creates_one_building_and_then_hits_the_limit(
+    client, monkeypatch
+):
+    seed_demo.seed()
+    monkeypatch.setattr(
+        app_settings, "PUBLIC_API_ORGANIZATION_ID", PUBLIC_API_DEMO_ORGANIZATION_ID
+    )
+    monkeypatch.setattr(app_settings, "PUBLIC_API_WRITE_KEY", "demo-write-key")
+    headers = {"X-API-Key": "demo-write-key"}
+    url = "/api/public/v1/sites"
+
+    first = client.post(url, headers=headers, json={"name": "Edificio API"})
+    second = client.post(url, headers=headers, json={"name": "Edificio API 2"})
+    deleted = client.delete(f"{url}/{first.json()['id']}", headers=headers)
+
+    assert first.status_code == 201, first.text
+    assert second.status_code == 409
+    assert second.json()["error"]["code"] == "SITE_LIMIT_REACHED"
+    assert deleted.status_code == 204
+
+
+def test_the_other_clients_leave_room_to_try_the_limits(engine):
+    seed_demo.seed()
+
+    with Session(engine) as session:
+        counts = _with_counts(session)
+    poblenou, sites, sensors = counts["Polideportivo Poblenou"]
+    assert (poblenou.plan, poblenou.billing_period) == ("PRO", "YEARLY")
+    assert (sites, sensors) == (6, 12)  # 3 sensors left for a CSV import
+    mallorca, sites, sensors = counts["Comunidad Mallorca 401"]
+    assert mallorca.plan == "BASIC"
+    assert (sites, sensors) == (2, 4)
+    gotic, sites, _ = counts["Hotel Gòtic"]
+    assert (gotic.status, sites, max_sites_for(gotic)) == ("TRIAL", 1, 1)
+
+
+def test_a_hazte_cliente_on_the_trial_is_undone(engine):
+    seed_demo.seed()
+    with Session(engine) as session:
+        gotic = session.query(Organization).filter_by(name="Hotel Gòtic").one()
+        gotic.status, gotic.plan, gotic.contracted_sites = "ACTIVE", "BASIC", 3
+        session.commit()
+
+    seed_demo.seed()
+
+    with Session(engine) as session:
+        gotic = session.query(Organization).filter_by(name="Hotel Gòtic").one()
+        assert (gotic.status, gotic.plan, gotic.contracted_sites) == ("TRIAL", None, None)
+
+
+def test_the_old_demo_organization_becomes_the_first_client(engine):
+    _seed_like_the_old_version(engine)
+
+    seed_demo.seed()
+
+    with Session(engine) as session:
+        names = {name for (name,) in session.query(Organization.name)}
+        site_names = {name for (name,) in session.query(Site.name)}
+    assert seed_demo.LEGACY_ORGANIZATION_NAME not in names
+    assert len(names) == 5
+    assert "Hotel Mediterráneo" not in site_names
+
+
+def test_seed_renames_the_clients_from_before_barcelona(engine):
+    seed_demo.seed()
+    with Session(engine) as session:
+        # Put back the names the demo had before D10.
+        for new, old in seed_demo.PREVIOUS_ORGANIZATION_NAMES.items():
+            session.query(Organization).filter_by(name=new).update({"name": old})
+        for new, old in seed_demo.PREVIOUS_SITE_NAMES.items():
+            session.query(Site).filter_by(name=new).update({"name": old})
+        for new, old in seed_demo.PREVIOUS_USER_EMAILS.items():
+            session.query(User).filter_by(email=new).update({"email": old})
+        session.commit()
+
+    seed_demo.seed()
+
+    with Session(engine) as session:
+        organizations = {name for (name,) in session.query(Organization.name)}
+        sites = {name for (name,) in session.query(Site.name)}
+        emails = {email for (email,) in session.query(User.email)}
+    assert organizations == {data["name"] for data in seed_demo.ORGANIZATIONS}
+    assert sites == {data["name"] for data in seed_demo.SITES}
+    assert emails == {data["email"] for data in seed_demo.USERS}
+
+
+def test_every_site_has_floors_and_real_coordinates(engine):
+    seed_demo.seed()
+
+    with Session(engine) as session:
+        sites = session.query(Site).all()
+
+    assert len(sites) == len(seed_demo.SITES)
+    for site in sites:
+        assert site.floors >= 1
+        assert site.latitude is not None and site.longitude is not None
+        assert site.building_type != "OTHER"
+    assert any(site.basements > 0 for site in sites)
+
+
+def test_every_site_is_in_a_barcelona_district(engine):
+    seed_demo.seed()
+
+    with Session(engine) as session:
+        sites = session.query(Site).all()
+        cities = {city for (city,) in session.query(Organization.city)}
+
+    # Every district has at least one building, so the map covers the city.
+    # The same ten as the CHECK ck_sites_district.
+    assert {site.district for site in sites} == {
+        "CIUTAT_VELLA", "EIXAMPLE", "SANTS_MONTJUIC", "LES_CORTS",
+        "SARRIA_SANT_GERVASI", "GRACIA", "HORTA_GUINARDO", "NOU_BARRIS",
+        "SANT_ANDREU", "SANT_MARTI",
+    }
+    for site in sites:
+        assert site.address.endswith("Barcelona")
+        # Rough box around the city, the same area the admin map shows.
+        assert Decimal("41.32") < site.latitude < Decimal("41.47")
+        assert Decimal("2.05") < site.longitude < Decimal("2.23")
+    assert cities == {"Barcelona"}
+
+
+# ---------------------------------------------------------
+# Sensors and readings
+# ---------------------------------------------------------
+def test_simulator_and_smoke_sensors_keep_their_ids(engine):
+    seed_demo.seed()
+
+    with Session(engine) as session:
+        ids = {str(sensor_id) for (sensor_id,) in session.query(Sensor.id)}
+
+    assert len(ids) == len(seed_demo.SENSORS)
+    assert SIMULATOR_AND_SMOKE_IDS <= ids
+
+
+def test_every_sensor_is_on_a_floor_of_its_building(engine):
+    seed_demo.seed()
+
+    with Session(engine) as session:
+        sensors = session.query(Sensor).all()
+        assert all(
+            -s.site.basements <= s.floor <= s.site.floors - 1 for s in sensors
+        )
+
+
+def test_the_simulator_list_covers_every_sensor():
+    """
+    A seeded sensor the simulator does not know goes offline after 5 minutes
+    and opens a SENSOR_OFFLINE alert, so .env.example must list them all.
+    """
+    env_example = Path(__file__).resolve().parents[2] / ".env.example"
+    if not env_example.exists():
+        pytest.skip("needs the whole repo: make test-backend only mounts backend/")
+    with open(env_example) as env:
+        line = next(l for l in env if l.startswith("SIMULATOR_SENSOR_IDS="))
+    listed = set(line.strip().split("=", 1)[1].split(","))
+    assert listed == {str(seed_demo._sensor_id(d["n"])) for d in seed_demo.SENSORS}
+
+
+def test_one_sensor_is_offline(engine):
+    seed_demo.seed()
+    offline_id = seed_demo._sensor_id(seed_demo.OFFLINE_SENSOR)
+
+    with Session(engine) as session:
+        last = (
+            session.query(func.max(Reading.created_at))
+            .filter(Reading.sensor_id == offline_id)
+            .scalar()
+        )
+
+    assert _now_naive() - _naive(last) > OFFLINE_TRAS
+
+
+def test_one_sensor_is_out_of_range(engine):
+    seed_demo.seed()
+    sensor_id = seed_demo._sensor_id(seed_demo.OUT_OF_RANGE_SENSOR)
+
+    with Session(engine) as session:
+        sensor = session.get(Sensor, sensor_id)
+        last = (
+            session.query(Reading)
+            .filter(Reading.sensor_id == sensor_id)
+            .order_by(Reading.recorded_at.desc())
+            .first()
+        )
+
+    assert last.value > sensor.high_threshold
+
+
+def test_there_are_readings_today(engine):
+    seed_demo.seed()
+
+    with Session(engine) as session:
+        recent = (
+            session.query(Reading)
+            .filter(Reading.recorded_at >= _now_naive() - timedelta(hours=2))
+            .count()
+        )
+
+    assert recent > 0
+
+
+# ---------------------------------------------------------
+# Alerts and invitation
+# ---------------------------------------------------------
+def test_alerts_of_the_last_30_days_with_who_handled_them(engine):
+    seed_demo.seed()
+
+    with Session(engine) as session:
+        alerts = session.query(Alert).all()
+
+    resolved = [a for a in alerts if a.status == "RESOLVED"]
+    assert len(alerts) == 19
+    assert len(resolved) == 16
+    assert all(a.resolved_by is not None and a.acknowledged_by is not None for a in resolved)
+    assert all(_now_naive() - _naive(a.created_at) < timedelta(days=30) for a in alerts)
+
+
+def test_stray_active_alerts_are_resolved(engine):
+    seed_demo.seed()
+    with Session(engine) as session:
+        session.add(
+            Alert(
+                sensor_id=seed_demo._sensor_id(1),
+                alert_type="SENSOR_OFFLINE",
+                status="ACTIVE",
+                severity="CRITICAL",
+                message="Abierta con el stack parado",
+            )
+        )
+        session.commit()
+
+    seed_demo.seed()
+
+    with Session(engine) as session:
+        active = session.query(Alert).filter(Alert.status == "ACTIVE").count()
+    assert active == 3
+
+
+def test_one_pending_invitation(engine):
+    seed_demo.seed()
+
+    with Session(engine) as session:
+        invitation = session.query(Invitation).one()
+
+    assert invitation.accepted_at is None
+    assert invitation.revoked_at is None
+    assert _naive(invitation.expires_at) > _now_naive()
+
+
+# ---------------------------------------------------------
+# Idempotency and production guard
+# ---------------------------------------------------------
+def test_seed_is_idempotent(engine):
+    seed_demo.seed()
+    before = _counts(engine)
+
+    seed_demo.seed()
+
+    assert _counts(engine) == before
+
+
+def test_seed_refuses_to_run_in_production(engine, monkeypatch):
+    monkeypatch.setattr(seed_demo.app_settings, "ENV", "production")
+
+    with pytest.raises(SystemExit):
+        seed_demo.seed()
+
+    assert all(count == 0 for count in _counts(engine).values())

@@ -1,0 +1,6 @@
+{
+  "name": "aquaguard-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Vue 3 + Vite — añadir deps al implementar (vue, pinia, vue-router, axios, tailwind, daisyui, leaflet, chart.js)"
+}

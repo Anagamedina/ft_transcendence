@@ -1,0 +1,61 @@
+
+
+
+
+Sqlalchemy define como deberiamos tener la base de datos.
+Alembic registra y aplica los cambios necesarios para actualizar
+PostgresSQL hasta ese tener todo actualizado
+
+alembic revision ...
+        ↓
+se crea una migración
+
+alembic upgrade head
+        ↓
+PostgreSQL aplica el cambio
+
+alembic downgrade -1
+        ↓
+PostgreSQL revierte el cambio
+
+
+En backend/alembic.ini  es el archivo de config de alembic
+el cual nos indica:
+- donde estan las migraciones
+- como encontrar el codigo python del proyecto
+- que configuracion de logs usar.
+- que URL de base de datos debe utlizar.
+
+
+en ALEMBIC.INI configuramos la ubicación y el
+comportamiento general de Alembic
+
+en env.py conecta Alembic con la configuracion real,
+la base de datos y los modeles SQLAlchemy
+
+credentials are not stored in alembic.ini.
+
+
+2 funciones importantes en env.py
+
+def run_migrations_offline() -> None:
+- genera una SQL sin abri una conexion directa a postgreSQL
+
+def run_migrations_online() -> None:
+- Connects to PostgreSQL to execute the migration.
+
+COMMANDS TO TEST:
+source .venv/bin/activate
+python --version
+alembic --version
+
+python -c "import sys; sys.path.insert(0, 'backend'); from app.core.config import settings; print(settings.POSTGRES_USER, settings.POSTGRES_HOST, settings.POSTGRES_PORT)"
+
+python -c "import sys; sys.path.insert(0, 'backend'); from app.core.database import engine, SessionLocal, Base, get_db; print(engine.url.render_as_string(hide_password=True)); print(Base.metadata.tables.keys())"
+
+docker compose up -d database
+docker compose ps
+
+cd backend
+../.venv/bin/alembic heads
+../.venv/bin/alembic history

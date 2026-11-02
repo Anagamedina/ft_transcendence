@@ -1,0 +1,5 @@
+generar y la migracion de Alembic:
+cd backend/
+alembic revision --autogenerate -m "fix alerts type/status check constraints, add message"
+
+alembic upgrade head

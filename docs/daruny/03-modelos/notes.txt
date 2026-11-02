@@ -1,0 +1,47 @@
+
+los Modelos  describen el esquema de cada tabla.
+Alembic: gestiona el historial de cambios
+PostgreSQL:  base donde existen las tablas
+
+Orden de implementacion de cada esquema:
+
+Organization
+├── User
+└── Site
+    └── Sensor
+        ├── Reading
+        └── Alert
+
+4. Diseñar cada tabla antes de escribir código
+Para cada entidad, responde en un documento o papel:
+- ¿Cuál es su clave primaria?
+- ¿Qué atributos son obligatorios?
+- ¿Qué atributos pueden ser NULL?
+- ¿De qué tabla depende?
+- ¿Qué atributo debe ser único?
+- ¿Qué índice necesitará?
+- ¿Qué ocurre si se elimina la entidad padre?
+- ¿Qué tipo PostgreSQL corresponde a cada dato?
+
+
+5. Elegir los tipos
+Usa estas reglas:
+- Identificadores: Integer o BigInteger.
+- Nombres y emails: String(n).
+- Direcciones o textos largos: Text.
+- Presión y umbrales: Numeric, no Float.
+- Coordenadas: Numeric.
+- Fechas: DateTime(timezone=True).
+- Activado/desactivado: Boolean.
+- Estados: String con CheckConstraint o un Enum.
+
+En cada modelo añade progresivamente:
+1. __tablename__.
+2. Columnas.
+3. PK.
+4. FK.
+5. Constraints.
+6. Relaciones ORM.
+
+alembic revision --autogenerate -m "create domain models"
+alembic upgrade head
